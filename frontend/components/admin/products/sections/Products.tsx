@@ -9,7 +9,7 @@ const Products: React.FC = () => {
   const handleSubmit = async (formData: ProductFormData) => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/v1/api/products', {
+      const response = await fetch('https://itech-compters.onrender.com/api/products', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

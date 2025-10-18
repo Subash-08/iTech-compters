@@ -47,7 +47,6 @@ router.get('/admin/products', getAdminProducts);
 // Update product status
 
 router.post("/admin/product/new", createProduct);  // Create new product
-router.get("/admin/products", getAdminProducts);  // Get all products (admin view)
 router.get("/admin/product/:id", getAdminProductById);  // Get product by ID (admin)
 router.delete("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), deleteProduct);  // Delete product
 router.post("/admin/products/bulk", addMultipleProducts);

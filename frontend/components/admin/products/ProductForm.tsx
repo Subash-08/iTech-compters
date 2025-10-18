@@ -9,7 +9,7 @@ import FeaturesSection from './sections/FeaturesSection';
 import DimensionsWeightSection from './sections/DimensionsWeightSection';
 import SeoSection from './sections/SeoSection';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://itech-compters.onrender.com';
 
 const initialProductData: ProductFormData = {
   // Basic Information

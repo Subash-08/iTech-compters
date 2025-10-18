@@ -19,7 +19,9 @@ const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://localhost:5000', // Add this
-    'http://127.0.0.1:5000'  // Add this
+    'http://127.0.0.1:5000',
+    'https://itech-compters.onrender.com',
+    'https://www.itech-compters.onrender.com'  // Add this
 ];
 
 app.use(cors({

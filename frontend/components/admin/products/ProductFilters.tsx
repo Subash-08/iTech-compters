@@ -21,13 +21,13 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
         setLoading(true);
         
         // Fetch brands
-        const brandsResponse = await fetch('http://localhost:5000/api/v1/admin/brands', {
+        const brandsResponse = await fetch('https://itech-compters.onrender.com/admin/brands', {
           credentials: 'include'
         });
         const brandsData = await brandsResponse.json();
         
         // Fetch categories
-        const categoriesResponse = await fetch('http://localhost:5000/api/v1/admin/categories', {
+        const categoriesResponse = await fetch('https://itech-compters.onrender.com/admin/categories', {
           credentials: 'include'
         });
         const categoriesData = await categoriesResponse.json();

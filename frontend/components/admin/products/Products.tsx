@@ -36,7 +36,7 @@ const Products: React.FC = () => {
         if (value) queryParams.append(key, value.toString());
       });
 
-      const response = await fetch(`http://localhost:5000/api/v1/admin/products?${queryParams}`, {
+      const response = await fetch(`https://itech-compters.onrender.com/admin/products?${queryParams}`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -169,8 +169,8 @@ const handleDelete = async (productId: string) => {
     setError(null);
     try {
       const url = editingProduct 
-        ? `http://localhost:5000/api/v1/admin/product/${editingProduct._id}` // Update endpoint
-        : 'http://localhost:5000/api/v1/admin/product/new'; // Create endpoint
+        ? `https://itech-compters.onrender.com/admin/product/${editingProduct._id}` // Update endpoint
+        : 'https://itech-compters.onrender.com/admin/product/new'; // Create endpoint
 
       const method = editingProduct ? 'PUT' : 'POST';
 
