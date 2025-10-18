@@ -52,10 +52,10 @@ const HomePage: React.FC = () => {
       setError('');
 
       const [brandsRes, categoriesRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1/brands`),
-        fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1/categories`),
-        fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1/products?limit=8&sort=popular&order=desc`),
-        fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1/products?limit=8&sort=newest&order=desc`)
+        fetch(`${import.meta.env.VITE_API_URL || "https://itech-compters.onrender.com"}/api/v1/brands`),
+        fetch(`${import.meta.env.VITE_API_URL || "https://itech-compters.onrender.com"}/api/v1/categories`),
+        fetch(`${import.meta.env.VITE_API_URL || "https://itech-compters.onrender.com"}/api/v1/products?limit=8&sort=popular&order=desc`),
+        fetch(`${import.meta.env.VITE_API_URL || "https://itech-compters.onrender.com"}/api/v1/products?limit=8&sort=newest&order=desc`)
       ]);
 
       if (!brandsRes.ok) throw new Error('Failed to fetch brands');

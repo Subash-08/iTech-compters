@@ -192,8 +192,8 @@ const ProductDisplay: React.FC = () => {
         console.log('Fetching product with slug:', slug);
 
         const endpoints = [
-          `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1/products/slug/${slug}`,
-          `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1/products/${slug}`
+          `${import.meta.env.VITE_API_URL || "https://itech-compters.onrender.com"}/api/v1/products/slug/${slug}`,
+          `${import.meta.env.VITE_API_URL || "https://itech-compters.onrender.com"}/api/v1/products/${slug}`
         ];
 
         let productData: ProductData | null = null;

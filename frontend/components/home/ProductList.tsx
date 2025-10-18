@@ -95,7 +95,7 @@ const fetchProducts = async () => {
     console.log('Route params - brandName:', brandName, 'categoryName:', categoryName);
 
     // ALWAYS use generic products endpoint with query parameters
-    let apiUrl = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1/products`;
+    let apiUrl = `${import.meta.env.VITE_API_URL || "https://itech-compters.onrender.com"}/api/v1/products`;
     let params: Record<string, string> = {
       page: currentPage.toString(),
       limit: '12',

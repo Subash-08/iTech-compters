@@ -36,7 +36,7 @@ const Products: React.FC = () => {
         if (value) queryParams.append(key, value.toString());
       });
 
-      const response = await fetch(`https://itech-compters.onrender.com/admin/products?${queryParams}`, {
+      const response = await fetch(`https://itech-compters.onrender.com/api/v1/admin/products?${queryParams}`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -100,7 +100,7 @@ const handleStatusChange = async (productId: string, newStatus: string) => {
        
         const payload = { status: newStatus };
 
-        const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://itech-compters.onrender.com';
         
         
         const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/${productId}/status`, {
@@ -169,8 +169,8 @@ const handleDelete = async (productId: string) => {
     setError(null);
     try {
       const url = editingProduct 
-        ? `https://itech-compters.onrender.com/admin/product/${editingProduct._id}` // Update endpoint
-        : 'https://itech-compters.onrender.com/admin/product/new'; // Create endpoint
+        ? `https://itech-compters.onrender.com/api/v1/admin/product/${editingProduct._id}` // Update endpoint
+        : 'https://itech-compters.onrender.com/api/v1/admin/product/new'; // Create endpoint
 
       const method = editingProduct ? 'PUT' : 'POST';
 
