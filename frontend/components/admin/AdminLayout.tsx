@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { SidebarItem } from './types/admin';
-import { Icons } from './icon';
+import { Icons } from './Icon';
 
 // Import your admin components
 import Products from './products/Products';

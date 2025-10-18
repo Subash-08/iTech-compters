@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SidebarItem } from './types/admin';
-import { Icons } from './icon';
+import { Icons } from './Icon';
 
 interface SidebarProps {
   items: SidebarItem[];
