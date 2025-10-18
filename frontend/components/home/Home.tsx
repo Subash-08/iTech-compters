@@ -9,7 +9,7 @@ import FeaturedBrands from './FeaturedBrands';
 import Testimonials from './Testimonials';
 import BlogSection from './BlogSection';
 import ProductList from './ProductList';
-import HomePage from './fetchBrandsAndCategories';
+import HomePage from './FetchBrandsAndCategories';
 
 const App: React.FC = () => {
   return (
