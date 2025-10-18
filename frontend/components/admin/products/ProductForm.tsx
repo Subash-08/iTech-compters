@@ -190,8 +190,8 @@ useEffect(() => {
   const fetchBrandsAndCategories = async () => {
     try {
       const [brandsResponse, categoriesResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/brands`),
-        fetch(`${API_BASE_URL}/categories`)
+        fetch(`https://itech-compters.onrender.com/api/v1//brands`),
+        fetch(`https://itech-compters.onrender.com/api/v1/categories`)
       ]);
 
       if (!brandsResponse.ok || !categoriesResponse.ok) {
