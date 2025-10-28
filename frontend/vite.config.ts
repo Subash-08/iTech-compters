@@ -16,8 +16,21 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+          '@': path.resolve(__dirname, './src'), // Fix this path
         }
+      },
+      // Add build configuration
+      build: {
+        rollupOptions: {
+          external: [], // Ensure this is empty or doesn't include react-redux
+        },
+        commonjsOptions: {
+          include: [/node_modules/],
+          transformMixedEsModules: true
+        }
+      },
+      optimizeDeps: {
+        include: ['react-redux'] // Force include react-redux in optimization
       }
     };
 });
