@@ -1,123 +1,494 @@
 const Brand = require("../models/brandModel");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middlewares/catchAsyncError");
+const fs = require("fs").promises;
+const path = require("path");
 
-// 🆕 Create a new Brand (Admin only)
-exports.createBrand = catchAsyncErrors(async (req, res, next) => {
-    const { name, logo, description, metaTitle, metaDescription, metaKeywords } = req.body;
+// Helper function to process logo upload
+const processLogoUpload = async (file) => {
+    try {
+        if (!file) return null;
 
-    if (!name) {
-        return next(new ErrorHandler("Brand name is required", 400));
+        // Create brands directory if it doesn't exist
+        const brandsDir = path.join(__dirname, '../public/uploads/brands');
+        try {
+            await fs.access(brandsDir);
+        } catch (error) {
+            await fs.mkdir(brandsDir, { recursive: true });
+        }
+
+        // Generate unique filename
+        const fileExtension = path.extname(file.originalname);
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const filename = 'brand-' + uniqueSuffix + fileExtension;
+        const filepath = path.join(brandsDir, filename);
+
+        // Move file to permanent location
+        await fs.rename(file.path, filepath);
+
+        // Return logo object for database storage
+        return {
+            url: `/uploads/brands/${filename}`,
+            altText: null,
+            publicId: null
+        };
+    } catch (error) {
+        // Clean up temporary file if processing fails
+        if (file && file.path) {
+            try {
+                await fs.unlink(file.path);
+            } catch (unlinkError) {
+                console.error('Error cleaning up temp file:', unlinkError);
+            }
+        }
+        throw new Error(`Logo upload failed: ${error.message}`);
     }
+};
 
-    // Generate slug from name
-    const slug = name.toLowerCase().replace(/\s+/g, "-");
+// Helper function to remove logo file
+const removeLogoFile = async (logo) => {
+    try {
+        if (!logo || !logo.url) return;
 
-    const existingBrand = await Brand.findOne({ slug });
-    if (existingBrand) {
-        return next(new ErrorHandler("Brand already exists", 400));
+        const logoPath = logo.url;
+        const fullPath = path.join(__dirname, '../public', logoPath);
+
+        try {
+            await fs.access(fullPath);
+            await fs.unlink(fullPath);
+        } catch (error) {
+        }
+    } catch (error) {
+        console.error('Error removing logo file:', error);
     }
+};
 
-    const brand = await Brand.create({
-        name,
-        slug,
-        logo,
-        description,
-        metaTitle,
-        metaDescription,
-        metaKeywords,
-    });
+// Helper function to generate slug
+const generateSlug = (name) => {
+    return name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9 -]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+};
 
-    res.status(201).json({
-        success: true,
-        message: "Brand created successfully",
-        brand,
-    });
-});
-
-// 🧾 Get all brands (Admin)
-exports.getAllBrands = catchAsyncErrors(async (req, res, next) => {
-    const brands = await Brand.find().sort({ createdAt: -1 });
-    res.status(200).json({
-        success: true,
-        count: brands.length,
-        brands,
-    });
-});
-// Create multiple brands - POST /api/v1/admin/brands/bulk
-exports.createMultipleBrands = catchAsyncErrors(async (req, res, next) => {
-    const { brands } = req.body;
-
-    if (!brands || !Array.isArray(brands) || brands.length === 0) {
-        return res.status(400).json({
-            success: false,
-            message: "Please provide an array of brands"
-        });
-    }
-
-    // Validate each brand object
-    const validBrands = [];
+// Helper function to validate brand data
+const validateBrandData = (data, isUpdate = false) => {
     const errors = [];
 
-    for (let i = 0; i < brands.length; i++) {
-        const brandData = brands[i];
+    if (!isUpdate || data.name !== undefined) {
+        if (!data.name || data.name.trim().length === 0) {
+            errors.push('Brand name is required');
+        } else if (data.name.length > 100) {
+            errors.push('Brand name must be less than 100 characters');
+        }
+    }
 
-        if (!brandData.name || !brandData.name.trim()) {
-            errors.push(`Brand at index ${i} is missing required field: name`);
-            continue;
+    if (data.description && data.description.length > 500) {
+        errors.push('Description must be less than 500 characters');
+    }
+
+    if (data.status && !['active', 'inactive'].includes(data.status)) {
+        errors.push('Status must be either active or inactive');
+    }
+
+    if (data.metaTitle && data.metaTitle.length > 60) {
+        errors.push('Meta title must be less than 60 characters');
+    }
+
+    if (data.metaDescription && data.metaDescription.length > 160) {
+        errors.push('Meta description must be less than 160 characters');
+    }
+
+    return errors;
+};
+
+// @desc    Create a new brand
+// @route   POST /api/admin/brands
+// @access  Public (temporarily without auth)
+const createBrand = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const {
+            name,
+            description,
+            status = 'active',
+            metaTitle,
+            metaDescription,
+            metaKeywords,
+            logoAltText
+        } = req.body;
+
+        // Validate required fields
+        if (!name || name.trim().length === 0) {
+            return next(new ErrorHandler('Brand name is required', 400));
+        }
+
+        // Validate brand data
+        const validationErrors = validateBrandData(req.body);
+        if (validationErrors.length > 0) {
+            return next(new ErrorHandler(validationErrors[0], 400));
         }
 
         // Check if brand already exists
         const existingBrand = await Brand.findOne({
-            name: { $regex: new RegExp(`^${brandData.name.trim()}$`, 'i') }
+            name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }
         });
 
         if (existingBrand) {
-            errors.push(`Brand '${brandData.name}' already exists`);
-            continue;
+            return next(new ErrorHandler('Brand with this name already exists', 409));
         }
 
-        // Create brand object without createdBy for now
-        const brandObj = {
-            name: brandData.name.trim(),
-            slug: brandData.slug || brandData.name.toLowerCase().replace(/\s+/g, '-'),
-            logo: brandData.logo || "",
-            description: brandData.description || "",
-            metaTitle: brandData.metaTitle || "",
-            metaDescription: brandData.metaDescription || "",
-            metaKeywords: brandData.metaKeywords || []
-        };
-
-        // Only add createdBy if user is authenticated
-        if (req.user && req.user._id) {
-            brandObj.createdBy = req.user._id;
+        // Process logo upload if present
+        let logoData = null;
+        if (req.file) {
+            try {
+                logoData = await processLogoUpload(req.file);
+                // Set alt text if provided
+                if (logoAltText) {
+                    logoData.altText = logoAltText;
+                } else {
+                    logoData.altText = `${name} logo`;
+                }
+            } catch (uploadError) {
+                return next(new ErrorHandler(uploadError.message, 400));
+            }
         }
 
-        validBrands.push(brandObj);
-    }
+        // Generate slug from name
+        const slug = generateSlug(name);
 
-    if (validBrands.length === 0) {
-        return res.status(400).json({
-            success: false,
-            message: "No valid brands to create",
-            errors: errors
+        // Check if slug already exists
+        const existingSlug = await Brand.findOne({ slug });
+        if (existingSlug) {
+            // Clean up uploaded logo if slug conflict
+            if (logoData) {
+                await removeLogoFile(logoData);
+            }
+            return next(new ErrorHandler('Brand with similar name already exists', 409));
+        }
+
+        // Prepare meta keywords array
+        const keywordsArray = metaKeywords ?
+            metaKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0) :
+            [];
+
+        // Create brand (without user references)
+        const brand = await Brand.create({
+            name: name.trim(),
+            slug,
+            description: description?.trim() || '',
+            logo: logoData,
+            status,
+            metaTitle: metaTitle?.trim() || '',
+            metaDescription: metaDescription?.trim() || '',
+            metaKeywords: keywordsArray
+            // Removed: createdBy: req.user._id
         });
+
+        res.status(201).json({
+            success: true,
+            message: 'Brand created successfully',
+            brand
+        });
+
+    } catch (error) {
+        console.error('Create brand error:', error);
+        next(error);
+    }
+});
+
+// @desc    Get all brands (public - active only, admin - all)
+// @route   GET /api/brands & /api/admin/brands
+// @access  Public
+const getAllBrands = catchAsyncErrors(async (req, res, next) => {
+    const { page = 1, limit = 10, search, status } = req.query;
+    const isAdminRoute = req.originalUrl.includes('/admin/');
+
+    // Build filter object
+    const filter = {};
+
+    // For public route, only show active brands
+    if (!isAdminRoute) {
+        filter.status = 'active';
+    } else if (status && ['active', 'inactive'].includes(status)) {
+        filter.status = status;
     }
 
-    // Insert all valid brands
-    const createdBrands = await Brand.insertMany(validBrands);
+    // Search functionality
+    if (search) {
+        filter.$or = [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } }
+        ];
+    }
 
-    res.status(201).json({
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get brands with pagination
+    const brands = await Brand.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .select('-__v');
+
+    // Get total count for pagination
+    const totalBrands = await Brand.countDocuments(filter);
+    const totalPages = Math.ceil(totalBrands / limitNum);
+
+    res.status(200).json({
         success: true,
-        message: `${createdBrands.length} brand(s) created successfully`,
-        data: {
-            brands: createdBrands
-        },
-        stats: {
-            totalRequested: brands.length,
-            successfullyCreated: createdBrands.length,
-            failed: errors.length
-        },
-        errors: errors.length > 0 ? errors : undefined
+        brands,
+        pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: totalBrands,
+            pages: totalPages
+        }
     });
 });
+
+// @desc    Get single brand by slug or ID
+// @route   GET /api/brand/slug/:slug & /api/admin/brands/:slug
+// @access  Public
+const getBrand = catchAsyncErrors(async (req, res, next) => {
+    const { slug } = req.params;
+    const isAdminRoute = req.originalUrl.includes('/admin/');
+
+    // Build query - try to find by slug first, then by ID
+    let brand = await Brand.findOne({ slug });
+
+    // If not found by slug and it looks like an ObjectId, try by ID
+    if (!brand && slug.match(/^[0-9a-fA-F]{24}$/)) {
+        brand = await Brand.findById(slug);
+    }
+
+    if (!brand) {
+        return next(new ErrorHandler('Brand not found', 404));
+    }
+
+    // For public routes, only return active brands
+    if (!isAdminRoute && brand.status !== 'active') {
+        return next(new ErrorHandler('Brand not found', 404));
+    }
+
+    res.status(200).json({
+        success: true,
+        brand
+    });
+});
+
+// @desc    Update brand
+// @route   PUT /api/admin/brands/:slug
+// @access  Public (temporarily without auth)
+const updateBrand = catchAsyncErrors(async (req, res, next) => {
+    const { slug } = req.params;
+    const {
+        name,
+        description,
+        status,
+        deactivationReason,
+        metaTitle,
+        metaDescription,
+        metaKeywords,
+        logoAltText,
+        removeLogo
+    } = req.body;
+
+    // Find brand by slug or ID
+    let brand = await Brand.findOne({ slug });
+    if (!brand && slug.match(/^[0-9a-fA-F]{24}$/)) {
+        brand = await Brand.findById(slug);
+    }
+
+    if (!brand) {
+        return next(new ErrorHandler('Brand not found', 404));
+    }
+
+    // Prepare update data
+    const updateData = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (description !== undefined) updateData.description = description;
+    if (status !== undefined) updateData.status = status;
+    if (deactivationReason !== undefined) updateData.deactivationReason = deactivationReason;
+    if (metaTitle !== undefined) updateData.metaTitle = metaTitle;
+    if (metaDescription !== undefined) updateData.metaDescription = metaDescription;
+    if (metaKeywords !== undefined) {
+        updateData.metaKeywords = metaKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    }
+    // Removed: updateData.updatedBy = req.user._id;
+
+    // Handle logo removal if requested
+    if (removeLogo === 'true' && brand.logo && brand.logo.url) {
+        await removeLogoFile(brand.logo);
+        updateData.logo = {
+            url: null,
+            altText: null,
+            publicId: null
+        };
+    }
+
+    // Handle logo upload if file exists
+    if (req.file) {
+        try {
+            // Remove old logo if exists
+            if (brand.logo && brand.logo.url) {
+                await removeLogoFile(brand.logo);
+            }
+
+            const newLogoData = await processLogoUpload(req.file);
+            // Set alt text if provided
+            if (logoAltText) {
+                newLogoData.altText = logoAltText;
+            } else if (name) {
+                newLogoData.altText = `${name} logo`;
+            }
+
+            updateData.logo = newLogoData;
+        } catch (uploadError) {
+            return next(new ErrorHandler(uploadError.message, 400));
+        }
+    } else if (logoAltText !== undefined && brand.logo) {
+        // Update only alt text if no new file
+        updateData.logo = {
+            ...brand.logo.toObject(),
+            altText: logoAltText
+        };
+    }
+
+    // Check if name is being updated and if it already exists
+    if (name && name.trim() !== brand.name) {
+        const existingBrand = await Brand.findOne({
+            name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+            _id: { $ne: brand._id }
+        });
+
+        if (existingBrand) {
+            return next(new ErrorHandler('Brand with this name already exists', 409));
+        }
+
+        // Generate new slug if name changed
+        updateData.slug = generateSlug(name);
+
+        // Check if new slug already exists
+        const existingSlug = await Brand.findOne({
+            slug: updateData.slug,
+            _id: { $ne: brand._id }
+        });
+
+        if (existingSlug) {
+            return next(new ErrorHandler('Brand with similar name already exists', 409));
+        }
+    }
+
+    // Handle deactivation reason and dates
+    if (status === 'inactive' && brand.status === 'active') {
+        updateData.deactivatedAt = new Date();
+        // Removed: updateData.deactivatedBy = req.user._id;
+    } else if (status === 'active' && brand.status === 'inactive') {
+        updateData.deactivationReason = null;
+        updateData.deactivatedAt = null;
+        updateData.deactivatedBy = null;
+    }
+
+    // Update brand
+    const updatedBrand = await Brand.findByIdAndUpdate(
+        brand._id,
+        updateData,
+        {
+            new: true,
+            runValidators: true
+        }
+    );
+
+    res.status(200).json({
+        success: true,
+        message: 'Brand updated successfully',
+        brand: updatedBrand
+    });
+});
+
+// @desc    Update brand status
+// @route   PATCH /api/admin/brands/:id/status
+// @access  Public (temporarily without auth)
+const updateBrandStatus = catchAsyncErrors(async (req, res, next) => {
+    const { id } = req.params;
+    const { status, deactivationReason } = req.body;
+
+    if (!status || !['active', 'inactive'].includes(status)) {
+        return next(new ErrorHandler('Valid status (active/inactive) is required', 400));
+    }
+
+    const updateData = { status };
+
+    if (status === 'inactive') {
+        updateData.deactivationReason = deactivationReason || 'other';
+        updateData.deactivatedAt = new Date();
+        // Removed: updateData.deactivatedBy = req.user._id;
+    } else {
+        updateData.deactivationReason = null;
+        updateData.deactivatedAt = null;
+        updateData.deactivatedBy = null;
+    }
+
+    const brand = await Brand.findByIdAndUpdate(
+        id,
+        updateData,
+        {
+            new: true,
+            runValidators: true
+        }
+    );
+
+    if (!brand) {
+        return next(new ErrorHandler('Brand not found', 404));
+    }
+
+    res.status(200).json({
+        success: true,
+        message: `Brand ${status === 'active' ? 'activated' : 'deactivated'} successfully`,
+        brand
+    });
+});
+
+// @desc    Delete brand
+// @route   DELETE /api/admin/brands/:slug
+// @access  Public (temporarily without auth)
+const deleteBrand = catchAsyncErrors(async (req, res, next) => {
+    const { slug } = req.params;
+
+    // Find brand by slug or ID
+    let brand = await Brand.findOne({ slug });
+    if (!brand && slug.match(/^[0-9a-fA-F]{24}$/)) {
+        brand = await Brand.findById(slug);
+    }
+
+    if (!brand) {
+        return next(new ErrorHandler('Brand not found', 404));
+    }
+
+    // Remove logo file if exists
+    if (brand.logo && brand.logo.url) {
+        await removeLogoFile(brand.logo);
+    }
+
+    // Permanent delete
+    await Brand.findByIdAndDelete(brand._id);
+
+    res.status(200).json({
+        success: true,
+        message: 'Brand deleted successfully'
+    });
+});
+
+module.exports = {
+    createBrand,
+    getAllBrands,
+    getBrand,
+    updateBrand,
+    updateBrandStatus,
+    deleteBrand
+};

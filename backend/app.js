@@ -9,6 +9,7 @@ const brandRoutes = require("./routes/brand");
 const adminRoutes = require("./routes/admin");
 const categoryRoutes = require("./routes/category");
 const productRoutes = require('./routes/product');
+const userRoutes = require('./routes/user')
 
 dotenv.config({ path: path.join(__dirname, 'config/config.env') });
 
@@ -18,10 +19,10 @@ const app = express();
 const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://localhost:5000', // Add this
+    'http://localhost:5000',
     'http://127.0.0.1:5000',
     'https://itech-compters.onrender.com',
-    'https://www.itech-compters.onrender.com'  // Add this
+    'https://www.itech-compters.onrender.com'
 ];
 
 app.use(cors({
@@ -41,25 +42,61 @@ app.use(cors({
 }));
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
-// Serve uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files - FIXED PATH
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
+// Alternative: Serve entire public folder
+// app.use(express.static(path.join(__dirname, 'public')));
 
 // API Routes
 app.use('/api/v1', productRoutes);
 app.use("/api/v1", categoryRoutes);
 app.use("/api/v1", brandRoutes);
 app.use('/api/v1', adminRoutes);
+app.use('/api/v1', userRoutes)
+
+// Health check route
+app.get('/api/v1/health', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Server is running',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Test route for static file serving
+app.get('/api/v1/test-static', (req, res) => {
+    const fs = require('fs');
+    const uploadsPath = path.join(__dirname, 'public/uploads/brands');
+
+    try {
+        const files = fs.readdirSync(uploadsPath);
+        res.json({
+            success: true,
+            message: 'Static file serving test',
+            uploadsPath,
+            files: files.slice(0, 10) // Show first 10 files
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error reading uploads directory',
+            error: error.message,
+            uploadsPath
+        });
+    }
+});
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
     // Serve static files from build folder
     app.use(express.static(path.join(__dirname, '../frontend/dist'), {
-        index: false, // Don't serve index.html for all requests
-        maxAge: '1d' // Cache static assets
+        index: false,
+        maxAge: '1d'
     }));
 
     // Serve index.html for all other routes (SPA)
@@ -69,7 +106,16 @@ if (process.env.NODE_ENV === 'production') {
 } else {
     // In development, just serve a basic response for root
     app.get('/', (req, res) => {
-        res.json({ message: 'Backend server is running' });
+        res.json({
+            message: 'Backend server is running',
+            endpoints: {
+                health: '/api/v1/health',
+                testStatic: '/api/v1/test-static',
+                brands: '/api/v1/brands',
+                products: '/api/v1/products',
+                categories: '/api/v1/categories'
+            }
+        });
     });
 }
 

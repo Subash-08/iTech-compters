@@ -6,7 +6,10 @@ const {
     getAdminProducts, getAdminProductById, updateProduct, deleteProduct,
     addVariant, updateVariant, deleteVariant, addMultipleProducts,
     getAllProducts,
-    updateProductStatus
+    updateProductStatus,
+    getReviews,
+    getReview,
+    adminDeleteReview
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
@@ -31,25 +34,34 @@ router.get("/products/:id/variants", getProductVariants);  // Get all variants o
 router.get("/products/:id/reviews", getProductReviews);  // Get all reviews for a product
 
 
-// Logged In User
+// 🔓 PUBLIC ROUTES
+router.get("/product/:id/reviews", getReviews);  // Get all reviews for a product
+router.get("/product/:id/review/:reviewId", getReview);  // Get single review
 
-
+// 🔐 USER ROUTES (Logged-in users)
 router.post("/product/:id/review", isAuthenticatedUser, addReview);  // Add a review
-router.put("/product/:id/review/:reviewId", isAuthenticatedUser, updateReview);  // Update own review
-router.delete("/product/:id/review/:reviewId", isAuthenticatedUser, deleteReview);  // Delete own review
+router.put("/product/:id/review", isAuthenticatedUser, updateReview);  // Update own review
+router.delete("/product/:id/review", isAuthenticatedUser, deleteReview);  // Delete own review
+
+// 👑 ADMIN ROUTES
+router.delete("/admin/product/:id/review/:reviewId",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    adminDeleteReview
+);  // Admin delete any review
 
 
 
 // Admin Routes
 // Admin products route
-router.get('/admin/products', getAdminProducts);
+router.get('/admin/products', isAuthenticatedUser, authorizeRoles("admin"), getAdminProducts);
 
 // Update product status
 
-router.post("/admin/product/new", createProduct);  // Create new product
-router.get("/admin/product/:id", getAdminProductById);  // Get product by ID (admin)
+router.post("/admin/product/new", isAuthenticatedUser, authorizeRoles("admin"), createProduct);  // Create new product
+router.get("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), getAdminProductById);  // Get product by ID (admin)
 router.delete("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), deleteProduct);  // Delete product
-router.post("/admin/products/bulk", addMultipleProducts);
+router.post("/admin/products/bulk", isAuthenticatedUser, authorizeRoles("admin"), addMultipleProducts);
 
 
 // Admin routes for variants

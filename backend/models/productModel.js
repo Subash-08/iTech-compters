@@ -60,7 +60,11 @@ const featureSchema = new Schema({
 
 // 🧾 Review Schema
 const reviewSchema = new Schema({
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    user: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     rating: {
         type: Number,
         required: true,
@@ -68,9 +72,16 @@ const reviewSchema = new Schema({
         max: 5,
         validate: integerValidator
     },
-    comment: { type: String, trim: true },
-    createdAt: { type: Date, default: Date.now },
-}, { _id: false });
+    comment: {
+        type: String,
+        trim: true,
+        default: ""
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+});
 
 // 🧠 ENHANCED Main Product Schema with Color Support
 const productSchema = new Schema({
@@ -249,31 +260,33 @@ productSchema.pre('save', function (next) {
 });
 
 // Post-save: Update review stats
-productSchema.post('save', async function (doc) {
+productSchema.pre('save', function (next) {
     if (this.isModified('reviews')) {
-        let newAverage = 0;
-        let newCount = 0;
-
         if (this.reviews && this.reviews.length > 0) {
-            const stats = await this.constructor.aggregate([
-                { $match: { _id: this._id } },
-                { $unwind: '$reviews' },
-                { $group: { _id: null, avg: { $avg: '$reviews.rating' }, count: { $sum: 1 } } },
-            ]);
-
-            newAverage = stats.length > 0 ? parseFloat(stats[0].avg.toFixed(1)) : 0;
-            newCount = stats.length > 0 ? stats[0].count : 0;
-        }
-
-        if (this.averageRating !== newAverage || this.totalReviews !== newCount) {
-            await this.constructor.updateOne(
-                { _id: this._id },
-                { $set: { averageRating: newAverage, totalReviews: newCount } }
-            ).exec();
+            this.totalReviews = this.reviews.length;
+            this.averageRating = parseFloat((
+                this.reviews.reduce((sum, review) => sum + review.rating, 0) / this.totalReviews
+            ).toFixed(1));
+        } else {
+            this.totalReviews = 0;
+            this.averageRating = 0;
         }
     }
+    next();
 });
 
+productSchema.methods.updateReviewStats = async function () {
+    if (this.reviews && this.reviews.length > 0) {
+        this.totalReviews = this.reviews.length;
+        this.averageRating = parseFloat((
+            this.reviews.reduce((sum, review) => sum + review.rating, 0) / this.totalReviews
+        ).toFixed(1));
+    } else {
+        this.totalReviews = 0;
+        this.averageRating = 0;
+    }
+    await this.save();
+};
 // =============================================
 // 🎯 HELPER METHODS (MISSING METHODS ADDED)
 // =============================================

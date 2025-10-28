@@ -12,48 +12,94 @@ class APIFeatures {
         const queryCopy = { ...this.queryString };
 
         // Remove fields that are not for filtering
-        const removeFields = ['keyword', 'limit', 'page', 'sort', 'fields', 'variantAttributes'];
+        const removeFields = ['keyword', 'limit', 'page', 'sort', 'fields', 'variantAttributes', 'search', 'categories', 'brands', 'status'];
         removeFields.forEach(el => delete queryCopy[el]);
 
-        // Handle brand filter - convert brand name to ObjectId
-        if (queryCopy.brand && !this.isValidObjectId(queryCopy.brand)) {
+        // ✅ FIX 1: Handle multiple categories (from categories parameter)
+        if (this.queryString.categories) {
             try {
-                const brand = await Brand.findOne({
-                    name: { $regex: new RegExp(`^${queryCopy.brand}$`, 'i') }
+                const categoryNames = Array.isArray(this.queryString.categories)
+                    ? this.queryString.categories
+                    : this.queryString.categories.split(',');
+
+                const categories = await Category.find({
+                    name: { $in: categoryNames.map(name => new RegExp(name, 'i')) }
                 });
-                if (brand) {
-                    queryCopy.brand = brand._id;
+
+                if (categories.length > 0) {
+                    queryCopy.categories = { $in: categories.map(cat => cat._id) };
                 } else {
-                    // If brand not found, set to invalid ID to return no results
-                    queryCopy.brand = '000000000000000000000000';
+                    queryCopy.categories = { $in: [] }; // No results if no categories found
                 }
             } catch (error) {
-                console.error('Error finding brand:', error);
-                queryCopy.brand = '000000000000000000000000';
+                console.error('Error finding categories:', error);
+                queryCopy.categories = { $in: [] };
             }
         }
 
-        // Handle category filter - convert category name to ObjectId
+        // ✅ FIX 2: Handle multiple brands (from brands parameter)  
+        if (this.queryString.brands) {
+            try {
+                const brandNames = Array.isArray(this.queryString.brands)
+                    ? this.queryString.brands
+                    : this.queryString.brands.split(',');
+
+                const brands = await Brand.find({
+                    name: { $in: brandNames.map(name => new RegExp(name, 'i')) }
+                });
+
+                if (brands.length > 0) {
+                    queryCopy.brand = { $in: brands.map(brand => brand._id) };
+                } else {
+                    queryCopy.brand = { $in: [] };
+                }
+            } catch (error) {
+                console.error('Error finding brands:', error);
+                queryCopy.brand = { $in: [] };
+            }
+        }
+
+        // ✅ FIX 3: Handle single category (from category parameter - for backward compatibility)
         if (queryCopy.category && !this.isValidObjectId(queryCopy.category)) {
             try {
                 const category = await Category.findOne({
-                    name: { $regex: new RegExp(`^${queryCopy.category}$`, 'i') }
+                    name: { $regex: new RegExp(queryCopy.category, 'i') }
                 });
                 if (category) {
                     queryCopy.categories = { $in: [category._id] };
                 } else {
-                    queryCopy.categories = { $in: ['000000000000000000000000'] };
+                    queryCopy.categories = { $in: [] };
                 }
             } catch (error) {
                 console.error('Error finding category:', error);
-                queryCopy.categories = { $in: ['000000000000000000000000'] };
+                queryCopy.categories = { $in: [] };
             }
             delete queryCopy.category;
         }
 
+        // ✅ FIX 4: Handle single brand (from brand parameter - for backward compatibility)
+        if (queryCopy.brand && !this.isValidObjectId(queryCopy.brand)) {
+            try {
+                const brand = await Brand.findOne({
+                    name: { $regex: new RegExp(queryCopy.brand, 'i') }
+                });
+                if (brand) {
+                    queryCopy.brand = brand._id;
+                } else {
+                    queryCopy.brand = { $in: [] };
+                }
+            } catch (error) {
+                console.error('Error finding brand:', error);
+                queryCopy.brand = { $in: [] };
+            }
+        }
+
         // Handle inStock filter
         if (this.queryString.inStock === 'true') {
-            queryCopy.stockQuantity = { $gt: 0 };
+            queryCopy.$or = [
+                { stockQuantity: { $gt: 0 } },
+                { 'variants.stockQuantity': { $gt: 0 } }
+            ];
         }
 
         // Handle price range filters
@@ -72,11 +118,20 @@ class APIFeatures {
             queryCopy.averageRating = { $gte: Number(this.queryString.rating) };
         }
 
+        // ✅ FIX 5: Handle search parameter (from getAllProducts compatibility)
+        if (this.queryString.search) {
+            queryCopy.$or = [
+                { name: { $regex: this.queryString.search, $options: 'i' } },
+                { description: { $regex: this.queryString.search, $options: 'i' } }
+            ];
+        }
+
         // Remove the original filters from queryCopy
         delete queryCopy.minPrice;
         delete queryCopy.maxPrice;
         delete queryCopy.rating;
         delete queryCopy.inStock;
+        delete queryCopy.search;
 
         this.query = this.query.find(queryCopy);
         return this;
@@ -88,15 +143,19 @@ class APIFeatures {
     }
 
     search() {
-        const keyword = this.queryString.keyword ? {
-            $or: [
-                { name: { $regex: this.queryString.keyword, $options: 'i' } },
-                { description: { $regex: this.queryString.keyword, $options: 'i' } },
-                { tags: { $in: [new RegExp(this.queryString.keyword, 'i')] } }
-            ]
-        } : {};
+        // ✅ FIX 6: Use search from queryString if keyword not provided
+        const searchTerm = this.queryString.keyword || this.queryString.search;
 
-        this.query = this.query.find({ ...keyword });
+        if (searchTerm) {
+            const searchQuery = {
+                $or: [
+                    { name: { $regex: searchTerm, $options: 'i' } },
+                    { description: { $regex: searchTerm, $options: 'i' } },
+                    { tags: { $in: [new RegExp(searchTerm, 'i')] } }
+                ]
+            };
+            this.query = this.query.find(searchQuery);
+        }
         return this;
     }
 
@@ -104,21 +163,32 @@ class APIFeatures {
         if (this.queryString.sort) {
             let sortBy;
 
+            // ✅ FIX 7: Support both getAllProducts and getProducts sort options
             switch (this.queryString.sort) {
                 case 'newest':
+                case '-createdAt':
                     sortBy = '-createdAt';
                     break;
+                case 'price-asc':
                 case 'price-low':
+                case 'basePrice':
                     sortBy = 'basePrice';
                     break;
+                case 'price-desc':
                 case 'price-high':
+                case '-basePrice':
                     sortBy = '-basePrice';
                     break;
+                case 'popular':
                 case 'rating':
+                case '-averageRating':
                     sortBy = '-averageRating';
                     break;
-                case 'name':
+                case 'name-asc':
                     sortBy = 'name';
+                    break;
+                case 'name-desc':
+                    sortBy = '-name';
                     break;
                 case 'featured':
                 default:
@@ -145,6 +215,9 @@ class APIFeatures {
         if (this.queryString.fields) {
             const fields = this.queryString.fields.split(',').join(' ');
             this.query = this.query.select(fields);
+        } else {
+            // Default field selection for better performance
+            this.query = this.query.select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews');
         }
         return this;
     }

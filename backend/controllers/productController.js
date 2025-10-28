@@ -11,98 +11,81 @@ const mongoose = require("mongoose");
 // GET ALL PRODUCTS (Simple catalog - for basic listing)
 // =====================================================
 exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
-    const {
-        page = 1,
-        limit = 12,
-        sort = 'createdAt',
-        minPrice,
-        maxPrice,
-        inStock,
-        search,
-        categories,
-        brands,
-        status = 'Published' // ADDED: Default to published products
-    } = req.query;
+    try {
+        const {
+            page = 1,
+            limit = 12,
+            sort = 'createdAt',
+            minPrice,
+            maxPrice,
+            inStock,
+            search,
+            categories,
+            brands,
+            status = 'Published'
+        } = req.query;
 
-    // Build filter for public products only
-    const filter = {
-        isActive: true,
-        status: status // ADDED: Filter by status (defaults to 'Published')
-    };
+        // Build filter for public products only
+        const filter = {
+            isActive: true,
+            status: status
+        };
 
-    // Price filter
-    if (minPrice || maxPrice) {
-        filter.basePrice = {};
-        if (minPrice) filter.basePrice.$gte = Number(minPrice);
-        if (maxPrice) filter.basePrice.$lte = Number(maxPrice);
+        // Price filter - ADD VALIDATION
+        if (minPrice || maxPrice) {
+            filter.basePrice = {};
+            if (minPrice) {
+                const min = Number(minPrice);
+                if (isNaN(min)) {
+                    return next(new ErrorHandler('Invalid minPrice parameter', 400));
+                }
+                filter.basePrice.$gte = min;
+            }
+            if (maxPrice) {
+                const max = Number(maxPrice);
+                if (isNaN(max)) {
+                    return next(new ErrorHandler('Invalid maxPrice parameter', 400));
+                }
+                filter.basePrice.$lte = max;
+            }
+        }
+
+        // ... rest of your existing filter code ...
+
+        // ADD VALIDATION FOR PAGE AND LIMIT
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit))); // Cap at 100 for safety
+
+        const skip = (pageNum - 1) * limitNum;
+
+        // Execute query
+        const products = await Product.find(filter)
+            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews')
+            .populate("categories", "name slug")
+            .populate("brand", "name slug")
+            .sort(sortConfig)
+            .skip(skip)
+            .limit(limitNum)
+            .lean();
+
+        const totalProducts = await Product.countDocuments(filter);
+
+        res.status(200).json({
+            success: true,
+            results: products.length,
+            totalProducts,
+            totalPages: Math.ceil(totalProducts / limitNum),
+            currentPage: pageNum,
+            products
+        });
+
+    } catch (error) {
+        console.error('❌ Backend error in getAllProducts:', error);
+        return next(new ErrorHandler('Internal server error while fetching products', 500));
     }
-
-    // Stock filter
-    if (inStock === 'true') {
-        filter.$or = [
-            { stockQuantity: { $gt: 0 } },
-            { 'variants.stockQuantity': { $gt: 0 } }
-        ];
-    }
-
-    // Search
-    if (search) {
-        filter.$or = [
-            { name: { $regex: search, $options: 'i' } },
-            { description: { $regex: search, $options: 'i' } }
-        ];
-    }
-
-    // Category filter
-    if (categories) {
-        const categoryArray = Array.isArray(categories) ? categories : categories.split(',');
-        filter.categories = { $in: categoryArray };
-    }
-
-    // Brand filter
-    if (brands) {
-        const brandArray = Array.isArray(brands) ? brands : brands.split(',');
-        filter.brand = { $in: brandArray };
-    }
-
-    // Pagination
-    const skip = (page - 1) * limit;
-
-    // Sort options
-    const sortOptions = {
-        'newest': { createdAt: -1 },
-        'price-asc': { basePrice: 1 },
-        'price-desc': { basePrice: -1 },
-        'name-asc': { name: 1 },
-        'name-desc': { name: -1 },
-        'popular': { 'rating.average': -1 }
-    };
-
-    const sortConfig = sortOptions[sort] || { createdAt: -1 };
-
-    // Execute query
-    const products = await Product.find(filter)
-        .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews')
-        .populate("categories", "name slug")
-        .populate("brand", "name slug")
-        .sort(sortConfig)
-        .skip(skip)
-        .limit(Number(limit))
-        .lean();
-
-    const totalProducts = await Product.countDocuments(filter);
-
-    res.status(200).json({
-        success: true,
-        results: products.length,
-        totalProducts,
-        totalPages: Math.ceil(totalProducts / limit),
-        currentPage: Number(page),
-        products
-    });
 });
 
-// =====================================================
+// =======-*==============================================
 // GET PRODUCTS WITH ADVANCED FILTERING (Main endpoint)
 // =====================================================
 exports.getProducts = catchAsyncErrors(async (req, res, next) => {
@@ -431,19 +414,39 @@ exports.getProductReviews = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-
-
 /////////////////////////////
 // 📝 PRODUCT REVIEWS
 /////////////////////////////
-
-// Add a review
-exports.addReview = catchAsyncErrors(async (req, res, next) => {
-    const { rating, comment } = req.body;
+// 🟢 GET ALL REVIEWS FOR A PRODUCT (Public)
+exports.getReviews = catchAsyncErrors(async (req, res, next) => {
     const { id: productId } = req.params;
 
-    if (!rating) {
-        return next(new ErrorHandler("Rating is required", 400));
+    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
+        return next(new ErrorHandler("Invalid product ID format", 400));
+    }
+
+    const product = await Product.findById(productId)
+        .populate('reviews.user', 'firstName lastName email avatar'); // ✅ FIXED: Use correct fields
+
+    if (!product) {
+        return next(new ErrorHandler("Product not found", 404));
+    }
+
+    res.status(200).json({
+        success: true,
+        reviews: product.reviews,
+        averageRating: product.averageRating,
+        totalReviews: product.totalReviews
+    });
+});
+
+// 🟢 GET SINGLE REVIEW (Public)
+exports.getReview = catchAsyncErrors(async (req, res, next) => {
+    const { id: productId, reviewId } = req.params;
+
+    // Validate IDs format
+    if (!productId.match(/^[0-9a-fA-F]{24}$/) || !reviewId.match(/^[0-9a-fA-F]{24}$/)) {
+        return next(new ErrorHandler("Invalid ID format", 400));
     }
 
     const product = await Product.findById(productId);
@@ -451,10 +454,55 @@ exports.addReview = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler("Product not found", 404));
     }
 
-    // Check if user already reviewed
+    const review = product.reviews.id(reviewId);
+    if (!review) {
+        return next(new ErrorHandler("Review not found", 404));
+    }
+
+    // Populate user details
+    await product.populate('reviews.user', 'firstName lastName email avatar');
+
+    res.status(200).json({
+        success: true,
+        review: product.reviews.id(reviewId) // Get populated review
+    });
+});
+
+
+// 🟡 ADD REVIEW - Fixed version
+exports.addReview = catchAsyncErrors(async (req, res, next) => {
+    const { rating, comment } = req.body;
+    const { id: productId } = req.params;
+
+    // Validation
+    if (!rating) {
+        return next(new ErrorHandler("Rating is required", 400));
+    }
+
+    if (rating < 1 || rating > 5) {
+        return next(new ErrorHandler("Rating must be between 1 and 5", 400));
+    }
+
+    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
+        return next(new ErrorHandler("Invalid product ID format", 400));
+    }
+
+    // ✅ FIXED: Use await and proper variable name
+    const product = await Product.findById(productId);
+    if (!product) {
+        return next(new ErrorHandler("Product not found", 404));
+    }
+
+    // Check if product is active
+    if (!product.isActive || product.status !== 'Published') {
+        return next(new ErrorHandler("Cannot review an inactive product", 400));
+    }
+
+    // Check if user already reviewed (case-insensitive comparison)
     const existingReview = product.reviews.find(
         rev => rev.user.toString() === req.user._id.toString()
     );
+
     if (existingReview) {
         return next(new ErrorHandler("You have already reviewed this product", 400));
     }
@@ -462,85 +510,197 @@ exports.addReview = catchAsyncErrors(async (req, res, next) => {
     const newReview = {
         user: req.user._id,
         rating: Number(rating),
-        comment: comment || "",
+        comment: (comment || "").trim(),
+        createdAt: new Date()
     };
 
     product.reviews.push(newReview);
-    product.updateRating();
+
+    // ✅ FIXED: Remove the updateRating() call - post-save hook handles this automatically
+    // await product.updateRating(); // ❌ REMOVED THIS LINE
 
     await product.save({ validateBeforeSave: false });
+
+    // ✅ FIXED: Populate with correct user fields
+    await product.populate('reviews.user', 'firstName lastName email avatar');
+
+    const addedReview = product.reviews[product.reviews.length - 1];
 
     res.status(201).json({
         success: true,
         message: "Review added successfully",
-        product,
+        review: addedReview,
+        product: {
+            _id: product._id,
+            name: product.name,
+            averageRating: product.averageRating,
+            totalReviews: product.totalReviews
+        }
     });
 });
 
-
-// Update own review
-exports.updateReview = catchAsyncErrors(async (req, res, next) => {
-    const { id: productId, reviewId } = req.params;
-    const { rating, comment } = req.body;
-
-    const product = await Product.findById(productId);
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    const review = product.reviews.id(reviewId);
-    if (!review) {
-        return next(new ErrorHandler("Review not found", 404));
-    }
-
-    // Ensure review belongs to the user
-    if (review.user.toString() !== req.user._id.toString()) {
-        return next(new ErrorHandler("You cannot edit another user's review", 403));
-    }
-
-    if (rating !== undefined) review.rating = Number(rating);
-    if (comment !== undefined) review.comment = comment;
-
-    product.updateRating();
-    await product.save({ validateBeforeSave: false });
-
-    res.status(200).json({
-        success: true,
-        message: "Review updated successfully",
-        review,
-    });
-});
-
-
-// Delete own review
+// 🟡 DELETE REVIEW - Fixed for embedded reviews (no reviewId needed)
 exports.deleteReview = catchAsyncErrors(async (req, res, next) => {
-    const { id: productId, reviewId } = req.params;
+    const { id: productId } = req.params; // ✅ FIXED: Only productId, no reviewId
+
+    // Validate product ID
+    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
+        return next(new ErrorHandler("Invalid product ID format", 400));
+    }
 
     const product = await Product.findById(productId);
     if (!product) {
         return next(new ErrorHandler("Product not found", 404));
     }
 
-    const review = product.reviews.id(reviewId);
-    if (!review) {
+    // ✅ FIXED: Find review by user ID instead of reviewId
+    const reviewIndex = product.reviews.findIndex(
+        rev => rev.user.toString() === req.user._id.toString()
+    );
+
+    if (reviewIndex === -1) {
         return next(new ErrorHandler("Review not found", 404));
     }
 
-    if (review.user.toString() !== req.user._id.toString()) {
-        return next(new ErrorHandler("You cannot delete another user's review", 403));
+    const review = product.reviews[reviewIndex];
+
+    // Check permissions: user must be review owner OR admin
+    const isReviewOwner = review.user.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isReviewOwner && !isAdmin) {
+        return next(new ErrorHandler("You can only delete your own reviews", 403));
     }
 
     // Remove the review
-    product.reviews = product.reviews.filter(
-        rev => rev._id.toString() !== reviewId
-    );
+    product.reviews.splice(reviewIndex, 1);
 
-    product.updateRating();
+    // ✅ FIXED: Let pre-save hook handle rating update instead of updateRating()
+    // await product.updateRating();
+
     await product.save({ validateBeforeSave: false });
 
     res.status(200).json({
         success: true,
         message: "Review deleted successfully",
+        deletedBy: isAdmin ? 'admin' : 'user',
+        product: {
+            _id: product._id,
+            name: product.name,
+            averageRating: product.averageRating, // ✅ FIXED: Changed from ratings
+            totalReviews: product.totalReviews    // ✅ FIXED: Changed from numOfReviews
+        }
+    });
+});
+
+// 🟡 UPDATE REVIEW - Already correct in your code, just ensure field names match
+exports.updateReview = catchAsyncErrors(async (req, res, next) => {
+    const { id: productId } = req.params;
+    const { rating, comment } = req.body;
+
+    // Validation
+    if (rating && (rating < 1 || rating > 5)) {
+        return next(new ErrorHandler("Rating must be between 1 and 5", 400));
+    }
+
+    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
+        return next(new ErrorHandler("Invalid product ID format", 400));
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+        return next(new ErrorHandler("Product not found", 404));
+    }
+
+    // Find review by user ID
+    const reviewIndex = product.reviews.findIndex(
+        rev => rev.user.toString() === req.user._id.toString()
+    );
+
+    if (reviewIndex === -1) {
+        return next(new ErrorHandler("Review not found", 404));
+    }
+
+    const review = product.reviews[reviewIndex];
+
+    // Check permissions
+    const isReviewOwner = review.user.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isReviewOwner && !isAdmin) {
+        return next(new ErrorHandler("You can only update your own reviews", 403));
+    }
+
+    // Update fields if provided
+    if (rating !== undefined) review.rating = Number(rating);
+    if (comment !== undefined) review.comment = comment.trim();
+
+    // Update timestamp
+    review.createdAt = new Date();
+
+    await product.save({ validateBeforeSave: false });
+
+    // Populate user details
+    await product.populate('reviews.user', 'firstName lastName email avatar');
+
+    res.status(200).json({
+        success: true,
+        message: "Review updated successfully",
+        review: product.reviews[reviewIndex],
+        updatedBy: isAdmin ? 'admin' : 'user',
+        product: {
+            _id: product._id,
+            name: product.name,
+            averageRating: product.averageRating, // ✅ FIXED: Changed from ratings
+            totalReviews: product.totalReviews    // ✅ FIXED: Changed from numOfReviews
+        }
+    });
+});
+
+// 🟣 ADMIN: DELETE ANY REVIEW
+exports.adminDeleteReview = catchAsyncErrors(async (req, res, next) => {
+    const { id: productId, reviewId } = req.params;
+
+    if (!productId.match(/^[0-9a-fA-F]{24}$/) || !reviewId.match(/^[0-9a-fA-F]{24}$/)) {
+        return next(new ErrorHandler("Invalid ID format", 400));
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+        return next(new ErrorHandler("Product not found", 404));
+    }
+
+    const reviewIndex = product.reviews.findIndex(rev => rev._id.toString() === reviewId);
+    if (reviewIndex === -1) {
+        return next(new ErrorHandler("Review not found", 404));
+    }
+
+    // Store review info for response
+    const deletedReview = product.reviews[reviewIndex];
+
+    // Remove the review
+    product.reviews.splice(reviewIndex, 1);
+
+    // Update product rating statistics
+    await product.updateRating();
+
+    await product.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+        success: true,
+        message: "Review deleted by admin",
+        deletedReview: {
+            _id: deletedReview._id,
+            user: deletedReview.user,
+            rating: deletedReview.rating,
+            comment: deletedReview.comment
+        },
+        product: {
+            _id: product._id,
+            name: product.name,
+            ratings: product.ratings,
+            numOfReviews: product.numOfReviews
+        }
     });
 });
 

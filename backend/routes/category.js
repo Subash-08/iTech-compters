@@ -5,24 +5,78 @@ const {
     createCategory,
     getAllCategories,
     getCategoryBySlug,
+    updateCategory,
+    updateCategoryStatus,
+    partialUpdateCategory,
+    getCategory,
+    getCategoryTree,
+    getCategoriesDropdown
 } = require("../controllers/categoryController");
+const { categoryUpload, handleMulterError } = require("../config/multerConfig");
 
-// Create new category (Admin only)
+// Public routes - No authentication required
+router.get("/categories", getAllCategories);
+router.get("/category/:slug", getCategoryBySlug);
+
+// Admin routes - Category Management (Admin only)
 router.post(
-    "/admin/category/new",
+    "/admin/categories",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    categoryUpload.single('image'),
+    handleMulterError,
     createCategory
 );
 
-// Get all categories (Admin only)
 router.get(
     "/admin/categories",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
     getAllCategories
 );
+
 router.get(
-    "/categories",
-    getAllCategories
+    "/admin/categories/tree",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    getCategoryTree
 );
-// Get single category by slug (public or admin)
-router.get("/category/:slug", getCategoryBySlug);
+
+router.get(
+    "/admin/categories/dropdown",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    getCategoriesDropdown
+);
+
+router.get(
+    "/admin/categories/:id",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    getCategory
+);
+
+router.put(
+    "/admin/categories/:id",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    categoryUpload.single('image'),
+    handleMulterError,
+    updateCategory
+);
+
+router.patch(
+    "/admin/categories/:id/status",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    updateCategoryStatus
+);
+
+router.patch(
+    "/admin/categories/:id/partial",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    partialUpdateCategory
+);
 
 module.exports = router;
