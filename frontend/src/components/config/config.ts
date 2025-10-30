@@ -12,4 +12,4 @@ export const getConfig = () => {
   };
 };
 
-export const baseURL = 'http://localhost:5000';
+export const baseURL = 'https://itech-compters.onrender.com';
