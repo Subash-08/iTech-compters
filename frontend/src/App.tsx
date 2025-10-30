@@ -17,7 +17,7 @@ import { useAppSelector } from "./redux/hooks";
 import { selectIsAuthenticated, selectAuthLoading, selectUser } from "./redux/selectors";
 import Profile from "./components/profile/Profile";
 import Cart from "./components/cart/Cart";
-import Wishlist from "./components/wishlist/wishlist";
+import Wishlist from "./components/wishlist/Wishlist";
 
 // ✅ UPDATED: Root Layout - AuthInitializer at the top level
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
