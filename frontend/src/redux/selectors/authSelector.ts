@@ -30,6 +30,12 @@ export const selectToken = createSelector(
   (authState) => authState.token
 );
 
+// ✅ NEW: Critical selector for auth initialization
+export const selectAuthInitialized = createSelector(
+  [selectAuthState],
+  (authState) => authState.initialized || false
+);
+
 // Combined selectors
 export const selectUserInitials = createSelector(
   [selectUser],
@@ -46,4 +52,3 @@ export const selectUserFullName = createSelector(
     return `${user.firstName || ''} ${user.lastName || ''}`.trim();
   }
 );
-

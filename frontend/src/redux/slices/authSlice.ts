@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 // Helper function to validate token
-const isValidToken = (token) => {
+const isValidToken = (token: string | null) => {
   if (!token) return false;
   
   try {
@@ -13,180 +13,143 @@ const isValidToken = (token) => {
   }
 };
 
+interface AuthState {
+  loading: boolean;
+  isAuthenticated: boolean;
+  user: any | null;
+  token: string | null;
+  error: string | null;
+  initialized: boolean; // ✅ NEW: Critical for auth flow
+}
+
+const initialState: AuthState = {
+  loading: false,
+  isAuthenticated: false, // ✅ Start as false, will be set by initializeAuth
+  user: null,
+  token: null,
+  error: null,
+  initialized: false // ✅ NEW: Track if auth has been initialized
+};
+
 const authSlice = createSlice({
-    name: 'auth',
-    initialState: {
-        loading: false,
-        isAuthenticated: !!localStorage.getItem('token') && isValidToken(localStorage.getItem('token')),
-        user: null, // ✅ REMOVED localStorage userData
-        token: localStorage.getItem('token'),
-        error: null
+  name: 'auth',
+  initialState,
+  reducers: {
+    // Login
+    loginRequest(state) {
+      state.loading = true;
+      state.error = null;
     },
-    reducers: {
-        // Login
-        loginRequest(state, action) {
-            return {
-                ...state,
-                loading: true,
-                error: null
-            }
-        },
-        loginSuccess(state, action) {
-            // ✅ Store only token
-            localStorage.setItem('token', action.payload.token);
-            
-            return {
-                ...state,
-                loading: false,
-                isAuthenticated: true,
-                token: action.payload.token,
-                user: null, // ✅ Will be set by complete profile fetch
-                error: null
-            }
-        },
-        loginFailure(state, action) {
-            localStorage.removeItem('token');
-            
-            return {
-                ...state,
-                loading: false,
-                isAuthenticated: false,
-                user: null,
-                token: null,
-                error: action.payload
-            }
-        },
-                
-        // Register
-        registerRequest(state, action) {
-            return {
-                ...state,
-                loading: true,
-                error: null
-            }
-        },
-        registerSuccess(state, action) {
-            localStorage.setItem('token', action.payload.token);
-            
-            return {
-                ...state,
-                loading: false,
-                isAuthenticated: true,
-                token: action.payload.token,
-                user: null, // ✅ Will be set by complete profile fetch
-                error: null
-            }
-        },
-        registerFailure(state, action) {
-            localStorage.removeItem('token');
-            
-            return {
-                ...state,
-                loading: false,
-                isAuthenticated: false,
-                user: null,
-                token: null,
-                error: action.payload
-            }
-        },
-        
-        // Logout
-        logoutRequest(state, action) {
-            return {
-                ...state,
-                loading: true
-            }
-        },
-        logoutSuccess(state, action) {
-            localStorage.removeItem('token');
-            
-            return {
-                ...state,
-                loading: false,
-                isAuthenticated: false,
-                user: null,
-                token: null,
-                error: null
-            }
-        },
-        
-        // Initialize auth state from token
-        initializeAuth(state, action) {
-            const token = localStorage.getItem('token');
-            
-            if (token && isValidToken(token)) {
-                return {
-                    ...state,
-                    isAuthenticated: true,
-                    token: token,
-                    user: null // ✅ User data will be fetched separately
-                };
-            }
-            
-            // Clear invalid token
-            localStorage.removeItem('token');
-            return {
-                ...state,
-                isAuthenticated: false,
-                user: null,
-                token: null
-            };
-        },
-        
-        // ✅ NEW: Set complete user data (user + cart + wishlist + orders)
-        setCompleteUserData(state, action) {
-            return {
-                ...state,
-                user: action.payload.user
-            }
-        },
-        
-        // ✅ NEW: Update only user profile (for profile updates)
-        updateUserProfile: (state, action) => {
-            if (state.user) {
-                return {
-                    ...state,
-                    user: {
-                        ...state.user,
-                        ...action.payload
-                    }
-                };
-            }
-            return state;
-        },
-        
-        // Clear errors
-        clearAuthError(state, action) {
-            return {
-                ...state,
-                error: null
-            }
-        },
-        
-        // Clear loading state
-        clearAuthLoading(state, action) {
-            return {
-                ...state,
-                loading: false
-            }
-        }
+    loginSuccess(state, action) {
+      localStorage.setItem('token', action.payload.token);
+      state.loading = false;
+      state.isAuthenticated = true;
+      state.token = action.payload.token;
+      state.user = action.payload.user || null;
+      state.error = null;
+    },
+    loginFailure(state, action) {
+      localStorage.removeItem('token');
+      state.loading = false;
+      state.isAuthenticated = false;
+      state.user = null;
+      state.token = null;
+      state.error = action.payload;
+    },
+    
+    // Register
+    registerRequest(state) {
+      state.loading = true;
+      state.error = null;
+    },
+    registerSuccess(state, action) {
+      localStorage.setItem('token', action.payload.token);
+      state.loading = false;
+      state.isAuthenticated = true;
+      state.token = action.payload.token;
+      state.user = action.payload.user || null;
+      state.error = null;
+    },
+    registerFailure(state, action) {
+      localStorage.removeItem('token');
+      state.loading = false;
+      state.isAuthenticated = false;
+      state.user = null;
+      state.token = null;
+      state.error = action.payload;
+    },
+    
+    // Logout
+    logoutRequest(state) {
+      state.loading = true;
+    },
+    logoutSuccess(state) {
+      localStorage.removeItem('token');
+      state.loading = false;
+      state.isAuthenticated = false;
+      state.user = null;
+      state.token = null;
+      state.error = null;
+      state.initialized = true;
+    },
+    
+    // ✅ UPDATED: Initialize auth state from token
+    initializeAuth(state) {
+      const token = localStorage.getItem('token');
+      
+      if (token && isValidToken(token)) {
+        state.isAuthenticated = true;
+        state.token = token;
+      } else {
+        // Clear invalid token
+        localStorage.removeItem('token');
+        state.isAuthenticated = false;
+        state.token = null;
+      }
+      state.initialized = true; // ✅ Mark as initialized
+    },
+    
+    // Set complete user data
+    setCompleteUserData(state, action) {
+      state.user = action.payload.user;
+    },
+    
+    // Update user profile
+    updateUserProfile(state, action) {
+      if (state.user) {
+        state.user = {
+          ...state.user,
+          ...action.payload
+        };
+      }
+    },
+    
+    // ✅ NEW: Set auth loading
+    setAuthLoading(state, action) {
+      state.loading = action.payload;
+    },
+    
+    // Clear errors
+    clearAuthError(state) {
+      state.error = null;
     }
+  }
 });
 
 export const {
-    loginRequest,
-    loginSuccess,
-    loginFailure,
-    registerRequest,
-    registerSuccess,
-    registerFailure,
-    logoutRequest,
-    logoutSuccess,
-    initializeAuth,
-    setCompleteUserData, // ✅ NEW
-    updateUserProfile,   // ✅ UPDATED
-    clearAuthError,
-    clearAuthLoading
+  loginRequest,
+  loginSuccess,
+  loginFailure,
+  registerRequest,
+  registerSuccess,
+  registerFailure,
+  logoutRequest,
+  logoutSuccess,
+  initializeAuth,
+  setCompleteUserData,
+  updateUserProfile,
+  setAuthLoading, // ✅ NEW
+  clearAuthError
 } = authSlice.actions;
 
 export default authSlice.reducer;
