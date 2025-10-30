@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useAppDispatch } from '../../redux/hooks';
 import { profileActions } from '../../redux/actions/profileActions';
 import { UserProfile } from '../../redux/actions/profileActions';
+import { baseURL } from '../config/config';
 
 interface ProfileEditProps {
   profile: UserProfile | null;
@@ -25,7 +26,7 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ profile }) => {
       return profile.avatar;
     }
     
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const baseUrl = import.meta.env.VITE_API_URL || baseURL;
     return `${baseUrl}${profile.avatar}`;
   };
 

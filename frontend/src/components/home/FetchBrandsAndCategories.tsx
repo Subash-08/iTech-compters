@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../config/axiosConfig';
+import { baseURL } from '../config/config';
 
 // Types
 interface BrandLogo {
@@ -103,7 +104,7 @@ const getImageUrl = (url: string | null | undefined) => {
     return url.startsWith('/') ? url : `/${url}`;
   } else {
     // In development, use local backend
-    const baseUrl = 'http://localhost:5000';
+    const baseUrl = baseURL;
     return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
   }
 };

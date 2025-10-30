@@ -23,7 +23,7 @@ import {
   selectUserName,
   selectUserAvatar
 } from '../../src/redux/selectors/index'; // ADD THESE
-import { getAvatarUrl } from './hooks/useImageUrl';
+import { baseURL } from './config/config';
 
 const navItems: NavItem[] = [
   { label: 'Home', href: '/' },
@@ -152,7 +152,21 @@ const getUserMenuItems = (userRole?: string) => [
   { label: 'Settings', href: '/settings', icon: 'settings' },
   ...(userRole === 'admin' ? [{ label: 'Admin Dashboard', href: '/admin', icon: 'admin' }] : []),
 ];
+
 // Helper function to get avatar URL
+const getAvatarUrl = (avatarPath?: string) => {
+  if (!avatarPath) return null;
+  
+  // If avatar is already a full URL, use it directly
+  if (avatarPath.startsWith('http')) {
+    return avatarPath;
+  }
+  
+  // Otherwise, construct the full URL
+  const baseUrl = import.meta.env.VITE_API_URL || baseURL;
+  return `${baseUrl}${avatarPath}`;
+  
+};
 
 // User Dropdown Component
 const UserDropdown: React.FC = () => {
@@ -176,7 +190,6 @@ const UserDropdown: React.FC = () => {
     const displayName = profileName || user?.firstName;
     const displayAvatar = profileAvatar || user?.avatar;
     const avatarUrl = getAvatarUrl(displayAvatar);
-
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

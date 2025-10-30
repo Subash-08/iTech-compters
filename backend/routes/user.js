@@ -12,19 +12,13 @@ const {
     updateProfile,
     removeAvatar,
     verifyEmail,
-    resendVerification, getUserCart,
-    addToCart,
-    updateCartQuantity,
-    removeFromCart,
-    clearCart,
-    getUserWishlist,
-    addToWishlist,
-    removeFromWishlist,
+    resendVerification,
     getAllUsers,
     getSingleUser,
     updateUserRole,
     updateUserStatus,
-    deleteUser
+    deleteUser,
+    getCompleteUserProfile
 } = require('../controllers/authController');
 
 
@@ -54,25 +48,15 @@ router.get('/profile', isAuthenticatedUser, getUserProfile);
 router.put('/profile', isAuthenticatedUser, userUpload.single('avatar'), handleMulterError, updateProfile);
 router.delete('/profile/avatar', isAuthenticatedUser, removeAvatar);
 router.put('/password/update', isAuthenticatedUser, updatePassword);
+router.get('/user/complete-profile', isAuthenticatedUser, getCompleteUserProfile);
 
-// Cart routes (Authenticated)
-router.get('/cart', isAuthenticatedUser, getUserCart);
-router.post('/cart', isAuthenticatedUser, addToCart);
-router.put('/cart', isAuthenticatedUser, updateCartQuantity);
-router.delete('/cart', isAuthenticatedUser, removeFromCart);
-router.delete('/cart/clear', isAuthenticatedUser, clearCart);
 
-// Wishlist routes (Authenticated)
-router.get('/wishlist', isAuthenticatedUser, getUserWishlist);
-router.post('/wishlist', isAuthenticatedUser, addToWishlist);
-router.delete('/wishlist', isAuthenticatedUser, removeFromWishlist);
 
 // Admin user management routes
 router.get('/users', isAuthenticatedUser, authorizeRoles('admin'), getAllUsers);
 router.get('/users/:id', isAuthenticatedUser, authorizeRoles('admin'), getSingleUser);
 router.put('/users/:id/role', isAuthenticatedUser, authorizeRoles('admin'), updateUserRole);
 router.put('/users/:id/status', isAuthenticatedUser, authorizeRoles('admin'), updateUserStatus);
-router.delete('/users/:id', isAuthenticatedUser, authorizeRoles('admin'), deleteUser);
 
 
 module.exports = router;

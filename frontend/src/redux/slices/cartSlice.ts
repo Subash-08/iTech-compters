@@ -47,7 +47,7 @@ const cartSlice = createSlice({
     },
 
     // Clear error
-    clearError: (state) => {
+    clearCartError: (state) => {
       state.error = null;
     },
 
@@ -93,7 +93,7 @@ export const {
   updateCartSuccess,
   updateCartFailure,
   clearCartSuccess,
-  clearError,
+  clearCartError,
   addItemToCart,
   updateItemQuantity,
   removeItemFromCart,

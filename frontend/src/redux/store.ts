@@ -5,6 +5,7 @@ import authReducer from './slices/authSlice';
 import profileReducer from './slices/profileSlice';
 import cartReducer from './slices/cartSlice';
 import reviewReducer from './slices/reviewSlice';
+import wishlistReducer from './slices/wishlistSlice';
 // import orderReducer from './slices/orderSlice';
 
 const store = configureStore({
@@ -15,6 +16,7 @@ const store = configureStore({
         profileState: profileReducer,
         cartState: cartReducer,
         reviewState: reviewReducer,
+        wishlistState: wishlistReducer,
         // orderState: orderReducer,
     }
     // ✅ Thunk is automatically included - no need to specify

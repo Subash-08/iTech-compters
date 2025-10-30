@@ -1,18 +1,19 @@
 // src/components/product/ProductDisplay.tsx
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'; // Add useSearchParams
 import api from '../config/axiosConfig';
 import ProductImages from './ProductImages';
 import ProductInfo from './ProductInfo';
 import ProductSpecifications from './ProductSpecifications';
 import ProductFeatures from './ProductFeatures';
 import ProductDimensions from './ProductDimensions';
-import ProductReviewsSection from '../review/ProductReviewsSection'; // Add this import
+import ProductReviewsSection from '../review/ProductReviewsSection';
 import { ProductData, Variant } from './productTypes';
 
 const ProductDisplay: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // 🆕 Get URL search params
   const [productData, setProductData] = useState<ProductData | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
@@ -58,6 +59,10 @@ const ProductDisplay: React.FC = () => {
         
         setProductData(productData);
         
+        // 🆕 Handle URL variant parameter
+        const urlVariantId = searchParams.get('variant');
+        console.log('🛒 URL variant parameter:', urlVariantId);
+        
         // Handle variants with extensive validation
         if (productData.variants.length > 0) {
           const validVariants = productData.variants.filter(variant => 
@@ -68,7 +73,22 @@ const ProductDisplay: React.FC = () => {
           );
           
           if (validVariants.length > 0) {
-            const defaultVariant = validVariants.find(v => v.isActive) || validVariants[0];
+            let defaultVariant;
+            
+            // 🆕 Priority: URL variant > active variant > first variant
+            if (urlVariantId) {
+              defaultVariant = validVariants.find(v => 
+                v._id?.toString() === urlVariantId || 
+                v.variantId?.toString() === urlVariantId
+              );
+              console.log('🛒 Found URL variant:', defaultVariant);
+            }
+            
+            // If no URL variant found or URL variant doesn't exist, use default logic
+            if (!defaultVariant) {
+              defaultVariant = validVariants.find(v => v.isActive) || validVariants[0];
+              console.log('🛒 Using default variant:', defaultVariant);
+            }
             
             setSelectedVariant(defaultVariant);
             
@@ -96,7 +116,7 @@ const ProductDisplay: React.FC = () => {
     };
 
     fetchProduct();
-  }, [slug]);
+  }, [slug, searchParams]); // 🆕 Add searchParams to dependency array
 
   // Find variant based on selected attributes
   const findVariantByAttributes = (attributes: Record<string, string>): Variant | null => {
@@ -191,6 +211,15 @@ const ProductDisplay: React.FC = () => {
       setSelectedVariant(variant);
     }
   };
+
+  // 🆕 ADDED: Update URL when variant changes (optional - for sharing)
+  useEffect(() => {
+    if (selectedVariant && selectedVariant._id) {
+      // Update URL without page reload
+      const newUrl = `${window.location.pathname}?variant=${selectedVariant._id}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [selectedVariant]);
 
   // 🆕 ADDED: Tax calculation helper
   const calculateTax = (price: number) => {

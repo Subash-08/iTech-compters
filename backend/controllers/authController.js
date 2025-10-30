@@ -482,146 +482,57 @@ exports.deleteUser = catchAsyncError(async (req, res, next) => {
     });
 });
 
-// ==================== CART MANAGEMENT CONTROLLERS ====================
 
-// Get user cart
-exports.getUserCart = catchAsyncError(async (req, res, next) => {
-    const user = await User.findById(req.user.id).populate('cart.product', 'name price images stock');
+// @desc    Get complete user profile with cart, wishlist, orders
+// @route   GET /api/v1/user/complete-profile
+// @access  Private
+// Add this to your authController.js
+exports.getCompleteUserProfile = catchAsyncError(async (req, res, next) => {
+    const userId = req.user._id;
+
+    const user = await User.findById(userId)
+        .select('-password -emailVerificationToken -resetPasswordToken')
+        .populate({
+            path: 'cartId',
+            populate: {
+                path: 'items.product',
+                model: 'Product',
+                select: 'name price images slug stock discountPrice'
+            }
+        })
+        .populate({
+            path: 'wishlistId',
+            populate: {
+                path: 'items.product',
+                model: 'Product',
+                select: 'name price images slug stock discountPrice brand category'
+            }
+        })
+
+
+    if (!user) {
+        return next(new ErrorHandler('User not found', 404));
+    }
 
     res.status(200).json({
         success: true,
-        cart: user.cart
-    });
-});
-
-// Add to cart - improved error handling
-exports.addToCart = catchAsyncError(async (req, res, next) => {
-    const { productId, variantId, quantity = 1 } = req.body;
-
-    if (!productId) {
-        return next(new ErrorHandler('Product ID is required', 400));
-    }
-
-    if (quantity < 1 || quantity > 100) {
-        return next(new ErrorHandler('Quantity must be between 1 and 100', 400));
-    }
-
-    const user = await User.findById(req.user.id);
-
-    try {
-        await user.addToCart(productId, variantId, quantity);
-
-        // Populate the cart with product details for response
-        await user.populate('cart.product', 'name price images stock');
-
-        res.status(200).json({
-            success: true,
-            message: 'Product added to cart successfully',
-            cart: user.cart
-        });
-    } catch (error) {
-        return next(new ErrorHandler(error.message, 400));
-    }
-});
-
-// Update cart item quantity
-exports.updateCartQuantity = catchAsyncError(async (req, res, next) => {
-    const { productId, variantId, quantity } = req.body;
-
-    const user = await User.findById(req.user.id);
-
-    if (quantity <= 0) {
-        await user.removeFromCart(productId, variantId);
-    } else {
-        const item = user.cart.find(
-            item => item.product.toString() === productId &&
-                item.variant?.toString() === variantId
-        );
-
-        if (!item) {
-            return next(new ErrorHandler('Item not found in cart', 404));
+        data: {
+            user: {
+                _id: user._id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                avatar: user.avatar,
+                role: user.role,
+                username: user.username,
+                emailVerified: user.emailVerified,
+                status: user.status,
+                cartId: user.cartId?._id,
+                wishlistId: user.wishlistId?._id
+            },
+            cart: user.cartId,
+            wishlist: user.wishlistId,
+            recentOrders: user.orders || []
         }
-
-        item.quantity = quantity;
-        await user.save();
-    }
-
-    res.status(200).json({
-        success: true,
-        message: 'Cart updated successfully',
-        cart: user.cart
-    });
-});
-
-// Remove from cart
-exports.removeFromCart = catchAsyncError(async (req, res, next) => {
-    const { productId, variantId } = req.body;
-
-    const user = await User.findById(req.user.id);
-    await user.removeFromCart(productId, variantId);
-
-    res.status(200).json({
-        success: true,
-        message: 'Product removed from cart successfully',
-        cart: user.cart
-    });
-});
-
-// Clear cart
-exports.clearCart = catchAsyncError(async (req, res, next) => {
-    const user = await User.findById(req.user.id);
-    user.cart = [];
-    await user.save();
-
-    res.status(200).json({
-        success: true,
-        message: 'Cart cleared successfully'
-    });
-});
-
-// ==================== WISHLIST MANAGEMENT CONTROLLERS ====================
-
-// Get user wishlist
-exports.getUserWishlist = catchAsyncError(async (req, res, next) => {
-    const user = await User.findById(req.user.id).populate('wishlist', 'name price images stock');
-
-    res.status(200).json({
-        success: true,
-        wishlist: user.wishlist
-    });
-});
-
-// Add to wishlist
-exports.addToWishlist = catchAsyncError(async (req, res, next) => {
-    const { productId } = req.body;
-
-    const user = await User.findById(req.user.id);
-
-    if (user.wishlist.includes(productId)) {
-        return next(new ErrorHandler('Product already in wishlist', 400));
-    }
-
-    user.wishlist.push(productId);
-    await user.save();
-
-    res.status(200).json({
-        success: true,
-        message: 'Product added to wishlist successfully',
-        wishlist: user.wishlist
-    });
-});
-
-// Remove from wishlist
-exports.removeFromWishlist = catchAsyncError(async (req, res, next) => {
-    const { productId } = req.body;
-
-    const user = await User.findById(req.user.id);
-    user.wishlist = user.wishlist.filter(id => id.toString() !== productId);
-    await user.save();
-
-    res.status(200).json({
-        success: true,
-        message: 'Product removed from wishlist successfully',
-        wishlist: user.wishlist
     });
 });

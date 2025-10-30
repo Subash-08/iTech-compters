@@ -1,18 +1,37 @@
 export interface CartItem {
+  _id: string;
   product: {
     _id: string;
     name: string;
-    price: number;
-    images: string[];
+    price: number;    
+  basePrice: number;
+  offerPrice?: number;
+    discountPrice?: number;
+    images: Array<{
+      url: string;
+      alt?: string;
+    }>;
+    slug: string;
     stock: number;
+    brand?: {
+      _id: string;
+      name: string;
+    };
+    category?: {
+      _id: string;
+      name: string;
+    };
   };
   variant?: {
     _id: string;
     name: string;
-    price: number;
+    price: number;    
+  basePrice: number;
+  offerPrice?: number;
     stock: number;
   };
   quantity: number;
+  price: number;
   addedAt: string;
 }
 

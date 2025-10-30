@@ -9,7 +9,9 @@ const {
     updateProductStatus,
     getReviews,
     getReview,
-    adminDeleteReview
+    adminDeleteReview,
+    getProductsWithReviews,
+    getProductReviewsForAdmin
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
@@ -31,17 +33,7 @@ router.get("/products/all", getAllProducts);  // Simple product catalog (optiona
 router.get("/products/search", searchProducts);  // Search products by name, tags, keywords
 router.get("/products/filters", filterProducts);  // Filter products: price, rating, availability, condition
 router.get("/products/:id/variants", getProductVariants);  // Get all variants of a product
-router.get("/products/:id/reviews", getProductReviews);  // Get all reviews for a product
 
-
-// 🔓 PUBLIC ROUTES
-router.get("/product/:id/reviews", getReviews);  // Get all reviews for a product
-router.get("/product/:id/review/:reviewId", getReview);  // Get single review
-
-// 🔐 USER ROUTES (Logged-in users)
-router.post("/product/:id/review", isAuthenticatedUser, addReview);  // Add a review
-router.put("/product/:id/review", isAuthenticatedUser, updateReview);  // Update own review
-router.delete("/product/:id/review", isAuthenticatedUser, deleteReview);  // Delete own review
 
 // 👑 ADMIN ROUTES
 router.delete("/admin/product/:id/review/:reviewId",
@@ -50,8 +42,17 @@ router.delete("/admin/product/:id/review/:reviewId",
     adminDeleteReview
 );  // Admin delete any review
 
-
-
+// 👑 ADMIN ROUTES - Reviews
+router.get("/admin/products-with-reviews",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    getProductsWithReviews
+);
+router.get("/admin/product/:id/reviews",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    getProductReviewsForAdmin
+);
 // Admin Routes
 // Admin products route
 router.get('/admin/products', isAuthenticatedUser, authorizeRoles("admin"), getAdminProducts);

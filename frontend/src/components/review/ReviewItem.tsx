@@ -6,6 +6,7 @@ import { RootState } from '../../redux/store';
 import { Review } from '../../redux/types/reviewTypes';
 import { Star, Edit, Trash2, User, MoreVertical, Flag } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { baseURL } from '../config/config';
 
 interface ReviewItemProps {
   review: Review;
@@ -41,7 +42,7 @@ const getAvatarUrl = (user: any) => {
       return user.avatar;
     }
     // If it's a path, prepend the base URL
-    return `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${user.avatar}`;
+    return `${process.env.REACT_APP_API_URL || baseURL}${user.avatar}`;
   }
   
   // Handle Google photo URL from social logins

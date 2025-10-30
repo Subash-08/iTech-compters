@@ -206,37 +206,21 @@ const userSchema = new mongoose.Schema({
     }],
 
     // ==================== E-COMMERCE (Basic - Detailed schemas later) ====================
-    cart: [{
-        product: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Product",
-            required: [true, 'Product ID is required for cart item']
-        },
-        variant: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "ProductVariant"
-        },
-        quantity: {
-            type: Number,
-            default: 1,
-            min: [1, 'Quantity must be at least 1'],
-            max: [100, 'Quantity cannot exceed 100']
-        },
-        addedAt: {
-            type: Date,
-            default: Date.now
-        }
-    }],
-
-    wishlist: [{
+    cartId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Product"
-    }],
+        ref: "Cart"
+    },
+
+    wishlistId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Wishlist"
+    },
 
     orders: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Order"
     }]
+
 
 }, {
     timestamps: true,
@@ -268,27 +252,7 @@ userSchema.pre('save', function (next) {
     next();
 });
 
-// 🔐 Hash password before save (only for non-social logins)
-userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
-
-    try {
-        this.password = await bcrypt.hash(this.password, 12);
-        next();
-    } catch (error) {
-        next(new AuthError('Failed to hash password', 'PASSWORD_HASH_ERROR'));
-    }
-});
-// ==================== INDEXES ====================
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 }); // ✅ ADDED: Index for username
-userSchema.index({ 'socialLogins.provider': 1, 'socialLogins.providerId': 1 });
-userSchema.index({ status: 1 });
-userSchema.index({ createdAt: 1 });
-
-// ==================== MIDDLEWARE ====================
-
-// 🔐 Hash password before save (only for non-social logins)
+// ✅ KEEP ONLY ONE: Hash password before save (only for non-social logins)
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
 
@@ -300,23 +264,7 @@ userSchema.pre('save', async function (next) {
     }
 });
 
-// ✅ ADDED: Auto-generate username from first and last name
-userSchema.pre('save', function (next) {
-    // Only generate username if it doesn't exist and we have first name
-    if (!this.username && this.firstName) {
-        const baseUsername = `${this.firstName}${this.lastName ? this.lastName : ''}`
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '') // Remove non-alphanumeric characters
-            .substring(0, 25); // Limit to 25 chars to leave room for numbers
-
-        if (baseUsername.length >= 3) {
-            this.username = baseUsername;
-        }
-    }
-    next();
-});
-
-// ✅ ADDED: Handle username uniqueness with numbers
+// ✅ KEEP: Handle username uniqueness with numbers
 userSchema.pre('save', async function (next) {
     if (!this.isModified('username') || !this.username) return next();
 
@@ -354,6 +302,32 @@ userSchema.pre('save', async function (next) {
     }
 });
 
+// ==================== INDEXES ====================
+userSchema.index({ email: 1 });
+userSchema.index({ username: 1 }); // ✅ ADDED: Index for username
+userSchema.index({ 'socialLogins.provider': 1, 'socialLogins.providerId': 1 });
+userSchema.index({ status: 1 });
+userSchema.index({ createdAt: 1 });
+
+// ==================== MIDDLEWARE ====================
+
+
+
+// ✅ ADDED: Auto-generate username from first and last name
+userSchema.pre('save', function (next) {
+    // Only generate username if it doesn't exist and we have first name
+    if (!this.username && this.firstName) {
+        const baseUsername = `${this.firstName}${this.lastName ? this.lastName : ''}`
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '') // Remove non-alphanumeric characters
+            .substring(0, 25); // Limit to 25 chars to leave room for numbers
+
+        if (baseUsername.length >= 3) {
+            this.username = baseUsername;
+        }
+    }
+    next();
+});
 // Auto-verify email for Google users
 userSchema.pre('save', function (next) {
     if (this.isGoogleUser && !this.emailVerified) {

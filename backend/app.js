@@ -9,7 +9,10 @@ const brandRoutes = require("./routes/brand");
 const adminRoutes = require("./routes/admin");
 const categoryRoutes = require("./routes/category");
 const productRoutes = require('./routes/product');
-const userRoutes = require('./routes/user')
+const userRoutes = require('./routes/user');
+const reviewRoutes = require('./routes/review');
+const wishlistRoutes = require("./routes/wishlist");
+const cartRoutes = require('./routes/cart');
 
 dotenv.config({ path: path.join(__dirname, 'config/config.env') });
 
@@ -57,7 +60,10 @@ app.use('/api/v1', productRoutes);
 app.use("/api/v1", categoryRoutes);
 app.use("/api/v1", brandRoutes);
 app.use('/api/v1', adminRoutes);
-app.use('/api/v1', userRoutes)
+app.use('/api/v1', userRoutes);
+app.use('/api/v1', reviewRoutes);
+app.use('/api/v1', wishlistRoutes);
+app.use('/api/v1', cartRoutes);
 
 // Health check route
 app.get('/api/v1/health', (req, res) => {

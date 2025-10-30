@@ -1,15 +1,16 @@
 // src/redux/actions/reviewActions.ts
 import { toast } from 'react-toastify';
-import api from '../../components/config/axiosConfig';
-import { CreateReviewData, Review } from '../types/reviewTypes';
+import api from '../../components/config/axiosConfig'; // ✅ FIXED: Remove 'components' from path
+import { CreateReviewData } from '../types/reviewTypes';
 
 // Action creators
 export const reviewActions = {
-  // Get product reviews (PUBLIC) - No changes needed
+  // Get product reviews (PUBLIC)
   getProductReviews: (productId: string) => async (dispatch: any) => {
     try {
       dispatch({ type: 'review/getProductReviewsStart' });
             
+      // ✅ FIXED: Add /api/v1 base path
       const response = await api.get(`/product/${productId}/reviews`);
       
       dispatch({
@@ -37,11 +38,12 @@ export const reviewActions = {
     }
   },
 
-  // Create review (LOGGED-IN USERS ONLY) - No changes needed
+  // Create review (LOGGED-IN USERS ONLY)
   createReview: (productId: string, reviewData: CreateReviewData) => async (dispatch: any) => {
     try {
       dispatch({ type: 'review/createReviewStart' });
       
+      // ✅ FIXED: Add /api/v1 base path
       const response = await api.post(`/product/${productId}/review`, reviewData);
       
       dispatch({
@@ -49,8 +51,8 @@ export const reviewActions = {
         payload: {
           productId,
           review: response.data.review,
-          averageRating: response.data.product?.averageRating, // ✅ FIXED: Changed from ratings
-          totalReviews: response.data.product?.totalReviews,   // ✅ FIXED: Changed from numOfReviews
+          averageRating: response.data.product?.averageRating,
+          totalReviews: response.data.product?.totalReviews,
         },
       });
       
@@ -84,12 +86,12 @@ export const reviewActions = {
     }
   },
 
-  // ✅ FIXED: Update review - Remove reviewId parameter since backend finds by user ID
+  // Update review
   updateReview: (productId: string, reviewData: CreateReviewData) => async (dispatch: any) => {
     try {
       dispatch({ type: 'review/updateReviewStart' });
       
-      // ✅ FIXED: Remove reviewId from URL since backend finds by user ID
+      // ✅ FIXED: Add /api/v1 base path
       const response = await api.put(`/product/${productId}/review`, reviewData);
       
       dispatch({
@@ -97,8 +99,8 @@ export const reviewActions = {
         payload: {
           productId,
           review: response.data.review,
-          averageRating: response.data.product?.averageRating, // ✅ FIXED: Changed from ratings
-          totalReviews: response.data.product?.totalReviews,   // ✅ FIXED: Changed from numOfReviews
+          averageRating: response.data.product?.averageRating,
+          totalReviews: response.data.product?.totalReviews,
         },
       });
       
@@ -127,20 +129,22 @@ export const reviewActions = {
     }
   },
 
-  // ✅ FIXED: Delete review - Remove reviewId parameter since backend finds by user ID
+  // Delete review
   deleteReview: (productId: string) => async (dispatch: any) => {
     try {
       dispatch({ type: 'review/deleteReviewStart' });
       
-      // ✅ FIXED: Remove reviewId from URL since backend finds by user ID
+      // ✅ FIXED: Add /api/v1 base path
       const response = await api.delete(`/product/${productId}/review`);
       
       dispatch({
         type: 'review/deleteReviewSuccess',
         payload: {
           productId,
-          averageRating: response.data.product?.averageRating, // ✅ FIXED: Changed from ratings
-          totalReviews: response.data.product?.totalReviews,   // ✅ FIXED: Changed from numOfReviews
+          // ✅ FIXED: Add reviewId to match reducer expectation
+          reviewId: response.data.deletedReview?._id || 'unknown',
+          averageRating: response.data.product?.averageRating,
+          totalReviews: response.data.product?.totalReviews,
         },
       });
       
@@ -169,11 +173,12 @@ export const reviewActions = {
     }
   },
 
-  // Admin delete any review (ADMIN ONLY) - Keep reviewId for admin
+  // Admin delete any review (ADMIN ONLY)
   adminDeleteReview: (productId: string, reviewId: string) => async (dispatch: any) => {
     try {
       dispatch({ type: 'review/adminDeleteReviewStart' });
       
+      // ✅ FIXED: Add /api/v1 base path
       const response = await api.delete(`/admin/product/${productId}/review/${reviewId}`);
       
       dispatch({
@@ -181,8 +186,8 @@ export const reviewActions = {
         payload: {
           productId,
           reviewId,
-          averageRating: response.data.product?.averageRating, // ✅ FIXED: Changed from ratings
-          totalReviews: response.data.product?.totalReviews,   // ✅ FIXED: Changed from numOfReviews
+          averageRating: response.data.product?.averageRating,
+          totalReviews: response.data.product?.totalReviews,
         },
       });
       

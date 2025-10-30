@@ -1,3 +1,4 @@
+// actions/authActions.ts - COMPLETELY REPLACE THIS FILE
 import {
     loginRequest,
     loginSuccess,
@@ -8,61 +9,101 @@ import {
     logoutRequest,
     logoutSuccess,
     clearAuthError,
-    setUserData
+    setCompleteUserData
 } from '../slices/authSlice';
 import { toast } from 'react-toastify';
-import api from '../../components/config/axiosConfig'; // ✅ Import axios config
+import api from '../../components/config/axiosConfig';
 
-// Debug version to find the recursive call
 export const clearError = () => {
-    console.log('🔧 clearError action called');
     return clearAuthError();
 };
 
-export const login = (email: string, password: string) => {
-    return async (dispatch: any) => {
-        console.log('🔧 login action started');
-        
-        try {
-            console.log('🔧 Dispatching loginRequest');
-            dispatch(loginRequest());
-            console.log('🔧 loginRequest dispatched successfully');
+// ✅ NEW: Load complete user profile (user + cart + wishlist + orders)
+export const loadCompleteUserProfile = () => async (dispatch: any) => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            return { success: false, error: 'No token found' };
+        }
 
-            console.log('🔧 Making API call with axios...');
-            const response = await api.post('/login', { 
-                email, 
-                password 
+        const response = await api.get('/user/complete-profile');
+        
+        if (response.data.success) {
+            const { user, cart, wishlist, recentOrders } = response.data.data;
+
+            // ✅ Set complete user data in auth slice
+            dispatch(setCompleteUserData({ user }));
+
+            // ✅ Set cart data in cart slice
+            dispatch({
+                type: 'cart/fetchCartSuccess',
+                payload: cart?.items || []
             });
 
-            console.log('🔧 API response:', response.data);
+            // ✅ Set wishlist data in wishlist slice  
+            dispatch({
+                type: 'wishlist/fetchWishlistSuccess',
+                payload: wishlist
+            });
+
+            // ✅ Set orders data in order slice (if you have one)
+            dispatch({
+                type: 'order/setRecentOrders',
+                payload: recentOrders || []
+            });
+
+            return { 
+                success: true, 
+                data: { user, cart, wishlist, recentOrders } 
+            };
+        } else {
+            localStorage.removeItem('token');
+            return { success: false, error: response.data.message };
+        }
+    } catch (error: any) {
+        console.error('Failed to load complete user profile:', error);
+        
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to load user profile';
+        
+        // Clear invalid tokens
+        localStorage.removeItem('token');
+        return { success: false, error: errorMessage };
+    }
+};
+
+// ✅ UPDATED: Login with complete profile loading
+export const login = (email: string, password: string) => {
+    return async (dispatch: any) => {
+        try {
+            dispatch(loginRequest());
+
+            const response = await api.post('/login', { email, password });
 
             if (response.data.success) {
-                console.log('🔧 Login successful, storing token');
                 localStorage.setItem('token', response.data.token);
                 
-                console.log('🔧 Dispatching loginSuccess');
                 dispatch(loginSuccess({
-                    token: response.data.token // ✅ Only token, no user data
+                    token: response.data.token
                 }));
 
-                // ✅ Show success toast
-                toast.success(response.data.message || 'Login successful!');
+                // ✅ Load complete user profile after login
+                const profileResult = await dispatch(loadCompleteUserProfile());
                 
-                return { success: true };
+                if (profileResult.success) {
+                    toast.success(response.data.message || 'Login successful!');
+                    return { success: true };
+                } else {
+                    // Login succeeded but profile loading failed
+                    toast.error('Login successful but failed to load profile data');
+                    return { success: false, error: profileResult.error };
+                }
             } else {
-                console.log('🔧 Login failed, dispatching failure');
-                // ✅ Show error toast
                 toast.error(response.data.message || 'Login failed');
                 dispatch(loginFailure(response.data.message || 'Login failed'));
                 return { success: false, error: response.data.message };
             }
         } catch (error: any) {
-            console.log('🔧 Login error:', error);
-            
-            // Extract error message from axios response
             const errorMessage = error.response?.data?.message || error.message || 'Network error';
-            
-            // ✅ Show error toast
             toast.error(errorMessage);
             dispatch(loginFailure(errorMessage));
             return { success: false, error: errorMessage };
@@ -70,7 +111,7 @@ export const login = (email: string, password: string) => {
     };
 };
 
-// Register action with axios and FormData support
+// ✅ UPDATED: Register with complete profile loading  
 export const register = (userData: FormData | any) => {
     return async (dispatch: any) => {
         try {
@@ -79,14 +120,10 @@ export const register = (userData: FormData | any) => {
             let response;
             
             if (userData instanceof FormData) {
-                // For FormData (with avatar), use multipart/form-data
                 response = await api.post('/register', userData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data'
-                    }
+                    headers: { 'Content-Type': 'multipart/form-data' }
                 });
             } else {
-                // For regular JSON data
                 response = await api.post('/register', userData);
             }
 
@@ -94,24 +131,21 @@ export const register = (userData: FormData | any) => {
                 localStorage.setItem('token', response.data.token);
                 
                 dispatch(registerSuccess({
-                    token: response.data.token // ✅ Only token, no user data
+                    token: response.data.token
                 }));
 
-                // ✅ Show success toast
+                // ✅ Load complete user profile after registration
+                await dispatch(loadCompleteUserProfile());
+
                 toast.success(response.data.message || 'Registration successful!');
-                
                 return { success: true };
             } else {
-                // ✅ Show error toast
                 toast.error(response.data.message || 'Registration failed');
                 dispatch(registerFailure(response.data.message || 'Registration failed'));
                 return { success: false, error: response.data.message };
             }
         } catch (error: any) {
-            // Extract error message from axios response
             const errorMessage = error.response?.data?.message || error.message || 'Network error';
-            
-            // ✅ Show error toast
             toast.error(errorMessage);
             dispatch(registerFailure(errorMessage));
             return { success: false, error: errorMessage };
@@ -119,89 +153,19 @@ export const register = (userData: FormData | any) => {
     };
 };
 
-// Logout action with axios
+// Logout remains the same
 export const logout = () => {
     return async (dispatch: any) => {
         try {
             dispatch(logoutRequest());
-            
-            // Try to call logout API
             await api.post('/logout');
-            
         } catch (error: any) {
-            // Silent catch - logout should proceed even if API call fails
-            console.log('Logout API call failed, proceeding with client-side logout:', error.message);
+            console.log('Logout API call failed:', error.message);
         } finally {
-            // Always clear local storage and dispatch success
             localStorage.removeItem('token');
-            localStorage.removeItem('userData');
             dispatch(logoutSuccess());
-
-            // ✅ Show success toast
             toast.success('Logged out successfully');
-            
             return { success: true };
-        }
-    };
-};
-
-// Load user profile with axios (for AuthInitializer)
-export const loadUserProfile = () => {
-    return async (dispatch: any) => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                return { success: false, error: 'No token found' };
-            }
-
-            const response = await api.get('/profile');
-
-            if (response.data.success) {
-                // ✅ Use setUserData to store user information
-                dispatch(setUserData(response.data.user));
-                return { success: true, user: response.data.user };
-            } else {
-                // Invalid token or user not found
-                localStorage.removeItem('token');
-                localStorage.removeItem('userData');
-                return { success: false, error: response.data.message };
-            }
-        } catch (error: any) {
-            console.error('Failed to load user profile:', error);
-            
-            // Extract error message
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to load user profile';
-            
-            // Clear invalid tokens
-            localStorage.removeItem('token');
-            localStorage.removeItem('userData');
-            return { success: false, error: errorMessage };
-        }
-    };
-};
-
-// Optional: Update user profile
-export const updateUserProfile = (userData: any) => {
-    return async (dispatch: any) => {
-        try {
-            const response = await api.put('/profile', userData, {
-                headers: userData instanceof FormData ? 
-                    { 'Content-Type': 'multipart/form-data' } : 
-                    { 'Content-Type': 'application/json' }
-            });
-
-            if (response.data.success) {
-                dispatch(setUserData(response.data.user));
-                toast.success('Profile updated successfully!');
-                return { success: true, user: response.data.user };
-            } else {
-                toast.error(response.data.message || 'Failed to update profile');
-                return { success: false, error: response.data.message };
-            }
-        } catch (error: any) {
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to update profile';
-            toast.error(errorMessage);
-            return { success: false, error: errorMessage };
         }
     };
 };

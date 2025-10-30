@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { reviewActions } from '../../redux/actions/reviewActions';
-import { selectReviewsByProductId, selectUserReviewForProduct } from '../../redux/selectors/reviewSelectors';
+import { useSelectReviewsByProductId, useSelectUserReviewForProduct } from '../../redux/selectors/reviewSelectors';
 import ReviewItem from './ReviewItem';
 import ReviewForm from './ReviewForm';
 import { Star, Filter } from 'lucide-react';
@@ -10,50 +10,25 @@ import { Review } from '../../redux/types/reviewTypes';
 
 interface ReviewsListProps {
   productId: string;
-   onReviewDelete?: () => void;
+  onReviewDelete?: () => void;
 }
 
 type SortOption = 'newest' | 'oldest' | 'highest' | 'lowest';
-type FilterOption = 'all' | '5-stars' | '4-stars' | '3-stars' | '2-stars' | '1-star';
+type FilterOption = 'all' | '5' | '4' | '3' | '2' | '1';
 
-const formatUserName = (user: any) => {
-  if (!user) return 'Anonymous';
-  
-  // Handle the case where backend sends "undefined undefined"
-  if (user.fullName === 'undefined undefined') {
-    // Check if firstName and lastName are available
-    if (user.firstName && user.firstName !== 'undefined') {
-      return `${user.firstName}${user.lastName && user.lastName !== 'undefined' ? ' ' + user.lastName : ''}`.trim();
-    }
-    // Fallback to email
-    return user.email?.split('@')[0] || 'User';
-  }
-  
-  // Handle proper fullName
-  if (user.fullName && user.fullName !== 'undefined undefined') {
-    return user.fullName;
-  }
-  
-  // Handle firstName/lastName structure
-  if (user.firstName && user.firstName !== 'undefined') {
-    return `${user.firstName}${user.lastName && user.lastName !== 'undefined' ? ' ' + user.lastName : ''}`.trim();
-  }
-  
-  // Final fallback
-  return user.email?.split('@')[0] || 'User';
-};
-
-const ReviewsList: React.FC<ReviewsListProps> = ({ productId }) => {
+const ReviewsList: React.FC<ReviewsListProps> = ({ productId, onReviewDelete }) => {
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.authState);
   const { loading } = useSelector((state: RootState) => state.reviewState);
   
-  const reviewsData = useSelector((state: RootState) => 
-    selectReviewsByProductId(productId)(state)
-  );
-  const userReview = useSelector((state: RootState) => 
-    selectUserReviewForProduct(productId, user?._id)(state)
-  );
+  // ✅ FIXED: Use stable selectors with useMemo
+  const selectReviewsData = React.useMemo(() => 
+    useSelectReviewsByProductId(productId), [productId]);
+  const selectUserReview = React.useMemo(() => 
+    useSelectUserReviewForProduct(productId, user?._id), [productId, user?._id]);
+  
+  const reviewsData = useSelector(selectReviewsData);
+  const userReview = useSelector(selectUserReview);
   
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingReview, setEditingReview] = useState<Review | null>(null);
@@ -61,7 +36,7 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId }) => {
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [showFilters, setShowFilters] = useState(false);
 
-  // ✅ FIXED: Safe destructuring with defaults
+  // Safe destructuring with defaults
   const { reviews = [], averageRating = 0, totalReviews = 0 } = reviewsData;
 
   useEffect(() => {
@@ -73,10 +48,8 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId }) => {
     setShowEditForm(true);
   };
 
-    // ✅ ADDED: Handle review delete with callback
   const handleReviewDelete = () => {
     dispatch(reviewActions.getProductReviews(productId));
-    // Call the parent callback to update the header section
     if (onReviewDelete) {
       onReviewDelete();
     }
@@ -88,66 +61,57 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId }) => {
     dispatch(reviewActions.getProductReviews(productId));
   };
 
+  // ✅ FIXED: Proper rating distribution calculation
+  const ratingDistribution = React.useMemo(() => {
+    const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    
+    reviews.forEach(review => {
+      if (review && review.rating >= 1 && review.rating <= 5) {
+        distribution[review.rating as keyof typeof distribution]++;
+      }
+    });
+    
+    return distribution;
+  }, [reviews]);
+
   // Filter and sort reviews
   const filteredAndSortedReviews = React.useMemo(() => {
     let filtered = [...reviews];
 
-    // ✅ FIXED: Safe rating filter
     if (filterBy !== 'all') {
-      const rating = parseInt(filterBy.charAt(0));
+      const rating = parseInt(filterBy);
       filtered = filtered.filter(review => review && review.rating === rating);
     }
 
-    // ✅ FIXED: Safe sorting with date validation
     switch (sortBy) {
       case 'newest':
-        return [...filtered].sort((a, b) => {
-          const dateA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const dateB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return dateB - dateA;
-        });
+        return [...filtered].sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       case 'oldest':
-        return [...filtered].sort((a, b) => {
-          const dateA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const dateB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return dateA - dateB;
-        });
+        return [...filtered].sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       case 'highest':
-        return [...filtered].sort((a, b) => (b?.rating || 0) - (a?.rating || 0));
+        return [...filtered].sort((a, b) => b.rating - a.rating);
       case 'lowest':
-        return [...filtered].sort((a, b) => (a?.rating || 0) - (b?.rating || 0));
+        return [...filtered].sort((a, b) => a.rating - b.rating);
       default:
         return filtered;
     }
   }, [reviews, sortBy, filterBy]);
 
-  // ✅ FIXED: Improved reviewsToDisplay logic
+  // Reviews to display (excluding user's own review if it exists)
   const reviewsToDisplay = React.useMemo(() => {
     if (!userReview) return filteredAndSortedReviews;
     
     return filteredAndSortedReviews.filter(review => {
       if (!review || !userReview) return true;
-      
-      // Compare by user ID for embedded reviews
       const reviewUserId = review.user?._id || review.user;
       const userReviewUserId = userReview.user?._id || userReview.user;
-      
       return reviewUserId !== userReviewUserId;
     });
   }, [filteredAndSortedReviews, userReview]);
-
-  // Rating distribution
-  const getRatingDistribution = () => {
-    const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    reviews.forEach(review => {
-      if (review && typeof review.rating === 'number' && review.rating >= 1 && review.rating <= 5) {
-        distribution[review.rating as keyof typeof distribution]++;
-      }
-    });
-    return distribution;
-  };
-
-  const ratingDistribution = getRatingDistribution();
 
   const renderStars = (rating: number, size: number = 16) => {
     return [1, 2, 3, 4, 5].map((star) => (
@@ -159,24 +123,7 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId }) => {
     ));
   };
 
-  // ✅ FIXED: Better key generation for reviews
-  const generateReviewKey = (review: Review, index: number) => {
-    if (!review) return `review-${index}-${Date.now()}`;
-    
-    // Use _id if available
-    if (review._id) return review._id;
-    
-    // Use user ID + timestamp for embedded reviews
-    if (review.user && review.createdAt) {
-      const userId = typeof review.user === 'object' ? review.user._id : review.user;
-      return `review-${userId}-${new Date(review.createdAt).getTime()}`;
-    }
-    
-    // Fallback
-    return `review-${index}-${Date.now()}`;
-  };
-
-  // ✅ FIXED: Safe calculations
+  // Safe calculations
   const safeAverageRating = typeof averageRating === 'number' && !isNaN(averageRating) ? averageRating : 0;
   const safeTotalReviews = typeof totalReviews === 'number' ? totalReviews : reviews.length;
 
@@ -191,26 +138,11 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId }) => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Reviews Header and Stats */}
+    <div className="max-w-7xl mx-auto">
+      {/* Reviews Header */}
       <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Customer Reviews</h2>
-            <div className="flex items-center space-x-4">
-              <div className="text-4xl font-bold text-gray-900">
-                {safeAverageRating.toFixed(1)}
-              </div>
-              <div>
-                <div className="flex items-center space-x-1 mb-1">
-                  {renderStars(Math.round(safeAverageRating), 20)}
-                </div>
-                <div className="text-sm text-gray-600">
-                  Based on {safeTotalReviews} review{safeTotalReviews !== 1 ? 's' : ''}
-                </div>
-              </div>
-            </div>
-          </div>
+
 
           {user && !userReview && (
             <button
@@ -222,157 +154,178 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId }) => {
           )}
         </div>
 
-        {/* Rating Distribution */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            {[5, 4, 3, 2, 1].map((rating) => {
-              const count = ratingDistribution[rating as keyof typeof ratingDistribution];
-              const percentage = safeTotalReviews > 0 ? (count / safeTotalReviews) * 100 : 0;
-              
-              return (
-                <div key={rating} className="flex items-center space-x-3">
+        {/* Rating Distribution and Reviews Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Left: Rating Distribution - Compact Height */}
+          <div className="lg:col-span-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Rating Breakdown</h3>
+            <div className="space-y-2 max-h-80 overflow-y-auto"> {/* ✅ Reduced height */}
+              {[5, 4, 3, 2, 1].map((rating) => {
+                const count = ratingDistribution[rating as keyof typeof ratingDistribution];
+                const percentage = safeTotalReviews > 0 ? (count / safeTotalReviews) * 100 : 0;
+                
+                return (
                   <button
-                    onClick={() => setFilterBy(`${rating}-stars` as FilterOption)}
-                    className={`flex items-center space-x-1 text-sm ${
-                      filterBy === `${rating}-stars` ? 'text-blue-600 font-medium' : 'text-gray-600'
+                    key={rating}
+                    onClick={() => setFilterBy(rating.toString() as FilterOption)}
+                    className={`flex items-center justify-between w-full rounded-lg transition-colors ${
+                      filterBy === rating.toString() 
+                        ? 'bg-blue-50 border border-blue-200' 
+                        : 'bg-gray-50 hover:bg-gray-100'
                     }`}
                   >
-                    <span>{rating}</span>
-                    <Star size={14} className="text-yellow-400 fill-current" />
+                    <div className="flex items-center space-x-2 flex-1 min-w-0">
+                      <div className="flex items-center space-x-1 w-12">
+                        <span className="text-sm font-medium text-gray-700">{rating}</span>
+                        <Star size={14} className="text-yellow-400 fill-current" />
+                      </div>
+                      <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
+                        <div
+                          className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    <span className={`text-xs ml-2 ${
+                      filterBy === rating.toString() ? 'text-blue-600 font-medium' : 'text-gray-500'
+                    }`}>
+                      {count}
+                    </span>
                   </button>
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${percentage}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-sm text-gray-500 w-12 text-right">
-                    {count}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+                );
+              })}
+            </div>
 
-      {/* Reviews Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-3 sm:space-y-0">
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Filter size={16} />
-              <span>Filter</span>
-            </button>
-            
-            {showFilters && (
-              <div className="absolute top-12 left-0 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-10 min-w-[140px]">
-                {[
-                  { value: 'all', label: 'All Ratings' },
-                  { value: '5-stars', label: '5 Stars' },
-                  { value: '4-stars', label: '4 Stars' },
-                  { value: '3-stars', label: '3 Stars' },
-                  { value: '2-stars', label: '2 Stars' },
-                  { value: '1-star', label: '1 Star' },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => {
-                      setFilterBy(option.value as FilterOption);
-                      setShowFilters(false);
-                    }}
-                    className={`flex items-center space-x-2 w-full px-3 py-2 text-sm text-left ${
-                      filterBy === option.value 
-                        ? 'bg-blue-50 text-blue-600' 
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span>{option.label}</span>
-                  </button>
-                ))}
+            {/* Reset Filter Button */}
+            {filterBy !== 'all' && (
+              <button
+                onClick={() => setFilterBy('all')}
+                className="w-full mt-3 px-3 py-1.5 text-xs text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                Show All Reviews
+              </button>
+            )}
+
+            {/* Active Filter Info */}
+            {filterBy !== 'all' && (
+              <div className="mt-2 text-xs text-gray-500 text-center">
+                Showing {ratingDistribution[parseInt(filterBy) as keyof typeof ratingDistribution]} {filterBy}-star reviews
               </div>
             )}
           </div>
 
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="highest">Highest Rated</option>
-            <option value="lowest">Lowest Rated</option>
-          </select>
-        </div>
+          {/* Right: Reviews List */}
+          <div className="lg:col-span-3">
+            {/* Reviews Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-3 sm:space-y-0">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Filter size={16} />
+                    <span>Filter & Sort</span>
+                  </button>
+                  
+                  {showFilters && (
+                    <div className="absolute top-12 left-0 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-10 min-w-[160px]">
+                      <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        Sort by
+                      </div>
+                      {[
+                        { value: 'newest', label: 'Newest First' },
+                        { value: 'oldest', label: 'Oldest First' },
+                        { value: 'highest', label: 'Highest Rated' },
+                        { value: 'lowest', label: 'Lowest Rated' },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setSortBy(option.value as SortOption);
+                            setShowFilters(false);
+                          }}
+                          className={`flex items-center space-x-2 w-full px-3 py-2 text-sm text-left ${
+                            sortBy === option.value 
+                              ? 'bg-blue-50 text-blue-600' 
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span>{option.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-        <div className="text-sm text-gray-600">
-          Showing {reviewsToDisplay.length} of {safeTotalReviews} reviews
-          {filterBy !== 'all' && ` (${filterBy.replace('-', ' ')})`}
-        </div>
-      </div>
-
-      {/* User's Review (if exists) */}
-      {userReview && (
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">Your Review</h3>
-            <button
-              onClick={() => handleEdit(userReview)}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              Edit Review
-            </button>
-          </div>
-          <ReviewItem 
-            key={generateReviewKey(userReview, 0)}
-            review={userReview} 
-            productId={productId} 
-            onEdit={handleEdit}
-            onDelete={handleReviewDelete}
-          />
-        </div>
-      )}
-
-      {/* Reviews List */}
-      <div className="space-y-4">
-        {reviewsToDisplay.length === 0 && !userReview ? (
-          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-            <div className="text-gray-400 mb-3">
-              <Star size={48} className="mx-auto" />
+                <div className="text-sm text-gray-600">
+                  {reviewsToDisplay.length} of {safeTotalReviews} reviews
+                  {filterBy !== 'all' && ` • ${filterBy} stars`}
+                </div>
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No reviews found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {filterBy === 'all' 
-                ? 'No reviews yet. Be the first to review this product!'
-                : `No ${filterBy.replace('-', ' ')} reviews found.`
-              }
-            </p>
-            {user && !userReview && filterBy === 'all' && (
-              <button
-                onClick={() => setShowEditForm(true)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Write the First Review
-              </button>
+
+            {/* User's Review (if exists) */}
+            {userReview && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">Your Review</h3>
+                  <button
+                    onClick={() => handleEdit(userReview)}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    Edit Review
+                  </button>
+                </div>
+                <ReviewItem 
+                  key={userReview._id}
+                  review={userReview} 
+                  productId={productId} 
+                  onEdit={handleEdit}
+                  onDelete={handleReviewDelete}
+                />
+              </div>
             )}
+
+            {/* Reviews List */}
+            <div className="space-y-4">
+              {reviewsToDisplay.length === 0 && !userReview ? (
+                <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
+                  <div className="text-gray-400 mb-3">
+                    <Star size={36} className="mx-auto" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    {filterBy === 'all' ? 'No reviews yet' : 'No matching reviews'}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {filterBy === 'all' 
+                      ? 'Be the first to review this product!'
+                      : `No ${filterBy}-star reviews found.`
+                    }
+                  </p>
+                  {user && !userReview && filterBy === 'all' && (
+                    <button
+                      onClick={() => setShowEditForm(true)}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Write the First Review
+                    </button>
+                  )}
+                </div>
+              ) : (
+                reviewsToDisplay.map((review) => (
+                  <ReviewItem 
+                    key={review._id}
+                    review={review} 
+                    productId={productId} 
+                    onEdit={handleEdit}
+                    onDelete={handleReviewDelete}
+                  />
+                ))
+              )}
+            </div>
           </div>
-        ) : (
-          reviewsToDisplay.map((review, index) => (
-            <ReviewItem 
-              key={generateReviewKey(review, index)}
-              review={review} 
-              productId={productId} 
-              onEdit={handleEdit}
-              onDelete={handleReviewDelete}
-            />
-          ))
-        )}
+        </div>
       </div>
 
       {/* Review Form Modal */}

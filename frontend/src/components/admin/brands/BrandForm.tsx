@@ -4,6 +4,7 @@ import { Brand, BrandFormData } from '../types/brand';
 import { brandService } from '../services/brandService';
 import { Icons } from '../Icon';
 import { toast } from 'react-toastify';
+import { baseURL } from '../../config/config';
 
 const BrandForm: React.FC = () => {
   const navigate = useNavigate();
@@ -58,7 +59,7 @@ const fetchBrand = async () => {
     if (brand.logo?.url) {
       
       // Construct full URL for the preview image
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const baseUrl = process.env.REACT_APP_API_URL || baseURL;
       const fullImageUrl = brand.logo.url.startsWith('http') 
         ? brand.logo.url 
         : `${baseUrl}${brand.logo.url}`;

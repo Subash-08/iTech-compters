@@ -3,7 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { reviewActions } from '../../redux/actions/reviewActions';
-import { selectReviewsByProductId, selectHasUserReviewed } from '../../redux/selectors/reviewSelectors';
+import { 
+  selectReviewsByProductId, 
+  selectHasUserReviewed,
+  useSelectReviewsByProductId,
+  useSelectHasUserReviewed 
+} from '../../redux/selectors/reviewSelectors';
 import ReviewsList from './ReviewsList';
 import ReviewForm from './ReviewForm';
 import { Star, MessageSquare, Plus } from 'lucide-react';
@@ -39,12 +44,15 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.authState);
   
-  const reviewsData = useSelector((state: RootState) => 
-    selectReviewsByProductId(productId)(state)
-  );
-  const userHasReviewed = useSelector((state: RootState) => 
-    selectHasUserReviewed(productId, user?._id)(state)
-  );
+  // ✅ FIXED: Use stable selectors with useMemo to prevent recreation
+  const selectReviewsData = React.useMemo(() => 
+    selectReviewsByProductId(productId), [productId]);
+  
+  const selectUserHasReviewed = React.useMemo(() => 
+    selectHasUserReviewed(productId, user?._id), [productId, user?._id]);
+  
+  const reviewsData = useSelector(selectReviewsData);
+  const userHasReviewed = useSelector(selectUserHasReviewed);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
 

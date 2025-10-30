@@ -1,5 +1,4 @@
-import mongoose from 'mongoose';
-
+const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 // Custom validator for integer enforcement
@@ -57,31 +56,6 @@ const featureSchema = new Schema({
     title: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
 }, { _id: false });
-
-// 🧾 Review Schema
-const reviewSchema = new Schema({
-    user: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    rating: {
-        type: Number,
-        required: true,
-        min: 1,
-        max: 5,
-        validate: integerValidator
-    },
-    comment: {
-        type: String,
-        trim: true,
-        default: ""
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-});
 
 // 🧠 ENHANCED Main Product Schema with Color Support
 const productSchema = new Schema({
@@ -154,7 +128,6 @@ const productSchema = new Schema({
         unit: { type: String, enum: ['g', 'kg', 'lb', 'oz'], default: 'kg' },
     },
     warranty: { type: String, trim: true },
-    reviews: [reviewSchema],
     averageRating: { type: Number, min: 0, max: 5, default: 0 },
     totalReviews: { type: Number, min: 0, default: 0 },
     meta: {
@@ -165,7 +138,7 @@ const productSchema = new Schema({
     canonicalUrl: { type: String, trim: true },
     linkedProducts: [{ type: Schema.Types.ObjectId, ref: 'Product' }],
     notes: { type: String, trim: true },
-}, { timestamps: true, toJSON: { virtuals: true } });
+}, { timestamps: true, toJSON: { virtuals: true }, strictPopulate: false });
 
 // =============================================
 // 🎯 VIRTUAL FIELDS (UPDATED)
@@ -259,33 +232,59 @@ productSchema.pre('save', function (next) {
     next();
 });
 
-// Post-save: Update review stats
-productSchema.pre('save', function (next) {
-    if (this.isModified('reviews')) {
-        if (this.reviews && this.reviews.length > 0) {
-            this.totalReviews = this.reviews.length;
-            this.averageRating = parseFloat((
-                this.reviews.reduce((sum, review) => sum + review.rating, 0) / this.totalReviews
-            ).toFixed(1));
+// Virtual for reviews from separate collection
+productSchema.virtual('reviews', {
+    ref: 'Review',
+    localField: '_id',
+    foreignField: 'product'
+});
+
+// FIXED updateReviewStats method in productModel.js
+productSchema.methods.updateReviewStats = async function () {
+    const Review = mongoose.model('Review');
+
+    try {
+        const reviewStats = await Review.aggregate([
+            {
+                $match: {
+                    product: this._id,
+                    status: 'approved'
+                }
+            },
+            {
+                $group: {
+                    _id: '$product',
+                    totalReviews: { $sum: 1 },
+                    averageRating: { $avg: '$rating' }
+                }
+            }
+        ]);
+
+        if (reviewStats.length > 0) {
+            this.totalReviews = reviewStats[0].totalReviews;
+            this.averageRating = parseFloat(reviewStats[0].averageRating.toFixed(1));
         } else {
+            // If no reviews, reset to 0
             this.totalReviews = 0;
             this.averageRating = 0;
         }
-    }
-    next();
-});
 
-productSchema.methods.updateReviewStats = async function () {
-    if (this.reviews && this.reviews.length > 0) {
-        this.totalReviews = this.reviews.length;
-        this.averageRating = parseFloat((
-            this.reviews.reduce((sum, review) => sum + review.rating, 0) / this.totalReviews
-        ).toFixed(1));
-    } else {
-        this.totalReviews = 0;
-        this.averageRating = 0;
+        await this.save();
+        console.log(`✅ Updated review stats for ${this.name}: ${this.averageRating} avg, ${this.totalReviews} total`);
+        return this;
+    } catch (error) {
+        console.error('❌ Error updating review stats:', error);
+        throw error;
     }
-    await this.save();
+};
+
+// 🆕 NEW: Static method to update review stats for a product
+productSchema.statics.updateProductReviewStats = async function (productId) {
+    const product = await this.findById(productId);
+    if (!product) {
+        throw new Error('Product not found');
+    }
+    return await product.updateReviewStats();
 };
 // =============================================
 // 🎯 HELPER METHODS (MISSING METHODS ADDED)
@@ -620,5 +619,4 @@ productSchema.methods.getColorHexCode = function (colorName) {
 
     return colorMap[colorName.toLowerCase()] || '#CCCCCC';
 };
-
-export default mongoose.model('Product', productSchema);
+module.exports = mongoose.model('Product', productSchema);

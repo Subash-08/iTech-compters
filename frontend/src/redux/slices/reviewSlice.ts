@@ -33,6 +33,12 @@ const reviewSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
+    // ✅ ADDED: Admin actions
+    adminDeleteReviewStart: (state) => {
+      state.loading = true;
+      state.error = null;
+      state.success = false;
+    },
 
     // Success actions
     createReviewSuccess: (state, action: PayloadAction<{ 
@@ -135,6 +141,47 @@ const reviewSlice = createSlice({
       }
     },
 
+    // ✅ ADDED: Admin delete success
+    adminDeleteReviewSuccess: (state, action: PayloadAction<{ 
+      productId: string; 
+      reviewId: string;
+      averageRating?: number;
+      totalReviews?: number;
+    }>) => {
+      state.loading = false;
+      state.success = true;
+      state.error = null;
+
+      const { productId, reviewId, averageRating, totalReviews } = action.payload;
+      
+      if (state.productReviews[productId]) {
+        // Remove the specific review
+        state.productReviews[productId].reviews = state.productReviews[productId].reviews.filter(
+          rev => rev._id !== reviewId
+        );
+        
+        // Update stats if provided, otherwise recalculate
+        if (averageRating !== undefined && totalReviews !== undefined) {
+          state.productReviews[productId].averageRating = averageRating;
+          state.productReviews[productId].totalReviews = totalReviews;
+        } else {
+          state.productReviews[productId].totalReviews = Math.max(
+            0, 
+            state.productReviews[productId].totalReviews - 1
+          );
+          
+          // Recalculate average rating
+          const reviews = state.productReviews[productId].reviews;
+          if (reviews.length > 0) {
+            const totalRating = reviews.reduce((sum, rev) => sum + rev.rating, 0);
+            state.productReviews[productId].averageRating = Number((totalRating / reviews.length).toFixed(1));
+          } else {
+            state.productReviews[productId].averageRating = 0;
+          }
+        }
+      }
+    },
+
     getProductReviewsSuccess: (state, action: PayloadAction<{ 
       productId: string; 
       reviews: Review[]; 
@@ -172,6 +219,12 @@ const reviewSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
+    // ✅ ADDED: Admin delete failure
+    adminDeleteReviewFailure: (state, action: PayloadAction<string>) => {
+      state.loading = false;
+      state.error = action.payload;
+      state.success = false;
+    },
 
     // Utility actions
     clearReviewError: (state) => {
@@ -199,6 +252,9 @@ export const {
   getProductReviewsStart,
   getProductReviewsSuccess,
   getProductReviewsFailure,
+  adminDeleteReviewStart,
+  adminDeleteReviewSuccess,
+  adminDeleteReviewFailure,
   clearReviewError,
   clearReviewSuccess,
   clearProductReviews,

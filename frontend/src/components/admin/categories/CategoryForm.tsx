@@ -5,6 +5,7 @@ import { Category, CategoryFormData } from '../types/category';
 import { categoryAPI } from '../services/categoryAPI';
 import { Icons } from '../Icon';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { baseURL } from '../../config/config';
 
 const CategoryForm: React.FC = () => {
   const navigate = useNavigate();
@@ -62,7 +63,7 @@ const CategoryForm: React.FC = () => {
 
       // Set preview image if exists
       if (category.image?.url) {
-        const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const baseUrl = process.env.REACT_APP_API_URL || baseURL;
         const fullImageUrl = category.image.url.startsWith('http') 
           ? category.image.url 
           : `${baseUrl}${category.image.url}`;

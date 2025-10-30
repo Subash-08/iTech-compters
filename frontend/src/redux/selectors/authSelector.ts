@@ -46,3 +46,4 @@ export const selectUserFullName = createSelector(
     return `${user.firstName || ''} ${user.lastName || ''}`.trim();
   }
 );
+

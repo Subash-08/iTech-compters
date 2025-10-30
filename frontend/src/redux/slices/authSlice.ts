@@ -18,7 +18,7 @@ const authSlice = createSlice({
     initialState: {
         loading: false,
         isAuthenticated: !!localStorage.getItem('token') && isValidToken(localStorage.getItem('token')),
-        user: JSON.parse(localStorage.getItem('userData') || 'null'), // ✅ Load from localStorage
+        user: null, // ✅ REMOVED localStorage userData
         token: localStorage.getItem('token'),
         error: null
     },
@@ -32,7 +32,7 @@ const authSlice = createSlice({
             }
         },
         loginSuccess(state, action) {
-            // Store only token in localStorage
+            // ✅ Store only token
             localStorage.setItem('token', action.payload.token);
             
             return {
@@ -40,13 +40,12 @@ const authSlice = createSlice({
                 loading: false,
                 isAuthenticated: true,
                 token: action.payload.token,
+                user: null, // ✅ Will be set by complete profile fetch
                 error: null
-                // ❌ Don't set user here - AuthInitializer will fetch it
             }
         },
         loginFailure(state, action) {
             localStorage.removeItem('token');
-            localStorage.removeItem('userData'); // ✅ Clear user data too
             
             return {
                 ...state,
@@ -57,7 +56,7 @@ const authSlice = createSlice({
                 error: action.payload
             }
         },
-        
+                
         // Register
         registerRequest(state, action) {
             return {
@@ -74,13 +73,12 @@ const authSlice = createSlice({
                 loading: false,
                 isAuthenticated: true,
                 token: action.payload.token,
+                user: null, // ✅ Will be set by complete profile fetch
                 error: null
-                // ❌ Don't set user here - AuthInitializer will fetch it
             }
         },
         registerFailure(state, action) {
             localStorage.removeItem('token');
-            localStorage.removeItem('userData'); // ✅ Clear user data too
             
             return {
                 ...state,
@@ -101,7 +99,6 @@ const authSlice = createSlice({
         },
         logoutSuccess(state, action) {
             localStorage.removeItem('token');
-            localStorage.removeItem('userData'); // ✅ Clear user data too
             
             return {
                 ...state,
@@ -116,27 +113,18 @@ const authSlice = createSlice({
         // Initialize auth state from token
         initializeAuth(state, action) {
             const token = localStorage.getItem('token');
-            const userData = localStorage.getItem('userData');
             
-            if (token && isValidToken(token) && userData) {
-                try {
-                    const user = JSON.parse(userData);
-                    return {
-                        ...state,
-                        isAuthenticated: true,
-                        user: user,
-                        token: token
-                    };
-                } catch (error) {
-                    // Invalid user data, clear everything
-                    localStorage.removeItem('userData');
-                    localStorage.removeItem('token');
-                }
+            if (token && isValidToken(token)) {
+                return {
+                    ...state,
+                    isAuthenticated: true,
+                    token: token,
+                    user: null // ✅ User data will be fetched separately
+                };
             }
             
             // Clear invalid token
             localStorage.removeItem('token');
-            localStorage.removeItem('userData');
             return {
                 ...state,
                 isAuthenticated: false,
@@ -145,14 +133,26 @@ const authSlice = createSlice({
             };
         },
         
-        // Set user data after fetching from profile API
-        setUserData(state, action) {
-            localStorage.setItem('userData', JSON.stringify(action.payload));
-            
+        // ✅ NEW: Set complete user data (user + cart + wishlist + orders)
+        setCompleteUserData(state, action) {
             return {
                 ...state,
-                user: action.payload
+                user: action.payload.user
             }
+        },
+        
+        // ✅ NEW: Update only user profile (for profile updates)
+        updateUserProfile: (state, action) => {
+            if (state.user) {
+                return {
+                    ...state,
+                    user: {
+                        ...state.user,
+                        ...action.payload
+                    }
+                };
+            }
+            return state;
         },
         
         // Clear errors
@@ -183,7 +183,8 @@ export const {
     logoutRequest,
     logoutSuccess,
     initializeAuth,
-    setUserData,
+    setCompleteUserData, // ✅ NEW
+    updateUserProfile,   // ✅ UPDATED
     clearAuthError,
     clearAuthLoading
 } = authSlice.actions;

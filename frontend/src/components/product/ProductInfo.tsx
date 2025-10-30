@@ -1,7 +1,7 @@
-// src/components/product/ProductInfo.tsx
 import React from 'react';
 import { ProductData, Variant } from './productTypes';
 import VariantSelectors from './VariantSelectors';
+import AddToCartButton from './AddToCartButton';
 
 interface ProductInfoProps {
   productData: ProductData;
@@ -41,11 +41,55 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
     return (price * taxRate) / 100;
   };
 
+  // Check if we have a valid variant selection
+  const hasValidVariantSelection = () => {
+    if (!productData.variantConfiguration?.hasVariants) {
+      return true; // No variants required
+    }
+    
+    if (productData.variants.length === 0) {
+      return true; // No variants available
+    }
+    
+    return selectedVariant !== null; // Variant is selected
+  };
+
+  // Get the variant ID for cart
+  const getVariantId = () => {
+    return selectedVariant?._id;
+  };
+
+  // Check if product can be added to cart
+  const canAddToCart = currentPriceInfo.stockQuantity > 0 && hasValidVariantSelection();
+
+  // Get display name - show variant name if selected, otherwise product name
+  const getDisplayName = () => {
+    if (selectedVariant?.name) {
+      return selectedVariant.name;
+    }
+    return productData.name;
+  };
+
+  // Get display SKU - show variant SKU if selected, otherwise product SKU
+  const getDisplaySku = () => {
+    if (selectedVariant?.sku) {
+      return selectedVariant.sku;
+    }
+    return productData.sku;
+  };
+
   return (
     <div className="space-y-6">
-      {/* Product Title */}
+      {/* Product Title - Shows variant name when selected */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{productData.name}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          {getDisplayName()}
+          {selectedVariant && selectedVariant.name !== productData.name && (
+            <span className="text-lg font-normal text-gray-600 ml-2">
+              ({productData.name})
+            </span>
+          )}
+        </h1>
         <div className="flex items-center space-x-4 text-sm text-gray-600">
           {productData.brand && (
             <>
@@ -63,7 +107,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
             </>
           )}
           <span>•</span>
-          <span>SKU: {selectedVariant?.sku || productData.sku}</span>
+          <span>SKU: {getDisplaySku()}</span>
         </div>
       </div>
 
@@ -132,29 +176,56 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         )}
       </div>
 
+      {/* Variant Selection Warning */}
+      {productData.variantConfiguration?.hasVariants && !selectedVariant && productData.variants.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <p className="text-yellow-800 text-sm">
+            ⚠️ Please select a variant before adding to cart
+          </p>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex space-x-4">
-        <button
+        {/* Add to Cart Button */}
+        <AddToCartButton
+          productId={productData._id}
+          variantId={getVariantId()}
+          quantity={1}
           className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
-            currentPriceInfo.stockQuantity === 0
+            !canAddToCart
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
           }`}
-          disabled={currentPriceInfo.stockQuantity === 0}
-        >
-          {currentPriceInfo.stockQuantity === 0 ? 'Out of Stock' : 'Add to Cart'}
-        </button>
+          disabled={!canAddToCart}
+        />
+        
+        {/* Buy Now Button (Optional - you can create a similar component) */}
         <button
           className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
-            currentPriceInfo.stockQuantity === 0
+            !canAddToCart
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-orange-500 hover:bg-orange-600 text-white'
           }`}
-          disabled={currentPriceInfo.stockQuantity === 0}
+          disabled={!canAddToCart}
         >
           Buy Now
         </button>
       </div>
+
+      {/* Selected Variant Info - Now redundant since title shows variant name */}
+      {selectedVariant && selectedVariant.identifyingAttributes && selectedVariant.identifyingAttributes.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-blue-800 text-sm">
+            ✅ Selected: 
+            {selectedVariant.identifyingAttributes.map(attr => (
+              <span key={attr.key} className="ml-2">
+                {attr.label}: {attr.displayValue || attr.value}
+              </span>
+            ))}
+          </p>
+        </div>
+      )}
 
       {/* Delivery Info */}
       <div className="border-t border-gray-200 pt-4">

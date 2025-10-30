@@ -1,5 +1,6 @@
 import { toast } from 'react-toastify';
 import api from '../../components/config/axiosConfig';
+import { updateUserProfile } from '../slices/authSlice';
 
 // Types
 export interface UserProfile {
@@ -105,21 +106,27 @@ export const profileActions = {
   },
 
   // Update profile
-  updateProfile: (profileData: FormData) => async (dispatch: any) => {
-    try {
-      dispatch({ type: 'profile/updateProfileStart' });
-      const response = await profileAPI.updateProfile(profileData);
-      dispatch({
-        type: 'profile/updateProfileSuccess',
-        payload: response.user,
-      });
-    } catch (error: any) {
-      dispatch({
-        type: 'profile/updateProfileFailure',
-        payload: error.message,
-      });
-    }
-  },
+updateProfile: (profileData: FormData) => async (dispatch: any) => {
+  try {
+    dispatch({ type: 'profile/updateProfileStart' });
+    const response = await profileAPI.updateProfile(profileData);
+    
+    // Update profile state
+    dispatch({
+      type: 'profile/updateProfileSuccess',
+      payload: response.user,
+    });
+
+    // ALSO update auth state
+    dispatch(updateUserProfile(response.user));
+
+  } catch (error: any) {
+    dispatch({
+      type: 'profile/updateProfileFailure',
+      payload: error.message,
+    });
+  }
+},
 
   // Update password
   updatePassword: (passwordData: UpdatePasswordData) => async (dispatch: any) => {

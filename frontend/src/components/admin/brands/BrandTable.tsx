@@ -1,6 +1,7 @@
 import React from 'react';
 import { Brand } from '../types/brand';
 import { Icons } from '../Icon';
+import { baseURL } from '../../config/config';
 
 interface BrandTableProps {
   brands: Brand[];
@@ -41,7 +42,7 @@ const BrandTable: React.FC<BrandTableProps> = ({
   // Serve relative to backend (same server)
   const baseUrl = process.env.NODE_ENV === 'production'
     ? ''  // 👈 relative path
-    : 'http://localhost:5000'; // 👈 local backend
+    : baseURL; // 👈 local backend
 
   return `${baseUrl}${url.startsWith('/') ? url : '/' + url}`;
 };

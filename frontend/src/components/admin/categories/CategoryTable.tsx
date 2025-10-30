@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { Category } from '../types/category';
 import StatusBadge from '../common/StatusBadge';
 import { Icons } from '../Icon';
+import { baseURL } from '../../config/config';
 
 interface CategoryTableProps {
   categories: Category[];
@@ -31,9 +32,7 @@ const CategoryTable: React.FC<CategoryTableProps> = ({
       return url;
     }
 
-    const baseUrl = process.env.NODE_ENV === 'production' 
-      ? '' 
-      : 'http://localhost:5000';
+    const baseUrl = baseURL;
 
     return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
   };

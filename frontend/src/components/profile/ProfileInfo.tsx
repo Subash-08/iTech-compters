@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserProfile } from '../../redux/actions/profileActions';
+import { baseURL } from '../config/config';
 
 interface ProfileInfoProps {
   profile: UserProfile | null;
@@ -46,11 +47,12 @@ const ProfileInfo: React.FC<ProfileInfoProps> = ({ profile }) => {
     }
     
     // Otherwise, construct the full URL
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const baseUrl = import.meta.env.VITE_API_URL || baseURL;
     return `${baseUrl}${profile.avatar}`;
   };
 
   const avatarUrl = getAvatarUrl();
+
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,7 @@
 // utils/urlUtils.ts
 
-const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// 👇 Change this one URL for both development and production
+const baseUrl = 'http://localhost:5000/'; // Replace with your actual domain
 
 export const getImageUrl = (url?: string | null, placeholder: string = 'https://placehold.co/300x300?text=No+Image'): string => {
   if (!url) return placeholder;

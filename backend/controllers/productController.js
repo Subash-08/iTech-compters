@@ -1,4 +1,4 @@
-const Product = require("../models/productModel").default;
+const Product = require("../models/productModel");
 const ErrorHandler = require('../utils/errorHandler')
 const categoryModel = require("../models/categoryModel");
 const brandModel = require("../models/brandModel");
@@ -413,33 +413,145 @@ exports.getProductReviews = catchAsyncErrors(async (req, res, next) => {
     res.status(200).json({ success: true, reviews: product.reviews || [] });
 });
 
+// 🟢 GET ALL PRODUCTS WITH REVIEWS (Admin)
+exports.getProductsWithReviews = catchAsyncErrors(async (req, res, next) => {
+    const { search = '' } = req.query;
 
-/////////////////////////////
-// 📝 PRODUCT REVIEWS
-/////////////////////////////
-// 🟢 GET ALL REVIEWS FOR A PRODUCT (Public)
-exports.getReviews = catchAsyncErrors(async (req, res, next) => {
+    try {
+        // Find all products
+        const products = await Product.find()
+            .populate('reviews.user', 'firstName lastName email avatar')
+            .select('name images reviews ratings numOfReviews')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Filter products that have reviews and match search
+        const productsWithReviews = products
+            .filter(product => {
+                const hasReviews = product.reviews && product.reviews.length > 0;
+                const matchesSearch = !search ||
+                    product.name.toLowerCase().includes(search.toLowerCase());
+                return hasReviews && matchesSearch;
+            })
+            .map(product => {
+                const reviews = product.reviews || [];
+
+                // Calculate average rating from actual reviews
+                const averageRating = reviews.length > 0
+                    ? reviews.reduce((sum, review) => sum + (review.rating || 0), 0) / reviews.length
+                    : 0;
+
+                // Ensure each review has proper data
+                const safeReviews = reviews.map((review, index) => ({
+                    _id: review._id ? review._id.toString() : `temp-${product._id}-${index}`,
+                    user: {
+                        _id: review.user?._id || 'unknown',
+                        firstName: review.user?.firstName || 'Unknown',
+                        lastName: review.user?.lastName || 'User',
+                        email: review.user?.email || 'No email',
+                        avatar: review.user?.avatar
+                    },
+                    rating: review.rating || 0,
+                    comment: review.comment || '',
+                    createdAt: review.createdAt || new Date(),
+                    updatedAt: review.updatedAt || new Date()
+                }));
+
+                return {
+                    _id: product._id,
+                    name: product.name,
+                    image: product.images?.[0]?.url || null,
+                    reviews: safeReviews,
+                    averageRating: Number(averageRating.toFixed(1)),
+                    totalReviews: safeReviews.length
+                };
+            });
+
+        res.status(200).json({
+            success: true,
+            products: productsWithReviews,
+            count: productsWithReviews.length
+        });
+
+    } catch (error) {
+        console.error('Error in getProductsWithReviews:', error);
+        return next(new ErrorHandler('Failed to fetch products with reviews', 500));
+    }
+});
+// 🟢 GET PRODUCT REVIEWS WITH CORRECT IDs FOR ADMIN
+exports.getProductReviewsForAdmin = catchAsyncErrors(async (req, res, next) => {
     const { id: productId } = req.params;
 
-    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
-        return next(new ErrorHandler("Invalid product ID format", 400));
-    }
-
-    const product = await Product.findById(productId)
-        .populate('reviews.user', 'firstName lastName email avatar'); // ✅ FIXED: Use correct fields
+    const product = await Product.findById(productId);
 
     if (!product) {
         return next(new ErrorHandler("Product not found", 404));
     }
 
+    // Get the actual review IDs from the product (without population first)
+    const reviewIds = product.reviews.map(review => review._id.toString());
+
+    console.log('Actual review IDs in product:', reviewIds);
+
+    // Now populate with the correct IDs
+    await product.populate('reviews.user', 'firstName lastName email avatar');
+
+    const reviews = product.reviews.map(review => ({
+        _id: review._id.toString(), // This should be the correct ID now
+        user: review.user,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        updatedAt: review.updatedAt
+    }));
+
     res.status(200).json({
         success: true,
-        reviews: product.reviews,
+        reviews: reviews,
+        averageRating: product.averageRating,
+        totalReviews: product.totalReviews,
+        debug: {
+            actualReviewIds: reviewIds,
+            sentReviewIds: reviews.map(r => r._id)
+        }
+    });
+});
+// 🟢 GET ALL REVIEWS FOR A PRODUCT (Public) - Debug version
+exports.getReviews = catchAsyncErrors(async (req, res, next) => {
+    const { id: productId } = req.params;
+
+    console.log('=== GET REVIEWS DEBUG ===');
+    console.log('Product ID:', productId);
+
+    const product = await Product.findById(productId)
+        .populate('reviews.user', 'firstName lastName email avatar');
+
+    if (!product) {
+        return next(new ErrorHandler("Product not found", 404));
+    }
+
+    console.log('Product reviews (raw):', product.reviews);
+    console.log('Review IDs in product:', product.reviews.map(r => r._id.toString()));
+
+    const reviewsWithCorrectIds = product.reviews.map(review => ({
+        _id: review._id.toString(),
+        user: review.user,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        updatedAt: review.updatedAt
+    }));
+
+    console.log('Sending reviews:', reviewsWithCorrectIds.map(r => r._id));
+    console.log('=== END DEBUG ===');
+
+    res.status(200).json({
+        success: true,
+        reviews: reviewsWithCorrectIds,
         averageRating: product.averageRating,
         totalReviews: product.totalReviews
     });
 });
-
 // 🟢 GET SINGLE REVIEW (Public)
 exports.getReview = catchAsyncErrors(async (req, res, next) => {
     const { id: productId, reviewId } = req.params;
@@ -469,7 +581,7 @@ exports.getReview = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-// 🟡 ADD REVIEW - Fixed version
+
 exports.addReview = catchAsyncErrors(async (req, res, next) => {
     const { rating, comment } = req.body;
     const { id: productId } = req.params;
@@ -657,9 +769,11 @@ exports.updateReview = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// 🟣 ADMIN: DELETE ANY REVIEW
+// 🟣 ADMIN: DELETE ANY REVIEW (Debug version)
 exports.adminDeleteReview = catchAsyncErrors(async (req, res, next) => {
     const { id: productId, reviewId } = req.params;
+
+    console.log('Delete review request:', { productId, reviewId });
 
     if (!productId.match(/^[0-9a-fA-F]{24}$/) || !reviewId.match(/^[0-9a-fA-F]{24}$/)) {
         return next(new ErrorHandler("Invalid ID format", 400));
@@ -670,8 +784,14 @@ exports.adminDeleteReview = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler("Product not found", 404));
     }
 
+    console.log('Product found:', product.name);
+    console.log('Product reviews:', product.reviews.map(r => ({ id: r._id, rating: r.rating })));
+
     const reviewIndex = product.reviews.findIndex(rev => rev._id.toString() === reviewId);
+    console.log('Review index found:', reviewIndex);
+
     if (reviewIndex === -1) {
+        console.log('Review not found in product reviews');
         return next(new ErrorHandler("Review not found", 404));
     }
 
@@ -685,6 +805,8 @@ exports.adminDeleteReview = catchAsyncErrors(async (req, res, next) => {
     await product.updateRating();
 
     await product.save({ validateBeforeSave: false });
+
+    console.log('Review deleted successfully');
 
     res.status(200).json({
         success: true,
@@ -703,7 +825,6 @@ exports.adminDeleteReview = catchAsyncErrors(async (req, res, next) => {
         }
     });
 });
-
 
 
 // ADMIN: Create new product

@@ -1,8 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { SidebarItem } from './types/admin';
 import { Icons } from './Icon';
+
+// Redux imports
+import { useAppDispatch, useAppSelector } from '../../redux/hooks';
+import { logout } from '../../redux/actions/authActions';
+import {
+  selectIsAuthenticated,
+  selectUser,
+  selectUserInitials
+} from '../../redux/selectors';
+import {
+  selectProfile,
+  selectProfileInitials,
+  selectUserName,
+  selectUserAvatar
+} from '../../redux/selectors';
+import { baseURL } from '../config/config';
 
 // Import your admin components
 import Products from './products/Products';
@@ -10,6 +27,184 @@ import CategoryList from './categories/CategoryList';
 import CategoryForm from './categories/CategoryForm';
 import BrandList from './brands/BrandList';
 import BrandForm from './brands/BrandForm';
+import UserList from './user/UserList';
+import ReviewList from './reviews/ReviewList';
+
+// Helper function to get avatar URL
+const getAvatarUrl = (avatarPath?: string) => {
+  if (!avatarPath) return null;
+  
+  // If avatar is already a full URL, use it directly
+  if (avatarPath.startsWith('http')) {
+    return avatarPath;
+  }
+  
+  // Otherwise, construct the full URL
+  const baseUrl = import.meta.env.VITE_API_URL || baseURL;
+  return `${baseUrl}${avatarPath}`;
+};
+
+// User Dropdown Component for Admin Header
+const UserDropdown: React.FC = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dispatch = useAppDispatch();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const user = useAppSelector(selectUser);
+  const userInitials = useAppSelector(selectUserInitials);
+  
+  // Profile selectors
+  const profile = useAppSelector(selectProfile);
+  const profileInitials = useAppSelector(selectProfileInitials);
+  const profileName = useAppSelector(selectUserName);
+  const profileAvatar = useAppSelector(selectUserAvatar);
+  
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Use profile data if available, otherwise fall back to auth data
+  const displayUser = profile || user;
+  const displayInitials = profileInitials || userInitials || 'A';
+  const displayName = profileName || user?.firstName || 'Admin';
+  const displayEmail = user?.email || 'Administrator';
+  const displayAvatar = profileAvatar || user?.avatar;
+  const avatarUrl = getAvatarUrl(displayAvatar);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    setIsOpen(false);
+  };
+
+  const toggleDropdown = () => {
+    setIsOpen(!isOpen);
+  };
+
+  // If not authenticated, show login link (though this shouldn't happen in admin)
+  if (!isAuthenticated) {
+    return (
+      <Link 
+        to="/login" 
+        className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors duration-200"
+        aria-label="Sign in"
+      >
+        <Icons.User className="w-6 h-6"/>
+        <span className="hidden sm:block text-sm font-medium">Sign In</span>
+      </Link>
+    );
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      {/* User Profile Button */}
+      <button
+        onClick={toggleDropdown}
+        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        aria-label="User menu"
+        aria-expanded={isOpen}
+      >
+        <div className="text-right hidden sm:block">
+          <p className="text-sm font-medium text-gray-900">{displayName}</p>
+          <p className="text-xs text-gray-500">{displayEmail}</p>
+        </div>
+        <div className="relative">
+          <div className="w-2 h-2 bg-green-500 rounded-full absolute -top-1 -right-1 ring-2 ring-white"></div>
+          {avatarUrl ? (
+            <img
+              className="w-10 h-10 rounded-full object-cover"
+              src={avatarUrl}
+              alt={displayName}
+              onError={(e) => {
+                // Fallback to initials if image fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                // The parent div with initials will show instead
+              }}
+            />
+          ) : (
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+              <span className="text-white font-medium text-sm">
+                {displayInitials}
+              </span>
+            </div>
+          )}
+        </div>
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+          {/* User Info */}
+          <div className="px-4 py-3 border-b border-gray-100">
+            <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+            <p className="text-sm text-gray-500 truncate">{displayEmail}</p>
+            <p className="text-xs text-gray-400 mt-1 capitalize">
+              {displayUser?.role || 'Administrator'}
+            </p>
+          </div>
+
+          {/* Menu Items */}
+          <div className="py-2">
+            <Link
+              to="/profile"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+            >
+              <Icons.User className="w-4 h-4 mr-3" />
+              My Profile
+            </Link>
+            
+            <Link
+              to="/"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+            >
+              <Icons.Home className="w-4 h-4 mr-3" />
+              Home
+            </Link>
+
+            {/* Admin specific links */}
+            {displayUser?.role === 'admin' && (
+              <>
+                <div className="border-t border-gray-100 my-1"></div>
+                <Link
+                  to="/admin"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors duration-200"
+                >
+                  <Icons.Dashboard className="w-4 h-4 mr-3" />
+                  Admin Dashboard
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Logout */}
+          <div className="border-t border-gray-100 pt-2">
+            <button
+              onClick={handleLogout}
+              className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
+            >
+              <Icons.LogOut className="w-4 h-4 mr-3" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AdminLayout: React.FC = () => {
   const location = useLocation();
@@ -49,6 +244,12 @@ const AdminLayout: React.FC = () => {
           path: '/admin/products'
         }
       ]
+    },
+    {
+      id: 'users',
+      label: 'User Management',
+      icon: <Icons.Users className="w-5 h-5" />,
+      path: '/admin/users'
     },
     {
       id: 'sales',
@@ -121,8 +322,6 @@ const AdminLayout: React.FC = () => {
     return findItem(sidebarItems)?.label || 'Dashboard';
   };
 
-  const showAddButton = location.pathname === '/admin/products';
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Fixed Sidebar */}
@@ -164,24 +363,11 @@ const AdminLayout: React.FC = () => {
               {/* Notifications */}
               <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200">
                 <div className="w-2 h-2 bg-red-500 rounded-full absolute top-2 right-2"></div>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM10.24 8.56a5.97 5.97 0 01-3.77-4.31 1 1 0 00-1.47-.93 7.97 7.97 0 005.09 7.17 1 1 0 001.15-.93z" />
-                </svg>
+                <Icons.Bell className="w-5 h-5" />
               </button>
 
-              {/* User Profile */}
-              <div className="flex items-center space-x-3">
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900">Admin User</p>
-                  <p className="text-xs text-gray-500">Administrator</p>
-                </div>
-                <div className="relative">
-                  <div className="w-2 h-2 bg-green-500 rounded-full absolute -top-1 -right-1 ring-2 ring-white"></div>
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-medium text-sm">A</span>
-                  </div>
-                </div>
-              </div>
+              {/* User Profile Dropdown */}
+              <UserDropdown />
             </div>
           </div>
         </header>
@@ -190,7 +376,7 @@ const AdminLayout: React.FC = () => {
         <main className="pt-20 pb-8 px-6">
           <div className="max-w-7xl mx-auto">
             {/* Render the appropriate component based on route */}
-              <Routes>
+            <Routes>
               <Route path="/categories" element={<CategoryList />} />
               <Route path="/categories/new" element={<CategoryForm />} />
               <Route path="/categories/edit/:id" element={<CategoryForm />} />
@@ -199,8 +385,10 @@ const AdminLayout: React.FC = () => {
               <Route path="/brands" element={<BrandList />} />
               <Route path="/brands/new" element={<BrandForm />} />
               <Route path="/brands/edit/:slug" element={<BrandForm />} />
-              </Routes>
-            
+              {/* User Management Routes */}
+              <Route path="/users" element={<UserList />} />
+              <Route path="/reviews" element={<ReviewList />} />
+            </Routes>
           </div>
         </main>
       </div>

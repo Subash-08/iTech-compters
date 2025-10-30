@@ -11,3 +11,5 @@ export const getConfig = () => {
     UPLOADS_URL: process.env.REACT_APP_UPLOADS_URL || 'http://localhost:5000/uploads'
   };
 };
+
+export const baseURL = 'http://localhost:5000';

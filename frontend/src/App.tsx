@@ -13,6 +13,11 @@ import LoadingSpinner from "./components/admin/common/LoadingSpinner";
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import AuthInitializer from "./components/AuthInitializer";
+import { useAppSelector } from "./redux/hooks";
+import { selectIsAuthenticated, selectAuthLoading, selectUser } from "./redux/selectors";
+import Profile from "./components/profile/Profile";
+import Cart from "./components/cart/Cart";
+import Wishlist from "./components/wishlist/wishlist";
 
 // ✅ UPDATED: Root Layout - AuthInitializer at the top level
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -52,12 +57,6 @@ const PageLoading: React.FC = () => (
   </div>
 );
 
-// ✅ UPDATED: Protected Route component - use Redux state instead of localStorage
-import { useAppSelector } from "./redux/hooks";
-import { selectIsAuthenticated, selectAuthLoading, selectUser } from "./redux/selectors"; // ✅ ADDED selectUser
-import Profile from "./components/profile/Proile";
-import Cart from "./components/profile/Cart";
-
 const ProtectedRoute: React.FC<{ 
   children: React.ReactNode; 
   requireAuth?: boolean;
@@ -69,7 +68,7 @@ const ProtectedRoute: React.FC<{
 }) => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const authLoading = useAppSelector(selectAuthLoading);
-  const user = useAppSelector(selectUser); // ✅ Now this is defined
+  const user = useAppSelector(selectUser);
 
   // Show loading while checking authentication
   if (authLoading) {
@@ -150,7 +149,12 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute requireAuth={false}>
                 <AuthLayout>
-                  {/* <ForgotPassword /> */}
+                  <div className="min-h-screen flex items-center justify-center">
+                    <div className="bg-white p-8 rounded-lg shadow-md w-96">
+                      <h2 className="text-2xl font-bold mb-4">Forgot Password</h2>
+                      <p className="text-gray-600 mb-4">This feature is coming soon.</p>
+                    </div>
+                  </div>
                 </AuthLayout>
               </ProtectedRoute>
             } 
@@ -161,7 +165,12 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute requireAuth={false}>
                 <AuthLayout>
-                  {/* <ResetPassword /> */}
+                  <div className="min-h-screen flex items-center justify-center">
+                    <div className="bg-white p-8 rounded-lg shadow-md w-96">
+                      <h2 className="text-2xl font-bold mb-4">Reset Password</h2>
+                      <p className="text-gray-600 mb-4">This feature is coming soon.</p>
+                    </div>
+                  </div>
                 </AuthLayout>
               </ProtectedRoute>
             } 
@@ -233,7 +242,16 @@ const App: React.FC = () => {
               </PublicLayout>
             } 
           />
-
+        <Route 
+          path="/wishlist" 
+          element={
+            <ProtectedRoute>
+              <PublicLayout>
+                <Wishlist />
+              </PublicLayout>
+            </ProtectedRoute>
+          } 
+        />
           {/* Search Route */}
           <Route 
             path="/search" 
