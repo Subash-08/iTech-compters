@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { ProductState, Product, ProductFilters, AvailableFilters } from '../types/productTypes';
 
 // In your productSlice.ts
+// redux/slices/productSlice.ts - Add base price fields
 const initialState: ProductState = {
   products: [],
   loading: false,
@@ -12,7 +13,7 @@ const initialState: ProductState = {
     condition: '',
     inStock: false,
     minPrice: 0,
-    maxPrice: 0, // Set to 0 initially, not 5000
+    maxPrice: 0,
     rating: 0,
     sortBy: 'featured',
     page: 1,
@@ -22,8 +23,10 @@ const initialState: ProductState = {
     brands: [],
     categories: [],
     conditions: ['New', 'Refurbished', 'Used'],
-    maxPrice: 5000, // This is just informational
     minPrice: 0,
+    maxPrice: 5000,
+    baseMinPrice: 0, // ✅ NEW
+    baseMaxPrice: 5000, // ✅ NEW
   },
   totalPages: 1,
   totalProducts: 0,
@@ -59,26 +62,48 @@ const productSlice = createSlice({
       state.error = action.payload;
     },
 
-    // Filter actions
-    updateFilters: (state, action: PayloadAction<Partial<ProductFilters>>) => {
-      state.filters = { ...state.filters, ...action.payload };
-      state.currentPage = 1; // Reset to first page when filters change
+   updateFilters: (state, action: PayloadAction<Partial<ProductFilters>>) => {
+      console.log('🔄 Redux - Updating filters with:', action.payload);
+      
+      // Only update the filters that are provided in the payload
+      // This prevents keeping old filter values when URL changes
+      Object.keys(action.payload).forEach(key => {
+        if (key in state.filters) {
+          (state.filters as any)[key] = (action.payload as any)[key];
+        }
+      });
+      
+      // Reset page to 1 when filters change (except page changes)
+      if (action.payload.page === undefined) {
+        state.filters.page = 1;
+        state.currentPage = 1;
+      }
+      
+      console.log('✅ Redux - Updated filters:', state.filters);
     },
-    
-    clearFilters: (state) => {
+
+    // ✅ FIXED: Clear filters properly
+    clearFilters: (state, action: PayloadAction<{ brandName?: string; categoryName?: string } | undefined>) => {
+      const routeParams = action.payload;
+      
+      console.log('🧹 Redux - Clearing filters, route params:', routeParams);
+      
+      // Reset all filters except route-based ones
       state.filters = {
-        category: '',
-        brand: '',
+        category: routeParams?.categoryName ? routeParams.categoryName.replace(/-/g, ' ') : '',
+        brand: routeParams?.brandName ? routeParams.brandName.replace(/-/g, ' ') : '',
         condition: '',
         inStock: false,
-        minPrice: 0,
-        maxPrice: state.availableFilters.maxPrice,
+        minPrice: state.availableFilters.baseMinPrice || 0,
+        maxPrice: state.availableFilters.baseMaxPrice || 5000,
         rating: 0,
         sortBy: 'featured',
         page: 1,
         limit: 12,
       };
       state.currentPage = 1;
+      
+      console.log('✅ Redux - Cleared filters:', state.filters);
     },
 
     // Pagination actions

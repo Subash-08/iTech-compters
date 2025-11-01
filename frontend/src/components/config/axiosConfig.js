@@ -11,58 +11,39 @@ const api = axios.create({
     },
 });
 
-// Request interceptor
+// Request interceptor - just add token
 api.interceptors.request.use(
     (config) => {
-        // ✅ FIX: Use 'token' instead of 'authToken' to match your localStorage
         const token = localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
-
         return config;
     },
     (error) => {
-        console.error('Request error:', error);
         return Promise.reject(error);
     }
 );
 
-// Response interceptor
+// ✅ SIMPLE: Response interceptor - only handle generic errors
 api.interceptors.response.use(
-    (response) => {
-        return response;
-    },
+    (response) => response,
     (error) => {
-        console.error('=== AXIOS ERROR DETAILS ===');
-        console.error('URL:', error.config?.url);
-        console.error('Method:', error.config?.method);
-        console.error('Status:', error.response?.status);
-        console.error('Status Text:', error.response?.statusText);
-        console.error('Response Data:', error.response?.data);
-        console.error('======================');
+        // Only log and handle generic server/network errors
+        console.error('API Error:', {
+            url: error.config?.url,
+            status: error.response?.status,
+            message: error.response?.data?.message || error.message
+        });
 
-        // Handle specific error cases
-        if (error.response?.status === 401) {
-            console.log('🛑 401 Unauthorized - clearing tokens');
-            localStorage.removeItem('token');
-            localStorage.removeItem('userData');
-
-            // Only redirect if not already on login page
-            if (!window.location.pathname.includes('/login')) {
-                window.location.href = '/login';
-            }
-        }
-
-        // Handle other common errors
-        if (error.response?.status === 500) {
+        // Show toast only for generic errors, not auth errors
+        if (error.response?.status >= 500) {
             toast.error('Server error. Please try again later.');
-        }
-
-        if (error.code === 'NETWORK_ERROR') {
+        } else if (error.code === 'NETWORK_ERROR' || !error.response) {
             toast.error('Network error. Please check your connection.');
         }
 
+        // Return error for components to handle
         return Promise.reject(error);
     }
 );

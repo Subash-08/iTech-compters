@@ -12,6 +12,7 @@ import {
 import ReviewsList from './ReviewsList';
 import ReviewForm from './ReviewForm';
 import { Star, MessageSquare, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface ProductReviewsSectionProps {
   productId: string;
@@ -43,6 +44,8 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
 }) => {
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.authState);
+
+  const navigate = useNavigate();
   
   // ✅ FIXED: Use stable selectors with useMemo to prevent recreation
   const selectReviewsData = React.useMemo(() => 
@@ -166,7 +169,7 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
                 Help other customers make informed decisions by sharing your thoughts about {product?.name || 'this product'}.
               </p>
               <button
-                onClick={() => window.location.href = '/login'}
+                onClick={() => navigate.location.href = '/login'}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 Sign In to Write a Review

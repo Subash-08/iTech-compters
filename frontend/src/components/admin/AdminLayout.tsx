@@ -29,6 +29,10 @@ import BrandList from './brands/BrandList';
 import BrandForm from './brands/BrandForm';
 import UserList from './user/UserList';
 import ReviewList from './reviews/ReviewList';
+import HeroSectionList from './hero/HeroSectionList';
+import HeroSectionForm from './hero/HeroSectionForm';
+import SlideManagement from './hero/SlideManagement';
+import SlideForm from './hero/SlideForm';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -245,6 +249,12 @@ const AdminLayout: React.FC = () => {
         }
       ]
     },
+      {
+    id: 'hero-sections',
+    label: 'Hero Sections',
+    icon: <Icons.Image className="w-5 h-5" />,
+    path: '/admin/hero-sections'
+  },
     {
       id: 'users',
       label: 'User Management',
@@ -388,6 +398,13 @@ const AdminLayout: React.FC = () => {
               {/* User Management Routes */}
               <Route path="/users" element={<UserList />} />
               <Route path="/reviews" element={<ReviewList />} />
+                {/* Hero Section Routes */}
+              <Route path="/hero-sections" element={<HeroSectionList />} />
+              <Route path="/hero-sections/new" element={<HeroSectionForm />} />
+              <Route path="/hero-sections/edit/:id" element={<HeroSectionForm />} />
+              <Route path="/hero-sections/:id/slides" element={<SlideManagement />} />
+              <Route path="/hero-sections/:id/slides/new" element={<SlideForm />} />
+              <Route path="/hero-sections/:id/slides/edit/:slideId" element={<SlideForm />} />
             </Routes>
           </div>
         </main>

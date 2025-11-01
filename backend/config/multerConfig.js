@@ -91,6 +91,15 @@ const productUpload = multer({
         files: 10
     }
 });
+// HERO SECTION UPLOAD CONFIGURATION
+const heroSectionUpload = multer({
+    storage: createStorage('hero-slides'),
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB for hero slides
+        files: 1
+    }
+});
 
 // Error handling middleware
 const handleMulterError = (error, req, res, next) => {
@@ -121,5 +130,6 @@ module.exports = {
     brandUpload,
     categoryUpload,
     productUpload,
+    heroSectionUpload,
     handleMulterError
 };

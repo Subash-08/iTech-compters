@@ -1,5 +1,4 @@
 import React from 'react';
-import HeroSection from './HeroSection';
 import CategoryHighlights from './CategoryHighlights';
 import FeaturedProducts from './FeaturedProducts';
 import BestSellers from './BestSellers';
@@ -9,6 +8,7 @@ import FeaturedBrands from './FeaturedBrands';
 import Testimonials from './Testimonials';
 import BlogSection from './BlogSection';
 import HomePage from './FetchBrandsAndCategories';
+import HeroSection from '../heroSection/HeroSection';
 
 const App: React.FC = () => {
   return (

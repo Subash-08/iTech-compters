@@ -2,16 +2,15 @@ const express = require("express");
 const {
     getProducts, getProductById, getProductBySlug, getProductsByCategory,
     getProductsByBrand, searchProducts, filterProducts, getProductVariants,
-    getProductReviews, addReview, updateReview, deleteReview, createProduct,
+    createProduct,
     getAdminProducts, getAdminProductById, updateProduct, deleteProduct,
     addVariant, updateVariant, deleteVariant, addMultipleProducts,
     getAllProducts,
     updateProductStatus,
-    getReviews,
-    getReview,
-    adminDeleteReview,
-    getProductsWithReviews,
-    getProductReviewsForAdmin
+    debugCategories,
+    debugBrands,
+    debugCategoryStructure,
+    debugProductCategories,
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
@@ -35,24 +34,6 @@ router.get("/products/filters", filterProducts);  // Filter products: price, rat
 router.get("/products/:id/variants", getProductVariants);  // Get all variants of a product
 
 
-// 👑 ADMIN ROUTES
-router.delete("/admin/product/:id/review/:reviewId",
-    isAuthenticatedUser,
-    authorizeRoles('admin'),
-    adminDeleteReview
-);  // Admin delete any review
-
-// 👑 ADMIN ROUTES - Reviews
-router.get("/admin/products-with-reviews",
-    isAuthenticatedUser,
-    authorizeRoles('admin'),
-    getProductsWithReviews
-);
-router.get("/admin/product/:id/reviews",
-    isAuthenticatedUser,
-    authorizeRoles('admin'),
-    getProductReviewsForAdmin
-);
 // Admin Routes
 // Admin products route
 router.get('/admin/products', isAuthenticatedUser, authorizeRoles("admin"), getAdminProducts);

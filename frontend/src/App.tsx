@@ -14,7 +14,7 @@ import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import AuthInitializer from "./components/AuthInitializer";
 import { useAppSelector } from "./redux/hooks";
-import { selectIsAuthenticated, selectAuthLoading, selectUser, selectAuthInitialized } from "./redux/selectors";
+import { selectIsAuthenticated, selectAuthLoading, selectUser } from "./redux/selectors";
 import Profile from "./components/profile/Profile";
 import Cart from "./components/cart/Cart";
 import Wishlist from "./components/wishlist/Wishlist";
@@ -68,40 +68,26 @@ const ProtectedRoute: React.FC<{
 }) => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const authLoading = useAppSelector(selectAuthLoading);
-  const authInitialized = useAppSelector(selectAuthInitialized); // ✅ NEW
   const user = useAppSelector(selectUser);
 
-  console.log('🛡️ ProtectedRoute:', {
-    isAuthenticated,
-    authLoading,
-    authInitialized,
-    hasUser: !!user,
-    requireAuth,
-    adminOnly
-  });
-
-  // ✅ CRITICAL FIX: Wait for auth to be initialized before making decisions
-  if (!authInitialized || authLoading) {
-    console.log('🛡️ ProtectedRoute: Waiting for auth initialization...');
+  // Show loading while checking authentication
+  if (authLoading) {
     return <PageLoading />;
   }
 
   if (requireAuth && !isAuthenticated) {
-    console.log('🛡️ ProtectedRoute: Redirecting to login - not authenticated');
     return <Navigate to="/login" replace />;
   }
   
   if (requireAuth && adminOnly && user?.role !== 'admin') {
-    console.log('🛡️ ProtectedRoute: Redirecting to home - not admin');
     return <Navigate to="/" replace />;
   }
    
+  // If route doesn't require auth but user is authenticated, redirect from auth pages
   if (!requireAuth && isAuthenticated) {
-    console.log('🛡️ ProtectedRoute: Redirecting to home - already authenticated');
     return <Navigate to="/" replace />;
   }
   
-  console.log('🛡️ ProtectedRoute: Allowing access');
   return <>{children}</>;
 };
 
@@ -259,11 +245,9 @@ const App: React.FC = () => {
         <Route 
           path="/wishlist" 
           element={
-            <ProtectedRoute>
               <PublicLayout>
                 <Wishlist />
               </PublicLayout>
-            </ProtectedRoute>
           } 
         />
           {/* Search Route */}

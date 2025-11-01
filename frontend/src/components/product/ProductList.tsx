@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link, useParams } from 'react-router-dom';
-import Slider from 'rc-slider';
-import 'rc-slider/assets/index.css';
 import { toast } from 'react-toastify';
 
 // Redux imports
@@ -22,15 +20,17 @@ import {
 
 // Components
 import ProductCard from './ProductCard';
-import ProductFilters from './ProductDetailFilters';
+import ProductDetailFilters from './ProductDetailFilters';
 import ProductPagination from './ProductPagination';
+import { useAuthErrorHandler } from '../hooks/useAuthErrorHandler';
 
 const ProductList: React.FC = () => {
   const dispatch = useAppDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const { brandName, categoryName } = useParams();
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  const { handleAuthError } = useAuthErrorHandler();
 
   // Redux selectors
   const products = useAppSelector(selectProducts);
@@ -44,14 +44,14 @@ const ProductList: React.FC = () => {
   const activeFilters = useAppSelector(selectActiveFilters);
   const hasActiveFilters = useAppSelector(selectHasActiveFilters);
 
-  // ✅ Check if filter is from route (non-removable)
   const isRouteFilter = useCallback((key: string) => {
     return (key === 'category' && categoryName) || (key === 'brand' && brandName);
   }, [categoryName, brandName]);
 
-  // ✅ FIXED: Convert URL params to filters - Run this FIRST
-  useEffect(() => {
+useEffect(() => {
     const urlFilters: any = {};
+    
+    console.log('🔄 URL changed, parsing search params:', Object.fromEntries(searchParams.entries()));
     
     // Get all URL parameters
     searchParams.forEach((value, key) => {
@@ -66,41 +66,41 @@ const ProductList: React.FC = () => {
       }
     });
 
-    // Apply route parameters with higher priority
+    // Apply route parameters
     if (brandName) urlFilters.brand = brandName.replace(/-/g, ' ');
     if (categoryName) urlFilters.category = categoryName.replace(/-/g, ' ');
 
+    console.log('📋 Parsed URL filters:', urlFilters);
+    
+    // Only update Redux if URL actually changed
     dispatch(productActions.updateFilters(urlFilters));
-    setIsInitialLoad(false);
   }, [searchParams, brandName, categoryName, dispatch]);
 
-  // ✅ FIXED: Fetch max price when category or brand changes OR on initial load
+  // ✅ FIXED: Fetch products when URL changes (NOT when Redux filters change)
   useEffect(() => {
-    if (!isInitialLoad) {
-      const maxPriceFilters: any = {};
-      
-      if (categoryName) maxPriceFilters.category = categoryName.replace(/-/g, ' ');
-      if (brandName) maxPriceFilters.brand = brandName.replace(/-/g, ' ');
-            dispatch(productActions.fetchMaxPrice(maxPriceFilters));
-    }
-  }, [categoryName, brandName, dispatch, isInitialLoad]);
+    const fetchProductsWithAuth = async () => {
+      try {
+        console.log('🚀 Fetching products with filters:', filters);
+        await dispatch(productActions.fetchProducts(filters, { 
+          brandName: brandName?.replace(/-/g, ' '), 
+          categoryName: categoryName?.replace(/-/g, ' ') 
+        }));
+      } catch (error: any) {
+        if (handleAuthError(error)) {
+          return;
+        }
+      }
+    };
 
-  // ✅ FIXED: Fetch products when filters change - with proper dependency order
-  useEffect(() => {
-    if (!isInitialLoad) {
-      dispatch(productActions.fetchProducts(filters));
-    }
-  }, [filters, dispatch, isInitialLoad]);
+    fetchProductsWithAuth();
+  }, [filters, dispatch, handleAuthError, brandName, categoryName]);
 
-  // ✅ FIXED: Extract available filters when products change (without maxPrice)
-  useEffect(() => {
-    if (products.length > 0 && !isInitialLoad) {
-      dispatch(productActions.extractAvailableFilters(products));
-    }
-  }, [products, dispatch, isInitialLoad]);
 
-  // ✅ FIXED: Improved filter update function with route protection
+
+  // ✅ FIXED: Update filter function to handle sortBy
   const updateFilter = useCallback((key: string, value: string | number | boolean | null) => {
+    console.log('🎛️ Updating filter:', { key, value, currentParams: Object.fromEntries(searchParams.entries()) });
+    
     // Prevent removing route-based filters
     if (value === null && isRouteFilter(key)) {
       toast.info(`Cannot remove ${key} filter on this page`);
@@ -109,52 +109,63 @@ const ProductList: React.FC = () => {
     
     const newParams = new URLSearchParams(searchParams);
     
-    // Reset to page 1 when filters change (except page changes)
+    // Reset to page 1 when filters change (except page and limit changes)
     if (key !== 'page' && key !== 'limit') {
       newParams.delete('page');
     }
     
     // Handle value removal
-    if (value === null || value === '' || value === false || value === 0) {
+    if (value === null || value === '' || value === false) {
       newParams.delete(key);
+      console.log('❌ Deleted filter:', key);
     } else {
       newParams.set(key, value.toString());
+      console.log('✅ Set filter:', key, value);
     }
-    setSearchParams(newParams);
     
-    // Also update Redux state immediately for better UX
-    dispatch(productActions.updateFilters({ 
-      [key]: value, 
-      page: key !== 'page' ? 1 : filters.page 
-    }));
-  }, [searchParams, setSearchParams, dispatch, filters.page, isRouteFilter]);
+    console.log('🔗 New URL params:', Object.fromEntries(newParams.entries()));
+    
+    setSearchParams(newParams);
+  }, [searchParams, setSearchParams, isRouteFilter]);
 
-  // ✅ FIXED: Clear all filters - protect route filters
-  const clearFilters = useCallback(() => {
+  // Add debug logging for current state
+  useEffect(() => {
+    console.log('📊 CURRENT STATE:');
+    console.log('   URL Params:', Object.fromEntries(searchParams.entries()));
+    console.log('   Redux Filters:', filters);
+    console.log('   Products Count:', products.length);
+  }, [searchParams, filters, products.length]);
+const handleSortChange = useCallback((sortBy: string) => {
+    console.log('🔀 Changing sort to:', sortBy);
+    updateFilter('sortBy', sortBy);
+  }, [updateFilter]);
+ const clearFilters = useCallback(() => {
     const newParams = new URLSearchParams();
     
-    // Preserve route parameters if they exist
+    console.log('🧹 Clearing all filters');
+    
+    // Only preserve route parameters, remove all other filters
     if (brandName) newParams.set('brand', brandName);
     if (categoryName) newParams.set('category', categoryName);
+    
+    console.log('🔗 New URL after clear:', newParams.toString());
+    
     setSearchParams(newParams);
-    dispatch(productActions.clearFilters());
     toast.success('Filters cleared successfully');
-  }, [brandName, categoryName, setSearchParams, dispatch]);
+  }, [brandName, categoryName, setSearchParams]);
 
-  // ✅ FIXED: Remove specific filter - protect route filters
+  // ✅ FIXED: Remove specific filter
   const removeFilter = useCallback((key: string) => {
-    // Prevent removing route-based filters
     if (isRouteFilter(key)) {
       toast.info(`Cannot remove ${key} filter on this page`);
       return;
     }
+    
+    console.log('🗑️ Removing filter:', key);
     updateFilter(key, null);
   }, [updateFilter, isRouteFilter]);
 
-  // Handle sort change
-  const handleSortChange = useCallback((sortBy: string) => {
-    updateFilter('sortBy', sortBy);
-  }, [updateFilter]);
+
 
   // Handle page change
   const handlePageChange = useCallback((page: number) => {
@@ -185,15 +196,25 @@ const ProductList: React.FC = () => {
     return true;
   }, [brandName, categoryName]);
 
-  // ✅ Get filtered active filters (excluding route filters from removal)
+  // Handle retry with auth error handling
+  const handleRetry = useCallback(async () => {
+    try {
+      await dispatch(productActions.fetchProducts(filters));
+    } catch (error: any) {
+      if (handleAuthError(error)) {
+        return;
+      }
+      toast.error('Failed to load products. Please try again.');
+    }
+  }, [dispatch, filters, handleAuthError]);
+
+  // Get removable active filters (excluding route filters)
   const getRemovableActiveFilters = useCallback(() => {
     return activeFilters.filter(filter => !isRouteFilter(filter.key));
   }, [activeFilters, isRouteFilter]);
 
-  // ✅ Check if we have any removable filters
-  const hasRemovableFilters = useCallback(() => {
-    return getRemovableActiveFilters().length > 0;
-  }, [getRemovableActiveFilters]);
+  const hasRemovableFilters = getRemovableActiveFilters().length > 0;
+
   // Loading state
   if (loading && products.length === 0) {
     return (
@@ -204,30 +225,29 @@ const ProductList: React.FC = () => {
     );
   }
 
-  // Error state
-  if (error) {
+  // Error state with auth handling
+  if (error && products.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-12">
           <div className="text-red-500 text-4xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to Load Products</h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <p className="text-sm text-gray-500 mb-6">
-            This might be due to server issues or incompatible filter parameters.
-          </p>
           <div className="space-x-4">
             <button 
-              onClick={() => dispatch(productActions.fetchProducts(filters))}
+              onClick={handleRetry}
               className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
             >
               Try Again
             </button>
-            <button 
-              onClick={clearFilters}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
-            >
-              Clear Filters
-            </button>
+            {hasRemovableFilters && (
+              <button 
+                onClick={clearFilters}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
             <Link 
               to="/"
               className="inline-block bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors"
@@ -277,16 +297,16 @@ const ProductList: React.FC = () => {
                   onClick={() => removeFilter(filter.key)}
                   className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded flex items-center hover:bg-gray-200 transition-colors border border-gray-300"
                 >
-                  {filter.label}
+                  {filter.label}: {filter.value}
                   <span className="ml-1 text-gray-600">×</span>
                 </button>
               ))}
               
               {/* Clear All button - only show if there are removable filters */}
-              {hasRemovableFilters() && (
+              {hasRemovableFilters && (
                 <button
                   onClick={clearFilters}
-                  className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded hover:bg-gray-200 transition-colors border border-gray-300"
+                  className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded hover:bg-red-200 transition-colors border border-red-300"
                 >
                   Clear All
                 </button>
@@ -319,8 +339,8 @@ const ProductList: React.FC = () => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Filters Sidebar */}
-        <ProductFilters
+        {/* Filters Sidebar - Using your ProductDetailFilters */}
+        <ProductDetailFilters
           showFilters={showFilters}
           availableFilters={availableFilters}
           currentFilters={filters}
@@ -337,12 +357,14 @@ const ProductList: React.FC = () => {
               <div className="text-gray-400 text-6xl mb-4">😔</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
               <p className="text-gray-600 mb-4">Try adjusting your filters or search terms</p>
-              <button
-                onClick={clearFilters}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
-              >
-                Clear Filters
-              </button>
+              {hasRemovableFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           ) : (
             <>

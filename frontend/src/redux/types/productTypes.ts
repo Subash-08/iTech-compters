@@ -40,8 +40,10 @@ export interface AvailableFilters {
   brands: string[];
   categories: string[];
   conditions: string[];
-  maxPrice: number;
   minPrice: number;
+  maxPrice: number;
+  baseMinPrice: number;
+  baseMaxPrice: number;
 }
 
 export interface ProductFilters {

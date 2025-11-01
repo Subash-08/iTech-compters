@@ -1,4 +1,6 @@
 const Product = require("../models/productModel");
+const Category = require("../models/categoryModel");
+const Brand = require("../models/brandModel");
 const ErrorHandler = require('../utils/errorHandler')
 const categoryModel = require("../models/categoryModel");
 const brandModel = require("../models/brandModel");
@@ -148,163 +150,340 @@ exports.getProducts = catchAsyncErrors(async (req, res, next) => {
 });
 
 // =====================================================
-// GET PRODUCTS BY CATEGORY (SIMPLIFIED - NO MODELS REQUIRED)
+// GET PRODUCTS BY CATEGORY (COMPLETELY FIXED)
 // =====================================================
 exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
-    const { categoryName } = req.params;
-    const {
-        page = 1,
-        limit = 12,
-        sort = 'createdAt',
-        order = 'desc',
-        minPrice,
-        maxPrice,
-        inStock,
-        brands
-    } = req.query;
+    try {
+        const { categoryName } = req.params;
+        const {
+            page = 1,
+            limit = 12,
+            sort = 'createdAt',
+            order = 'desc',
+            minPrice,
+            maxPrice,
+            inStock,
+            brand, // ✅ FIX: Changed from 'brands' to 'brand'
+            search,
+            condition,
+            rating
+        } = req.query;
+
+        // ✅ FIX: Decode URL encoded category name
+        const decodedCategoryName = decodeURIComponent(categoryName);
+        const formattedCategoryName = decodedCategoryName.replace(/-/g, ' ');
+
+        const category = await Category.findOne({
+            $or: [
+                { name: { $regex: new RegExp(`^${formattedCategoryName}$`, 'i') } },
+                { slug: decodedCategoryName.toLowerCase() }
+            ]
+        });
+
+        if (!category) {
+            return res.status(200).json({
+                success: true,
+                results: 0,
+                totalProducts: 0,
+                totalPages: 0,
+                currentPage: Number(page),
+                category: {
+                    name: formattedCategoryName,
+                    slug: decodedCategoryName
+                },
+                products: []
+            });
+        }
 
 
-    // SIMPLE FILTER - No Category model required
-    const filter = {
-        isActive: true
-    };
+        // Build filter for active products
+        const filter = {
+            isActive: true,
+            status: 'Published',
+            categories: category._id // ✅ Use category ID for matching
+        };
 
-    // Filter by category name in categories array
-    filter['categories.name'] = { $regex: new RegExp(categoryName, 'i') };
+        // ✅ FIX: Search filter - handle multiple search conditions properly
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            filter.$or = [
+                { name: searchRegex },
+                { description: searchRegex },
+                { 'additionalInfo.tags': searchRegex }
+            ];
+        }
 
-    // Price filter
-    if (minPrice || maxPrice) {
-        filter.basePrice = {};
-        if (minPrice) filter.basePrice.$gte = Number(minPrice);
-        if (maxPrice) filter.basePrice.$lte = Number(maxPrice);
+        // ✅ FIX: Price filter - handle both min and max properly
+        if (minPrice || maxPrice) {
+            filter.basePrice = {};
+            if (minPrice) {
+                const min = Number(minPrice);
+                if (isNaN(min)) {
+                    return next(new ErrorHandler('Invalid minPrice parameter', 400));
+                }
+                filter.basePrice.$gte = min;
+            }
+            if (maxPrice) {
+                const max = Number(maxPrice);
+                if (isNaN(max)) {
+                    return next(new ErrorHandler('Invalid maxPrice parameter', 400));
+                }
+                filter.basePrice.$lte = max;
+            }
+        }
+
+        // ✅ FIX: Stock filter
+        if (inStock === 'true') {
+            filter.$or = [
+                { stockQuantity: { $gt: 0 } },
+                { 'variants.stockQuantity': { $gt: 0 } }
+            ];
+        }
+
+        // ✅ FIX: Brand filter - handle single brand (not array)
+        if (brand) {
+
+            // Handle URL encoded brand names (e.g., "acer+1" -> "acer 1")
+            const decodedBrand = decodeURIComponent(brand).replace(/\+/g, ' ');
+
+            const brandDoc = await Brand.findOne({
+                name: { $regex: new RegExp(`^${decodedBrand}$`, 'i') }
+            });
+
+            if (brandDoc) {
+                filter.brand = brandDoc._id;
+            } else {
+                // If brand not found, return empty results
+                filter.brand = { $in: [] };
+            }
+        }
+
+        // Condition filter
+        if (condition) {
+            filter.condition = condition;
+        }
+
+        // Rating filter
+        if (rating) {
+            const minRating = Number(rating);
+            if (!isNaN(minRating)) {
+                filter.averageRating = { $gte: minRating };
+            }
+        }
+
+        // Pagination
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+        const skip = (pageNum - 1) * limitNum;
+
+        // ✅ FIX: Sort configuration
+        const sortConfig = {};
+        let sortField = 'createdAt';
+
+        if (sort === 'basePrice') sortField = 'basePrice';
+        else if (sort === '-basePrice') sortField = '-basePrice';
+        else if (sort === 'name') sortField = 'name';
+        else if (sort === '-name') sortField = '-name';
+        else if (sort === 'averageRating') sortField = 'averageRating';
+        else if (sort === '-averageRating') sortField = '-averageRating';
+
+        sortConfig[sortField] = order === 'desc' ? -1 : 1;
+
+        const products = await Product.find(filter)
+            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews condition')
+            .populate("categories", "name slug")
+            .populate("brand", "name slug")
+            .sort(sortConfig)
+            .skip(skip)
+            .limit(limitNum);
+
+        const totalProducts = await Product.countDocuments(filter);
+
+        res.status(200).json({
+            success: true,
+            results: products.length,
+            totalProducts,
+            totalPages: Math.ceil(totalProducts / limitNum),
+            currentPage: pageNum,
+            category: {
+                name: category.name,
+                slug: category.slug
+            },
+            products
+        });
+
+    } catch (error) {
+        console.error('❌ Backend error in getProductsByCategory:', error);
+        return next(new ErrorHandler('Internal server error while fetching category products', 500));
     }
-
-    // Stock filter
-    if (inStock === 'true') {
-        filter.$or = [
-            { stockQuantity: { $gt: 0 } },
-            { 'variants.stockQuantity': { $gt: 0 } }
-        ];
-    }
-
-    // Brand filter
-    if (brands) {
-        const brandArray = Array.isArray(brands) ? brands : brands.split(',');
-        filter['brand.name'] = { $in: brandArray };
-    }
-
-    // Pagination
-    const skip = (page - 1) * limit;
-
-    // Sort configuration
-    const sortConfig = {};
-    sortConfig[sort] = order === 'desc' ? -1 : 1;
-
-
-    // Execute query
-    const products = await Product.find(filter)
-        .populate("categories brand")
-        .sort(sortConfig)
-        .skip(skip)
-        .limit(Number(limit));
-
-    if (!products || products.length === 0) {
-        return next(new ErrorHandler("No products found for this category", 404));
-    }
-
-    const totalProducts = await Product.countDocuments(filter);
-
-    res.status(200).json({
-        success: true,
-        results: products.length,
-        totalProducts,
-        totalPages: Math.ceil(totalProducts / limit),
-        currentPage: Number(page),
-        category: {
-            name: categoryName.replace(/-/g, ' ')
-        },
-        products
-    });
 });
 
 // =====================================================
-// GET PRODUCTS BY BRAND (SIMPLIFIED - NO MODELS REQUIRED)
+// GET PRODUCTS BY BRAND (COMPLETELY FIXED)
 // =====================================================
 exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
-    const { brandName } = req.params;
-    const {
-        page = 1,
-        limit = 12,
-        sort = 'createdAt',
-        order = 'desc',
-        minPrice,
-        maxPrice,
-        inStock,
-        categories
-    } = req.query;
+    try {
+        const { brandName } = req.params;
+        const {
+            page = 1,
+            limit = 12,
+            sort = 'createdAt',
+            order = 'desc',
+            minPrice,
+            maxPrice,
+            inStock,
+            category, // ✅ FIX: Changed from 'categories' to 'category'
+            search,
+            condition,
+            rating
+        } = req.query;
+        // ✅ FIX: Decode URL encoded brand name
+        const decodedBrandName = decodeURIComponent(brandName);
+        const formattedBrandName = decodedBrandName.replace(/-/g, ' ');
 
+        const brand = await Brand.findOne({
+            $or: [
+                { name: { $regex: new RegExp(`^${formattedBrandName}$`, 'i') } },
+                { slug: decodedBrandName.toLowerCase() }
+            ]
+        });
 
-    // SIMPLE FILTER - No Brand model required
-    const filter = {
-        isActive: true
-    };
+        if (!brand) {
+            return res.status(200).json({
+                success: true,
+                results: 0,
+                totalProducts: 0,
+                totalPages: 0,
+                currentPage: Number(page),
+                brand: {
+                    name: formattedBrandName,
+                    slug: decodedBrandName
+                },
+                products: []
+            });
+        }
 
-    // Filter by brand name
-    filter['brand.name'] = { $regex: new RegExp(brandName, 'i') };
+        // Build filter for active products
+        const filter = {
+            isActive: true,
+            status: 'Published',
+            brand: brand._id // ✅ Use brand ID for matching
+        };
 
-    // Price filter
-    if (minPrice || maxPrice) {
-        filter.basePrice = {};
-        if (minPrice) filter.basePrice.$gte = Number(minPrice);
-        if (maxPrice) filter.basePrice.$lte = Number(maxPrice);
+        // ✅ FIX: Search filter
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            filter.$or = [
+                { name: searchRegex },
+                { description: searchRegex },
+                { 'additionalInfo.tags': searchRegex }
+            ];
+        }
+
+        // ✅ FIX: Price filter
+        if (minPrice || maxPrice) {
+            filter.basePrice = {};
+            if (minPrice) {
+                const min = Number(minPrice);
+                if (isNaN(min)) {
+                    return next(new ErrorHandler('Invalid minPrice parameter', 400));
+                }
+                filter.basePrice.$gte = min;
+            }
+            if (maxPrice) {
+                const max = Number(maxPrice);
+                if (isNaN(max)) {
+                    return next(new ErrorHandler('Invalid maxPrice parameter', 400));
+                }
+                filter.basePrice.$lte = max;
+            }
+        }
+
+        // ✅ FIX: Stock filter
+        if (inStock === 'true') {
+            filter.$or = [
+                { stockQuantity: { $gt: 0 } },
+                { 'variants.stockQuantity': { $gt: 0 } }
+            ];
+        }
+
+        // ✅ FIX: Category filter - handle single category (not array)
+        if (category) {
+
+            // Handle URL encoded category names
+            const decodedCategory = decodeURIComponent(category).replace(/\+/g, ' ');
+
+            const categoryDoc = await Category.findOne({
+                name: { $regex: new RegExp(`^${decodedCategory}$`, 'i') }
+            });
+
+            if (categoryDoc) {
+                filter.categories = categoryDoc._id;
+            } else {
+                // If category not found, return empty results
+                filter.categories = { $in: [] };
+            }
+        }
+
+        // Condition filter
+        if (condition) {
+            filter.condition = condition;
+        }
+
+        // Rating filter
+        if (rating) {
+            const minRating = Number(rating);
+            if (!isNaN(minRating)) {
+                filter.averageRating = { $gte: minRating };
+            }
+        }
+
+        // Pagination
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+        const skip = (pageNum - 1) * limitNum;
+
+        // ✅ FIX: Sort configuration
+        const sortConfig = {};
+        let sortField = 'createdAt';
+
+        if (sort === 'basePrice') sortField = 'basePrice';
+        else if (sort === '-basePrice') sortField = '-basePrice';
+        else if (sort === 'name') sortField = 'name';
+        else if (sort === '-name') sortField = '-name';
+        else if (sort === 'averageRating') sortField = 'averageRating';
+        else if (sort === '-averageRating') sortField = '-averageRating';
+
+        sortConfig[sortField] = order === 'desc' ? -1 : 1;
+
+        const products = await Product.find(filter)
+            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews condition')
+            .populate("categories", "name slug")
+            .populate("brand", "name slug")
+            .sort(sortConfig)
+            .skip(skip)
+            .limit(limitNum);
+
+        const totalProducts = await Product.countDocuments(filter);
+
+        res.status(200).json({
+            success: true,
+            results: products.length,
+            totalProducts,
+            totalPages: Math.ceil(totalProducts / limitNum),
+            currentPage: pageNum,
+            brand: {
+                name: brand.name,
+                slug: brand.slug
+            },
+            products
+        });
+
+    } catch (error) {
+        console.error('❌ Backend error in getProductsByBrand:', error);
+        return next(new ErrorHandler('Internal server error while fetching brand products', 500));
     }
-
-    // Stock filter
-    if (inStock === 'true') {
-        filter.$or = [
-            { stockQuantity: { $gt: 0 } },
-            { 'variants.stockQuantity': { $gt: 0 } }
-        ];
-    }
-
-    // Category filter
-    if (categories) {
-        const categoryArray = Array.isArray(categories) ? categories : categories.split(',');
-        filter['categories.name'] = { $in: categoryArray };
-    }
-
-    // Pagination
-    const skip = (page - 1) * limit;
-
-    // Sort configuration
-    const sortConfig = {};
-    sortConfig[sort] = order === 'desc' ? -1 : 1;
-    // Execute query
-    const products = await Product.find(filter)
-        .populate("categories brand")
-        .sort(sortConfig)
-        .skip(skip)
-        .limit(Number(limit));
-
-    if (!products || products.length === 0) {
-        return next(new ErrorHandler("No products found for this brand", 404));
-    }
-
-    const totalProducts = await Product.countDocuments(filter);
-
-    res.status(200).json({
-        success: true,
-        results: products.length,
-        totalProducts,
-        totalPages: Math.ceil(totalProducts / limit),
-        currentPage: Number(page),
-        brand: {
-            name: brandName.replace(/-/g, ' ')
-        },
-        products
-    });
 });
-
 // GET PRODUCT BY SLUG
 exports.getProductBySlug = catchAsyncErrors(async (req, res, next) => {
     const { slug } = req.params;
@@ -395,435 +574,6 @@ exports.getProductVariants = catchAsyncErrors(async (req, res, next) => {
     if (!product) return next(new ErrorHandler("Product not found", 404));
 
     res.status(200).json({ success: true, variants: product.variants || [] });
-});
-
-// =====================================================
-// GET ALL REVIEWS OF A PRODUCT
-// =====================================================
-exports.getProductReviews = catchAsyncErrors(async (req, res, next) => {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return next(new ErrorHandler("Invalid product ID", 400));
-    }
-
-    const product = await Product.findById(id, "reviews").populate("reviews.user", "firstName lastName avatar");
-    if (!product) return next(new ErrorHandler("Product not found", 404));
-
-    res.status(200).json({ success: true, reviews: product.reviews || [] });
-});
-
-// 🟢 GET ALL PRODUCTS WITH REVIEWS (Admin)
-exports.getProductsWithReviews = catchAsyncErrors(async (req, res, next) => {
-    const { search = '' } = req.query;
-
-    try {
-        // Find all products
-        const products = await Product.find()
-            .populate('reviews.user', 'firstName lastName email avatar')
-            .select('name images reviews ratings numOfReviews')
-            .sort({ createdAt: -1 })
-            .lean();
-
-        // Filter products that have reviews and match search
-        const productsWithReviews = products
-            .filter(product => {
-                const hasReviews = product.reviews && product.reviews.length > 0;
-                const matchesSearch = !search ||
-                    product.name.toLowerCase().includes(search.toLowerCase());
-                return hasReviews && matchesSearch;
-            })
-            .map(product => {
-                const reviews = product.reviews || [];
-
-                // Calculate average rating from actual reviews
-                const averageRating = reviews.length > 0
-                    ? reviews.reduce((sum, review) => sum + (review.rating || 0), 0) / reviews.length
-                    : 0;
-
-                // Ensure each review has proper data
-                const safeReviews = reviews.map((review, index) => ({
-                    _id: review._id ? review._id.toString() : `temp-${product._id}-${index}`,
-                    user: {
-                        _id: review.user?._id || 'unknown',
-                        firstName: review.user?.firstName || 'Unknown',
-                        lastName: review.user?.lastName || 'User',
-                        email: review.user?.email || 'No email',
-                        avatar: review.user?.avatar
-                    },
-                    rating: review.rating || 0,
-                    comment: review.comment || '',
-                    createdAt: review.createdAt || new Date(),
-                    updatedAt: review.updatedAt || new Date()
-                }));
-
-                return {
-                    _id: product._id,
-                    name: product.name,
-                    image: product.images?.[0]?.url || null,
-                    reviews: safeReviews,
-                    averageRating: Number(averageRating.toFixed(1)),
-                    totalReviews: safeReviews.length
-                };
-            });
-
-        res.status(200).json({
-            success: true,
-            products: productsWithReviews,
-            count: productsWithReviews.length
-        });
-
-    } catch (error) {
-        console.error('Error in getProductsWithReviews:', error);
-        return next(new ErrorHandler('Failed to fetch products with reviews', 500));
-    }
-});
-// 🟢 GET PRODUCT REVIEWS WITH CORRECT IDs FOR ADMIN
-exports.getProductReviewsForAdmin = catchAsyncErrors(async (req, res, next) => {
-    const { id: productId } = req.params;
-
-    const product = await Product.findById(productId);
-
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    // Get the actual review IDs from the product (without population first)
-    const reviewIds = product.reviews.map(review => review._id.toString());
-
-    console.log('Actual review IDs in product:', reviewIds);
-
-    // Now populate with the correct IDs
-    await product.populate('reviews.user', 'firstName lastName email avatar');
-
-    const reviews = product.reviews.map(review => ({
-        _id: review._id.toString(), // This should be the correct ID now
-        user: review.user,
-        rating: review.rating,
-        comment: review.comment,
-        createdAt: review.createdAt,
-        updatedAt: review.updatedAt
-    }));
-
-    res.status(200).json({
-        success: true,
-        reviews: reviews,
-        averageRating: product.averageRating,
-        totalReviews: product.totalReviews,
-        debug: {
-            actualReviewIds: reviewIds,
-            sentReviewIds: reviews.map(r => r._id)
-        }
-    });
-});
-// 🟢 GET ALL REVIEWS FOR A PRODUCT (Public) - Debug version
-exports.getReviews = catchAsyncErrors(async (req, res, next) => {
-    const { id: productId } = req.params;
-
-    console.log('=== GET REVIEWS DEBUG ===');
-    console.log('Product ID:', productId);
-
-    const product = await Product.findById(productId)
-        .populate('reviews.user', 'firstName lastName email avatar');
-
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    console.log('Product reviews (raw):', product.reviews);
-    console.log('Review IDs in product:', product.reviews.map(r => r._id.toString()));
-
-    const reviewsWithCorrectIds = product.reviews.map(review => ({
-        _id: review._id.toString(),
-        user: review.user,
-        rating: review.rating,
-        comment: review.comment,
-        createdAt: review.createdAt,
-        updatedAt: review.updatedAt
-    }));
-
-    console.log('Sending reviews:', reviewsWithCorrectIds.map(r => r._id));
-    console.log('=== END DEBUG ===');
-
-    res.status(200).json({
-        success: true,
-        reviews: reviewsWithCorrectIds,
-        averageRating: product.averageRating,
-        totalReviews: product.totalReviews
-    });
-});
-// 🟢 GET SINGLE REVIEW (Public)
-exports.getReview = catchAsyncErrors(async (req, res, next) => {
-    const { id: productId, reviewId } = req.params;
-
-    // Validate IDs format
-    if (!productId.match(/^[0-9a-fA-F]{24}$/) || !reviewId.match(/^[0-9a-fA-F]{24}$/)) {
-        return next(new ErrorHandler("Invalid ID format", 400));
-    }
-
-    const product = await Product.findById(productId);
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    const review = product.reviews.id(reviewId);
-    if (!review) {
-        return next(new ErrorHandler("Review not found", 404));
-    }
-
-    // Populate user details
-    await product.populate('reviews.user', 'firstName lastName email avatar');
-
-    res.status(200).json({
-        success: true,
-        review: product.reviews.id(reviewId) // Get populated review
-    });
-});
-
-
-
-exports.addReview = catchAsyncErrors(async (req, res, next) => {
-    const { rating, comment } = req.body;
-    const { id: productId } = req.params;
-
-    // Validation
-    if (!rating) {
-        return next(new ErrorHandler("Rating is required", 400));
-    }
-
-    if (rating < 1 || rating > 5) {
-        return next(new ErrorHandler("Rating must be between 1 and 5", 400));
-    }
-
-    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
-        return next(new ErrorHandler("Invalid product ID format", 400));
-    }
-
-    // ✅ FIXED: Use await and proper variable name
-    const product = await Product.findById(productId);
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    // Check if product is active
-    if (!product.isActive || product.status !== 'Published') {
-        return next(new ErrorHandler("Cannot review an inactive product", 400));
-    }
-
-    // Check if user already reviewed (case-insensitive comparison)
-    const existingReview = product.reviews.find(
-        rev => rev.user.toString() === req.user._id.toString()
-    );
-
-    if (existingReview) {
-        return next(new ErrorHandler("You have already reviewed this product", 400));
-    }
-
-    const newReview = {
-        user: req.user._id,
-        rating: Number(rating),
-        comment: (comment || "").trim(),
-        createdAt: new Date()
-    };
-
-    product.reviews.push(newReview);
-
-    // ✅ FIXED: Remove the updateRating() call - post-save hook handles this automatically
-    // await product.updateRating(); // ❌ REMOVED THIS LINE
-
-    await product.save({ validateBeforeSave: false });
-
-    // ✅ FIXED: Populate with correct user fields
-    await product.populate('reviews.user', 'firstName lastName email avatar');
-
-    const addedReview = product.reviews[product.reviews.length - 1];
-
-    res.status(201).json({
-        success: true,
-        message: "Review added successfully",
-        review: addedReview,
-        product: {
-            _id: product._id,
-            name: product.name,
-            averageRating: product.averageRating,
-            totalReviews: product.totalReviews
-        }
-    });
-});
-
-// 🟡 DELETE REVIEW - Fixed for embedded reviews (no reviewId needed)
-exports.deleteReview = catchAsyncErrors(async (req, res, next) => {
-    const { id: productId } = req.params; // ✅ FIXED: Only productId, no reviewId
-
-    // Validate product ID
-    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
-        return next(new ErrorHandler("Invalid product ID format", 400));
-    }
-
-    const product = await Product.findById(productId);
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    // ✅ FIXED: Find review by user ID instead of reviewId
-    const reviewIndex = product.reviews.findIndex(
-        rev => rev.user.toString() === req.user._id.toString()
-    );
-
-    if (reviewIndex === -1) {
-        return next(new ErrorHandler("Review not found", 404));
-    }
-
-    const review = product.reviews[reviewIndex];
-
-    // Check permissions: user must be review owner OR admin
-    const isReviewOwner = review.user.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === 'admin';
-
-    if (!isReviewOwner && !isAdmin) {
-        return next(new ErrorHandler("You can only delete your own reviews", 403));
-    }
-
-    // Remove the review
-    product.reviews.splice(reviewIndex, 1);
-
-    // ✅ FIXED: Let pre-save hook handle rating update instead of updateRating()
-    // await product.updateRating();
-
-    await product.save({ validateBeforeSave: false });
-
-    res.status(200).json({
-        success: true,
-        message: "Review deleted successfully",
-        deletedBy: isAdmin ? 'admin' : 'user',
-        product: {
-            _id: product._id,
-            name: product.name,
-            averageRating: product.averageRating, // ✅ FIXED: Changed from ratings
-            totalReviews: product.totalReviews    // ✅ FIXED: Changed from numOfReviews
-        }
-    });
-});
-
-// 🟡 UPDATE REVIEW - Already correct in your code, just ensure field names match
-exports.updateReview = catchAsyncErrors(async (req, res, next) => {
-    const { id: productId } = req.params;
-    const { rating, comment } = req.body;
-
-    // Validation
-    if (rating && (rating < 1 || rating > 5)) {
-        return next(new ErrorHandler("Rating must be between 1 and 5", 400));
-    }
-
-    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
-        return next(new ErrorHandler("Invalid product ID format", 400));
-    }
-
-    const product = await Product.findById(productId);
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    // Find review by user ID
-    const reviewIndex = product.reviews.findIndex(
-        rev => rev.user.toString() === req.user._id.toString()
-    );
-
-    if (reviewIndex === -1) {
-        return next(new ErrorHandler("Review not found", 404));
-    }
-
-    const review = product.reviews[reviewIndex];
-
-    // Check permissions
-    const isReviewOwner = review.user.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === 'admin';
-
-    if (!isReviewOwner && !isAdmin) {
-        return next(new ErrorHandler("You can only update your own reviews", 403));
-    }
-
-    // Update fields if provided
-    if (rating !== undefined) review.rating = Number(rating);
-    if (comment !== undefined) review.comment = comment.trim();
-
-    // Update timestamp
-    review.createdAt = new Date();
-
-    await product.save({ validateBeforeSave: false });
-
-    // Populate user details
-    await product.populate('reviews.user', 'firstName lastName email avatar');
-
-    res.status(200).json({
-        success: true,
-        message: "Review updated successfully",
-        review: product.reviews[reviewIndex],
-        updatedBy: isAdmin ? 'admin' : 'user',
-        product: {
-            _id: product._id,
-            name: product.name,
-            averageRating: product.averageRating, // ✅ FIXED: Changed from ratings
-            totalReviews: product.totalReviews    // ✅ FIXED: Changed from numOfReviews
-        }
-    });
-});
-
-// 🟣 ADMIN: DELETE ANY REVIEW (Debug version)
-exports.adminDeleteReview = catchAsyncErrors(async (req, res, next) => {
-    const { id: productId, reviewId } = req.params;
-
-    console.log('Delete review request:', { productId, reviewId });
-
-    if (!productId.match(/^[0-9a-fA-F]{24}$/) || !reviewId.match(/^[0-9a-fA-F]{24}$/)) {
-        return next(new ErrorHandler("Invalid ID format", 400));
-    }
-
-    const product = await Product.findById(productId);
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    console.log('Product found:', product.name);
-    console.log('Product reviews:', product.reviews.map(r => ({ id: r._id, rating: r.rating })));
-
-    const reviewIndex = product.reviews.findIndex(rev => rev._id.toString() === reviewId);
-    console.log('Review index found:', reviewIndex);
-
-    if (reviewIndex === -1) {
-        console.log('Review not found in product reviews');
-        return next(new ErrorHandler("Review not found", 404));
-    }
-
-    // Store review info for response
-    const deletedReview = product.reviews[reviewIndex];
-
-    // Remove the review
-    product.reviews.splice(reviewIndex, 1);
-
-    // Update product rating statistics
-    await product.updateRating();
-
-    await product.save({ validateBeforeSave: false });
-
-    console.log('Review deleted successfully');
-
-    res.status(200).json({
-        success: true,
-        message: "Review deleted by admin",
-        deletedReview: {
-            _id: deletedReview._id,
-            user: deletedReview.user,
-            rating: deletedReview.rating,
-            comment: deletedReview.comment
-        },
-        product: {
-            _id: product._id,
-            name: product.name,
-            ratings: product.ratings,
-            numOfReviews: product.numOfReviews
-        }
-    });
 });
 
 
