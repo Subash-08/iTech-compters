@@ -57,6 +57,31 @@ export const selectHasActiveFilters = createSelector(
   }
 );
 
+export const selectSearchResults = createSelector(
+  [selectProductState],
+  (productState) => productState.searchResults
+);
+
+export const selectSearchLoading = createSelector(
+  [selectProductState],
+  (productState) => productState.searchLoading
+);
+
+export const selectSearchError = createSelector(
+  [selectProductState],
+  (productState) => productState.searchError
+);
+
+export const selectLastSearchQuery = createSelector(
+  [selectProductState],
+  (productState) => productState.lastSearchQuery
+);
+
+export const selectSearchQuery = createSelector(
+  [selectProductFilters],
+  (filters) => filters.search || ''
+);
+
 export const selectActiveFilters = createSelector(
   [selectProductFilters],
   (filters) => {

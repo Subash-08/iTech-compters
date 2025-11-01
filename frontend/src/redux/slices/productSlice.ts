@@ -3,6 +3,7 @@ import { ProductState, Product, ProductFilters, AvailableFilters } from '../type
 
 // In your productSlice.ts
 // redux/slices/productSlice.ts - Add base price fields
+// Update your productSlice.ts initialState
 const initialState: ProductState = {
   products: [],
   loading: false,
@@ -18,6 +19,7 @@ const initialState: ProductState = {
     sortBy: 'featured',
     page: 1,
     limit: 12,
+    search: '', // ✅ ADD: Search query
   },
   availableFilters: {
     brands: [],
@@ -25,12 +27,17 @@ const initialState: ProductState = {
     conditions: ['New', 'Refurbished', 'Used'],
     minPrice: 0,
     maxPrice: 5000,
-    baseMinPrice: 0, // ✅ NEW
-    baseMaxPrice: 5000, // ✅ NEW
+    baseMinPrice: 0,
+    baseMaxPrice: 5000,
   },
   totalPages: 1,
   totalProducts: 0,
   currentPage: 1,
+  // ✅ ADD: Search-specific state
+  searchResults: [],
+  searchLoading: false,
+  searchError: null,
+  lastSearchQuery: '',
 };
 const productSlice = createSlice({
   name: 'products',
@@ -62,48 +69,63 @@ const productSlice = createSlice({
       state.error = action.payload;
     },
 
-   updateFilters: (state, action: PayloadAction<Partial<ProductFilters>>) => {
-      console.log('🔄 Redux - Updating filters with:', action.payload);
-      
-      // Only update the filters that are provided in the payload
-      // This prevents keeping old filter values when URL changes
-      Object.keys(action.payload).forEach(key => {
-        if (key in state.filters) {
-          (state.filters as any)[key] = (action.payload as any)[key];
-        }
-      });
-      
-      // Reset page to 1 when filters change (except page changes)
-      if (action.payload.page === undefined) {
-        state.filters.page = 1;
-        state.currentPage = 1;
-      }
-      
-      console.log('✅ Redux - Updated filters:', state.filters);
+ quickSearchStart: (state) => {
+      state.searchLoading = true;
+      state.searchError = null;
+    },
+    quickSearchSuccess: (state, action: PayloadAction<Product[]>) => {
+      state.searchLoading = false;
+      state.searchResults = action.payload;
+      state.searchError = null;
+    },
+    quickSearchFailure: (state, action: PayloadAction<string>) => {
+      state.searchLoading = false;
+      state.searchError = action.payload;
+      state.searchResults = [];
+    },
+    
+    // ✅ ADD: Clear search results
+    clearSearchResults: (state) => {
+      state.searchResults = [];
+      state.searchLoading = false;
+      state.searchError = null;
+      state.lastSearchQuery = '';
+      state.filters.search = '';
     },
 
-    // ✅ FIXED: Clear filters properly
-    clearFilters: (state, action: PayloadAction<{ brandName?: string; categoryName?: string } | undefined>) => {
+    // ✅ ADD: Update search query in filters
+    updateSearchQuery: (state, action: PayloadAction<string>) => {
+      state.filters.search = action.payload;
+      state.lastSearchQuery = action.payload;
+    },
+
+    clearFilters: (state, action) => {
+      console.log('🧹 Redux - Clearing filters, payload:', action.payload);
+      
+      // Reset to initial filter state but preserve route-based filters
       const routeParams = action.payload;
       
-      console.log('🧹 Redux - Clearing filters, route params:', routeParams);
-      
-      // Reset all filters except route-based ones
       state.filters = {
-        category: routeParams?.categoryName ? routeParams.categoryName.replace(/-/g, ' ') : '',
-        brand: routeParams?.brandName ? routeParams.brandName.replace(/-/g, ' ') : '',
-        condition: '',
-        inStock: false,
-        minPrice: state.availableFilters.baseMinPrice || 0,
-        maxPrice: state.availableFilters.baseMaxPrice || 5000,
-        rating: 0,
-        sortBy: 'featured',
-        page: 1,
-        limit: 12,
+        ...initialState.filters,
+        // Preserve route-based filters if provided
+        ...(routeParams?.categoryName && { category: routeParams.categoryName.replace(/-/g, ' ') }),
+        ...(routeParams?.brandName && { brand: routeParams.brandName.replace(/-/g, ' ') }),
       };
-      state.currentPage = 1;
       
-      console.log('✅ Redux - Cleared filters:', state.filters);
+      console.log('✅ Redux - Cleared filters, new state:', state.filters);
+    },
+    
+    // ✅ FIXED: Update filters with proper merging
+    updateFilters: (state, action) => {
+      console.log('🔄 Redux - Updating filters with:', action.payload);
+      
+      // Merge new filters with current state
+      state.filters = {
+        ...state.filters,
+        ...action.payload,
+      };
+      
+      console.log('✅ Redux - Updated filters:', state.filters);
     },
 
     // Pagination actions
@@ -145,6 +167,11 @@ export const {
   setSortBy,
   updateAvailableFilters,
   clearError,
+    quickSearchStart,
+  quickSearchSuccess,
+  quickSearchFailure,
+  clearSearchResults,
+  updateSearchQuery,
 } = productSlice.actions;
 
 export default productSlice.reducer;

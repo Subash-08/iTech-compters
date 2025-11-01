@@ -24,6 +24,7 @@ import {
   selectUserAvatar
 } from '../../src/redux/selectors/index'; // ADD THESE
 import { baseURL } from './config/config';
+import SearchBar from './home/SearchBar'; // Import SearchBar component
 
 const navItems: NavItem[] = [
   { label: 'Home', href: '/' },
@@ -473,17 +474,9 @@ const Navbar: React.FC = () => {
               </Link>
             </div>
 
-            {/* Center: Search Bar (Desktop) */}
+            {/* Center: Search Bar (Desktop) - REPLACED WITH SearchBar COMPONENT */}
             <div className="hidden lg:flex flex-grow justify-center px-8">
-              <div className="relative w-full max-w-xl">
-                <input
-                  type="text"
-                  placeholder="Search for components, PCs, and more..."
-                  className="pl-12 pr-4 py-2.5 w-full border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
-                  aria-label="Search products"
-                />
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              </div>
+              <SearchBar />
             </div>
             
             {/* Right: Icons & Mobile Menu Button */}
@@ -528,17 +521,9 @@ const Navbar: React.FC = () => {
               </ul>
             </nav>
 
-            {/* Mobile Search Bar */}
+            {/* Mobile Search Bar - REPLACED WITH SearchBar COMPONENT */}
             <div className="lg:hidden py-3">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  aria-label="Search products"
-                />
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              </div>
+              <SearchBar />
             </div>
           </div>
         </div>

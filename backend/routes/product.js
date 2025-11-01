@@ -11,6 +11,8 @@ const {
     debugBrands,
     debugCategoryStructure,
     debugProductCategories,
+    debugCategoryProducts,
+    advancedSearch,
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
@@ -19,17 +21,15 @@ const router = express.Router();
 
 // Public / Not Logged In
 
-
+router.get('/products/search', advancedSearch); // /api/products/search?q=laptop
+router.get('/products/quick-search', searchProducts); // Simple search
+router.get('/products', getAllProducts);
 router.get("/products", getProducts);  // Get all products with advanced filtering
 router.get("/products/slug/:slug", getProductBySlug);  // Get product by slug
 router.get("/products/category/:categoryName", getProductsByCategory);  // Products of a category by name/slug
 router.get("/products/brand/:brandName", getProductsByBrand);  // Products of a brand by name/slug
 
-// Optional: If you want a simpler endpoint for basic product listing
-router.get("/products/all", getAllProducts);  // Simple product catalog (optional)
 
-
-router.get("/products/search", searchProducts);  // Search products by name, tags, keywords
 router.get("/products/filters", filterProducts);  // Filter products: price, rating, availability, condition
 router.get("/products/:id/variants", getProductVariants);  // Get all variants of a product
 

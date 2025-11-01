@@ -50,7 +50,69 @@ export const productAPI = {
       throw new Error(errorMessage);
     }
   },
- getProductsByCategory: async (categoryName: string, filters: ProductFilters): Promise<ProductsResponse> => {
+
+    searchProducts: async (query: string, limit: number = 5): Promise<Product[]> => {
+    try {
+      const params: Record<string, any> = {
+        search: query,
+        limit: limit,
+        status: 'Published',
+      };
+
+      const response = await api.get<ProductsResponse>('/products', { params });
+      return response.data.products;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Search failed';
+      throw new Error(errorMessage);
+    }
+  },
+
+  // ✅ ADD: Advanced search with filters
+  advancedSearch: async (query: string, filters: Partial<ProductFilters> = {}): Promise<ProductsResponse> => {
+    try {
+      const params: Record<string, any> = {
+        search: query,
+        page: filters.page || 1,
+        limit: filters.limit || 12,
+        status: 'Published',
+      };
+
+      // Add optional filters
+      if (filters.category) params.category = filters.category;
+      if (filters.brand) params.brand = filters.brand;
+      if (filters.minPrice) params.minPrice = filters.minPrice;
+      if (filters.maxPrice && filters.maxPrice > 0) params.maxPrice = filters.maxPrice;
+      if (filters.rating) params.rating = filters.rating;
+      if (filters.inStock) params.inStock = 'true';
+      if (filters.condition) params.condition = filters.condition;
+
+      // Sort mapping
+      const sortMap: Record<string, string> = {
+        'featured': 'createdAt',
+        'newest': 'createdAt', 
+        'price-low': 'basePrice',
+        'price-high': '-basePrice',
+        'rating': '-averageRating'
+      };
+      
+      if (filters.sortBy) {
+        params.sort = sortMap[filters.sortBy] || 'createdAt';
+      }
+
+      const response = await api.get<ProductsResponse>('/products', { params });
+      
+      return {
+        ...response.data,
+        hasNext: response.data.currentPage < response.data.totalPages,
+        hasPrev: response.data.currentPage > 1
+      };
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Advanced search failed';
+      throw new Error(errorMessage);
+    }
+  },
+
+  getProductsByCategory: async (categoryName: string, filters: ProductFilters): Promise<ProductsResponse> => {
     try {
       const params: Record<string, any> = {
         page: filters.page || 1,
@@ -62,7 +124,12 @@ export const productAPI = {
       if (filters.condition) params.condition = filters.condition;
       if (filters.inStock) params.inStock = 'true';
       if (filters.minPrice) params.minPrice = filters.minPrice;
-      if (filters.maxPrice && filters.maxPrice > 0) params.maxPrice = filters.maxPrice;
+      
+      // ✅ CRITICAL FIX: Only send maxPrice if it's greater than 0
+      if (filters.maxPrice && filters.maxPrice > 0) {
+        params.maxPrice = filters.maxPrice;
+      }
+      
       if (filters.rating) params.rating = filters.rating;
       if (filters.search) params.search = filters.search;
 
@@ -95,7 +162,6 @@ export const productAPI = {
     }
   },
 
-  // Do the same for getProductsByBrand
   getProductsByBrand: async (brandName: string, filters: ProductFilters): Promise<ProductsResponse> => {
     try {
       const params: Record<string, any> = {
@@ -108,7 +174,12 @@ export const productAPI = {
       if (filters.condition) params.condition = filters.condition;
       if (filters.inStock) params.inStock = 'true';
       if (filters.minPrice) params.minPrice = filters.minPrice;
-      if (filters.maxPrice && filters.maxPrice > 0) params.maxPrice = filters.maxPrice;
+      
+      // ✅ CRITICAL FIX: Only send maxPrice if it's greater than 0
+      if (filters.maxPrice && filters.maxPrice > 0) {
+        params.maxPrice = filters.maxPrice;
+      }
+      
       if (filters.rating) params.rating = filters.rating;
       if (filters.search) params.search = filters.search;
 
@@ -139,28 +210,40 @@ export const productAPI = {
     }
   },
 
-  // ✅ NEW: Get accurate price range for current filters (min and max)
- getPriceRange: async (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }): Promise<{ minPrice: number; maxPrice: number }> => {
+  // ✅ FIXED: Get accurate price range for current filters
+  getPriceRange: async (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }): Promise<{ minPrice: number; maxPrice: number }> => {
     try {
       console.log('💰 Calculating price range with filters:', filters);
       
+      // ✅ CRITICAL FIX: Remove price filters for base range calculation
+      const rangeFilters = { ...filters };
+      delete rangeFilters.minPrice;
+      delete rangeFilters.maxPrice;
+      
+      // ✅ FIX: Use proper parameters for price range calculation
+      const priceRangeParams = {
+        ...rangeFilters,
+        limit: 1000,
+        page: 1,
+        sortBy: 'price-low' // Get cheapest first for accurate min price
+      };
+
       let response: ProductsResponse;
 
       // Use the same endpoint as products for accurate range
       if (routeParams?.categoryName) {
-        response = await productAPI.getProductsByCategory(routeParams.categoryName, { ...filters, limit: 1000, page: 1 });
+        response = await productAPI.getProductsByCategory(routeParams.categoryName, priceRangeParams);
       } else if (routeParams?.brandName) {
-        response = await productAPI.getProductsByBrand(routeParams.brandName, { ...filters, limit: 1000, page: 1 });
+        response = await productAPI.getProductsByBrand(routeParams.brandName, priceRangeParams);
       } else {
-        response = await productAPI.getProducts({ ...filters, limit: 1000, page: 1 });
+        response = await productAPI.getProducts(priceRangeParams);
       }
 
       console.log('📊 Price range calculation found', response.products.length, 'products');
 
       if (response.products.length > 0) {
-        const prices = response.products.map(product => 
-          product.offerPrice || product.basePrice
-        );
+        // ✅ FIX: Use basePrice for range calculation, not offerPrice
+        const prices = response.products.map(product => product.basePrice);
         
         const minPrice = Math.floor(Math.min(...prices));
         const maxPrice = Math.ceil(Math.max(...prices));
@@ -195,46 +278,8 @@ export const productAPI = {
 
 // Enhanced Action Creators with Price Range Support
 export const productActions = {
-  // ✅ ENHANCED: Fetch products with price range and dynamic filters
-  getBasePriceRange: async (routeParams?: { brandName?: string; categoryName?: string }): Promise<{ minPrice: number; maxPrice: number }> => {
-    try {
-      // Use empty filters to get the base price range for the current route
-      const baseFilters = { limit: 1000, page: 1, sortBy: 'price-low' };
-
-      let response: ProductsResponse;
-
-      if (routeParams?.categoryName) {
-        response = await productAPI.getProductsByCategory(routeParams.categoryName, baseFilters);
-      } else if (routeParams?.brandName) {
-        response = await productAPI.getProductsByBrand(routeParams.brandName, baseFilters);
-      } else {
-        response = await productAPI.getProducts(baseFilters);
-      }
-
-      if (response.products.length > 0) {
-        const prices = response.products.map(product => 
-          product.offerPrice || product.basePrice
-        );
-        
-        const minPrice = Math.floor(Math.min(...prices));
-        const maxPrice = Math.ceil(Math.max(...prices));
-        
-        return {
-          minPrice: Math.max(0, minPrice),
-          maxPrice: Math.max(minPrice + 100, maxPrice)
-        };
-      }
-
-      return { minPrice: 0, maxPrice: 5000 };
-    } catch (error: any) {
-      console.error('❌ Error fetching base price range:', error.message);
-      return { minPrice: 0, maxPrice: 5000 };
-    }
-  },
-
-
-
-fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
+  // ✅ FIXED: Fetch products with proper price range handling
+  fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
       dispatch({ type: 'products/fetchProductsStart' });
       
@@ -262,9 +307,12 @@ fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; cat
       // Extract available filters from products
       dispatch(productActions.extractAvailableFilters(response.products, routeParams));
       
-      // ✅ FIXED: Fetch base price range WITHOUT current filters
-      // Use empty filters for base price range calculation
+      // ✅ FIXED: Fetch base price range WITHOUT current price filters
       const baseFilters = { 
+        ...filters,
+        // Remove price filters for base range calculation
+        minPrice: undefined,
+        maxPrice: undefined,
         limit: 1000, 
         page: 1, 
         sortBy: 'price-low' 
@@ -282,27 +330,48 @@ fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; cat
   },
 
   // ✅ FIXED: Fetch base price range with explicit filters
-  fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
-    try {
-      const priceRange = await productAPI.getPriceRange(filters, routeParams);
-      dispatch({
-        type: 'products/updateAvailableFilters',
-        payload: {
-          baseMinPrice: priceRange.minPrice,
-          baseMaxPrice: priceRange.maxPrice,
+fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
+  try {
+    console.log('🔄 Fetching base price range with filters:', filters);
+    
+    // ✅ FIXED: Remove ALL filters for base range calculation
+    const baseRangeFilters = {
+      limit: 1000,
+      page: 1,
+      sortBy: 'price-low'
+    };
+    
+    const priceRange = await productAPI.getPriceRange(baseRangeFilters, routeParams);
+    
+    console.log('🎯 Base price range calculated:', priceRange);
+    
+    dispatch({
+      type: 'products/updateAvailableFilters',
+      payload: {
+        priceRange: {
+          min: priceRange.minPrice,
+          max: priceRange.maxPrice,
         },
-      });
-    } catch (error) {
-      console.error('Error fetching base price range:', error);
-      dispatch({
-        type: 'products/updateAvailableFilters',
-        payload: {
-          baseMinPrice: 0,
-          baseMaxPrice: 5000,
+        baseMinPrice: priceRange.minPrice,
+        baseMaxPrice: priceRange.maxPrice,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching base price range:', error);
+    dispatch({
+      type: 'products/updateAvailableFilters',
+      payload: {
+        priceRange: {
+          min: 0,
+          max: 5000,
         },
-      });
-    }
-  },
+        baseMinPrice: 0,
+        baseMaxPrice: 5000,
+      },
+    });
+  }
+},
+
   // ✅ ENHANCED: Extract available filters with ALL options for current route
   extractAvailableFilters: (products: Product[], routeParams?: { brandName?: string; categoryName?: string }) => (dispatch: any) => {
     const brands = new Set<string>();
@@ -333,16 +402,19 @@ fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; cat
     });
   },
 
-
-  // ✅ NEW: Fetch price range - both min and max
+  // ✅ FIXED: Fetch price range - both min and max
   fetchPriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
+      console.log('💰 Fetching price range with filters:', filters);
       const priceRange = await productAPI.getPriceRange(filters, routeParams);
+      
       dispatch({
         type: 'products/updateAvailableFilters',
         payload: {
-          minPrice: priceRange.minPrice,
-          maxPrice: priceRange.maxPrice,
+          priceRange: {
+            min: priceRange.minPrice,
+            max: priceRange.maxPrice,
+          },
         },
       });
     } catch (error) {
@@ -351,12 +423,15 @@ fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; cat
       dispatch({
         type: 'products/updateAvailableFilters',
         payload: {
-          minPrice: 0,
-          maxPrice: 5000,
+          priceRange: {
+            min: 0,
+            max: 5000,
+          },
         },
       });
     }
   },
+
   // Update filters
   updateFilters: (filters: Partial<ProductFilters>) => ({
     type: 'products/updateFilters',
@@ -386,6 +461,54 @@ fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; cat
     type: 'products/updateAvailableFilters',
     payload: filters,
   }),
+
+    quickSearch: (query: string) => async (dispatch: any) => {
+    try {
+      dispatch({ type: 'products/quickSearchStart' });
+      
+      const results = await productAPI.searchProducts(query, 5);
+      
+      dispatch({
+        type: 'products/quickSearchSuccess',
+        payload: results,
+      });
+    } catch (error: any) {
+      dispatch({
+        type: 'products/quickSearchFailure',
+        payload: error.message,
+      });
+    }
+  },
+
+  // ✅ ADD: Clear search results
+  clearSearchResults: () => ({
+    type: 'products/clearSearchResults',
+  }),
+
+  // ✅ ADD: Advanced search with filters
+  advancedSearch: (query: string, filters: ProductFilters) => async (dispatch: any) => {
+    try {
+      dispatch({ type: 'products/fetchProductsStart' });
+      
+      const response = await productAPI.advancedSearch(query, filters);
+      
+      dispatch({
+        type: 'products/fetchProductsSuccess',
+        payload: {
+          products: response.products,
+          totalPages: response.totalPages,
+          totalProducts: response.totalProducts,
+          currentPage: response.currentPage,
+        },
+      });
+    } catch (error: any) {
+      dispatch({
+        type: 'products/fetchProductsFailure',
+        payload: error.message,
+      });
+      toast.error(error.message);
+    }
+  },
 
   // Clear error
   clearError: () => ({

@@ -9,15 +9,13 @@ const catchAsyncErrors = require("../middlewares/catchAsyncError");
 const mongoose = require("mongoose");
 
 
-// =====================================================
-// GET ALL PRODUCTS (Simple catalog - for basic listing)
-// =====================================================
 exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
     try {
         const {
             page = 1,
             limit = 12,
             sort = 'createdAt',
+            order = 'desc',
             minPrice,
             maxPrice,
             inStock,
@@ -33,7 +31,18 @@ exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
             status: status
         };
 
-        // Price filter - ADD VALIDATION
+        // Search filter
+        if (search && search.trim() !== '') {
+            const searchRegex = new RegExp(search.trim(), 'i');
+            filter.$or = [
+                { name: searchRegex },
+                { description: searchRegex },
+                { tags: searchRegex },
+                { 'variants.name': searchRegex }
+            ];
+        }
+
+        // Price filter
         if (minPrice || maxPrice) {
             filter.basePrice = {};
             if (minPrice) {
@@ -52,7 +61,45 @@ exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
             }
         }
 
-        // ... rest of your existing filter code ...
+        // Stock filter
+        if (inStock === 'true') {
+            filter.$or = [
+                { stockQuantity: { $gt: 0 } },
+                {
+                    hasVariants: true,
+                    'variants': {
+                        $elemMatch: {
+                            isActive: true,
+                            stockQuantity: { $gt: 0 }
+                        }
+                    }
+                }
+            ];
+        }
+
+        // Categories filter
+        if (categories) {
+            const categoryArray = Array.isArray(categories) ? categories : [categories];
+            filter.categories = { $in: categoryArray };
+        }
+
+        // Brands filter
+        if (brands) {
+            const brandArray = Array.isArray(brands) ? brands : [brands];
+            filter.brand = { $in: brandArray };
+        }
+
+        // ✅ FIX: Define sortConfig properly
+        const sortConfig = {};
+        let sortField = sort;
+
+        // Handle negative sort fields (descending)
+        if (sort.startsWith('-')) {
+            sortField = sort.substring(1);
+            sortConfig[sortField] = -1;
+        } else {
+            sortConfig[sortField] = order === 'desc' ? -1 : 1;
+        }
 
         // ADD VALIDATION FOR PAGE AND LIMIT
         const pageNum = Math.max(1, parseInt(page));
@@ -87,9 +134,7 @@ exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
     }
 });
 
-// =======-*==============================================
-// GET PRODUCTS WITH ADVANCED FILTERING (Main endpoint)
-// =====================================================
+
 exports.getProducts = catchAsyncErrors(async (req, res, next) => {
     const resPerPage = Number(req.query.limit) || 12;
     const page = Number(req.query.page) || 1;
@@ -149,11 +194,141 @@ exports.getProducts = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// =====================================================
-// GET PRODUCTS BY CATEGORY (COMPLETELY FIXED)
-// =====================================================
+exports.advancedSearch = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const {
+            q,
+            page = 1,
+            limit = 12,
+            minPrice,
+            maxPrice,
+            categories,
+            brands,
+            inStock,
+            condition,
+            rating
+        } = req.query;
+
+        if (!q || q.trim() === '') {
+            return next(new ErrorHandler("Search query is required", 400));
+        }
+
+        // Build base filter with text search
+        const filter = {
+            isActive: true,
+            status: 'Published',
+            $text: { $search: q.trim() }
+        };
+
+        // Add price filter
+        if (minPrice || maxPrice) {
+            filter.basePrice = {};
+            if (minPrice) {
+                const min = Number(minPrice);
+                if (isNaN(min)) {
+                    return next(new ErrorHandler('Invalid minPrice parameter', 400));
+                }
+                filter.basePrice.$gte = min;
+            }
+            if (maxPrice) {
+                const max = Number(maxPrice);
+                if (isNaN(max)) {
+                    return next(new ErrorHandler('Invalid maxPrice parameter', 400));
+                }
+                filter.basePrice.$lte = max;
+            }
+        }
+
+        // Add category filter
+        if (categories) {
+            const categoryIds = Array.isArray(categories) ? categories : [categories];
+            // Validate if categories exist
+            const validCategories = await Category.find({
+                _id: { $in: categoryIds }
+            });
+            if (validCategories.length > 0) {
+                filter.categories = { $in: validCategories.map(cat => cat._id) };
+            }
+        }
+
+        // Add brand filter
+        if (brands) {
+            const brandIds = Array.isArray(brands) ? brands : [brands];
+            // Validate if brands exist
+            const validBrands = await Brand.find({
+                _id: { $in: brandIds }
+            });
+            if (validBrands.length > 0) {
+                filter.brand = { $in: validBrands.map(brand => brand._id) };
+            }
+        }
+
+        // Stock filter
+        if (inStock === 'true') {
+            filter.$or = [
+                { stockQuantity: { $gt: 0 } },
+                {
+                    hasVariants: true,
+                    'variants': {
+                        $elemMatch: {
+                            isActive: true,
+                            stockQuantity: { $gt: 0 }
+                        }
+                    }
+                }
+            ];
+        }
+
+        // Condition filter
+        if (condition) {
+            filter.condition = condition;
+        }
+
+        // Rating filter
+        if (rating) {
+            const minRating = Number(rating);
+            if (!isNaN(minRating)) {
+                filter.averageRating = { $gte: minRating };
+            }
+        }
+
+        // Pagination
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+        const skip = (pageNum - 1) * limitNum;
+
+        // Execute search with text score
+        const products = await Product.find(filter)
+            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews tags')
+            .populate("categories", "name slug")
+            .populate("brand", "name slug")
+            .sort({ score: { $meta: "textScore" } }) // Sort by relevance score
+            .skip(skip)
+            .limit(limitNum);
+
+        // Get total count for pagination
+        const totalProducts = await Product.countDocuments(filter);
+
+        res.status(200).json({
+            success: true,
+            results: products.length,
+            totalProducts,
+            totalPages: Math.ceil(totalProducts / limitNum),
+            currentPage: pageNum,
+            searchQuery: q,
+            searchType: 'advanced',
+            products
+        });
+
+    } catch (error) {
+        console.error('❌ Backend error in advancedSearch:', error);
+        return next(new ErrorHandler('Internal server error during search', 500));
+    }
+});
+
 exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
     try {
+
         const { categoryName } = req.params;
         const {
             page = 1,
@@ -163,7 +338,7 @@ exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
             minPrice,
             maxPrice,
             inStock,
-            brand, // ✅ FIX: Changed from 'brands' to 'brand'
+            brand,
             search,
             condition,
             rating
@@ -172,7 +347,6 @@ exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
         // ✅ FIX: Decode URL encoded category name
         const decodedCategoryName = decodeURIComponent(categoryName);
         const formattedCategoryName = decodedCategoryName.replace(/-/g, ' ');
-
         const category = await Category.findOne({
             $or: [
                 { name: { $regex: new RegExp(`^${formattedCategoryName}$`, 'i') } },
@@ -194,25 +368,22 @@ exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
                 products: []
             });
         }
-
-
-        // Build filter for active products
         const filter = {
             isActive: true,
             status: 'Published',
             categories: category._id // ✅ Use category ID for matching
         };
-
-        // ✅ FIX: Search filter - handle multiple search conditions properly
         if (search) {
             const searchRegex = new RegExp(search, 'i');
             filter.$or = [
                 { name: searchRegex },
                 { description: searchRegex },
-                { 'additionalInfo.tags': searchRegex }
+                { tags: searchRegex } // ✅ FIX: Changed from 'additionalInfo.tags' to 'tags'
             ];
         }
-
+        if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
+            return next(new ErrorHandler('minPrice cannot be greater than maxPrice', 400));
+        }
         // ✅ FIX: Price filter - handle both min and max properly
         if (minPrice || maxPrice) {
             filter.basePrice = {};
@@ -232,18 +403,21 @@ exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
             }
         }
 
-        // ✅ FIX: Stock filter
         if (inStock === 'true') {
             filter.$or = [
                 { stockQuantity: { $gt: 0 } },
-                { 'variants.stockQuantity': { $gt: 0 } }
+                {
+                    hasVariants: true,
+                    'variants': {
+                        $elemMatch: {
+                            isActive: true,
+                            stockQuantity: { $gt: 0 }
+                        }
+                    }
+                }
             ];
         }
-
-        // ✅ FIX: Brand filter - handle single brand (not array)
         if (brand) {
-
-            // Handle URL encoded brand names (e.g., "acer+1" -> "acer 1")
             const decodedBrand = decodeURIComponent(brand).replace(/\+/g, ' ');
 
             const brandDoc = await Brand.findOne({
@@ -253,44 +427,35 @@ exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
             if (brandDoc) {
                 filter.brand = brandDoc._id;
             } else {
-                // If brand not found, return empty results
                 filter.brand = { $in: [] };
             }
         }
-
-        // Condition filter
         if (condition) {
             filter.condition = condition;
         }
-
-        // Rating filter
         if (rating) {
             const minRating = Number(rating);
             if (!isNaN(minRating)) {
                 filter.averageRating = { $gte: minRating };
             }
         }
-
-        // Pagination
         const pageNum = Math.max(1, parseInt(page));
         const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
         const skip = (pageNum - 1) * limitNum;
 
         // ✅ FIX: Sort configuration
-        const sortConfig = {};
-        let sortField = 'createdAt';
+        const sortConfig = { basePrice: 1 };
+        let sortField = sort;
 
-        if (sort === 'basePrice') sortField = 'basePrice';
-        else if (sort === '-basePrice') sortField = '-basePrice';
-        else if (sort === 'name') sortField = 'name';
-        else if (sort === '-name') sortField = '-name';
-        else if (sort === 'averageRating') sortField = 'averageRating';
-        else if (sort === '-averageRating') sortField = '-averageRating';
-
-        sortConfig[sortField] = order === 'desc' ? -1 : 1;
-
+        // Handle negative sort fields (descending)
+        if (sort.startsWith('-')) {
+            sortField = sort.substring(1);
+            sortConfig[sortField] = -1;
+        } else {
+            sortConfig[sortField] = order === 'desc' ? -1 : 1;
+        }
         const products = await Product.find(filter)
-            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews condition')
+            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews condition tags')
             .populate("categories", "name slug")
             .populate("brand", "name slug")
             .sort(sortConfig)
@@ -298,7 +463,6 @@ exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
             .limit(limitNum);
 
         const totalProducts = await Product.countDocuments(filter);
-
         res.status(200).json({
             success: true,
             results: products.length,
@@ -314,13 +478,12 @@ exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
 
     } catch (error) {
         console.error('❌ Backend error in getProductsByCategory:', error);
+        console.error('🔍 Error stack:', error.stack);
         return next(new ErrorHandler('Internal server error while fetching category products', 500));
     }
 });
 
-// =====================================================
-// GET PRODUCTS BY BRAND (COMPLETELY FIXED)
-// =====================================================
+
 exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
     try {
         const { brandName } = req.params;
@@ -332,22 +495,20 @@ exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
             minPrice,
             maxPrice,
             inStock,
-            category, // ✅ FIX: Changed from 'categories' to 'category'
+            category,
             search,
             condition,
             rating
         } = req.query;
-        // ✅ FIX: Decode URL encoded brand name
+
         const decodedBrandName = decodeURIComponent(brandName);
         const formattedBrandName = decodedBrandName.replace(/-/g, ' ');
-
         const brand = await Brand.findOne({
             $or: [
                 { name: { $regex: new RegExp(`^${formattedBrandName}$`, 'i') } },
                 { slug: decodedBrandName.toLowerCase() }
             ]
         });
-
         if (!brand) {
             return res.status(200).json({
                 success: true,
@@ -362,25 +523,24 @@ exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
                 products: []
             });
         }
-
-        // Build filter for active products
         const filter = {
             isActive: true,
             status: 'Published',
             brand: brand._id // ✅ Use brand ID for matching
         };
-
-        // ✅ FIX: Search filter
         if (search) {
             const searchRegex = new RegExp(search, 'i');
             filter.$or = [
                 { name: searchRegex },
                 { description: searchRegex },
-                { 'additionalInfo.tags': searchRegex }
+                { tags: searchRegex } // ✅ FIX: Changed from 'additionalInfo.tags' to 'tags'
             ];
         }
 
-        // ✅ FIX: Price filter
+        // ✅ ADDED: Price validation
+        if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
+            return next(new ErrorHandler('minPrice cannot be greater than maxPrice', 400));
+        }
         if (minPrice || maxPrice) {
             filter.basePrice = {};
             if (minPrice) {
@@ -399,18 +559,24 @@ exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
             }
         }
 
-        // ✅ FIX: Stock filter
+        // ✅ FIX: Enhanced stock filter (consistent with category)
         if (inStock === 'true') {
             filter.$or = [
                 { stockQuantity: { $gt: 0 } },
-                { 'variants.stockQuantity': { $gt: 0 } }
+                {
+                    hasVariants: true,
+                    'variants': {
+                        $elemMatch: {
+                            isActive: true,
+                            stockQuantity: { $gt: 0 }
+                        }
+                    }
+                }
             ];
         }
 
-        // ✅ FIX: Category filter - handle single category (not array)
+        // ✅ FIX: Category filter
         if (category) {
-
-            // Handle URL encoded category names
             const decodedCategory = decodeURIComponent(category).replace(/\+/g, ' ');
 
             const categoryDoc = await Category.findOne({
@@ -420,7 +586,6 @@ exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
             if (categoryDoc) {
                 filter.categories = categoryDoc._id;
             } else {
-                // If category not found, return empty results
                 filter.categories = { $in: [] };
             }
         }
@@ -437,27 +602,23 @@ exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
                 filter.averageRating = { $gte: minRating };
             }
         }
-
-        // Pagination
         const pageNum = Math.max(1, parseInt(page));
         const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
         const skip = (pageNum - 1) * limitNum;
 
-        // ✅ FIX: Sort configuration
-        const sortConfig = {};
-        let sortField = 'createdAt';
+        // ✅ FIX: Consistent sort configuration (same as category)
+        const sortConfig = { basePrice: 1 };
+        let sortField = sort;
 
-        if (sort === 'basePrice') sortField = 'basePrice';
-        else if (sort === '-basePrice') sortField = '-basePrice';
-        else if (sort === 'name') sortField = 'name';
-        else if (sort === '-name') sortField = '-name';
-        else if (sort === 'averageRating') sortField = 'averageRating';
-        else if (sort === '-averageRating') sortField = '-averageRating';
-
-        sortConfig[sortField] = order === 'desc' ? -1 : 1;
-
+        // Handle negative sort fields (descending)
+        if (sort.startsWith('-')) {
+            sortField = sort.substring(1);
+            sortConfig[sortField] = -1;
+        } else {
+            sortConfig[sortField] = order === 'desc' ? -1 : 1;
+        }
         const products = await Product.find(filter)
-            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews condition')
+            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews condition tags')
             .populate("categories", "name slug")
             .populate("brand", "name slug")
             .sort(sortConfig)
@@ -465,7 +626,6 @@ exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
             .limit(limitNum);
 
         const totalProducts = await Product.countDocuments(filter);
-
         res.status(200).json({
             success: true,
             results: products.length,
@@ -481,6 +641,7 @@ exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
 
     } catch (error) {
         console.error('❌ Backend error in getProductsByBrand:', error);
+        console.error('🔍 Error stack:', error.stack);
         return next(new ErrorHandler('Internal server error while fetching brand products', 500));
     }
 });
@@ -503,33 +664,67 @@ exports.getProductBySlug = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// =====================================================
-// SEARCH PRODUCTS BY NAME / TAGS / DESCRIPTION
-// =====================================================
 exports.searchProducts = catchAsyncErrors(async (req, res, next) => {
-    const { q } = req.query;
+    const { q, page = 1, limit = 12 } = req.query;
 
-    if (!q || typeof q !== "string") {
-        return next(new ErrorHandler("Query parameter 'q' is required for search", 400));
+    if (!q || typeof q !== "string" || q.trim() === '') {
+        return next(new ErrorHandler("Search query 'q' is required", 400));
     }
 
-    const regex = new RegExp(q, "i");
-    const products = await Product.find({
-        $or: [
-            { name: regex },
-            { "additionalInfo.tags": regex },
-            { description: regex }
-        ]
-    }).populate("category brand");
+    const searchTerm = q.trim();
 
-    if (!products || products.length === 0) return next(new ErrorHandler("No products match your search", 404));
+    // Try text search first, fallback to regex if no results
+    let filter = {
+        isActive: true,
+        status: 'Published',
+        $text: { $search: searchTerm }
+    };
 
-    res.status(200).json({ success: true, results: products.length, products });
+    let products = await Product.find(filter)
+        .select('name slug brand categories images basePrice offerPrice')
+        .populate("categories", "name slug")
+        .populate("brand", "name slug")
+        .sort({ score: { $meta: "textScore" } })
+        .limit(parseInt(limit))
+        .skip((parseInt(page) - 1) * parseInt(limit));
+
+    // Fallback to regex search if no text search results
+    if (products.length === 0) {
+        const regex = new RegExp(searchTerm, "i");
+        filter = {
+            isActive: true,
+            status: 'Published',
+            $or: [
+                { name: regex },
+                { description: regex },
+                { tags: regex },
+                { 'variants.name': regex }
+            ]
+        };
+
+        products = await Product.find(filter)
+            .select('name slug brand categories images basePrice offerPrice')
+            .populate("categories", "name slug")
+            .populate("brand", "name slug")
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit))
+            .skip((parseInt(page) - 1) * parseInt(limit));
+    }
+
+    const totalProducts = await Product.countDocuments(filter);
+
+    res.status(200).json({
+        success: true,
+        results: products.length,
+        totalProducts,
+        totalPages: Math.ceil(totalProducts / parseInt(limit)),
+        currentPage: parseInt(page),
+        searchQuery: searchTerm,
+        searchType: products.length > 0 ? 'text' : 'regex',
+        products
+    });
 });
 
-// =====================================================
-// FILTER PRODUCTS: price, rating, availability, condition
-// =====================================================
 exports.filterProducts = catchAsyncErrors(async (req, res, next) => {
     const resPerPage = Number(req.query.limit) || 10;
 
@@ -560,9 +755,6 @@ exports.filterProducts = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// =====================================================
-// GET ALL VARIANTS OF A PRODUCT
-// =====================================================
 exports.getProductVariants = catchAsyncErrors(async (req, res, next) => {
     const { id } = req.params;
 

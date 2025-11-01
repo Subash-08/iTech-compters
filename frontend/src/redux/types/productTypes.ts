@@ -36,16 +36,18 @@ export interface ProductsResponse {
   hasPrev: boolean;
 }
 
-export interface AvailableFilters {
+// In your product slice or reducer
+interface AvailableFilters {
   brands: string[];
   categories: string[];
   conditions: string[];
-  minPrice: number;
-  maxPrice: number;
-  baseMinPrice: number;
-  baseMaxPrice: number;
+  priceRange?: {
+    min: number;
+    max: number;
+  };
+  baseMinPrice?: number;
+  baseMaxPrice?: number;
 }
-
 export interface ProductFilters {
   category?: string;
   brand?: string;

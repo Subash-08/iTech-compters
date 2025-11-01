@@ -16,6 +16,7 @@ import {
   selectCurrentPage,
   selectActiveFilters,
   selectHasActiveFilters,
+  selectLastSearchQuery,
 } from '../../redux/selectors';
 
 // Components
@@ -43,22 +44,28 @@ const ProductList: React.FC = () => {
   const currentPage = useAppSelector(selectCurrentPage);
   const activeFilters = useAppSelector(selectActiveFilters);
   const hasActiveFilters = useAppSelector(selectHasActiveFilters);
+  const lastSearchQuery = useAppSelector(selectLastSearchQuery);
 
+  // Check if filter is route-based
   const isRouteFilter = useCallback((key: string) => {
     return (key === 'category' && categoryName) || (key === 'brand' && brandName);
   }, [categoryName, brandName]);
 
-useEffect(() => {
+  // Parse URL parameters and update Redux state
+  useEffect(() => {
     const urlFilters: any = {};
     
-    console.log('🔄 URL changed, parsing search params:', Object.fromEntries(searchParams.entries()));
-    
-    // Get all URL parameters
     searchParams.forEach((value, key) => {
+      // Skip route parameters that are already in URL path
+      if ((key === 'category' && categoryName) || (key === 'brand' && brandName)) {
+        return;
+      }
+      
       if (key === 'inStock') {
         urlFilters[key] = value === 'true';
       } else if (key === 'minPrice' || key === 'maxPrice' || key === 'rating' || key === 'page' || key === 'limit') {
-        urlFilters[key] = Number(value);
+        const numValue = Number(value);
+        urlFilters[key] = value === '' ? null : (isNaN(numValue) ? null : numValue);
       } else if (key === 'sortBy') {
         urlFilters[key] = value;
       } else {
@@ -66,21 +73,13 @@ useEffect(() => {
       }
     });
 
-    // Apply route parameters
-    if (brandName) urlFilters.brand = brandName.replace(/-/g, ' ');
-    if (categoryName) urlFilters.category = categoryName.replace(/-/g, ' ');
-
-    console.log('📋 Parsed URL filters:', urlFilters);
-    
-    // Only update Redux if URL actually changed
     dispatch(productActions.updateFilters(urlFilters));
-  }, [searchParams, brandName, categoryName, dispatch]);
+  }, [searchParams, dispatch, brandName, categoryName]);
 
-  // ✅ FIXED: Fetch products when URL changes (NOT when Redux filters change)
+  // Fetch products when filters change
   useEffect(() => {
     const fetchProductsWithAuth = async () => {
       try {
-        console.log('🚀 Fetching products with filters:', filters);
         await dispatch(productActions.fetchProducts(filters, { 
           brandName: brandName?.replace(/-/g, ' '), 
           categoryName: categoryName?.replace(/-/g, ' ') 
@@ -92,15 +91,13 @@ useEffect(() => {
       }
     };
 
-    fetchProductsWithAuth();
+    if (categoryName || brandName || (!categoryName && !brandName)) {
+      fetchProductsWithAuth();
+    }
   }, [filters, dispatch, handleAuthError, brandName, categoryName]);
 
-
-
-  // ✅ FIXED: Update filter function to handle sortBy
+  // Update filter function
   const updateFilter = useCallback((key: string, value: string | number | boolean | null) => {
-    console.log('🎛️ Updating filter:', { key, value, currentParams: Object.fromEntries(searchParams.entries()) });
-    
     // Prevent removing route-based filters
     if (value === null && isRouteFilter(key)) {
       toast.info(`Cannot remove ${key} filter on this page`);
@@ -117,77 +114,59 @@ useEffect(() => {
     // Handle value removal
     if (value === null || value === '' || value === false) {
       newParams.delete(key);
-      console.log('❌ Deleted filter:', key);
     } else {
       newParams.set(key, value.toString());
-      console.log('✅ Set filter:', key, value);
     }
-    
-    console.log('🔗 New URL params:', Object.fromEntries(newParams.entries()));
     
     setSearchParams(newParams);
   }, [searchParams, setSearchParams, isRouteFilter]);
 
-  // Add debug logging for current state
-  useEffect(() => {
-    console.log('📊 CURRENT STATE:');
-    console.log('   URL Params:', Object.fromEntries(searchParams.entries()));
-    console.log('   Redux Filters:', filters);
-    console.log('   Products Count:', products.length);
-  }, [searchParams, filters, products.length]);
-const handleSortChange = useCallback((sortBy: string) => {
-    console.log('🔀 Changing sort to:', sortBy);
+  // Handle sort change
+  const handleSortChange = useCallback((sortBy: string) => {
     updateFilter('sortBy', sortBy);
   }, [updateFilter]);
- const clearFilters = useCallback(() => {
+
+  // Clear filters function
+  const clearFilters = useCallback(() => {
     const newParams = new URLSearchParams();
     
-    console.log('🧹 Clearing all filters');
-    
-    // Only preserve route parameters, remove all other filters
-    if (brandName) newParams.set('brand', brandName);
-    if (categoryName) newParams.set('category', categoryName);
-    
-    console.log('🔗 New URL after clear:', newParams.toString());
-    
     setSearchParams(newParams);
+    
+    dispatch(productActions.clearFilters({ 
+      brandName: brandName?.replace(/-/g, ' '), 
+      categoryName: categoryName?.replace(/-/g, ' ') 
+    }));
+    
     toast.success('Filters cleared successfully');
-  }, [brandName, categoryName, setSearchParams]);
+  }, [setSearchParams, dispatch, brandName, categoryName]);
 
-  // ✅ FIXED: Remove specific filter
+  // Remove specific filter
   const removeFilter = useCallback((key: string) => {
     if (isRouteFilter(key)) {
       toast.info(`Cannot remove ${key} filter on this page`);
       return;
     }
     
-    console.log('🗑️ Removing filter:', key);
     updateFilter(key, null);
   }, [updateFilter, isRouteFilter]);
-
-
 
   // Handle page change
   const handlePageChange = useCallback((page: number) => {
     updateFilter('page', page);
   }, [updateFilter]);
 
-  // Get page title
+  // Get page title with search support
   const getPageTitle = useCallback(() => {
     if (brandName) {
       return `${brandName.replace(/-/g, ' ')} Products`;
     } else if (categoryName) {
       return `${categoryName.replace(/-/g, ' ')} Products`;
-    } else if (filters.search) {
-      return `Search Results for "${filters.search}"`;
-    } else if (filters.category) {
-      return `${filters.category} Products`;
-    } else if (filters.brand) {
-      return `${filters.brand} Products`;
+    } else if (lastSearchQuery) {
+      return `Search Results for "${lastSearchQuery}"`;
     } else {
       return 'All Products';
     }
-  }, [brandName, categoryName, filters.search, filters.category, filters.brand]);
+  }, [brandName, categoryName, lastSearchQuery]);
 
   // Check if we should show specific filters
   const shouldShowFilter = useCallback((filterType: 'brand' | 'category') => {
@@ -199,14 +178,17 @@ const handleSortChange = useCallback((sortBy: string) => {
   // Handle retry with auth error handling
   const handleRetry = useCallback(async () => {
     try {
-      await dispatch(productActions.fetchProducts(filters));
+      await dispatch(productActions.fetchProducts(filters, { 
+        brandName: brandName?.replace(/-/g, ' '), 
+        categoryName: categoryName?.replace(/-/g, ' ') 
+      }));
     } catch (error: any) {
       if (handleAuthError(error)) {
         return;
       }
       toast.error('Failed to load products. Please try again.');
     }
-  }, [dispatch, filters, handleAuthError]);
+  }, [dispatch, filters, handleAuthError, brandName, categoryName]);
 
   // Get removable active filters (excluding route filters)
   const getRemovableActiveFilters = useCallback(() => {
@@ -214,6 +196,12 @@ const handleSortChange = useCallback((sortBy: string) => {
   }, [activeFilters, isRouteFilter]);
 
   const hasRemovableFilters = getRemovableActiveFilters().length > 0;
+
+  // Clear search functionality
+  const clearSearch = useCallback(() => {
+    dispatch(productActions.clearSearchResults());
+    updateFilter('search', null);
+  }, [dispatch, updateFilter]);
 
   // Loading state
   if (loading && products.length === 0) {
@@ -273,6 +261,21 @@ const handleSortChange = useCallback((sortBy: string) => {
             {loading && products.length > 0 && ' (Updating...)'}
           </p>
           
+          {/* Search results info */}
+          {lastSearchQuery && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded border border-blue-200">
+                🔍 Search: "{lastSearchQuery}"
+              </span>
+              <button
+                onClick={clearSearch}
+                className="text-xs text-red-600 hover:text-red-800 underline"
+              >
+                Clear Search
+              </button>
+            </div>
+          )}
+          
           {/* Active filters display */}
           {hasActiveFilters && (
             <div className="flex flex-wrap gap-2 mt-2">
@@ -297,7 +300,7 @@ const handleSortChange = useCallback((sortBy: string) => {
                   onClick={() => removeFilter(filter.key)}
                   className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded flex items-center hover:bg-gray-200 transition-colors border border-gray-300"
                 >
-                  {filter.label}: {filter.value}
+                  {filter.label}
                   <span className="ml-1 text-gray-600">×</span>
                 </button>
               ))}
@@ -339,7 +342,7 @@ const handleSortChange = useCallback((sortBy: string) => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Filters Sidebar - Using your ProductDetailFilters */}
+        {/* Filters Sidebar */}
         <ProductDetailFilters
           showFilters={showFilters}
           availableFilters={availableFilters}
@@ -354,17 +357,42 @@ const handleSortChange = useCallback((sortBy: string) => {
         <div className="flex-1">
           {products.length === 0 && !loading ? (
             <div className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">😔</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-              <p className="text-gray-600 mb-4">Try adjusting your filters or search terms</p>
-              {hasRemovableFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
+              <div className="text-gray-400 text-6xl mb-4">
+                {lastSearchQuery ? '🔍' : '😔'}
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {lastSearchQuery ? 'No products found' : 'No products available'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {lastSearchQuery 
+                  ? `No products found for "${lastSearchQuery}". Try different keywords.`
+                  : 'Try adjusting your filters or browse other categories.'
+                }
+              </p>
+              <div className="space-x-4">
+                {lastSearchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
+                  >
+                    Clear Search
+                  </button>
+                )}
+                {hasRemovableFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+                <Link 
+                  to="/products"
+                  className="inline-block bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors"
                 >
-                  Clear Filters
-                </button>
-              )}
+                  Browse All Products
+                </Link>
+              </div>
             </div>
           ) : (
             <>

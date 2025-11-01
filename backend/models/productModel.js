@@ -619,4 +619,21 @@ productSchema.methods.getColorHexCode = function (colorName) {
 
     return colorMap[colorName.toLowerCase()] || '#CCCCCC';
 };
+
+productSchema.index({
+    name: 'text',
+    description: 'text',
+    tags: 'text',
+    'variants.name': 'text'
+}, {
+    name: "product_search_index",
+    weights: {
+        name: 10,        // Highest priority
+        tags: 5,         // Medium priority  
+        'variants.name': 3, // Lower priority
+        description: 1   // Lowest priority
+    }
+});
+
+
 module.exports = mongoose.model('Product', productSchema);
