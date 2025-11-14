@@ -113,7 +113,7 @@ const CartItem: React.FC<CartItemProps> = ({
     if (url.startsWith('/')) {
       // For development - adjust base URL as needed
       const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'https://your-backend-domain.com' 
+        ? 'https://itech-compters.onrender.com' 
         : 'http://localhost:5000';
       return `${baseURL}${url}`;
     }

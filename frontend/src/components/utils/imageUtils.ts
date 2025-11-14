@@ -14,7 +14,7 @@ export const getImageUrl = (image: any): string => {
     }
     // Handle relative URLs - adjust base URL as needed
     const baseURL = process.env.NODE_ENV === 'production' 
-      ? 'https://your-production-domain.com' 
+      ? 'https://itech-compters.onrender.com' 
       : 'http://localhost:5000';
     return `${baseURL}${image.url.startsWith('/') ? image.url : '/' + image.url}`;
   }
