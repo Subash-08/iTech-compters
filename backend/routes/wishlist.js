@@ -8,10 +8,15 @@ const {
     checkWishlistItem,
     clearWishlist,
     getUserWishlist,
-    getAllWishlists
+    getAllWishlists,
+    getCurrentWishlist,
+    syncGuestWishlist,
+    addPreBuiltPCToWishlist,
+    removePreBuiltPCFromWishlist
 } = require("../controllers/wishlistController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
+const { optionalAuth } = require("../middlewares/cartAuth");
 
 // ==================== USER ROUTES ====================
 
@@ -52,5 +57,19 @@ router.route("/admin/wishlist/user/:userId")
 router.route("/admin/wishlists")
     .get(isAuthenticatedUser, authorizeRoles("admin"), getAllWishlists);
 
+// @desc    Get current wishlist (works for both guest and authenticated)
+// @route   GET /api/v1/wishlist/current
+router.route("/wishlist/current")
+    .get(optionalAuth, getCurrentWishlist);
+
+// @desc    Sync guest wishlist after login
+// @route   POST /api/v1/wishlist/sync-guest
+router.route("/wishlist/sync-guest")
+    .post(isAuthenticatedUser, syncGuestWishlist);
+
+
+// NEW: Pre-built PC routes
+router.post('/prebuilt-pc/add', isAuthenticatedUser, addPreBuiltPCToWishlist);
+router.delete('/prebuilt-pc/remove/:pcId', isAuthenticatedUser, removePreBuiltPCFromWishlist);
 
 module.exports = router;

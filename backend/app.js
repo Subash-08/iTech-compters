@@ -14,6 +14,8 @@ const reviewRoutes = require('./routes/review');
 const wishlistRoutes = require("./routes/wishlist");
 const cartRoutes = require('./routes/cart');
 const heroSectionRoutes = require('./routes/heroSection');
+const showcaseSectionRoutes = require('./routes/showcaseSection');
+const preBuiltPCRoutes = require('./routes/preBuiltPC')
 
 dotenv.config({ path: path.join(__dirname, 'config/config.env') });
 
@@ -66,6 +68,8 @@ app.use('/api/v1', reviewRoutes);
 app.use('/api/v1', wishlistRoutes);
 app.use('/api/v1', cartRoutes);
 app.use('/api/v1', heroSectionRoutes);
+app.use('/api/v1', showcaseSectionRoutes);
+app.use('/api/v1', preBuiltPCRoutes)
 
 // Health check route
 app.get('/api/v1/health', (req, res) => {

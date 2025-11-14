@@ -1,3 +1,4 @@
+// components/product/AddToCartButton.tsx - UPDATED VERSION
 import React, { useState } from 'react';
 import { useAppDispatch } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
@@ -5,17 +6,27 @@ import { cartActions } from '../../redux/actions/cartActions';
 interface AddToCartButtonProps {
   productId: string;
   variantId?: string;
+  productData?: any;
+  productType?: 'product' | 'prebuilt-pc'; // NEW: Add productType
   className?: string;
   quantity?: number;
   disabled?: boolean;
+  showIcon?: boolean;
+  iconSize?: string;
+  children?: React.ReactNode;
 }
 
 const AddToCartButton: React.FC<AddToCartButtonProps> = ({ 
   productId, 
   variantId, 
+  productData,
+  productType = 'product', // Default to 'product' for backward compatibility
   className = '',
   quantity = 1,
-  disabled = false
+  disabled = false,
+  showIcon = true,
+  iconSize = "w-4 h-4",
+  children 
 }) => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
@@ -25,11 +36,20 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
     
     setLoading(true);
     try {
-      await dispatch(cartActions.addToCart({ 
-        productId, 
-        variantId, 
-        quantity 
-      }));
+      if (productType === 'prebuilt-pc') {
+        // Use pre-built PC specific action
+        await dispatch(cartActions.addPreBuiltPCToCart({ 
+          pcId: productId, 
+          quantity 
+        }));
+      } else {
+        // Use regular product action
+        await dispatch(cartActions.addToCart({ 
+          productId, 
+          variantId, 
+          quantity 
+        }));
+      }
       // Optional: Show success message or notification
     } catch (error) {
       console.error('Failed to add to cart:', error);
@@ -44,7 +64,9 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       disabled={loading || disabled}
       className={`${className} ${
         loading ? 'opacity-70 cursor-not-allowed' : ''
-      }`}
+      } ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+      } transition-opacity duration-200`}
     >
       {loading ? (
         <div className="flex items-center justify-center space-x-2">
@@ -52,7 +74,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           <span>Adding...</span>
         </div>
       ) : (
-        'Add to Cart'
+        children || 'Add to Cart'
       )}
     </button>
   );

@@ -1,6 +1,6 @@
 // src/components/product/ProductDisplay.tsx
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'; // Add useSearchParams
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../config/axiosConfig';
 import ProductImages from './ProductImages';
 import ProductInfo from './ProductInfo';
@@ -13,7 +13,7 @@ import { ProductData, Variant } from './productTypes';
 const ProductDisplay: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams(); // 🆕 Get URL search params
+  const [searchParams] = useSearchParams();
   const [productData, setProductData] = useState<ProductData | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
@@ -59,7 +59,7 @@ const ProductDisplay: React.FC = () => {
         
         setProductData(productData);
         
-        // 🆕 Handle URL variant parameter
+        // Handle URL variant parameter
         const urlVariantId = searchParams.get('variant');
         console.log('🛒 URL variant parameter:', urlVariantId);
         
@@ -75,7 +75,7 @@ const ProductDisplay: React.FC = () => {
           if (validVariants.length > 0) {
             let defaultVariant;
             
-            // 🆕 Priority: URL variant > active variant > first variant
+            // Priority: URL variant > active variant > first variant
             if (urlVariantId) {
               defaultVariant = validVariants.find(v => 
                 v._id?.toString() === urlVariantId || 
@@ -116,7 +116,22 @@ const ProductDisplay: React.FC = () => {
     };
 
     fetchProduct();
-  }, [slug, searchParams]); // 🆕 Add searchParams to dependency array
+  }, [slug, searchParams]);
+
+  // 🆕 FIX: Get the correct specifications based on product variant configuration
+  const getDisplaySpecifications = () => {
+    if (!productData) return [];
+
+    // If product has variants and a variant is selected, use variant specifications
+    if (productData.variantConfiguration?.hasVariants && selectedVariant) {
+      console.log('📋 Using variant specifications for:', selectedVariant.name);
+      return selectedVariant.specifications || [];
+    }
+    
+    // If product has no variants or no variant selected, use product specifications
+    console.log('📋 Using product specifications');
+    return productData.specifications || [];
+  };
 
   // Find variant based on selected attributes
   const findVariantByAttributes = (attributes: Record<string, string>): Variant | null => {
@@ -212,7 +227,7 @@ const ProductDisplay: React.FC = () => {
     }
   };
 
-  // 🆕 ADDED: Update URL when variant changes (optional - for sharing)
+  // Update URL when variant changes (optional - for sharing)
   useEffect(() => {
     if (selectedVariant && selectedVariant._id) {
       // Update URL without page reload
@@ -221,13 +236,13 @@ const ProductDisplay: React.FC = () => {
     }
   }, [selectedVariant]);
 
-  // 🆕 ADDED: Tax calculation helper
+  // Tax calculation helper
   const calculateTax = (price: number) => {
     const taxRate = productData?.taxRate || 0;
     return (price * taxRate) / 100;
   };
 
-  // 🆕 ADDED: Final price with tax
+  // Final price with tax
   const getFinalPrice = () => {
     const price = selectedVariant?.offerPrice || selectedVariant?.price || 
                   productData?.offerPrice || productData?.basePrice || 0;
@@ -278,6 +293,9 @@ const ProductDisplay: React.FC = () => {
     );
   }
 
+  // 🆕 Get the correct specifications for display
+  const displaySpecifications = getDisplaySpecifications();
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -324,13 +342,13 @@ const ProductDisplay: React.FC = () => {
         weight={productData.weight}
       />
 
-      {/* Specifications */}
+      {/* 🆕 FIX: Pass the correct specifications */}
       <ProductSpecifications 
-        specifications={selectedVariant?.specifications}
+        specifications={displaySpecifications}
         warranty={productData.warranty}
       />
 
-      {/* 🆕 ADDED: Reviews Section */}
+      {/* Reviews Section */}
       <ProductReviewsSection 
         productId={productData._id}
         product={productData}

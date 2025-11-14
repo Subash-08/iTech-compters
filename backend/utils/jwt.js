@@ -1,13 +1,13 @@
 const sendToken = (user, statusCode, res, message = 'Success') => {
-    // Creating JWT Token - only contains essential claims
     const token = user.getJwtToken();
 
-    // Setting cookies 
     const options = {
         expires: new Date(
             Date.now() + process.env.COOKIE_EXPIRES_TIME * 24 * 60 * 60 * 1000
         ),
         httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // Add this
+        sameSite: 'strict' // Add this for CSRF protection
     }
 
     res.status(statusCode)
@@ -16,7 +16,7 @@ const sendToken = (user, statusCode, res, message = 'Success') => {
             success: true,
             token,
             message
-            // ❌ Remove user data from response
+            // ✅ Correct: No user data in response
         });
 }
 

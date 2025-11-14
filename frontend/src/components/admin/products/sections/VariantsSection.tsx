@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ProductFormData, ProductVariant, IdentifyingAttribute } from '../../types/product';
+import { ProductFormData, ProductVariant, IdentifyingAttribute, ImageData } from '../../types/product';
 
 interface VariantsSectionProps {
   formData: ProductFormData;
@@ -15,6 +15,7 @@ const VariantsSection: React.FC<VariantsSectionProps> = ({
   const [newAttribute, setNewAttribute] = useState({ key: '', label: '', value: '' });
   const [newSpec, setNewSpec] = useState({ sectionTitle: '', specKey: '', specLabel: '', possibleValue: '' });
   const [newVariantSpec, setNewVariantSpec] = useState({ sectionTitle: '', key: '', value: '' });
+  const [newGalleryImage, setNewGalleryImage] = useState({ url: '', altText: '' });
 
   // FIX: Auto-detect if product has variants when in edit mode
   useEffect(() => {
@@ -30,6 +31,56 @@ const VariantsSection: React.FC<VariantsSectionProps> = ({
       }
     }
   }, [isEditMode, formData.variants, formData.variantConfiguration.hasVariants, updateFormData]);
+
+  // 🆕 NEW: Handle variant gallery images
+  const handleVariantGalleryChange = (variantIndex: number, galleryIndex: number, field: string, value: string) => {
+    const updatedVariants = [...formData.variants];
+    const variant = updatedVariants[variantIndex];
+    
+    if (!variant.images.gallery) {
+      variant.images.gallery = [];
+    }
+    
+    const updatedGallery = [...variant.images.gallery];
+    updatedGallery[galleryIndex] = {
+      ...updatedGallery[galleryIndex],
+      [field]: value
+    };
+    
+    variant.images.gallery = updatedGallery;
+    updateFormData({ variants: updatedVariants });
+  };
+
+  // 🆕 NEW: Add gallery image to variant
+  const addVariantGalleryImage = (variantIndex: number) => {
+    if (!newGalleryImage.url.trim()) return;
+    
+    const updatedVariants = [...formData.variants];
+    const variant = updatedVariants[variantIndex];
+    
+    if (!variant.images.gallery) {
+      variant.images.gallery = [];
+    }
+    
+    variant.images.gallery.push({
+      url: newGalleryImage.url,
+      altText: newGalleryImage.altText || `Variant ${variant.name || variantIndex + 1} gallery image`
+    });
+    
+    updateFormData({ variants: updatedVariants });
+    setNewGalleryImage({ url: '', altText: '' });
+  };
+
+  // 🆕 NEW: Remove gallery image from variant
+  const removeVariantGalleryImage = (variantIndex: number, galleryIndex: number) => {
+    const updatedVariants = [...formData.variants];
+    const variant = updatedVariants[variantIndex];
+    
+    if (variant.images.gallery) {
+      variant.images.gallery = variant.images.gallery.filter((_, i) => i !== galleryIndex);
+      updateFormData({ variants: updatedVariants });
+    }
+  };
 
   const handleVariantConfigChange = (field: string, value: any) => {
     const updatedConfig = {
@@ -191,7 +242,7 @@ const VariantsSection: React.FC<VariantsSectionProps> = ({
           url: formData.images?.thumbnail?.url || '', // Use product thumbnail as default
           altText: formData.images?.thumbnail?.altText || ''
         },
-        gallery: formData.images?.gallery || [] // Use product gallery as default
+        gallery: [] // 🆕 Start with empty gallery
       },
       isActive: true,
       specifications: []
@@ -278,20 +329,6 @@ const VariantsSection: React.FC<VariantsSectionProps> = ({
       
       updateFormData({ variants: updatedVariants });
     }
-  };
-
-  // Handle variant images
-  const handleImageChange = (variantIndex: number, field: string, value: any) => {
-    const updatedVariants = [...formData.variants];
-    const variant = updatedVariants[variantIndex];
-    
-    if (field === 'thumbnail') {
-      variant.images.thumbnail = value;
-    } else if (field === 'gallery') {
-      variant.images.gallery = value;
-    }
-    
-    updateFormData({ variants: updatedVariants });
   };
 
   // Helper function to generate color hex codes
@@ -722,40 +759,159 @@ const VariantsSection: React.FC<VariantsSectionProps> = ({
                   </div>
                 </div>
 
-                {/* Variant Images */}
+                {/* 🆕 ENHANCED: Variant Images with Gallery Support */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Variant Images
                   </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Thumbnail URL</label>
-                      <input
-                        type="text"
-                        value={variant.images?.thumbnail?.url || ''}
-                        onChange={(e) => handleVariantNestedChange(variantIndex, 'images', 'thumbnail', {
-                          ...variant.images?.thumbnail,
-                          url: e.target.value
-                        })}
-                        onKeyDown={handleKeyDown}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        placeholder="https://example.com/image.jpg"
-                      />
+                  
+                  {/* Thumbnail Section */}
+                  <div className="mb-4">
+                    <h5 className="text-sm font-medium text-gray-700 mb-2">Thumbnail Image</h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Thumbnail URL</label>
+                        <input
+                          type="text"
+                          value={variant.images?.thumbnail?.url || ''}
+                          onChange={(e) => handleVariantNestedChange(variantIndex, 'images', 'thumbnail', {
+                            ...variant.images?.thumbnail,
+                            url: e.target.value
+                          })}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Alt Text</label>
+                        <input
+                          type="text"
+                          value={variant.images?.thumbnail?.altText || ''}
+                          onChange={(e) => handleVariantNestedChange(variantIndex, 'images', 'thumbnail', {
+                            ...variant.images?.thumbnail,
+                            altText: e.target.value
+                          })}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          placeholder="Product variant image"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Alt Text</label>
-                      <input
-                        type="text"
-                        value={variant.images?.thumbnail?.altText || ''}
-                        onChange={(e) => handleVariantNestedChange(variantIndex, 'images', 'thumbnail', {
-                          ...variant.images?.thumbnail,
-                          altText: e.target.value
-                        })}
-                        onKeyDown={handleKeyDown}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        placeholder="Product variant image"
-                      />
+                  </div>
+
+                  {/* Gallery Images Section */}
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-700 mb-2">Gallery Images</h5>
+                    
+                    {/* Add New Gallery Image */}
+                    <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                      <div className="grid grid-cols-2 gap-3 mb-2">
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Image URL</label>
+                          <input
+                            type="text"
+                            value={newGalleryImage.url}
+                            onChange={(e) => setNewGalleryImage(prev => ({ ...prev, url: e.target.value }))}
+                            onKeyDown={handleKeyDown}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="https://example.com/gallery-image.jpg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Alt Text</label>
+                          <input
+                            type="text"
+                            value={newGalleryImage.altText}
+                            onChange={(e) => setNewGalleryImage(prev => ({ ...prev, altText: e.target.value }))}
+                            onKeyDown={handleKeyDown}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="Description of the image"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addVariantGalleryImage(variantIndex)}
+                        disabled={!newGalleryImage.url.trim()}
+                        className="px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Add Gallery Image
+                      </button>
                     </div>
+
+                    {/* Gallery Images List */}
+                    <div className="space-y-3">
+                      {variant.images.gallery && variant.images.gallery.length > 0 ? (
+                        variant.images.gallery.map((galleryImage, galleryIndex) => (
+                          <div key={galleryIndex} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg bg-white">
+                            {/* Image Preview */}
+                            <div className="flex-shrink-0">
+                              {galleryImage.url ? (
+                                <div className="w-16 h-16 border border-gray-300 rounded-lg overflow-hidden">
+                                  <img
+                                    src={galleryImage.url}
+                                    alt="Gallery preview"
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
+                                  <span className="text-xs text-gray-500">No image</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Image Inputs */}
+                            <div className="flex-1 grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs text-gray-600 mb-1">Image URL</label>
+                                <input
+                                  type="text"
+                                  value={galleryImage.url}
+                                  onChange={(e) => handleVariantGalleryChange(variantIndex, galleryIndex, 'url', e.target.value)}
+                                  onKeyDown={handleKeyDown}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                  placeholder="https://example.com/image.jpg"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-600 mb-1">Alt Text</label>
+                                <input
+                                  type="text"
+                                  value={galleryImage.altText}
+                                  onChange={(e) => handleVariantGalleryChange(variantIndex, galleryIndex, 'altText', e.target.value)}
+                                  onKeyDown={handleKeyDown}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                  placeholder="Description of the image"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Remove Button */}
+                            <button
+                              type="button"
+                              onClick={() => removeVariantGalleryImage(variantIndex, galleryIndex)}
+                              className="px-3 py-1 text-red-600 hover:text-red-700 text-sm border border-red-300 rounded hover:bg-red-50"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
+                          <p className="text-sm text-gray-500">No gallery images added</p>
+                          <p className="text-xs text-gray-400 mt-1">Add images using the form above</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Gallery Stats */}
+                    {variant.images.gallery && variant.images.gallery.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        {variant.images.gallery.length} gallery image{variant.images.gallery.length !== 1 ? 's' : ''}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

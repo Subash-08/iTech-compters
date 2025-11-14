@@ -326,6 +326,7 @@ export const Icons = {
   Brands: Tag,
   Products: Package,
   Folder: Folder,
+
   
   // Sales & Orders
   Orders: ShoppingCart,

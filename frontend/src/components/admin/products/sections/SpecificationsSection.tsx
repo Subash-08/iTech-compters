@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ProductFormData, Specification } from '../../types/product';
+import { ProductFormData, Specification, ProductVariant } from '../../types/product';
 
 interface SpecificationsSectionProps {
   formData: ProductFormData;
@@ -14,19 +14,44 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
 }) => {
   const [newSpecSection, setNewSpecSection] = useState({ sectionTitle: '', key: '', value: '' });
   const [activeSection, setActiveSection] = useState<number | null>(null);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
+
+  // 🆕 Determine if we're editing product specs or variant specs
+  const isEditingVariantSpecs = selectedVariantIndex !== null;
+  
+  // 🆕 Get the current specifications based on context
+  const getCurrentSpecifications = (): Specification[] => {
+    if (isEditingVariantSpecs && formData.variants[selectedVariantIndex!]) {
+      return formData.variants[selectedVariantIndex!].specifications || [];
+    }
+    return formData.specifications || [];
+  };
+
+  // 🆕 Update the correct specifications (product or variant)
+  const updateCurrentSpecifications = (updatedSpecs: Specification[]) => {
+    if (isEditingVariantSpecs) {
+      // Update variant specifications
+      const updatedVariants = [...formData.variants];
+      updatedVariants[selectedVariantIndex!].specifications = updatedSpecs;
+      updateFormData({ variants: updatedVariants });
+    } else {
+      // Update product specifications
+      updateFormData({ specifications: updatedSpecs });
+    }
+  };
 
   const handleSpecChange = (sectionIndex: number, specIndex: number, field: string, value: string) => {
-    const updatedSpecifications = [...formData.specifications];
+    const updatedSpecifications = [...getCurrentSpecifications()];
     const updatedSpecs = [...updatedSpecifications[sectionIndex].specs];
     updatedSpecs[specIndex] = { ...updatedSpecs[specIndex], [field]: value };
     updatedSpecifications[sectionIndex].specs = updatedSpecs;
-    updateFormData({ specifications: updatedSpecifications });
+    updateCurrentSpecifications(updatedSpecifications);
   };
 
   const handleSectionTitleChange = (sectionIndex: number, title: string) => {
-    const updatedSpecifications = [...formData.specifications];
+    const updatedSpecifications = [...getCurrentSpecifications()];
     updatedSpecifications[sectionIndex].sectionTitle = title;
-    updateFormData({ specifications: updatedSpecifications });
+    updateCurrentSpecifications(updatedSpecifications);
   };
 
   const addSpecificationSection = () => {
@@ -34,14 +59,14 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
       sectionTitle: '',
       specs: []
     };
-    const updatedSpecifications = [...formData.specifications, newSection];
-    updateFormData({ specifications: updatedSpecifications });
+    const updatedSpecifications = [...getCurrentSpecifications(), newSection];
+    updateCurrentSpecifications(updatedSpecifications);
     setActiveSection(updatedSpecifications.length - 1);
   };
 
   const removeSpecificationSection = (sectionIndex: number) => {
-    const updatedSpecifications = formData.specifications.filter((_, i) => i !== sectionIndex);
-    updateFormData({ specifications: updatedSpecifications });
+    const updatedSpecifications = getCurrentSpecifications().filter((_, i) => i !== sectionIndex);
+    updateCurrentSpecifications(updatedSpecifications);
     if (activeSection === sectionIndex) {
       setActiveSection(null);
     } else if (activeSection && activeSection > sectionIndex) {
@@ -52,24 +77,24 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
   const addSpecToSection = (sectionIndex: number) => {
     if (!newSpecSection.key.trim() || !newSpecSection.value.trim()) return;
 
-    const updatedSpecifications = [...formData.specifications];
+    const updatedSpecifications = [...getCurrentSpecifications()];
     updatedSpecifications[sectionIndex].specs.push({
       key: newSpecSection.key.trim(),
       value: newSpecSection.value.trim()
     });
-    updateFormData({ specifications: updatedSpecifications });
+    updateCurrentSpecifications(updatedSpecifications);
     
     setNewSpecSection({ sectionTitle: '', key: '', value: '' });
   };
 
   const removeSpecFromSection = (sectionIndex: number, specIndex: number) => {
-    const updatedSpecifications = [...formData.specifications];
+    const updatedSpecifications = [...getCurrentSpecifications()];
     updatedSpecifications[sectionIndex].specs = updatedSpecifications[sectionIndex].specs.filter((_, i) => i !== specIndex);
-    updateFormData({ specifications: updatedSpecifications });
+    updateCurrentSpecifications(updatedSpecifications);
   };
 
   const moveSpec = (sectionIndex: number, specIndex: number, direction: 'up' | 'down') => {
-    const updatedSpecifications = [...formData.specifications];
+    const updatedSpecifications = [...getCurrentSpecifications()];
     const specs = updatedSpecifications[sectionIndex].specs;
     
     if (direction === 'up' && specIndex > 0) {
@@ -78,26 +103,26 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
       [specs[specIndex], specs[specIndex + 1]] = [specs[specIndex + 1], specs[specIndex]];
     }
     
-    updateFormData({ specifications: updatedSpecifications });
+    updateCurrentSpecifications(updatedSpecifications);
   };
 
   const duplicateSection = (sectionIndex: number) => {
-    const sectionToDuplicate = formData.specifications[sectionIndex];
+    const sectionToDuplicate = getCurrentSpecifications()[sectionIndex];
     const duplicatedSection: Specification = {
       sectionTitle: `${sectionToDuplicate.sectionTitle} (Copy)`,
       specs: sectionToDuplicate.specs.map(spec => ({ ...spec }))
     };
     
-    const updatedSpecifications = [...formData.specifications];
+    const updatedSpecifications = [...getCurrentSpecifications()];
     updatedSpecifications.splice(sectionIndex + 1, 0, duplicatedSection);
-    updateFormData({ specifications: updatedSpecifications });
+    updateCurrentSpecifications(updatedSpecifications);
     setActiveSection(sectionIndex + 1);
   };
 
   const addQuickSpecs = (sectionIndex: number, specs: Array<{key: string, value: string}>) => {
-    const updatedSpecifications = [...formData.specifications];
+    const updatedSpecifications = [...getCurrentSpecifications()];
     updatedSpecifications[sectionIndex].specs.push(...specs);
-    updateFormData({ specifications: updatedSpecifications });
+    updateCurrentSpecifications(updatedSpecifications);
   };
 
   const commonSpecTemplates = {
@@ -128,30 +153,106 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
     ]
   };
 
+  // 🆕 Calculate total specifications count
+  const getTotalSpecificationsCount = () => {
+    if (isEditingVariantSpecs) {
+      return getCurrentSpecifications().reduce((total, section) => total + section.specs.length, 0);
+    }
+    
+    // For product specs, also include variant specs in the count for context
+    let total = getCurrentSpecifications().reduce((total, section) => total + section.specs.length, 0);
+    if (formData.variants && formData.variants.length > 0) {
+      formData.variants.forEach(variant => {
+        if (variant.specifications) {
+          total += variant.specifications.reduce((sum, section) => sum + section.specs.length, 0);
+        }
+      });
+    }
+    return total;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">Specifications</h2>
-        {isEditing && formData.specifications.length > 0 && (
+        {isEditing && (
           <div className="text-sm text-gray-500">
-            {formData.specifications.reduce((total, section) => total + section.specs.length, 0)} total specifications
+            {getTotalSpecificationsCount()} total specifications
           </div>
         )}
       </div>
 
+      {/* 🆕 Variant Selection - Only show when product has variants */}
+      {formData.variantConfiguration?.hasVariants && formData.variants && formData.variants.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <span className="text-sm font-medium text-yellow-800">Variant-Specific Specifications</span>
+                <p className="text-sm text-yellow-700 mt-1">
+                  This product has variants. Each variant can have different specifications.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Variant Selection Tabs */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Specifications to Edit:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedVariantIndex(null)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                  selectedVariantIndex === null
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                Product Specifications
+              </button>
+              {formData.variants.map((variant, index) => (
+                <button
+                  key={variant._id || index}
+                  type="button"
+                  onClick={() => setSelectedVariantIndex(index)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                    selectedVariantIndex === index
+                      ? 'bg-green-600 text-white border-green-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {variant.name || `Variant ${index + 1}`}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Mode Notice */}
-      {isEditing && (
+      {isEditing && !isEditingVariantSpecs && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
             <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <span className="text-sm font-medium text-blue-800">Edit Mode</span>
+              <span className="text-sm font-medium text-blue-800">
+                {formData.variantConfiguration?.hasVariants 
+                  ? 'Product-Level Specifications' 
+                  : 'Edit Mode'
+                }
+              </span>
               <p className="text-sm text-blue-700 mt-1">
-                {formData.specifications.length > 0 
-                  ? 'Update existing specifications or add new ones. Use templates for quick setup.'
-                  : 'No specifications yet. Add sections and specifications to provide detailed product information.'
+                {formData.variantConfiguration?.hasVariants
+                  ? 'These specifications apply to all variants. Use variant-specific tabs for variant-specific specifications.'
+                  : 'Update existing specifications or add new ones. Use templates for quick setup.'
                 }
               </p>
             </div>
@@ -159,8 +260,36 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
         </div>
       )}
 
+      {/* Variant-specific notice */}
+      {isEditingVariantSpecs && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <span className="text-sm font-medium text-green-800">
+                  Editing: {formData.variants[selectedVariantIndex!].name}
+                </span>
+                <p className="text-sm text-green-700 mt-1">
+                  These specifications are specific to this variant only.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedVariantIndex(null)}
+              className="text-green-600 hover:text-green-700 text-sm font-medium"
+            >
+              Back to Product Specs
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-6">
-        {formData.specifications.map((section, sectionIndex) => (
+        {getCurrentSpecifications().map((section, sectionIndex) => (
           <div 
             key={sectionIndex} 
             className={`border rounded-lg p-4 transition-all duration-200 ${
@@ -356,16 +485,23 @@ const SpecificationsSection: React.FC<SpecificationsSectionProps> = ({
           </div>
         ))}
 
-        {formData.specifications.length === 0 && (
+        {getCurrentSpecifications().length === 0 && (
           <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
             <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Specifications Added</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {isEditingVariantSpecs 
+                ? `No Specifications for ${formData.variants[selectedVariantIndex!].name}`
+                : 'No Specifications Added'
+              }
+            </h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              {isEditing 
-                ? 'Add specifications to provide detailed information about your product. Use sections to organize different types of specifications.'
-                : 'Specifications help customers understand your product better. Add sections for different categories like technical specs, dimensions, features, etc.'
+              {isEditingVariantSpecs
+                ? 'Add variant-specific specifications that differ from the main product specifications.'
+                : isEditing 
+                  ? 'Add specifications to provide detailed information about your product.'
+                  : 'Specifications help customers understand your product better.'
               }
             </p>
           </div>

@@ -8,10 +8,13 @@ import SpecificationsSection from './sections/SpecificationsSection';
 import FeaturesSection from './sections/FeaturesSection';
 import DimensionsWeightSection from './sections/DimensionsWeightSection';
 import SeoSection from './sections/SeoSection';
-import api from '../../config/axiosConfig'; // Import your axios config
+import api from '../../config/axiosConfig';
+
+// 🆕 Import react-toastify (already in your project)
+import { toast } from 'react-toastify';
 
 const initialProductData: ProductFormData = {
-  // Basic Information
+  // ... (keep your existing initialProductData)
   name: '',
   brand: '',
   categories: [],
@@ -23,13 +26,11 @@ const initialProductData: ProductFormData = {
   description: '',
   definition: '',
   
-  // Images
   images: {
     thumbnail: { url: '', altText: '' },
     gallery: []
   },
   
-  // Pricing & Inventory
   basePrice: 0,
   offerPrice: 0,
   discountPercentage: 0,
@@ -38,7 +39,6 @@ const initialProductData: ProductFormData = {
   barcode: '',
   stockQuantity: 0,
   
-  // Variants
   variantConfiguration: {
     hasVariants: false,
     variantType: 'None',
@@ -47,11 +47,9 @@ const initialProductData: ProductFormData = {
   },
   variants: [],
   
-  // Specifications & Features
   specifications: [],
   features: [],
   
-  // Dimensions & Weight
   dimensions: {
     length: 0,
     width: 0,
@@ -76,7 +74,7 @@ const initialProductData: ProductFormData = {
 
 interface ProductFormProps {
   initialData?: Partial<ProductFormData>;
-  onSubmit: (data: ProductFormData) => void;
+  onSubmit: (data: ProductFormData) => Promise<void>; // 🆕 Changed to async
   loading?: boolean;
   onCancel?: () => void;
 }
@@ -92,20 +90,35 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeSection, setActiveSection] = useState('basic');
   const [isInitialized, setIsInitialized] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
+
+  // 🆕 Toast error handler using react-toastify
+  const showErrorToast = (error: any) => {
+    let errorMessage = 'An unexpected error occurred';
+    
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    } else if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    } else if (error.message) {
+      errorMessage = error.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    }
+
+    toast.error(errorMessage);
+    console.error('Product Form Error:', error);
+  };
 
   // Initialize form data when initialData changes
   useEffect(() => {
     if (initialData && !isInitialized) {
-      // Deep merge with proper empty string handling
       const mergedData = {
         ...initialProductData,
-        // Override with initialData, but handle empty strings properly
         ...initialData,
-        // Handle nested objects with empty string checks
         images: {
           ...initialProductData.images,
           ...(initialData.images || {}),
-          // Ensure empty strings are handled for nested image properties
           thumbnail: {
             url: initialData.images?.thumbnail?.url || initialProductData.images.thumbnail.url,
             altText: initialData.images?.thumbnail?.altText || initialProductData.images.thumbnail.altText
@@ -127,7 +140,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
           ...initialProductData.meta,
           ...(initialData.meta || {})
         },
-        // Handle empty strings for text fields - use actual value if not empty string
         description: initialData.description && initialData.description !== "" ? initialData.description : initialProductData.description,
         definition: initialData.definition && initialData.definition !== "" ? initialData.definition : initialProductData.definition,
         label: initialData.label && initialData.label !== "" ? initialData.label : initialProductData.label,
@@ -136,7 +148,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
         warranty: initialData.warranty && initialData.warranty !== "" ? initialData.warranty : initialProductData.warranty,
         canonicalUrl: initialData.canonicalUrl && initialData.canonicalUrl !== "" ? initialData.canonicalUrl : initialProductData.canonicalUrl,
         notes: initialData.notes && initialData.notes !== "" ? initialData.notes : initialProductData.notes,
-        // Handle arrays - use empty array if not provided or empty
         tags: Array.isArray(initialData.tags) && initialData.tags.length > 0 ? initialData.tags : initialProductData.tags,
         specifications: Array.isArray(initialData.specifications) && initialData.specifications.length > 0 ? initialData.specifications : initialProductData.specifications,
         features: Array.isArray(initialData.features) && initialData.features.length > 0 ? initialData.features : initialProductData.features,
@@ -147,7 +158,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
       setFormData(mergedData);
       setIsInitialized(true);
     } else if (!initialData && !isInitialized) {
-      // For create mode, ensure clean initial state
       setFormData(initialProductData);
       setIsInitialized(true);
     }
@@ -207,6 +217,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
     } catch (error) {
       console.error('Error fetching brands and categories:', error);
+      showErrorToast(error); // 🆕 Show toast for fetch errors
       setBrands([]);
       setCategories([]);
     }
@@ -218,39 +229,55 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
   const updateFormData = (updates: Partial<ProductFormData>) => {
     setFormData(prev => {
-      const newData = { ...prev, ...updates };;
+      const newData = { ...prev, ...updates };
       return newData;
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 🆕 Enhanced handleSubmit with error handling
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitLoading(true);
     
-    // Enhanced validation
-    const errors = [];
-    if (!formData.name?.trim()) errors.push('Product name is required');
-    if (!formData.description?.trim()) errors.push('Product description is required');
-    if (!formData.brand) errors.push('Brand is required');
-    if (!formData.categories.length) errors.push('At least one category is required');
-    if (!formData.basePrice || formData.basePrice <= 0) errors.push('Valid base price is required');
-    if (!formData.images?.thumbnail?.url) errors.push('Thumbnail image is required');
+    try {
+      // Enhanced validation
+      const errors = [];
+      if (!formData.name?.trim()) errors.push('Product name is required');
+      if (!formData.description?.trim()) errors.push('Product description is required');
+      if (!formData.brand) errors.push('Brand is required');
+      if (!formData.categories.length) errors.push('At least one category is required');
+      if (!formData.basePrice || formData.basePrice <= 0) errors.push('Valid base price is required');
+      if (!formData.images?.thumbnail?.url) errors.push('Thumbnail image is required');
 
-    if (errors.length > 0) {
-      console.error('Validation errors:', errors);
-      alert(`Please fix the following errors:\n${errors.join('\n')}`);
-      return;
-    }
-    
-    // Ensure variant stock is calculated correctly
-    const finalFormData = { ...formData };
-    if (formData.variantConfiguration.hasVariants && formData.variants.length > 0) {
-      // Calculate total stock from variants
-      finalFormData.stockQuantity = formData.variants.reduce(
-        (total, variant) => total + (variant.stockQuantity || 0), 0
+      if (errors.length > 0) {
+        // 🆕 Show validation errors as toast
+        errors.forEach(error => toast.error(error));
+        setSubmitLoading(false);
+        return;
+      }
+      
+      // Ensure variant stock is calculated correctly
+      const finalFormData = { ...formData };
+      if (formData.variantConfiguration.hasVariants && formData.variants.length > 0) {
+        finalFormData.stockQuantity = formData.variants.reduce(
+          (total, variant) => total + (variant.stockQuantity || 0), 0
+        );
+      }
+      
+      // 🆕 Call onSubmit and handle potential errors
+      await onSubmit(finalFormData);
+      
+      // 🆕 Show success toast
+      toast.success(
+        initialData ? 'Product updated successfully!' : 'Product created successfully!'
       );
+      
+    } catch (error) {
+      // 🆕 Handle submission errors
+      showErrorToast(error);
+    } finally {
+      setSubmitLoading(false);
     }
-    
-    onSubmit(finalFormData);
   };
 
   const handleSectionChange = (sectionId: string) => {
@@ -258,7 +285,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
   };
 
   const handleCancel = () => {
-    // Reset form state when canceling
+    // 🆕 Show cancellation toast
+    toast.info('Product creation cancelled');
+    
     setIsInitialized(false);
     setFormData(initialProductData);
     if (onCancel) onCancel();
@@ -276,6 +305,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
   ];
 
   const ActiveComponent = sections.find(s => s.id === activeSection)?.component;
+
+  // 🆕 Combined loading state
+  const isLoading = loading || submitLoading;
 
   if (!isInitialized) {
     return (
@@ -313,16 +345,17 @@ const ProductForm: React.FC<ProductFormProps> = ({
             <div className="flex items-center space-x-3">
               <button
                 type="button"
+                onClick={handleCancel}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
               >
-                Save Draft
+                Cancel
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isLoading}
                 className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
               >
-                {loading ? 'Saving...' : initialData ? 'Update Product' : 'Publish Product'}
+                {isLoading ? 'Saving...' : initialData ? 'Update Product' : 'Publish Product'}
               </button>
             </div>
           </div>
@@ -384,10 +417,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isLoading}
                 className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
               >
-                {loading ? 'Saving...' : initialData ? 'Update Product' : 'Publish Product'}
+                {isLoading ? 'Saving...' : initialData ? 'Update Product' : 'Publish Product'}
               </button>
             </div>
           </div>

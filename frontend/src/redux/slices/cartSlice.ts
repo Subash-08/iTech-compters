@@ -1,3 +1,4 @@
+// slices/cartSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { CartState, CartItem } from '../types/cartTypes';
 
@@ -6,6 +7,7 @@ const initialState: CartState = {
   loading: false,
   error: null,
   updating: false,
+  isGuest: false, // NEW: Track if cart is in guest mode
 };
 
 const cartSlice = createSlice({
@@ -17,10 +19,14 @@ const cartSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    fetchCartSuccess: (state, action: PayloadAction<CartItem[]>) => {
-      state.loading = false;
-      state.items = action.payload;
-    },
+// slices/cartSlice.ts - Check this part
+fetchCartSuccess: (state, action: PayloadAction<{ items: CartItem[]; isGuest: boolean }>) => {
+  state.loading = false;
+  state.items = action.payload.items; // This should update the items
+  state.isGuest = action.payload.isGuest;
+},
+
+
     fetchCartFailure: (state, action: PayloadAction<string>) => {
       state.loading = false;
       state.error = action.payload;
@@ -31,10 +37,11 @@ const cartSlice = createSlice({
       state.updating = true;
       state.error = null;
     },
-    updateCartSuccess: (state, action: PayloadAction<CartItem[]>) => {
-      state.updating = false;
-      state.items = action.payload;
-    },
+updateCartSuccess: (state, action: PayloadAction<{ items: CartItem[]; isGuest: boolean }>) => {
+  state.updating = false;
+  state.items = action.payload.items; // This should update the items
+  state.isGuest = action.payload.isGuest;
+},
     updateCartFailure: (state, action: PayloadAction<string>) => {
       state.updating = false;
       state.error = action.payload;
@@ -44,6 +51,7 @@ const cartSlice = createSlice({
     clearCartSuccess: (state) => {
       state.updating = false;
       state.items = [];
+      state.isGuest = false;
     },
 
     // Clear error
@@ -51,17 +59,31 @@ const cartSlice = createSlice({
       state.error = null;
     },
 
+    // Set guest mode
+    setGuestMode: (state, action: PayloadAction<boolean>) => {
+      state.isGuest = action.payload;
+    },
+
     // Local cart actions (for optimistic updates)
-    addItemToCart: (state, action: PayloadAction<CartItem>) => {
+    addItemToCart: (state, action: PayloadAction<any>) => {
       const existingItem = state.items.find(item => 
-        item.product._id === action.payload.product._id &&
-        item.variant?._id === action.payload.variant?._id
+        item.product._id === action.payload.productId &&
+        item.variant?._id === action.payload.variantId
       );
 
       if (existingItem) {
         existingItem.quantity += action.payload.quantity;
       } else {
-        state.items.push(action.payload);
+        // For guest items, we need to create a proper structure
+        const newItem: CartItem = {
+          _id: action.payload._id,
+          product: { _id: action.payload.productId } as any,
+          variant: action.payload.variantId ? { _id: action.payload.variantId } as any : undefined,
+          quantity: action.payload.quantity,
+          price: action.payload.price,
+          addedAt: action.payload.addedAt,
+        };
+        state.items.push(newItem);
       }
     },
 
@@ -94,6 +116,7 @@ export const {
   updateCartFailure,
   clearCartSuccess,
   clearCartError,
+  setGuestMode,
   addItemToCart,
   updateItemQuantity,
   removeItemFromCart,

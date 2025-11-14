@@ -1,3 +1,4 @@
+// slices/wishlistSlice.ts - SUPER DEFENSIVE VERSION
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { WishlistState, WishlistItem } from '../types/wishlistTypes';
 
@@ -6,7 +7,10 @@ const initialState: WishlistState = {
   loading: false,
   error: null,
   updating: false,
-  checkedItems: [], // Use array instead of Set
+  checkedItems: [],
+  isGuest: false,
+  lastSynced: null,
+  
 };
 
 const wishlistSlice = createSlice({
@@ -18,24 +22,32 @@ const wishlistSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    fetchWishlistSuccess: (state, action: PayloadAction<any>) => {
-      state.loading = false;
-      
-      // ✅ Handle both response formats
-      if (action.payload && action.payload.items) {
-        // If it's the wishlist object with items array
-        state.items = action.payload.items;
-        state.checkedItems = action.payload.items.map((item: any) => item.product?._id).filter(Boolean);
-      } else if (Array.isArray(action.payload)) {
-        // If it's directly the items array
-        state.items = action.payload;
-        state.checkedItems = action.payload.map((item: any) => item.product?._id).filter(Boolean);
-      } else {
-        // Fallback
-        state.items = [];
-        state.checkedItems = [];
-      }
-    },
+    
+// slices/wishlistSlice.ts - HANDLE UNDEFINED PAYLOAD
+fetchWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isGuest: boolean }>) => {
+  state.loading = false;
+  
+  // ✅ FIX: Handle case where action or payload is undefined
+  if (!action || !action.payload) {
+    console.error('❌ fetchWishlistSuccess: action or payload is undefined');
+    state.items = [];
+    state.isGuest = false;
+    state.checkedItems = [];
+    return;
+  }
+  
+  // ✅ DEFENSIVE CHECK: Ensure items is always an array
+  const items = Array.isArray(action.payload.items) ? action.payload.items : [];
+  
+  state.items = items;
+  state.isGuest = Boolean(action.payload.isGuest);
+  
+  // ✅ DEFENSIVE CHECK: Safe mapping for checkedItems
+  state.checkedItems = items
+    .map(item => item?.product?._id)
+    .filter((id): id is string => Boolean(id));
+},
+    
     fetchWishlistFailure: (state, action: PayloadAction<string>) => {
       state.loading = false;
       state.error = action.payload;
@@ -46,12 +58,24 @@ const wishlistSlice = createSlice({
       state.updating = true;
       state.error = null;
     },
-    updateWishlistSuccess: (state, action: PayloadAction<WishlistItem[]>) => {
+    
+    // ✅ DEFENSIVE: Update success
+    updateWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isGuest: boolean }>) => {
       state.updating = false;
-      state.items = action.payload;
-      // Update checked items array
-      state.checkedItems = action.payload.map(item => item.product._id);
+      
+      if (!action.payload) {
+        console.error('❌ updateWishlistSuccess: action.payload is undefined');
+        return;
+      }
+      
+      const items = Array.isArray(action.payload.items) ? action.payload.items : [];
+      state.items = items;
+      state.isGuest = Boolean(action.payload.isGuest);
+      state.checkedItems = items
+        .map(item => item?.product?._id)
+        .filter((id): id is string => Boolean(id));
     },
+    
     updateWishlistFailure: (state, action: PayloadAction<string>) => {
       state.updating = false;
       state.error = action.payload;
@@ -62,10 +86,14 @@ const wishlistSlice = createSlice({
       state.updating = false;
       state.items = [];
       state.checkedItems = [];
+      state.isGuest = false;
+      state.error = null;
     },
 
     // Check wishlist item
     checkWishlistItemSuccess: (state, action: PayloadAction<{ productId: string; isInWishlist: boolean }>) => {
+      if (!action.payload) return;
+      
       const { productId, isInWishlist } = action.payload;
       
       if (isInWishlist) {
@@ -86,6 +114,8 @@ const wishlistSlice = createSlice({
 
     // Local wishlist actions (for optimistic updates)
     addItemToWishlist: (state, action: PayloadAction<WishlistItem>) => {
+      if (!action.payload?.product?._id) return;
+      
       const existingItem = state.items.find(item => 
         item.product._id === action.payload.product._id
       );
@@ -100,6 +130,8 @@ const wishlistSlice = createSlice({
     },
 
     removeItemFromWishlist: (state, action: PayloadAction<{ productId: string }>) => {
+      if (!action.payload?.productId) return;
+      
       state.items = state.items.filter(item => 
         item.product._id !== action.payload.productId
       );
@@ -108,6 +140,8 @@ const wishlistSlice = createSlice({
 
     // Batch check items
     batchCheckWishlistItems: (state, action: PayloadAction<{ productIds: string[]; allInWishlist: boolean }>) => {
+      if (!action.payload?.productIds) return;
+      
       if (action.payload.allInWishlist) {
         // Add all productIds that are not already in checkedItems
         action.payload.productIds.forEach(id => {
@@ -121,6 +155,50 @@ const wishlistSlice = createSlice({
           !action.payload.productIds.includes(id)
         );
       }
+    },
+
+    // ✅ Guest wishlist actions
+    setGuestWishlist: (state, action: PayloadAction<WishlistItem[]>) => {
+      const items = Array.isArray(action.payload) ? action.payload : [];
+      state.items = items;
+      state.checkedItems = items
+        .map(item => item?.product?._id)
+        .filter((id): id is string => Boolean(id));
+      state.isGuest = true;
+    },
+
+    // ✅ Sync actions
+    syncWishlistStart: (state) => {
+      state.updating = true;
+      state.error = null;
+    },
+
+    // ✅ DEFENSIVE: Sync success
+    syncWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isGuest: boolean }>) => {
+      state.updating = false;
+      
+      if (!action.payload) {
+        console.error('❌ syncWishlistSuccess: action.payload is undefined');
+        return;
+      }
+      
+      const items = Array.isArray(action.payload.items) ? action.payload.items : [];
+      state.items = items;
+      state.checkedItems = items
+        .map(item => item?.product?._id)
+        .filter((id): id is string => Boolean(id));
+      state.isGuest = Boolean(action.payload.isGuest);
+      state.lastSynced = new Date().toISOString();
+    },
+
+    syncWishlistFailure: (state, action: PayloadAction<string>) => {
+      state.updating = false;
+      state.error = action.payload;
+    },
+
+    // ✅ Toggle guest mode
+    setWishlistMode: (state, action: PayloadAction<'guest' | 'authenticated'>) => {
+      state.isGuest = action.payload === 'guest';
     },
   },
 });
@@ -138,6 +216,11 @@ export const {
   addItemToWishlist,
   removeItemFromWishlist,
   batchCheckWishlistItems,
+  syncWishlistFailure,
+  syncWishlistStart,
+  syncWishlistSuccess,
+  setGuestWishlist,
+  setWishlistMode,
 } = wishlistSlice.actions;
 
 export default wishlistSlice.reducer;

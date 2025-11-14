@@ -1,4 +1,4 @@
-// selectors/wishlistSelectors.ts
+// selectors/wishlistSelectors.ts - FIXED selectIsInWishlist
 import { createSelector } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 
@@ -59,10 +59,25 @@ export const selectWishlistItemById = (productId: string) =>
     (items) => items.find(item => item.product && item.product._id === productId)
   );
 
+// 🛑 FIXED: Check actual wishlist items instead of checkedItems
 export const selectIsInWishlist = (productId: string) => 
   createSelector(
-    [selectWishlistCheckedItems],
-    (checkedItems) => checkedItems.includes(productId)
+    [selectWishlistItems],
+    (items) => {
+      return items.some(item => {
+        // Check regular products
+        if (item.productType === 'product') {
+          const itemProductId = item.product?._id || item.product;
+          return itemProductId === productId;
+        }
+        // Check Pre-built PCs
+        if (item.productType === 'prebuilt-pc') {
+          return item.preBuiltPC === productId || item.product?._id === productId;
+        }
+        // Fallback check
+        return item.product?._id === productId || item.preBuiltPC === productId;
+      });
+    }
   );
 
 export const selectWishlistProductIds = createSelector(
@@ -81,5 +96,33 @@ export const selectWishlistSummary = createSelector(
       const price = item.product.discountPrice || item.product.price;
       return total + price;
     }, 0),
+  })
+);
+
+export const selectIsGuestWishlist = createSelector(
+  [selectWishlistState],
+  (wishlistState) => wishlistState.isGuest
+);
+
+export const selectWishlistSyncing = createSelector(
+  [selectWishlistState],
+  (wishlistState) => wishlistState.updating
+);
+
+export const selectWishlistLastSynced = createSelector(
+  [selectWishlistState],
+  (wishlistState) => wishlistState.lastSynced
+);
+
+// ✅ NEW: Combined authentication and wishlist state
+export const selectWishlistInfo = createSelector(
+  [selectWishlistState, (state: RootState) => state.authState],
+  (wishlistState, authState) => ({
+    items: wishlistState.items,
+    count: wishlistState.items.length,
+    isGuest: wishlistState.isGuest,
+    isAuthenticated: authState.isAuthenticated,
+    loading: wishlistState.loading,
+    updating: wishlistState.updating
   })
 );

@@ -6,6 +6,33 @@ const crypto = require('crypto');
 const n8nService = require('../services/n8nService');
 const fs = require('fs');
 const path = require('path');
+// Add this function to your controller
+const { OAuth2Client } = require('google-auth-library');
+const Wishlist = require('../models/wishlistModel')
+
+const verifyGoogleToken = async (accessToken) => {
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+    try {
+        const ticket = await client.verifyIdToken({
+            idToken: accessToken, // Note: Google uses idToken, not accessToken
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+
+        const payload = ticket.getPayload();
+        return {
+            id: payload.sub,
+            email: payload.email,
+            name: payload.name,
+            givenName: payload.given_name,
+            familyName: payload.family_name,
+            photo: payload.picture,
+            emailVerified: payload.email_verified
+        };
+    } catch (error) {
+        throw new Error('Invalid Google token');
+    }
+};
 
 // ==================== AUTHENTICATION CONTROLLERS ====================
 
@@ -121,32 +148,35 @@ exports.loginUser = catchAsyncError(async (req, res, next) => {
     sendToken(user, 200, res, 'Login successful');
 });
 
-// Google authentication - improved version
+// controllers/authController.js - IMPROVED VERSION
 exports.googleAuth = catchAsyncError(async (req, res, next) => {
-    const { accessToken, googleProfile } = req.body;
+    const { credential } = req.body;
 
-    if (!accessToken && !googleProfile) {
-        return next(new ErrorHandler('Google authentication data required', 400));
+    if (!credential) {
+        return next(new ErrorHandler('Google credential is required', 400));
     }
 
-    let profile = googleProfile;
+    try {
+        const profile = await verifyGoogleToken(credential);
 
-    // If only accessToken is provided, verify it
-    if (accessToken && !googleProfile) {
-        try {
-            // You'll need to implement Google token verification
-            profile = await verifyGoogleToken(accessToken);
-        } catch (error) {
-            return next(new ErrorHandler('Invalid Google token', 401));
+        if (!profile || !profile.id || !profile.email) {
+            return next(new ErrorHandler('Invalid Google profile data', 400));
         }
-    }
 
-    if (!profile || !profile.id || !profile.email) {
-        return next(new ErrorHandler('Invalid Google profile data', 400));
-    }
+        // ✅ FIX: Use findOrCreateGoogleUser which handles social login users properly
+        const user = await User.findOrCreateGoogleUser(profile);
 
-    const user = await User.findOrCreateGoogleUser(profile);
-    sendToken(user, 200, res, 'Google login successful');
+        sendToken(user, 200, res, 'Google login successful');
+
+    } catch (error) {
+        console.error('Google auth error:', error);
+
+        if (error.name === 'ValidationError') {
+            return next(new ErrorHandler('User validation failed: ' + error.message, 400));
+        }
+
+        return next(new ErrorHandler('Google authentication failed', 401));
+    }
 });
 
 // Logout user
@@ -482,11 +512,6 @@ exports.deleteUser = catchAsyncError(async (req, res, next) => {
     });
 });
 
-
-// @desc    Get complete user profile with cart, wishlist, orders
-// @route   GET /api/v1/user/complete-profile
-// @access  Private
-// Add this to your authController.js
 exports.getCompleteUserProfile = catchAsyncError(async (req, res, next) => {
     const userId = req.user._id;
 
@@ -497,22 +522,90 @@ exports.getCompleteUserProfile = catchAsyncError(async (req, res, next) => {
             populate: {
                 path: 'items.product',
                 model: 'Product',
-                select: 'name price images slug stock discountPrice'
+                select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews'
             }
-        })
-        .populate({
-            path: 'wishlistId',
-            populate: {
-                path: 'items.product',
-                model: 'Product',
-                select: 'name price images slug stock discountPrice brand category'
-            }
-        })
-
+        });
 
     if (!user) {
         return next(new ErrorHandler('User not found', 404));
     }
+
+    // ✅ GET WISHLIST WITH BOTH PRODUCTS AND PREBUILT-PCs
+    let wishlist = await Wishlist.findOne({ userId })
+        .populate({
+            path: 'items.product',
+            model: 'Product',
+            select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications'
+        })
+        .populate({
+            path: 'items.preBuiltPC', // ✅ ADD PreBuiltPC population
+            model: 'PreBuiltPC',
+            select: 'name images totalPrice basePrice offerPrice discountPercentage stockQuantity averageRating totalReviews condition slug category performanceRating warranty components'
+        });
+
+    // Create wishlist if it doesn't exist
+    if (!wishlist) {
+        wishlist = await Wishlist.create({ userId, items: [] });
+
+        // Update user with wishlistId for future use
+        await User.findByIdAndUpdate(userId, { wishlistId: wishlist._id });
+
+        // Re-populate the empty wishlist
+        wishlist = await Wishlist.findById(wishlist._id)
+            .populate({
+                path: 'items.product',
+                model: 'Product',
+                select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications'
+            })
+            .populate({
+                path: 'items.preBuiltPC', // ✅ ADD PreBuiltPC population
+                model: 'PreBuiltPC',
+                select: 'name images totalPrice basePrice offerPrice discountPercentage stockQuantity averageRating totalReviews condition slug category performanceRating warranty components'
+            });
+    }
+
+    // ✅ PROCESS WISHLIST ITEMS TO CREATE UNIFIED FORMAT
+    const processedWishlist = {
+        ...wishlist.toObject(),
+        items: wishlist.items.map(item => {
+            // If it's a PreBuiltPC item, create a unified format
+            if (item.preBuiltPC) {
+                return {
+                    ...item,
+                    unifiedProduct: {
+                        _id: item.preBuiltPC._id,
+                        name: item.preBuiltPC.name,
+                        slug: item.preBuiltPC.slug,
+                        basePrice: item.preBuiltPC.basePrice || item.preBuiltPC.totalPrice,
+                        offerPrice: item.preBuiltPC.offerPrice || item.preBuiltPC.discountPrice || item.preBuiltPC.totalPrice,
+                        discountPercentage: item.preBuiltPC.discountPercentage,
+                        stockQuantity: item.preBuiltPC.stockQuantity,
+                        images: item.preBuiltPC.images,
+                        averageRating: item.preBuiltPC.averageRating || 0,
+                        totalReviews: item.preBuiltPC.totalReviews || 0,
+                        condition: item.preBuiltPC.condition || 'New',
+                        productType: 'prebuilt-pc',
+                        // Additional PreBuiltPC specific fields
+                        category: item.preBuiltPC.category,
+                        performanceRating: item.preBuiltPC.performanceRating,
+                        warranty: item.preBuiltPC.warranty,
+                        components: item.preBuiltPC.components
+                    }
+                };
+            }
+            // If it's a regular product
+            if (item.product) {
+                return {
+                    ...item,
+                    unifiedProduct: {
+                        ...item.product.toObject(),
+                        productType: 'product'
+                    }
+                };
+            }
+            return item;
+        }).filter(item => item.product || item.preBuiltPC) // Filter out invalid items
+    };
 
     res.status(200).json({
         success: true,
@@ -528,10 +621,10 @@ exports.getCompleteUserProfile = catchAsyncError(async (req, res, next) => {
                 emailVerified: user.emailVerified,
                 status: user.status,
                 cartId: user.cartId?._id,
-                wishlistId: user.wishlistId?._id
+                wishlistId: wishlist._id
             },
             cart: user.cartId,
-            wishlist: user.wishlistId,
+            wishlist: processedWishlist, // ✅ Use processed wishlist with unified format
             recentOrders: user.orders || []
         }
     });

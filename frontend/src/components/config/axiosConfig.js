@@ -3,21 +3,25 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'https://itech-compters.onrender.com/api/v1',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
     timeout: 15000,
     withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json',
-    },
 });
 
-// Request interceptor - just add token
+// Request interceptor - handle FormData properly
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // If data is FormData, let browser set Content-Type automatically
+        if (config.data instanceof FormData) {
+            // Remove any existing Content-Type to let browser set it with boundary
+            delete config.headers['Content-Type'];
+        }
+
         return config;
     },
     (error) => {

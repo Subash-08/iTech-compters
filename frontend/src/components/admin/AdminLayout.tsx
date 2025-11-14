@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { SidebarItem } from './types/admin';
 import { Icons } from './Icon';
+import {Computer} from 'lucide-react'
 
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -33,6 +34,11 @@ import HeroSectionList from './hero/HeroSectionList';
 import HeroSectionForm from './hero/HeroSectionForm';
 import SlideManagement from './hero/SlideManagement';
 import SlideForm from './hero/SlideForm';
+import ShowcaseSectionManagement from './showcase/ShowcaseSectionManagement';
+import ShowcaseSectionForm from './showcase/ShowcaseSectionForm';
+import PreBuiltPCList from './prebuilt-pcs/PreBuiltPCList';
+import PreBuiltPCForm from './prebuilt-pcs/PreBuiltPCForm';
+import PreBuiltPCBenchmarks from './prebuilt-pcs/PreBuiltPCBenchmarks';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -246,7 +252,13 @@ const AdminLayout: React.FC = () => {
           label: 'Products',
           icon: <Icons.Products className="w-4 h-4" />,
           path: '/admin/products'
-        }
+        },
+          {
+    id: 'prebuilt-pcs',
+    label: 'Pre-built PCs',
+    icon: <Computer className="w-5 h-5" />, // You'll need to add this icon
+    path: '/admin/prebuilt-pcs'
+  },
       ]
     },
       {
@@ -261,6 +273,12 @@ const AdminLayout: React.FC = () => {
       icon: <Icons.Users className="w-5 h-5" />,
       path: '/admin/users'
     },
+     {
+        id: 'showcase-sections',
+        label: 'Showcase Sections',
+        icon: <Icons.Layout className="w-4 h-4" />,
+        path: '/admin/showcase-sections'
+      },
     {
       id: 'sales',
       label: 'Sales',
@@ -405,6 +423,17 @@ const AdminLayout: React.FC = () => {
               <Route path="/hero-sections/:id/slides" element={<SlideManagement />} />
               <Route path="/hero-sections/:id/slides/new" element={<SlideForm />} />
               <Route path="/hero-sections/:id/slides/edit/:slideId" element={<SlideForm />} />
+
+               {/* Add showcase section routes */}
+              <Route path="/showcase-sections" element={<ShowcaseSectionManagement />} />
+              <Route path="/showcase-sections/new" element={<ShowcaseSectionForm />} />
+              <Route path="/showcase-sections/edit/:id" element={<ShowcaseSectionForm />} />
+
+              
+<Route path="/prebuilt-pcs" element={<PreBuiltPCList />} />
+<Route path="/prebuilt-pcs/new" element={<PreBuiltPCForm />} />
+<Route path="/prebuilt-pcs/edit/:id" element={<PreBuiltPCForm />} />
+<Route path="/prebuilt-pcs/benchmarks/:id" element={<PreBuiltPCBenchmarks />} />
             </Routes>
           </div>
         </main>

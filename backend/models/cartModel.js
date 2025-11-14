@@ -1,13 +1,26 @@
 const mongoose = require("mongoose");
 
 const cartItemSchema = new mongoose.Schema({
+    productType: {
+        type: String,
+        enum: ['product', 'prebuilt-pc'],
+        default: 'product'
+    },
     product: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Product",
-        required: [true, 'Product ID is required']
+        required: function () {
+            return this.productType === 'product';
+        }
+    },
+    preBuiltPC: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PreBuiltPC",
+        required: function () {
+            return this.productType === 'prebuilt-pc';
+        }
     },
     variant: {
-        // Remove the ProductVariant reference and store variant data directly
         variantId: {
             type: mongoose.Schema.Types.ObjectId,
             required: false
@@ -15,7 +28,6 @@ const cartItemSchema = new mongoose.Schema({
         name: String,
         price: Number,
         stock: Number,
-        // Store the identifying attributes for display
         attributes: [{
             key: String,
             label: String,
@@ -62,7 +74,6 @@ const cartSchema = new mongoose.Schema({
     }
 }, {
     timestamps: true,
-    // ✅ Add this to fix strictPopulate error
     strictPopulate: false
 });
 
@@ -78,20 +89,36 @@ cartSchema.pre('save', function (next) {
 cartSchema.index({ userId: 1 });
 cartSchema.index({ lastUpdated: 1 });
 
-// Instance methods
-// In cartModel.js - update the addItem method
-cartSchema.methods.addItem = async function (productId, variantData, quantity, price) {
+// Instance methods - Updated with backward compatibility
+cartSchema.methods.addItem = async function (productId, variantData = null, quantity = 1, price = 0, productType = 'product') {
     if (quantity < 1 || quantity > 100) {
         throw new Error('Quantity must be between 1 and 100');
     }
 
-    const existingItemIndex = this.items.findIndex(
-        item => item.product.toString() === productId.toString() &&
-            (variantData ?
-                item.variant?.variantId?.toString() === variantData.variantId.toString() :
-                !item.variant?.variantId
-            )
-    );
+    // Backward compatibility: if only productId is provided, assume it's a regular product
+    if (typeof productId === 'object' && productId.productType) {
+        // New format with productType
+        productType = productId.productType;
+        variantData = productId.variantData;
+        quantity = productId.quantity;
+        price = productId.price;
+        productId = productId.productId;
+    }
+
+    const existingItemIndex = this.items.findIndex(item => {
+        if (item.productType !== productType) return false;
+
+        if (productType === 'product') {
+            return item.product.toString() === productId.toString() &&
+                (variantData ?
+                    item.variant?.variantId?.toString() === variantData.variantId?.toString() :
+                    !item.variant?.variantId
+                );
+        } else if (productType === 'prebuilt-pc') {
+            return item.preBuiltPC.toString() === productId.toString();
+        }
+        return false;
+    });
 
     if (existingItemIndex > -1) {
         const newQuantity = this.items[existingItemIndex].quantity + quantity;
@@ -105,15 +132,21 @@ cartSchema.methods.addItem = async function (productId, variantData, quantity, p
         }
 
         const newItem = {
-            product: productId,
-            quantity,
-            price,
+            productType: productType,
+            quantity: quantity,
+            price: price,
             addedAt: new Date()
         };
 
-        // Add variant data if provided
-        if (variantData) {
-            newItem.variant = variantData;
+        // Add product reference based on type
+        if (productType === 'product') {
+            newItem.product = productId;
+            // Add variant data if provided (only for products)
+            if (variantData) {
+                newItem.variant = variantData;
+            }
+        } else if (productType === 'prebuilt-pc') {
+            newItem.preBuiltPC = productId;
         }
 
         this.items.push(newItem);
@@ -122,19 +155,26 @@ cartSchema.methods.addItem = async function (productId, variantData, quantity, p
     return this.save();
 };
 
-// Similarly update other methods (updateQuantity, removeItem, etc.)
-cartSchema.methods.updateQuantity = async function (productId, variantId, quantity) {
+// Updated updateQuantity with productType support
+cartSchema.methods.updateQuantity = async function (productId, variantId = null, quantity = 1, productType = 'product') {
     if (quantity < 1 || quantity > 100) {
         throw new Error('Quantity must be between 1 and 100');
     }
 
-    const item = this.items.find(
-        item => item.product.toString() === productId.toString() &&
-            (variantId ?
-                item.variant?.variantId?.toString() === variantId :
-                !item.variant?.variantId
-            )
-    );
+    const item = this.items.find(item => {
+        if (item.productType !== productType) return false;
+
+        if (productType === 'product') {
+            return item.product.toString() === productId.toString() &&
+                (variantId ?
+                    item.variant?.variantId?.toString() === variantId :
+                    !item.variant?.variantId
+                );
+        } else if (productType === 'prebuilt-pc') {
+            return item.preBuiltPC.toString() === productId.toString();
+        }
+        return false;
+    });
 
     if (!item) {
         throw new Error('Item not found in cart');
@@ -144,72 +184,79 @@ cartSchema.methods.updateQuantity = async function (productId, variantId, quanti
     return this.save();
 };
 
-// In cartModel.js - simplified removeItem
-cartSchema.methods.removeItem = async function (productId, variantId = null) {
+// Updated removeItem with productType support
+cartSchema.methods.removeItem = async function (productId, variantId = null, productType = 'product') {
     const initialLength = this.items.length;
 
-    // Convert everything to strings for consistent comparison
     const searchProductId = productId.toString();
     const searchVariantId = variantId ? variantId.toString() : null;
 
-    if (searchVariantId) {
-        // Remove variant-specific item
-        this.items = this.items.filter(item => {
+    this.items = this.items.filter(item => {
+        if (item.productType !== productType) return true;
+
+        if (productType === 'product') {
             const itemProductId = item.product.toString();
             const itemVariantId = item.variant?.variantId?.toString();
 
-            const isMatch = itemProductId === searchProductId &&
-                itemVariantId === searchVariantId;
-
-            if (isMatch) {
+            if (searchVariantId) {
+                return !(itemProductId === searchProductId && itemVariantId === searchVariantId);
+            } else {
+                return !(itemProductId === searchProductId && !itemVariantId);
             }
+        } else if (productType === 'prebuilt-pc') {
+            const itemPCId = item.preBuiltPC.toString();
+            return !(itemPCId === searchProductId);
+        }
 
-            return !isMatch;
-        });
-    } else {
-        // Remove base product item (no variant)
-        this.items = this.items.filter(item => {
-            const itemProductId = item.product.toString();
-            const isMatch = itemProductId === searchProductId;
-
-            if (isMatch) {
-            }
-
-            return !isMatch;
-        });
-    }
+        return true;
+    });
 
     if (this.items.length === initialLength) {
-        console.error('❌ Item not found in cart');
-        console.error('🛒 Available items:');
-        this.items.forEach((item, index) => {
-            console.error(`   Item ${index}:`, {
-                productId: item.product.toString(),
-                variantId: item.variant?.variantId?.toString()
-            });
-        });
         throw new Error('Item not found in cart');
     }
     return this.save();
 };
 
+// Updated getItem with productType support
+cartSchema.methods.getItem = function (productId, variantId = null, productType = 'product') {
+    return this.items.find(item => {
+        if (item.productType !== productType) return false;
+
+        if (productType === 'product') {
+            return item.product.toString() === productId.toString() &&
+                (variantId ?
+                    item.variant?.variantId?.toString() === variantId :
+                    !item.variant?.variantId
+                );
+        } else if (productType === 'prebuilt-pc') {
+            return item.preBuiltPC.toString() === productId.toString();
+        }
+        return false;
+    });
+};
+
+// Updated hasItem with productType support
+cartSchema.methods.hasItem = function (productId, variantId = null, productType = 'product') {
+    return this.items.some(item => {
+        if (item.productType !== productType) return false;
+
+        if (productType === 'product') {
+            return item.product.toString() === productId.toString() &&
+                (variantId ?
+                    item.variant?.variantId?.toString() === variantId :
+                    !item.variant?.variantId
+                );
+        } else if (productType === 'prebuilt-pc') {
+            return item.preBuiltPC.toString() === productId.toString();
+        }
+        return false;
+    });
+};
+
+// Clear cart remains the same
 cartSchema.methods.clearCart = async function () {
     this.items = [];
     return this.save();
-};
-
-cartSchema.methods.getItem = function (productId, variantId = null) {
-    return this.items.find(
-        item => item.product.toString() === productId.toString() &&
-            item.variant?.toString() === variantId?.toString()
-    );
-};
-
-cartSchema.methods.hasItem = function (productId, variantId = null) {
-    return this.items.some(
-        item => item.product.toString() === productId.toString() &&
-            item.variant?.toString() === variantId?.toString()
-    );
 };
 
 module.exports = mongoose.model("Cart", cartSchema);

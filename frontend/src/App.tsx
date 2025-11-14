@@ -19,6 +19,11 @@ import Profile from "./components/profile/Profile";
 import Cart from "./components/cart/Cart";
 import Wishlist from "./components/wishlist/Wishlist";
 
+// ✅ ADD: Import Pre-built PC components
+import PreBuiltPCList from "./components/prebuild/PreBuiltPCList";
+import PreBuiltPCDetail from "./components/prebuild/PreBuiltPCDetail";
+import FeaturedPreBuiltPCs from "./components/prebuilt/FeaturedPreBuiltPCs";
+
 // ✅ UPDATED: Root Layout - AuthInitializer at the top level
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -242,14 +247,35 @@ const App: React.FC = () => {
               </PublicLayout>
             } 
           />
-        <Route 
-          path="/wishlist" 
-          element={
+
+          {/* ✅ ADD: Pre-built PC Routes */}
+          <Route 
+            path="/prebuilt-pcs" 
+            element={
+              <PublicLayout>
+                <PreBuiltPCList />
+              </PublicLayout>
+            } 
+          />
+          
+          <Route 
+            path="/prebuilt-pcs/:slug" 
+            element={
+              <PublicLayout>
+                <PreBuiltPCDetail />
+              </PublicLayout>
+            } 
+          />
+          
+          <Route 
+            path="/wishlist" 
+            element={
               <PublicLayout>
                 <Wishlist />
               </PublicLayout>
-          } 
-        />
+            } 
+          />
+          
           {/* Search Route */}
           <Route 
             path="/search" 
@@ -259,6 +285,8 @@ const App: React.FC = () => {
               </PublicLayout>
             } 
           />
+
+          
 
           {/* Redirects */}
           <Route path="/home" element={<Navigate to="/" replace />} />

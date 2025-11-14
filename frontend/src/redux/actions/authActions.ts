@@ -9,7 +9,10 @@ import {
     logoutRequest,
     logoutSuccess,
     clearAuthError,
-    setCompleteUserData
+    setCompleteUserData,
+    googleLoginSuccess,
+    googleLoginFailure,
+    googleLoginRequest
 } from '../slices/authSlice';
 import { toast } from 'react-toastify';
 import api from '../../components/config/axiosConfig';
@@ -18,7 +21,7 @@ export const clearError = () => {
     return clearAuthError();
 };
 
-// ✅ NEW: Load complete user profile (user + cart + wishlist + orders)
+// ✅ FIXED: Load complete user profile with proper wishlist data
 export const loadCompleteUserProfile = () => async (dispatch: any) => {
     try {
         const token = localStorage.getItem('token');
@@ -26,8 +29,7 @@ export const loadCompleteUserProfile = () => async (dispatch: any) => {
             return { success: false, error: 'No token found' };
         }
 
-        const response = await api.get('/user/complete-profile');
-        
+        const response = await api.get('/user/complete-profile');        
         if (response.data.success) {
             const { user, cart, wishlist, recentOrders } = response.data.data;
 
@@ -39,11 +41,12 @@ export const loadCompleteUserProfile = () => async (dispatch: any) => {
                 type: 'cart/fetchCartSuccess',
                 payload: cart?.items || []
             });
-
-            // ✅ Set wishlist data in wishlist slice  
             dispatch({
                 type: 'wishlist/fetchWishlistSuccess',
-                payload: wishlist
+                payload: {
+                    items: wishlist?.items || [], // ✅ This contains products with prices
+                    isGuest: false
+                }
             });
 
             // ✅ Set orders data in order slice (if you have one)
@@ -160,12 +163,45 @@ export const logout = () => {
             dispatch(logoutRequest());
             await api.post('/logout');
         } catch (error: any) {
-            console.log('Logout API call failed:', error.message);
         } finally {
             localStorage.removeItem('token');
             dispatch(logoutSuccess());
             toast.success('Logged out successfully');
             return { success: true };
+        }
+    };
+};
+
+// redux/actions/authActions.ts - FIX RETURN VALUE
+export const googleLogin = (credential: string) => {
+    return async (dispatch: any) => {
+        try {
+            dispatch(googleLoginRequest());
+            const response = await api.post('/google', { 
+                credential: credential
+            });
+            if (response.data.success) {
+                localStorage.setItem('token', response.data.token);
+                dispatch(googleLoginSuccess({ token: response.data.token }));
+
+                // ✅ Load user profile
+                const profileResult = await dispatch(loadCompleteUserProfile());
+                
+                if (profileResult.success) {
+                    toast.success('Google login successful!');
+                    return { success: true, data: response.data }; // ✅ Return success with data
+                } else {
+                    return { success: false, error: 'Failed to load user profile' };
+                }
+            } else {
+                return { success: false, error: response.data.message };
+            }
+        } catch (error: any) {
+            console.error('❌ Google login error:', error.response?.data);
+            const errorMessage = error.response?.data?.message || error.message || 'Google authentication failed';
+            toast.error(errorMessage);
+            dispatch(googleLoginFailure(errorMessage));
+            return { success: false, error: errorMessage };
         }
     };
 };

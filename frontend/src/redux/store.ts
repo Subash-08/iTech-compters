@@ -6,6 +6,7 @@ import profileReducer from './slices/profileSlice';
 import cartReducer from './slices/cartSlice';
 import reviewReducer from './slices/reviewSlice';
 import wishlistReducer from './slices/wishlistSlice';
+import preBuiltPCReducer from './slices/preBuiltPCSlice'; 
 // import orderReducer from './slices/orderSlice';
 
 const store = configureStore({
@@ -17,9 +18,9 @@ const store = configureStore({
         cartState: cartReducer,
         reviewState: reviewReducer,
         wishlistState: wishlistReducer,
+        preBuiltPCs: preBuiltPCReducer,
         // orderState: orderReducer,
     }
-    // ✅ Thunk is automatically included - no need to specify
 });
 
 export type RootState = ReturnType<typeof store.getState>;

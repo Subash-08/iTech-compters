@@ -98,6 +98,37 @@ initialState: {
                 loading: true
             }
         },
+         googleLoginRequest(state, action) {
+            return {
+                ...state,
+                loading: true,
+                error: null
+            }
+        },
+        googleLoginSuccess(state, action) {
+            localStorage.setItem('token', action.payload.token);
+            
+            return {
+                ...state,
+                loading: false,
+                isAuthenticated: true,
+                token: action.payload.token,
+                user: null, // Will be set by complete profile fetch
+                error: null
+            }
+        },
+        googleLoginFailure(state, action) {
+            localStorage.removeItem('token');
+            
+            return {
+                ...state,
+                loading: false,
+                isAuthenticated: false,
+                user: null,
+                token: null,
+                error: action.payload
+            }
+        },
         logoutSuccess(state, action) {
             localStorage.removeItem('token');
             
@@ -187,7 +218,10 @@ export const {
     setCompleteUserData, // ✅ NEW
     updateUserProfile,   // ✅ UPDATED
     clearAuthError,
-    clearAuthLoading
+    clearAuthLoading,
+     googleLoginRequest,
+    googleLoginSuccess,
+    googleLoginFailure 
 } = authSlice.actions;
 
 export default authSlice.reducer;

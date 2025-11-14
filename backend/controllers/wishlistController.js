@@ -5,19 +5,80 @@ const catchAsyncErrors = require("../middlewares/catchAsyncError");
 const mongoose = require("mongoose");
 const Wishlist = require("../models/wishlistModel");
 const User = require("../models/userModel");
+const PreBuiltPC = require('../models/preBuiltPCModel');
 
-// ==================== USER WISHLIST CONTROLLERS ====================
+// Add Pre-built PC to wishlist
+exports.addPreBuiltPCToWishlist = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const { pcId } = req.body;
 
+        if (!pcId) {
+            return next(new ErrorHandler('Pre-built PC ID is required', 400));
+        }
 
-// @desc    Remove item from wishlist
-// @route   DELETE /api/v1/wishlist/remove/:productId
-// @access  Private
-// controllers/wishlistController.js - UPDATE removeFromWishlist
-exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
-    const { productId } = req.params; // ✅ Get from params, not body
+        // Check if PC exists and is active
+        const preBuiltPC = await PreBuiltPC.findOne({
+            _id: pcId,
+            isActive: true
+        });
+
+        if (!preBuiltPC) {
+            return next(new ErrorHandler('Pre-built PC not found', 404));
+        }
+
+        let wishlist = await Wishlist.findOne({ user: req.user._id });
+
+        if (!wishlist) {
+            // Create new wishlist if it doesn't exist
+            wishlist = await Wishlist.create({
+                user: req.user._id,
+                items: [{
+                    productType: 'prebuilt-pc',
+                    preBuiltPC: pcId,
+                    addedAt: new Date()
+                }]
+            });
+        } else {
+            // Check if PC is already in wishlist
+            const existingItem = wishlist.items.find(item =>
+                item.preBuiltPC && item.preBuiltPC.toString() === pcId
+            );
+
+            if (existingItem) {
+                return next(new ErrorHandler('Pre-built PC is already in your wishlist', 400));
+            }
+
+            // Add PC to wishlist
+            wishlist.items.push({
+                productType: 'prebuilt-pc',
+                preBuiltPC: pcId,
+                addedAt: new Date()
+            });
+        }
+
+        await wishlist.save();
+
+        // Populate the wishlist with PC details
+        await wishlist.populate('items.preBuiltPC', 'name images totalPrice discountPrice slug category performanceRating');
+
+        res.status(200).json({
+            success: true,
+            message: 'Pre-built PC added to wishlist',
+            data: wishlist
+        });
+
+    } catch (error) {
+        return next(new ErrorHandler(error.message, 500));
+    }
+});
+
+// controllers/wishlistController.js - FIX PreBuiltPC removal population
+exports.removePreBuiltPCFromWishlist = catchAsyncErrors(async (req, res, next) => {
+    const { pcId } = req.params;
     const userId = req.user._id;
-    if (!productId) {
-        return next(new ErrorHandler('Product ID is required', 400));
+
+    if (!pcId) {
+        return next(new ErrorHandler('Pre-built PC ID is required', 400));
     }
 
     // Find wishlist by userId
@@ -27,21 +88,121 @@ exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
     }
 
     try {
-        await wishlist.removeItem(productId);
+        await wishlist.removeItem(pcId);
 
+        // 🛑 CRITICAL FIX: Properly populate BOTH product types after removal
         const updatedWishlist = await Wishlist.findById(wishlist._id)
             .populate({
                 path: 'items.product',
-                select: 'name images price slug stock discountPrice brand category',
+                select: 'name images basePrice offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews',
                 populate: [
                     { path: 'brand', select: 'name' },
+                    { path: 'categories', select: 'name' }
+                ]
+            })
+            .populate({
+                path: 'items.preBuiltPC',
+                select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews',
+                populate: [
                     { path: 'category', select: 'name' }
                 ]
             });
 
         res.status(200).json({
             success: true,
-            message: 'Product removed from wishlist',
+            message: 'Pre-built PC removed from wishlist',
+            data: updatedWishlist
+        });
+    } catch (error) {
+        return next(new ErrorHandler(error.message, 404));
+    }
+});
+
+// UPDATE: getWishlist function with data cleaning
+exports.getWishlist = catchAsyncErrors(async (req, res, next) => {
+    try {
+        let wishlist = await Wishlist.findOne({ userId: req.user._id }) // ✅ Use userId
+            .populate('items.product', 'name images basePrice offerPrice slug brand categories')
+            .populate('items.preBuiltPC', 'name images totalPrice discountPrice slug category performanceRating');
+
+        if (!wishlist) {
+            wishlist = await Wishlist.create({
+                userId: req.user._id, // ✅ Use userId
+                items: []
+            });
+        } else {
+            // ✅ Check and clean corrupted data automatically
+            const hasCorruptedData = wishlist.items.some(item =>
+                (item.productType === 'product' && (!item.product || !item.product._id)) ||
+                (item.productType === 'prebuilt-pc' && (!item.preBuiltPC || !item.preBuiltPC._id)) ||
+                (!item.productType) // Items without productType
+            );
+
+            if (hasCorruptedData) {
+                console.log('🔄 Cleaning corrupted wishlist data...');
+                wishlist.items = wishlist.items.filter(item =>
+                    (item.productType === 'product' && item.product && item.product._id) ||
+                    (item.productType === 'prebuilt-pc' && item.preBuiltPC && item.preBuiltPC._id)
+                );
+                await wishlist.save();
+                // Re-populate after cleaning
+                await wishlist.populate('items.product items.preBuiltPC');
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            data: wishlist
+        });
+
+    } catch (error) {
+        return next(new ErrorHandler(error.message, 500));
+    }
+});
+
+
+// @desc    Remove item from wishlist
+// @route   DELETE /api/v1/wishlist/remove/:productId
+// @access  Private
+// controllers/wishlistController.js - IMPROVED removeFromWishlist
+// controllers/wishlistController.js - ENSURE consistent population
+exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
+    const { productId } = req.params;
+    const userId = req.user._id;
+
+    if (!productId) {
+        return next(new ErrorHandler('Product ID is required', 400));
+    }
+
+    const wishlist = await Wishlist.findOne({ userId });
+    if (!wishlist) {
+        return next(new ErrorHandler('Wishlist not found', 404));
+    }
+
+    try {
+        await wishlist.removeItem(productId);
+
+        // 🛑 CRITICAL: Same population logic for both endpoints
+        const updatedWishlist = await Wishlist.findById(wishlist._id)
+            .populate({
+                path: 'items.product',
+                select: 'name images basePrice offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews',
+                populate: [
+                    { path: 'brand', select: 'name' },
+                    { path: 'categories', select: 'name' }
+                ]
+            })
+            .populate({
+                path: 'items.preBuiltPC',
+                select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews',
+                populate: [
+                    { path: 'category', select: 'name' }
+                ]
+            });
+
+        res.status(200).json({
+            success: true,
+            message: 'Item removed from wishlist',
             data: updatedWishlist
         });
     } catch (error) {
@@ -51,17 +212,15 @@ exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
 
 // controllers/wishlistController.js
 
-// @desc    Get user's wishlist
-// @route   GET /api/v1/wishlist
-// @access  Private
+// In your wishlistController.js - FIX THE POPULATION
 exports.getMyWishlist = catchAsyncErrors(async (req, res, next) => {
     const userId = req.user._id;
 
-    // Fix: Use proper population without wishlistId
+    // ✅ FIX: Add price fields to the population
     const wishlist = await Wishlist.findOne({ userId })
         .populate({
             path: 'items.product',
-            select: 'name images price slug stock brand category discountPrice ratings',
+            select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications', // ✅ ADD PRICE FIELDS
             populate: [
                 { path: 'brand', select: 'name' },
                 { path: 'category', select: 'name' }
@@ -121,6 +280,7 @@ exports.checkWishlistItem = catchAsyncErrors(async (req, res, next) => {
 // @desc    Add product to wishlist
 // @route   POST /api/v1/wishlist/add
 // @access  Private
+// controllers/wishlistController.js - CHECK addToWishlist
 exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
     const { productId } = req.body;
     const userId = req.user._id;
@@ -129,40 +289,96 @@ exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler('Product ID is required', 400));
     }
 
-    // Check if product exists
-    const product = await Product.findById(productId);
-    if (!product) {
-        return next(new ErrorHandler('Product not found', 404));
-    }
-
     // Find or create wishlist
     let wishlist = await Wishlist.findOne({ userId });
 
     if (!wishlist) {
+        wishlist = await Wishlist.create({
+            userId,
+            items: []
+        });
+    }
+
+    try {
+        // Check if item already exists
+        const existingItem = wishlist.items.find(item =>
+            item.product && item.product.toString() === productId
+        );
+
+        if (existingItem) {
+            return next(new ErrorHandler('Product already in wishlist', 400));
+        }
+
+        // Add the item
+        wishlist.items.push({
+            product: productId,
+            productType: 'product',
+            addedAt: new Date()
+        });
+
+        await wishlist.save();
+
+        // 🛑 CRITICAL: Populate the response with product details
+        const populatedWishlist = await Wishlist.findById(wishlist._id)
+            .populate({
+                path: 'items.product',
+                select: 'name images basePrice offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews',
+                populate: [
+                    { path: 'brand', select: 'name' },
+                    { path: 'categories', select: 'name' }
+                ]
+            })
+            .populate({
+                path: 'items.preBuiltPC',
+                select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews',
+                populate: [
+                    { path: 'category', select: 'name' }
+                ]
+            });
+
+        res.status(200).json({
+            success: true,
+            message: 'Product added to wishlist',
+            data: populatedWishlist // 🛑 Make sure this includes the new item
+        });
+
+    } catch (error) {
+        return next(new ErrorHandler(error.message, 500));
+    }
+});
+
+// controllers/wishlistController.js - FIXED CLEAR WISHLIST
+// @desc    Clear entire wishlist
+// @route   DELETE /api/v1/wishlist/clear
+// @access  Private
+exports.clearWishlist = catchAsyncErrors(async (req, res, next) => {
+    const userId = req.user._id;
+
+    // Find user's wishlist
+    let wishlist = await Wishlist.findOne({ userId });
+
+    if (!wishlist) {
+        // If no wishlist exists, create an empty one
         wishlist = await Wishlist.create({ userId, items: [] });
 
         // Update user's wishlistId reference
         await User.findByIdAndUpdate(userId, { wishlistId: wishlist._id });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Wishlist cleared successfully',
+            data: {
+                items: [],
+                itemCount: 0,
+                isGuest: false
+            }
+        });
     }
 
-    // Check if product already in wishlist
-    const existingItem = wishlist.items.find(item =>
-        item.product.toString() === productId
-    );
+    // ✅ Use the clearWishlist method from your model
+    await wishlist.clearWishlist();
 
-    if (existingItem) {
-        return next(new ErrorHandler('Product already in wishlist', 400));
-    }
-
-    // Add to wishlist
-    wishlist.items.push({
-        product: productId,
-        addedAt: new Date()
-    });
-
-    await wishlist.save();
-
-    // Populate the response
+    // ✅ Populate the empty wishlist for consistent response
     const populatedWishlist = await Wishlist.findById(wishlist._id)
         .populate({
             path: 'items.product',
@@ -175,36 +391,10 @@ exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
 
     res.status(200).json({
         success: true,
-        message: 'Product added to wishlist',
-        data: {
-            wishlist: populatedWishlist // Consistent structure
-        }
+        message: 'Wishlist cleared successfully', // ✅ Fixed message
+        data: populatedWishlist // ✅ Now populatedWishlist is defined
     });
 });
-
-// @desc    Clear entire wishlist
-// @route   DELETE /api/v1/wishlist/clear
-// @access  Private
-exports.clearWishlist = catchAsyncErrors(async (req, res, next) => {
-    const userId = req.user._id;
-
-    const user = await User.findById(userId).populate('wishlistId');
-    if (!user || !user.wishlistId) {
-        return next(new ErrorHandler('Wishlist not found', 404));
-    }
-
-    const wishlist = await Wishlist.findById(user.wishlistId);
-    await wishlist.clearWishlist();
-
-    res.status(200).json({
-        success: true,
-        message: 'Product added to wishlist',
-        data: {
-            wishlist: populatedWishlist // Consistent structure
-        }
-    });
-});
-
 // ==================== ADMIN WISHLIST CONTROLLERS ====================
 
 // @desc    Get wishlist of any user (Admin)
@@ -285,3 +475,123 @@ exports.getAllWishlists = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
+
+
+// controllers/wishlistController.js - ADD THESE NEW METHODS
+
+// @desc    Sync guest wishlist with user account after login
+// @route   POST /api/v1/wishlist/sync-guest
+// @access  Private
+exports.syncGuestWishlist = catchAsyncErrors(async (req, res, next) => {
+    const { guestWishlistItems } = req.body; // Array of product IDs from localStorage
+    const userId = req.user._id;
+
+    if (!guestWishlistItems || !Array.isArray(guestWishlistItems)) {
+        return next(new ErrorHandler('Invalid guest wishlist data', 400));
+    }
+
+    // Find or create user's wishlist
+    let wishlist = await Wishlist.findOne({ userId });
+    if (!wishlist) {
+        wishlist = await Wishlist.create({ userId, items: [] });
+        await User.findByIdAndUpdate(userId, { wishlistId: wishlist._id });
+    }
+
+    let addedCount = 0;
+    const errors = [];
+
+    // Add each guest item to user's wishlist
+    for (const productId of guestWishlistItems) {
+        try {
+            // Check if product exists and is valid
+            const product = await Product.findById(productId);
+            if (!product) {
+                errors.push(`Product ${productId} not found`);
+                continue;
+            }
+
+            // Check if product already in wishlist
+            const existingItem = wishlist.items.find(item =>
+                item.product.toString() === productId
+            );
+
+            if (!existingItem) {
+                wishlist.items.push({
+                    product: productId,
+                    addedAt: new Date()
+                });
+                addedCount++;
+            }
+        } catch (error) {
+            errors.push(`Failed to add product ${productId}: ${error.message}`);
+        }
+    }
+
+    await wishlist.save();
+
+    // Populate the updated wishlist
+    const populatedWishlist = await Wishlist.findById(wishlist._id)
+        .populate({
+            path: 'items.product',
+            select: 'name images price slug stock brand category discountPrice ratings',
+            populate: [
+                { path: 'brand', select: 'name' },
+                { path: 'category', select: 'name' }
+            ]
+        });
+
+    res.status(200).json({
+        success: true,
+        message: `Synced ${addedCount} items from guest wishlist`,
+        addedCount,
+        errors: errors.length > 0 ? errors : undefined,
+        data: populatedWishlist
+    });
+});
+
+// @desc    Get wishlist for current user (handles both authenticated and guest)
+// @route   GET /api/v1/wishlist/current
+// @access  Public (with optional auth)
+exports.getCurrentWishlist = catchAsyncErrors(async (req, res, next) => {
+    // If user is authenticated, return their wishlist from DB
+    if (req.user) {
+        const wishlist = await Wishlist.findOne({ userId: req.user._id })
+            .populate({
+                path: 'items.product',
+                select: 'name images price slug stock brand category discountPrice ratings',
+                populate: [
+                    { path: 'brand', select: 'name' },
+                    { path: 'category', select: 'name' }
+                ]
+            });
+
+        if (!wishlist) {
+            const newWishlist = await Wishlist.create({
+                userId: req.user._id,
+                items: []
+            });
+            return res.status(200).json({
+                success: true,
+                isAuthenticated: true,
+                count: 0,
+                data: newWishlist
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            isAuthenticated: true,
+            count: wishlist.items.length,
+            data: wishlist
+        });
+    }
+
+    // For guest users, return empty structure (frontend will handle localStorage)
+    res.status(200).json({
+        success: true,
+        isAuthenticated: false,
+        count: 0,
+        data: { items: [] },
+        message: 'Using guest wishlist'
+    });
+});

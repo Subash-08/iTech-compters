@@ -1,50 +1,100 @@
+// components/wishlist/WishlistItem.tsx - FIXED VERSION
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAppSelector } from '../../redux/hooks';
 import { WishlistItem as WishlistItemType } from '../../redux/types/wishlistTypes';
+import { Product } from '../../redux/types/productTypes';
 
 interface WishlistItemProps {
   item: WishlistItemType;
-  onRemove: (productId: string) => void;
+  onRemove: (productId: string, productType: 'product' | 'prebuilt-pc') => void; // ✅ FIX: Add productType
 }
 
 const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
-  const product = item.product;
+  // ✅ FIX: Get all products from Redux store to find complete product data
+  const products = useAppSelector(state => state.productsState.products);
+  
+  // Find the complete product details from Redux store
+  const findCompleteProduct = (productId: string): Product | null => {
+    const completeProduct = products.find(p => p._id === productId);
+    return completeProduct || null;
+  };
+
+  // Get product ID from the wishlist item
+  const productId = item.product._id || item.product;
+  
+  // ✅ Get productType from the wishlist item
+  const productType = item.productType || 'product';
+  
+  // ✅ Get complete product data from Redux store
+  const completeProduct = findCompleteProduct(productId);
+  const product = completeProduct || item.product; // Fallback to item data
+
+  // ✅ FIX: Handle remove with productType
+  const handleRemove = () => {
+    onRemove(productId, productType);
+  };
 
   if (!product) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4 text-center">
         <p className="text-gray-500">Product not available</p>
+        <button
+          onClick={handleRemove}
+          className="mt-2 text-red-500 text-sm hover:text-red-700"
+        >
+          Remove
+        </button>
       </div>
     );
   }
 
-  // ✅ Handle different price structures
-  const displayPrice = product.discountPrice || product.offerPrice || product.price || product.basePrice || 0;
-  const originalPrice = product.price || product.basePrice || 0;
-  const hasDiscount = displayPrice < originalPrice && originalPrice > 0;
+  const productName = product.name || 'Unnamed Product';
+  const productSlug = product.slug || productId;
   
-  // ✅ Handle stock
-  const inStock = (product.stock || product.stockQuantity || 0) > 0;
+  // ✅ Get prices from the complete product data
+  const basePrice = product.basePrice || 0;
+  const offerPrice = product.offerPrice || product.basePrice || 0;
+  const discountPercentage = product.discountPercentage || 0;
   
-  // ✅ Handle images
-  const productImage = product.images?.thumbnail?.url || 
-                      product.images?.[0]?.url || 
-                      'https://via.placeholder.com/300x300?text=Product+Image';
+  const hasDiscount = discountPercentage > 0 && offerPrice < basePrice;
   
-  // ✅ Get display name - show variant name if available
-  const getDisplayName = () => {
-    if (item.variant?.name) {
-      return item.variant.name;
-    }
-    return product.name || 'Product Name';
+  // ✅ Handle stock safely
+  const stock = product.stockQuantity || product.totalStock || 0;
+  const inStock = stock > 0;
+  
+  // ✅ Handle images safely - FIXED placeholder URL
+  const getProductImage = (): string => {
+    if (!product.images) return 'https://placehold.co/300x300/1e40af/ffffff?text=No+Image';
+    
+    if (product.images.thumbnail?.url) return product.images.thumbnail.url;
+    if (product.images.hoverImage?.url) return product.images.hoverImage.url;
+    if (product.images.gallery?.[0]?.url) return product.images.gallery[0].url;
+    if (typeof product.images === 'string') return product.images;
+    
+    return 'https://placehold.co/300x300/1e40af/ffffff?text=No+Image';
   };
 
-  const productName = getDisplayName();
-  const productSlug = product.slug || '';
+  const productImage = getProductImage();
+  
+  // ✅ Get brand name safely
+  const getBrandName = (): string => {
+    if (!product.brand) return 'No Brand';
+    
+    if (typeof product.brand === 'object') {
+      return product.brand.name || 'No Brand';
+    }
+    
+    return 'No Brand';
+  };
+
+  const brandName = getBrandName();
 
   // Render star rating
   const renderStars = (rating: number) => {
     if (!rating || rating === 0) return null;
+    
+    const numericRating = typeof rating === 'number' ? rating : parseFloat(rating) || 0;
     
     return (
       <div className="flex items-center">
@@ -52,7 +102,7 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
           <svg
             key={star}
             className={`w-4 h-4 ${
-              star <= Math.floor(rating) ? 'text-yellow-400' : 'text-gray-300'
+              star <= Math.floor(numericRating) ? 'text-yellow-400' : 'text-gray-300'
             }`}
             fill="currentColor"
             viewBox="0 0 20 20"
@@ -61,28 +111,42 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
           </svg>
         ))}
         <span className="text-sm text-gray-500 ml-1">
-          ({product.averageRating?.toFixed(1) || '0.0'})
+          ({numericRating.toFixed(1)})
         </span>
       </div>
     );
   };
 
+  // ✅ Show product type badge
+  const getProductTypeBadge = () => {
+    if (productType === 'prebuilt-pc') {
+      return (
+        <div className="absolute top-2 right-2 bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded">
+          Pre-built PC
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 hover:shadow-lg transition-shadow duration-300 h-full flex flex-col">
-      <Link to={`/product/${productSlug}`} className="block p-4 flex-1">
+      <Link to={productType === 'prebuilt-pc' ? `/prebuilt-pcs/${productSlug}` : `/product/${productSlug}`} className="block p-4 flex-1">
         <div className="relative mb-4">
           <img
             src={productImage}
             alt={productName}
             className="w-full h-48 object-contain rounded-lg"
             onError={(e) => {
-              e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Product+Image';
+              e.currentTarget.src = 'https://placehold.co/300x300/1e40af/ffffff?text=Product+Image';
             }}
           />
           
-          {hasDiscount && (
+          {getProductTypeBadge()}
+          
+          {hasDiscount && discountPercentage > 0 && (
             <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-              {Math.round((1 - displayPrice / originalPrice) * 100)}% OFF
+              {discountPercentage}% OFF
             </div>
           )}
           
@@ -97,40 +161,29 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
 
         <div className="space-y-2 flex-1">
           <div className="text-sm text-gray-500 uppercase tracking-wide">
-            {product.brand?.name || 'No Brand'}
+            {brandName}
           </div>
 
           <h3 className="font-semibold text-gray-900 line-clamp-2 hover:text-blue-600 transition-colors min-h-[3rem]">
             {productName}
-            {item.variant?.name && item.variant.name !== product.name && (
-              <span className="text-sm font-normal text-gray-600 block">
-                ({product.name})
-              </span>
-            )}
           </h3>
-
-          {/* Show variant attributes if available */}
-          {item.variant?.attributes && item.variant.attributes.length > 0 && (
-            <div className="text-xs text-gray-500">
-              {item.variant.attributes.map((attr, index) => (
-                <span key={index}>
-                  {attr.label}: {attr.displayValue || attr.value}
-                  {index < item.variant.attributes.length - 1 ? ', ' : ''}
-                </span>
-              ))}
-            </div>
-          )}
 
           {renderStars(product.averageRating || 0)}
 
+          {/* ✅ FIXED: Price display from complete product data */}
           <div className="flex items-center space-x-2">
             <span className="text-xl font-bold text-gray-900">
-              ${typeof displayPrice === 'number' ? displayPrice.toFixed(2) : '0.00'}
+              Rs {offerPrice.toLocaleString()}
             </span>
-            {hasDiscount && (
-              <span className="text-lg text-gray-500 line-through">
-                ${typeof originalPrice === 'number' ? originalPrice.toFixed(2) : '0.00'}
-              </span>
+            {hasDiscount && basePrice > offerPrice && (
+              <>
+                <span className="text-lg text-gray-500 line-through">
+                  Rs {basePrice.toLocaleString()}
+                </span>
+                <span className="text-sm bg-green-100 text-green-700 px-2 py-1 rounded">
+                  Save Rs {(basePrice - offerPrice).toLocaleString()}
+                </span>
+              </>
             )}
           </div>
 
@@ -141,15 +194,22 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
           <div className={`text-sm font-medium ${
             inStock ? 'text-green-600' : 'text-red-600'
           }`}>
-            {inStock ? 'In Stock' : 'Out of Stock'}
+            {inStock ? `In Stock (${stock})` : 'Out of Stock'}
           </div>
+
+          {/* ✅ Add product description if available */}
+          {product.description && (
+            <p className="text-sm text-gray-600 line-clamp-2">
+              {product.description}
+            </p>
+          )}
         </div>
       </Link>
 
       {/* Remove Button */}
       <div className="p-4 border-t border-gray-200">
         <button
-          onClick={() => onRemove(product._id)}
+          onClick={handleRemove}
           className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center space-x-2"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

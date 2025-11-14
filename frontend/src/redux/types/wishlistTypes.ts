@@ -40,6 +40,3 @@ export interface RemoveFromWishlistData {
   productId: string;
 }
 
-export interface CheckWishlistItemData {
-  productId: string;
-}

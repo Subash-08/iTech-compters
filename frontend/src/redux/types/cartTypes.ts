@@ -40,6 +40,7 @@ export interface CartState {
   loading: boolean;
   error: string | null;
   updating: boolean;
+  isGuest: boolean;
 }
 
 export interface AddToCartData {
@@ -58,3 +59,52 @@ export interface RemoveFromCartData {
   productId: string;
   variantId?: string;
 }
+
+export interface PreBuiltPCCartItem {
+  _id: string;
+  productType: 'prebuilt-pc';
+  preBuiltPC?: {
+    _id: string;
+    name: string;
+    images: string[];
+    totalPrice: number;
+    discountPrice?: number;
+    slug: string;
+    stockQuantity: number;
+    category: any;
+    specifications: any;
+    performanceRating: number;
+    condition: string;
+  };
+  pcId?: string; // For guest cart
+  quantity: number;
+  price: number;
+  addedAt: string;
+}
+
+export interface AddPreBuiltPCToCartData {
+  pcId: string;
+  quantity?: number;
+}
+
+export interface UpdatePreBuiltPCQuantityData {
+  pcId: string;
+  quantity: number;
+}
+
+
+// Update GuestCartItem to include pre-built PCs
+export interface GuestCartItem {
+  _id: string;
+  productType?: 'product' | 'prebuilt-pc';
+  productId?: string;
+  pcId?: string;
+  variantId?: string;
+  quantity: number;
+  price: number;
+  addedAt: string;
+  product?: any;
+  preBuiltPC?: any;
+  variant?: any;
+}
+

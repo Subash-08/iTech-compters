@@ -74,15 +74,9 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: function () {
-            if (!this.socialLogins || this.socialLogins.length === 0) {
-                return [true, 'Password is required for email registration'];
-            }
-            return false;
-        },
+        required: false,
         select: false,
         minlength: [8, 'Password must be at least 8 characters long']
-        // ✅ REMOVED: The complex validation that checks hashed password
     },
     // Simple version - just check if it's a string
     avatar: {
@@ -236,7 +230,7 @@ userSchema.virtual('isGoogleUser').get(function () {
     return this.socialLogins && this.socialLogins.some(login => login.provider === 'google');
 });
 userSchema.pre('save', function (next) {
-    // Only validate password if it's being modified and is not for social login
+    // Only validate password if it's being modified and user is not a social login user
     if (this.isModified('password') && this.password &&
         (!this.socialLogins || this.socialLogins.length === 0)) {
 
@@ -420,49 +414,7 @@ userSchema.methods.generatePasswordResetToken = function () {
     return token;
 };
 
-// 🔗 GOOGLE LOGIN METHODS
-userSchema.methods.addGoogleLogin = function (googleProfile) {
-    if (!googleProfile || !googleProfile.id) {
-        throw new ValidationError('Invalid Google profile data', 'googleProfile');
-    }
 
-    const googleLogin = {
-        provider: 'google',
-        providerId: googleProfile.id,
-        email: googleProfile.email,
-        displayName: googleProfile.displayName,
-        photoURL: googleProfile.photos?.[0]?.value,
-        accessToken: googleProfile.accessToken,
-        refreshToken: googleProfile.refreshToken,
-        idToken: googleProfile.idToken,
-        connectedAt: new Date()
-    };
-
-    // Remove existing Google login if any
-    this.socialLogins = this.socialLogins.filter(
-        login => login.provider !== 'google'
-    );
-
-    this.socialLogins.push(googleLogin);
-
-    // Update profile from Google data if empty
-    if (!this.avatar && googleProfile.photos?.[0]?.value) {
-        this.avatar = googleProfile.photos[0].value;
-    }
-
-    if (!this.firstName && googleProfile.name?.givenName) {
-        this.firstName = googleProfile.name.givenName;
-    }
-
-    if (!this.lastName && googleProfile.name?.familyName) {
-        this.lastName = googleProfile.name.familyName;
-    }
-
-    // Auto-verify email for Google users
-    this.emailVerified = true;
-
-    return this.save();
-};
 
 // 🛒 BASIC CART METHODS (Detailed logic in separate cart schema later)
 userSchema.methods.addToCart = async function (productId, variantId, quantity = 1) {
@@ -592,7 +544,7 @@ userSchema.statics.findByGoogleId = function (googleId) {
     });
 };
 
-// ✅ UPDATED: Find or create Google user with username
+// In your User model - fix the findOrCreateGoogleUser method
 userSchema.statics.findOrCreateGoogleUser = async function (googleProfile) {
     if (!googleProfile || !googleProfile.id || !googleProfile.email) {
         throw new ValidationError('Invalid Google profile data', 'googleProfile');
@@ -606,19 +558,32 @@ userSchema.statics.findOrCreateGoogleUser = async function (googleProfile) {
         if (user) {
             return user.addGoogleLogin(googleProfile);
         } else {
-            // Generate username from Google profile
-            const baseUsername = this.generateUsername(
-                googleProfile.name?.givenName || 'User',
-                googleProfile.name?.familyName || ''
-            );
+            // ✅ FIX: Better name extraction from Google profile
+            const fullName = googleProfile.name || '';
+            let firstName = 'User';
+            let lastName = '';
+
+            // Extract first and last name properly
+            if (fullName) {
+                const nameParts = fullName.split(' ');
+                firstName = nameParts[0] || 'User';
+                lastName = nameParts.slice(1).join(' ') || '';
+            } else {
+                // Fallback to givenName and familyName
+                firstName = googleProfile.givenName || 'User';
+                lastName = googleProfile.familyName || '';
+            }
+
+            const baseUsername = this.generateUsername(firstName, lastName);
             const username = await this.findAvailableUsername(baseUsername);
 
             user = await this.create({
-                firstName: googleProfile.name?.givenName || 'User',
-                lastName: googleProfile.name?.familyName || '',
+                firstName: firstName,
+                lastName: lastName,
                 email: googleProfile.email,
-                avatar: googleProfile.photos?.[0]?.value,
-                username: username
+                avatar: googleProfile.picture, // ✅ Use 'picture' not 'photos[0].value'
+                username: username,
+                socialLogins: []
             });
 
             await user.addGoogleLogin(googleProfile);
@@ -626,6 +591,51 @@ userSchema.statics.findOrCreateGoogleUser = async function (googleProfile) {
     }
 
     return user;
+};
+
+// ✅ Also fix the addGoogleLogin method
+userSchema.methods.addGoogleLogin = function (googleProfile) {
+    if (!googleProfile || !googleProfile.id) {
+        throw new ValidationError('Invalid Google profile data', 'googleProfile');
+    }
+
+    const googleLogin = {
+        provider: 'google',
+        providerId: googleProfile.id,
+        email: googleProfile.email,
+        displayName: googleProfile.name,
+        photoURL: googleProfile.picture, // ✅ Use 'picture' not 'photos[0].value'
+        connectedAt: new Date()
+    };
+
+    // Remove existing Google login if any
+    this.socialLogins = this.socialLogins.filter(
+        login => login.provider !== 'google'
+    );
+
+    this.socialLogins.push(googleLogin);
+
+    // Update profile from Google data if empty
+    if (!this.avatar && googleProfile.picture) {
+        this.avatar = googleProfile.picture;
+    }
+
+    // ✅ Better name handling - only update if names are still default
+    if (!this.firstName || this.firstName === 'User') {
+        const fullName = googleProfile.name || '';
+        if (fullName) {
+            const nameParts = fullName.split(' ');
+            this.firstName = nameParts[0] || 'User';
+            this.lastName = nameParts.slice(1).join(' ') || '';
+        } else {
+            this.firstName = googleProfile.givenName || 'User';
+            this.lastName = googleProfile.familyName || '';
+        }
+    }
+
+    this.emailVerified = true;
+
+    return this.save({ validateBeforeSave: false });
 };
 
 // Export error classes for use in controllers

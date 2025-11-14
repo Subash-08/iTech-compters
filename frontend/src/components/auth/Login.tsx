@@ -1,7 +1,25 @@
-import React, { useState, useEffect } from 'react';
+// components/Login.tsx - CLEANED VERSION
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import { login, clearError } from '../../redux/actions/authActions';
+import { login, clearError, googleLogin } from '../../redux/actions/authActions';
+import { toast } from 'react-toastify';
+
+// Type declarations for Google API
+declare global {
+    interface Window {
+        google: {
+            accounts: {
+                id: {
+                    initialize: (config: any) => void;
+                    renderButton: (element: HTMLElement, config: any) => void;
+                    prompt: () => void;
+                    cancel: () => void;
+                };
+            };
+        };
+    }
+}
 
 const Login: React.FC = () => {
     const [formData, setFormData] = useState({
@@ -9,6 +27,8 @@ const Login: React.FC = () => {
         password: ''
     });
     const [showPassword, setShowPassword] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
+    const googleButtonRef = useRef<HTMLDivElement>(null);
 
     const dispatch = useAppDispatch();
     const { loading, error, isAuthenticated } = useAppSelector((state) => state.authState);
@@ -25,10 +45,144 @@ const Login: React.FC = () => {
 
     useEffect(() => {
         return () => {
-            // Clear errors when component unmounts
             dispatch(clearError());
         };
     }, [dispatch]);
+
+    const handleGoogleSignIn = async (response: any) => {
+        setGoogleLoading(true);
+        
+        try {
+            if (!response?.credential) {
+                throw new Error('No credential received from Google');
+            }
+
+            const result = await dispatch(googleLogin(response.credential));
+            
+            if (result?.success) {
+                setFormData({ email: '', password: '' });
+                toast.success('Successfully signed in with Google!');
+            } else {
+                throw new Error(result?.error || 'Google login failed');
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to sign in with Google');
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const initializeGoogleSignIn = () => {
+            if (!window.google || !googleButtonRef.current) {
+                return;
+            }
+
+            try {
+                window.google.accounts.id.initialize({
+                    client_id: '761683416195-r8a0sdsmt6ucai7dmrik4r5so903u29p.apps.googleusercontent.com',
+                    callback: handleGoogleSignIn,
+                    auto_select: false,
+                    cancel_on_tap_outside: true
+                });
+
+                window.google.accounts.id.renderButton(
+                    googleButtonRef.current,
+                    { 
+                        theme: 'outline', 
+                        size: 'large',
+                        text: 'signin_with',
+                        type: 'standard'
+                    }
+                );
+            } catch (error) {
+                console.error('Google Sign-In initialization failed');
+            }
+        };
+
+        if (!window.google) {
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.defer = true;
+            script.onload = initializeGoogleSignIn;
+            script.onerror = () => {
+                toast.error('Google Sign-In unavailable');
+            };
+            document.head.appendChild(script);
+        } else {
+            initializeGoogleSignIn();
+        }
+    }, []);
+
+    const handlePopupGoogleLogin = () => {
+        setGoogleLoading(true);
+        
+        const width = 500;
+        const height = 600;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+            `client_id=761683416195-r8a0sdsmt6ucai7dmrik4r5so903u29p.apps.googleusercontent.com` +
+            `&redirect_uri=${encodeURIComponent(window.location.origin)}` +
+            `&response_type=token` +
+            `&scope=email%20profile` +
+            `&state=google_login` +
+            `&prompt=select_account`;
+
+        const authWindow = window.open(authUrl, 'Google Login', 
+            `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`);
+
+        if (!authWindow) {
+            toast.error('Popup blocked! Please allow popups for this site.');
+            setGoogleLoading(false);
+            return;
+        }
+
+        const checkPopup = setInterval(() => {
+            try {
+                if (authWindow.closed) {
+                    clearInterval(checkPopup);
+                    setGoogleLoading(false);
+                    
+                    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                    const accessToken = hashParams.get('access_token');
+                    
+                    if (accessToken) {
+                        handleGoogleAccessToken(accessToken);
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                }
+            } catch (error) {
+                clearInterval(checkPopup);
+                setGoogleLoading(false);
+            }
+        }, 500);
+    };
+
+    const handleGoogleAccessToken = async (accessToken: string) => {
+        try {
+            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+
+            if (!userInfoResponse.ok) {
+                throw new Error('Failed to fetch user info from Google');
+            }
+
+            const userInfo = await userInfoResponse.json();
+            const result = await dispatch(googleLogin(accessToken));
+            
+            if (result.success) {
+                toast.success('Google login successful!');
+            } else {
+                throw new Error(result.error || 'Google login failed');
+            }
+        } catch (error: any) {
+            toast.error('Failed to process Google login');
+        }
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
@@ -36,7 +190,6 @@ const Login: React.FC = () => {
             [e.target.name]: e.target.value
         });
         
-        // Clear error when user starts typing
         if (error) {
             dispatch(clearError());
         }
@@ -46,6 +199,7 @@ const Login: React.FC = () => {
         e.preventDefault();
         
         if (!formData.email || !formData.password) {
+            toast.error('Please fill in all fields');
             return;
         }
 
@@ -53,15 +207,7 @@ const Login: React.FC = () => {
         
         if (result.success) {
             setFormData({ email: '', password: '' });
-            // ✅ Navigation will happen automatically due to isAuthenticated change
         }
-    };
-
-    const handleGoogleLogin = () => {
-        // Implement Google OAuth
-        console.log('Google login clicked');
-        // ✅ Show info toast for unimplemented feature
-        toast.info('Google login coming soon!');
     };
 
     return (
@@ -83,9 +229,53 @@ const Login: React.FC = () => {
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                    {/* Google Sign-In Section */}
+                    <div className="mb-6">
+                        <div 
+                            ref={googleButtonRef} 
+                            className="w-full flex justify-center"
+                        />
+                        
+                        {/* Alternative popup button */}
+                        {/* <button
+                            onClick={handlePopupGoogleLogin}
+                            disabled={googleLoading}
+                            className="w-full mt-3 inline-flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+                        >
+                            {googleLoading ? (
+                                <div className="flex items-center">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                                    Connecting to Google...
+                                </div>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                    </svg>
+                                    Sign in with Google
+                                </>
+                            )}
+                        </button> */}
+                    </div>
+
+                    <div className="relative mb-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-300" />
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+                        </div>
+                    </div>
+
                     <form className="space-y-6" onSubmit={handleSubmit}>
-                        {/* ❌ Remove local error display - Toastify will handle errors */}
-                        {/* {error && ( ... )} */}
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                                {error}
+                            </div>
+                        )}
 
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -127,7 +317,7 @@ const Login: React.FC = () => {
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                                     onClick={() => setShowPassword(!showPassword)}
                                 >
-                                    <span className="text-sm text-gray-500">
+                                    <span className="text-sm text-gray-500 hover:text-gray-700">
                                         {showPassword ? 'Hide' : 'Show'}
                                     </span>
                                 </button>
@@ -169,37 +359,11 @@ const Login: React.FC = () => {
                                         Signing in...
                                     </div>
                                 ) : (
-                                    'Sign in'
+                                    'Sign in with Email'
                                 )}
                             </button>
                         </div>
                     </form>
-
-                    <div className="mt-6">
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-300" />
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-white text-gray-500">Or continue with</span>
-                            </div>
-                        </div>
-
-                        <div className="mt-6">
-                            <button
-                                onClick={handleGoogleLogin}
-                                className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors duration-200"
-                            >
-                                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                </svg>
-                                Sign in with Google
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

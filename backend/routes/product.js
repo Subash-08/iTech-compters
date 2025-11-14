@@ -13,6 +13,7 @@ const {
     debugProductCategories,
     debugCategoryProducts,
     advancedSearch,
+    getProductsForSelection,
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
@@ -50,5 +51,6 @@ router.post("/admin/products/bulk", isAuthenticatedUser, authorizeRoles("admin")
 router.post("/admin/product/:id/variant", isAuthenticatedUser, authorizeRoles("admin"), addVariant);  // Add variant
 router.put("/admin/product/:id/variant/:variantId", isAuthenticatedUser, authorizeRoles("admin"), updateVariant);  // Update variant
 router.delete("/admin/product/:id/variant/:variantId", isAuthenticatedUser, authorizeRoles("admin"), deleteVariant);  // Delete variant
-
+// Add to your product routes
+router.get("/admin/products/selection", isAuthenticatedUser, authorizeRoles("admin"), getProductsForSelection);
 module.exports = router; 
