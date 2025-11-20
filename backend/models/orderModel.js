@@ -484,7 +484,7 @@ orderSchema.methods.createPaymentAttempt = function (razorpayOrderId, amount, ra
         amount,
         currency: this.pricing.currency,
         status: PAYMENT_STATUS.CREATED,
-        razorpayExpiresAt: new Date(razorpayExpiresAt * 1000)
+        razorpayExpiresAt: razorpayExpiresAt ? new Date(razorpayExpiresAt * 1000) : null
     };
 
     this.payment.attempts.push(attempt);
@@ -492,7 +492,7 @@ orderSchema.methods.createPaymentAttempt = function (razorpayOrderId, amount, ra
     const newAttempt = this.payment.attempts[this.payment.attempts.length - 1];
     this.payment.currentAttemptId = newAttempt._id;
 
-    // ✅ FIXED: Reset top-level payment status when creating new attempt
+    // Reset top-level payment status when creating new attempt
     this.payment.status = PAYMENT_STATUS.CREATED;
     this.payment.lastAttemptAt = new Date();
     this.payment.totalAttempts = (this.payment.totalAttempts || 0) + 1;
@@ -509,7 +509,7 @@ orderSchema.methods.createPaymentAttempt = function (razorpayOrderId, amount, ra
         totalAttempts: this.payment.totalAttempts
     });
 
-    return this.save();
+    return this.save().then(() => newAttempt._id.toString()); // ✅ Return the attemptId
 };
 
 orderSchema.methods.updatePaymentAttempt = function (attemptId, updates) {

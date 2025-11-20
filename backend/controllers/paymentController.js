@@ -49,7 +49,7 @@ const createRazorpayOrder = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Maximum payment attempts reached. Please contact support.', 400));
         }
 
-        // ✅ Use order's pricing directly (no recalculation needed)
+        // Use order's pricing directly
         const expectedAmount = order.pricing.total;
         if (expectedAmount <= 0) {
             console.error('❌ Invalid order amount:', expectedAmount);
@@ -73,48 +73,27 @@ const createRazorpayOrder = catchAsyncErrors(async (req, res, next) => {
 
         console.log('✅ Razorpay order created:', razorpayOrder.id);
 
-        // ✅ FIXED: Handle expires_at properly
-        let expiresAt = null;
-        if (razorpayOrder.expires_at) {
-            expiresAt = new Date(razorpayOrder.expires_at * 1000); // Convert from seconds to milliseconds
-        }
-
-        // ✅ FIXED: Create payment attempt with proper error handling
+        // ✅ FIXED: Create payment attempt and get the actual _id
         const paymentAttempt = {
             razorpayOrderId: razorpayOrder.id,
             amount: razorpayOrder.amount,
             currency: razorpayOrder.currency,
             status: Order.PAYMENT_STATUS.CREATED,
-            createdAt: new Date(),
-            razorpayExpiresAt: expiresAt
+            createdAt: new Date()
         };
 
-        // ✅ FIXED: Use atomic update to avoid parallel save issues
-        const updatedOrder = await Order.findOneAndUpdate(
-            { _id: orderId },
-            {
-                $push: {
-                    'payment.attempts': paymentAttempt
-                },
-                $inc: {
-                    'payment.totalAttempts': 1
-                },
-                $set: {
-                    'payment.currentPaymentAttempt': paymentAttempt
-                }
-            },
-            {
-                new: true,
-                runValidators: true
-            }
-        );
+        // Add the attempt and save to get the actual _id
+        order.payment.attempts.push(paymentAttempt);
+        order.payment.totalAttempts = (order.payment.totalAttempts || 0) + 1;
 
-        if (!updatedOrder) {
-            throw new ErrorHandler('Failed to update order with payment attempt', 500);
-        }
+        // Save to generate the _id
+        await order.save();
 
-        // Get the newly created attempt's _id
-        const currentAttempt = updatedOrder.payment.attempts[updatedOrder.payment.attempts.length - 1];
+        // ✅ FIXED: Get the actual _id of the newly created attempt
+        const newAttempt = order.payment.attempts[order.payment.attempts.length - 1];
+        const attemptId = newAttempt._id.toString();
+
+        console.log('🔑 Generated attemptId:', attemptId);
 
         res.status(200).json({
             success: true,
@@ -123,7 +102,7 @@ const createRazorpayOrder = catchAsyncErrors(async (req, res, next) => {
                 amount: razorpayOrder.amount,
                 currency: razorpayOrder.currency,
                 orderId: order._id,
-                attemptId: currentAttempt._id.toString()
+                attemptId: attemptId // ✅ This is the correct _id
             }
         });
 
