@@ -126,17 +126,17 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             razorpay_payment_id,
             razorpay_signature,
             orderId,
-            attemptId
+            attemptId // We treat this as a hint, not the absolute truth
         } = req.body;
 
         const userId = req.user._id;
 
-        // Validate required fields
+        // 1. Validate required fields
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
             return next(new ErrorHandler('Missing payment verification data', 400));
         }
 
-        // Find order
+        // 2. Find order
         const order = await Order.findOne({
             _id: orderId,
             user: userId
@@ -146,7 +146,7 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Order not found', 404));
         }
 
-        // ✅ Check if already paid before any processing
+        // 3. Idempotency check (Fast exit if already paid)
         if (order.isPaid) {
             return res.status(200).json({
                 success: true,
@@ -159,21 +159,40 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             });
         }
 
-        // Use _id to find attempt
-        const attempt = order.payment.attempts.id(attemptId);
-        if (!attempt) {
-            return next(new ErrorHandler('Payment attempt not found', 404));
+        // ============================================================
+        // ✅ CRITICAL FIX: Robust Attempt Lookup
+        // ============================================================
+
+        // Priority 1: Find the attempt that matches the Razorpay Order ID actually paid for.
+        // This fixes the bug where the frontend sends an old attemptId but a new razorpay_order_id.
+        let attempt = order.payment.attempts.find(
+            (a) => a.razorpayOrderId === razorpay_order_id
+        );
+
+        // Priority 2: Fallback to the frontend provided attemptId if Priority 1 failed
+        // (Useful if for some reason razorpayOrderId wasn't saved, though unlikely)
+        if (!attempt && attemptId) {
+            attempt = order.payment.attempts.id(attemptId);
         }
 
-        // Verify signature
+        // If still not found, we cannot proceed
+        if (!attempt) {
+            console.error(`CRITICAL: Payment attempt lookup failed. Order: ${orderId}, RzpOrder: ${razorpay_order_id}, ProvidedAttempt: ${attemptId}`);
+            return next(new ErrorHandler('Payment attempt record not found associated with this order', 404));
+        }
+
+        // ============================================================
+
+        // 4. Verify signature
         const generatedSignature = crypto
             .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
             .update(razorpay_order_id + '|' + razorpay_payment_id)
             .digest('hex');
 
         if (generatedSignature !== razorpay_signature) {
-            // Mark as attempted (not failed) to allow retry
-            await order.updatePaymentAttempt(attemptId, {
+            // Mark as attempted/failed
+            // ✅ IMPORTANT: Use attempt._id (the one we found), not req.body.attemptId
+            await order.updatePaymentAttempt(attempt._id, {
                 status: Order.PAYMENT_STATUS.ATTEMPTED,
                 errorReason: 'Signature verification failed',
                 signatureVerified: false
@@ -182,12 +201,13 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Payment verification failed. Please try again.', 400));
         }
 
-        // Fetch payment details from Razorpay
+        // 5. Fetch payment details from Razorpay
         const payment = await razorpay.payments.fetch(razorpay_payment_id);
 
-        // Verify amount matches order snapshot
+        // 6. Verify amount matches order snapshot
+        // Note: payment.amount is in paise (integer), order.pricing.total is usually Rupees (float)
         if (Math.round(order.pricing.total * 100) !== payment.amount) {
-            await order.updatePaymentAttempt(attemptId, {
+            await order.updatePaymentAttempt(attempt._id, {
                 status: Order.PAYMENT_STATUS.FAILED,
                 errorReason: 'Amount mismatch',
                 signatureVerified: false
@@ -196,8 +216,9 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Payment amount mismatch detected', 400));
         }
 
+        // 7. Verify Payment Status is captured
         if (payment.status !== 'captured') {
-            await order.updatePaymentAttempt(attemptId, {
+            await order.updatePaymentAttempt(attempt._id, {
                 status: Order.PAYMENT_STATUS.FAILED,
                 errorReason: `Payment not captured: ${payment.status}`,
                 signatureVerified: false
@@ -206,56 +227,50 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Payment not completed successfully', 400));
         }
 
-        // ✅ Check again if order is already paid (race condition protection)
+        // 8. Race condition check (Double check isPaid before finalizing)
         if (order.isPaid) {
             return res.status(200).json({
                 success: true,
                 message: 'Payment already processed',
                 data: {
                     orderId: order._id,
-                    orderNumber: order.orderNumber,
                     alreadyProcessed: true
                 }
             });
         }
 
-        // ✅ FIXED: Use plain object instead of Map
+        // 9. Prepare Gateway Response Object
         const gatewayResponse = {
             id: payment.id,
             entity: payment.entity,
             amount: payment.amount,
             currency: payment.currency,
             status: payment.status,
-            order_id: payment.order_id,
             method: payment.method,
-            captured: payment.captured,
-            description: payment.description,
-            card_id: payment.card_id,
             bank: payment.bank,
             wallet: payment.wallet,
             vpa: payment.vpa,
             email: payment.email,
             contact: payment.contact,
-            notes: payment.notes,
-            fee: payment.fee,
-            tax: payment.tax,
             created_at: payment.created_at
         };
 
-        // Update payment attempt as successful
-        await order.updatePaymentAttempt(attemptId, {
+        // 10. Update Payment Attempt as CAPTURED
+        // ✅ IMPORTANT: Use attempt._id here
+        await order.updatePaymentAttempt(attempt._id, {
             razorpayPaymentId: razorpay_payment_id,
             razorpaySignature: razorpay_signature,
             status: Order.PAYMENT_STATUS.CAPTURED,
             gatewayPaymentMethod: payment.method,
             signatureVerified: true,
             capturedAt: new Date(),
-            gatewayResponse: gatewayResponse // ✅ Plain object
+            gatewayResponse: gatewayResponse
         });
 
-        // Stock reservation with concurrency protection
+        // 11. Stock reservation logic
         await reserveStockForOrder(order);
 
+        // 12. Send Success Response
         res.status(200).json({
             success: true,
             message: 'Payment verified successfully',
@@ -270,6 +285,7 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
     } catch (error) {
         console.error('Verify payment error:', error);
 
+        // Handle Razorpay specific errors
         if (error.error?.description) {
             return next(new ErrorHandler(`Payment verification error: ${error.error.description}`, 400));
         }

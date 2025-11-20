@@ -16,14 +16,14 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
   const [autoOpened, setAutoOpened] = useState<boolean>(false);
 
-  // ✅ AUTO-OPEN RAZORPAY WHEN ORDER ID IS AVAILABLE
-  useEffect(() => {
-    if (orderId && selectedMethod === 'razorpay' && !processing && !autoOpened) {
-      console.log('🔄 Auto-opening Razorpay for order:', orderId);
-      setAutoOpened(true);
-      initializeRazorpayPayment();
-    }
-  }, [orderId, selectedMethod, processing, autoOpened]);
+// ✅ AUTO-OPEN RAZORPAY WHEN ORDER ID IS AVAILABLE
+useEffect(() => {
+  if (orderId && selectedMethod === 'razorpay' && !processing && !autoOpened) {
+    console.log('🔄 Auto-opening Razorpay for order:', orderId);
+    setAutoOpened(true);
+    initializeRazorpayPayment();
+  }
+}, [orderId, selectedMethod, processing, autoOpened]);
 
   // Reset auto-opened state when orderId changes
   useEffect(() => {
@@ -137,36 +137,38 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
     }
   };
 
-  const handlePaymentSuccess = async (response: RazorpayResponse): Promise<void> => {
-    try {
-      setProcessing(true);
+const handlePaymentSuccess = async (response: RazorpayResponse): Promise<void> => {
+  console.log('🎯 Payment successful, starting verification...', response);
+  
+  try {
+    setProcessing(true);
+    setAutoOpened(true); // ✅ PREVENT AUTO-REOPENING
 
-      // ✅ FIXED: Use axios for verification too
-      const verifyResponse = await api.post('/payment/razorpay/verify', {
-        razorpay_order_id: response.razorpay_order_id,
-        razorpay_payment_id: response.razorpay_payment_id,
-        razorpay_signature: response.razorpay_signature,
-        orderId: orderId,
-        attemptId: currentAttemptId
-      });
+    const verifyResponse = await api.post('/payment/razorpay/verify', {
+      razorpay_order_id: response.razorpay_order_id,
+      razorpay_payment_id: response.razorpay_payment_id,
+      razorpay_signature: response.razorpay_signature,
+      orderId: orderId,
+      attemptId: currentAttemptId
+    });
 
-      const result = verifyResponse.data;
+    console.log('✅ Verification successful:', verifyResponse.data);
+    
+    // ✅ SUCCESS - Navigate away
+    onPaymentSuccess(verifyResponse.data);
 
-      if (result.success) {
-        console.log('✅ Payment verification successful:', result.data);
-        onPaymentSuccess(result.data);
-      } else {
-        throw new Error(result.message || 'Payment verification failed');
-      }
-
-    } catch (error: any) {
-      console.error('Payment verification error:', error);
-      onPaymentError(error.message || 'Payment verification failed. Please contact support.');
-    } finally {
-      setProcessing(false);
-      setCurrentAttemptId(null);
-    }
-  };
+  } catch (error: any) {
+    console.error('💥 Payment verification error:', error);
+    
+    // ✅ Don't auto-retry, let user manually retry
+    setAutoOpened(true); // Prevent auto-reopening
+    onPaymentError('Payment verification failed. Please try again manually.');
+    
+  } finally {
+    setProcessing(false);
+    setCurrentAttemptId(null);
+  }
+};
 
 
   const formatCurrency = (amount: number, currencyCode: string = 'INR'): string => {
