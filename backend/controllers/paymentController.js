@@ -266,7 +266,7 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
         }
 
         // ============================================================
-        // 9. ✅ ATOMIC SUCCESS UPDATE (The Fix)
+        // 9. ✅ ATOMIC SUCCESS UPDATE
         // ============================================================
 
         const gatewayResponse = {
@@ -279,16 +279,14 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             created_at: payment.created_at
         };
 
-        // We update everything in one DB call.
-        // This CANNOT fail with ParallelSaveError.
-        await Order.updateOne(
+        // 👇 YOU MUST ADD "const updateResult =" HERE 👇
+        const updateResult = await Order.updateOne(
             {
                 "_id": orderId,
                 "payment.attempts._id": attempt._id
             },
             {
                 $set: {
-                    // 1. Update Specific Attempt
                     "payment.attempts.$.status": Order.PAYMENT_STATUS.CAPTURED,
                     "payment.attempts.$.razorpayPaymentId": razorpay_payment_id,
                     "payment.attempts.$.razorpaySignature": razorpay_signature,
@@ -296,22 +294,14 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                     "payment.attempts.$.signatureVerified": true,
                     "payment.attempts.$.capturedAt": new Date(),
                     "payment.attempts.$.gatewayResponse": gatewayResponse,
-
-                    // 2. Update Top-Level Payment Status
                     "payment.status": Order.PAYMENT_STATUS.CAPTURED,
-
-                    // 3. Update Top-Level Order Status
                     "status": Order.ORDER_STATUS.CONFIRMED,
-
-                    // 4. Update Pricing
                     "pricing.amountPaid": order.pricing.total,
                     "pricing.amountDue": 0
                 },
-                // 5. Remove Expiry
                 $unset: {
                     expiresAt: 1
                 },
-                // 6. Add Timeline Event
                 $push: {
                     orderTimeline: {
                         event: "payment_captured",
@@ -326,16 +316,15 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                 }
             }
         );
-        // 2. CHANGE: Add this safety check immediately after
+
+        // NOW this will work because updateResult is defined above
         if (updateResult.matchedCount === 0) {
-            console.error('❌ Critical: Atomic update failed - Order/Attempt not found in DB query');
-            // It is safe to throw an error here because it means the ID was wrong
+            console.error('❌ Critical: Atomic update failed - Order/Attempt not found');
             return next(new ErrorHandler('Failed to update order: Record not found', 500));
         }
 
-        // 3. CHANGE: Add this log (but DO NOT throw error if modifiedCount is 0)
         if (updateResult.modifiedCount === 0) {
-            console.log('⚠️ Note: Payment update matched but modified 0 documents. (Likely duplicate request or already paid)');
+            console.log('⚠️ Note: Payment update matched but modified 0 documents.');
         } else {
             console.log('✅ Atomic update successful - order confirmed');
         }
