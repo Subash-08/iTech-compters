@@ -33,7 +33,6 @@ const UserList: React.FC = () => {
       setLoading(true);
       setError('');
       const response = await userService.getUsers(filters);
-      console.log('Users API Response:', response);
       setUsers(response.users || []);
       setTotalCount(response.count || 0);
     } catch (err) {
@@ -77,8 +76,6 @@ const UserList: React.FC = () => {
   };
 
   const handleEdit = (user: User) => {
-    // Navigate to user details or open modal
-    console.log('Edit user:', user);
     // You can implement a modal or navigation here
   };
 

@@ -1,3 +1,4 @@
+// Update your ProductForm.tsx
 import React, { useState, useEffect } from 'react';
 import { ProductFormData, Brand, Category } from '../types/product';
 import BasicInfoSection from './sections/BasicInfoSection';
@@ -8,13 +9,12 @@ import SpecificationsSection from './sections/SpecificationsSection';
 import FeaturesSection from './sections/FeaturesSection';
 import DimensionsWeightSection from './sections/DimensionsWeightSection';
 import SeoSection from './sections/SeoSection';
+import LinkedProductsSection from './LinkedProductsSection'; // 🆕 Add this import
 import api from '../../config/axiosConfig';
-
-// 🆕 Import react-toastify (already in your project)
 import { toast } from 'react-toastify';
 
 const initialProductData: ProductFormData = {
-  // ... (keep your existing initialProductData)
+  // ... (your existing initialProductData)
   name: '',
   brand: '',
   categories: [],
@@ -68,13 +68,13 @@ const initialProductData: ProductFormData = {
     keywords: []
   },
   canonicalUrl: '',
-  linkedProducts: [],
+  linkedProducts: [], // 🆕 This field exists in your initial data
   notes: ''
 };
 
 interface ProductFormProps {
-  initialData?: Partial<ProductFormData>;
-  onSubmit: (data: ProductFormData) => Promise<void>; // 🆕 Changed to async
+  initialData?: Partial<ProductFormData> & { _id?: string }; // 🆕 Add _id for current product
+  onSubmit: (data: ProductFormData) => Promise<void>;
   loading?: boolean;
   onCancel?: () => void;
 }
@@ -92,6 +92,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  // 🆕 Get current product ID for edit mode
+  const currentProductId = initialData?._id;
   // 🆕 Toast error handler using react-toastify
   const showErrorToast = (error: any) => {
     let errorMessage = 'An unexpected error occurred';
@@ -293,7 +295,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     if (onCancel) onCancel();
   };
 
-  const sections = [
+const sections = [
     { id: 'basic', label: 'Basic Info', component: BasicInfoSection },
     { id: 'pricing', label: 'Pricing & Inventory', component: PricingInventorySection },
     { id: 'images', label: 'Images', component: ImagesSection },
@@ -301,6 +303,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     { id: 'specs', label: 'Specifications', component: SpecificationsSection },
     { id: 'features', label: 'Features', component: FeaturesSection },
     { id: 'dimensions', label: 'Dimensions & Weight', component: DimensionsWeightSection },
+    { id: 'linked', label: 'Linked Products', component: LinkedProductsSection }, // 🆕 Add this section
     { id: 'seo', label: 'SEO & Meta', component: SeoSection },
   ];
 
@@ -326,40 +329,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
       </div>
     );
   }
-
   return (
     <div className="max-w-7xl mx-auto">
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200">
-        {/* Form Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {initialData ? 'Edit Product' : 'Add New Product'}
-              </h1>
-              <p className="text-gray-600 mt-1">
-                {initialData ? 'Update product information' : 'Create a new product in your store'}
-                {initialData && formData.sku && ` - SKU: ${formData.sku}`}
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                {isLoading ? 'Saving...' : initialData ? 'Update Product' : 'Publish Product'}
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* ... (your existing form header) */}
 
         <div className="flex">
           {/* Sidebar Navigation */}
@@ -391,6 +364,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 brands={brands}
                 categories={categories}
                 isEditMode={!!initialData}
+                currentProductId={currentProductId} // 🆕 Pass current product ID
               />
             )}
           </div>

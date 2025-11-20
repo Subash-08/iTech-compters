@@ -19,9 +19,10 @@ const specificationSchema = new Schema({
     specs: [{ key: { type: String, required: true, trim: true }, value: { type: String, required: true, trim: true } }],
 }, { _id: false });
 
-// 🎨 ENHANCED Variant Schema with Color Support
+// 🎨 ENHANCED Variant Schema with Color Support and Slug
 const variantSchema = new Schema({
     name: { type: String, required: true, trim: true },
+    slug: { type: String, trim: true, lowercase: true, index: true }, // 🆕 Added slug for variant
     sku: { type: String, unique: true, trim: true, sparse: true },
     barcode: { type: String, unique: true, trim: true, sparse: true },
     price: { type: Number, required: true, min: 0 },
@@ -49,7 +50,7 @@ const variantSchema = new Schema({
     },
     isActive: { type: Boolean, default: true },
     specifications: [specificationSchema]
-}, { _id: true });
+}, { _id: true, timestamps: true }); // 🆕 Added timestamps for variants
 
 // 🌟 Feature Schema
 const featureSchema = new Schema({
@@ -178,7 +179,7 @@ productSchema.virtual('variantOptions').get(function () {
 // 🎯 MIDDLEWARE (UPDATED)
 // =============================================
 
-// Pre-validate: Generate unique slug
+// Pre-validate: Generate unique slug for product
 productSchema.pre('validate', async function (next) {
     if (!this.isModified('name') && (this.slug || !this.isNew)) return next();
 
@@ -209,8 +210,8 @@ productSchema.pre('validate', async function (next) {
     next();
 });
 
-// Pre-save: Calculate offerPrice, update status
-productSchema.pre('save', function (next) {
+// Pre-save: Calculate offerPrice, update status, and generate variant slugs
+productSchema.pre('save', async function (next) {
     // Pricing logic
     if (this.isModified('basePrice') || this.isModified('discountPercentage')) {
         this.offerPrice = this.basePrice * (1 - (this.discountPercentage / 100));
@@ -229,65 +230,62 @@ productSchema.pre('save', function (next) {
             }
         }
     }
+
+    // 🆕 Generate slugs for variants
+    if (this.variants && this.variants.length > 0) {
+        for (let variant of this.variants) {
+            await this.generateVariantSlug(variant);
+        }
+    }
+
     next();
 });
 
-// Virtual for reviews from separate collection
-productSchema.virtual('reviews', {
-    ref: 'Review',
-    localField: '_id',
-    foreignField: 'product'
-});
+// 🆕 Generate unique slug for variant
+productSchema.methods.generateVariantSlug = async function (variant) {
+    if (!variant.name || variant.name.trim() === '') {
+        throw new Error('Variant name is required to generate slug.');
+    }
 
-// FIXED updateReviewStats method in productModel.js
-productSchema.methods.updateReviewStats = async function () {
-    const Review = mongoose.model('Review');
+    // Start with product slug as base
+    const productSlug = this.slug;
+    let baseVariantSlug = variant.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-    try {
-        const reviewStats = await Review.aggregate([
-            {
-                $match: {
-                    product: this._id,
-                    status: 'approved'
-                }
-            },
-            {
-                $group: {
-                    _id: '$product',
-                    totalReviews: { $sum: 1 },
-                    averageRating: { $avg: '$rating' }
-                }
-            }
-        ]);
+    // If variant name is too generic, use identifying attributes
+    if (!baseVariantSlug || baseVariantSlug === productSlug) {
+        const attrString = variant.identifyingAttributes
+            ?.map(attr => attr.value)
+            .filter(Boolean)
+            .join('-')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)+/g, '') || 'variant';
 
-        if (reviewStats.length > 0) {
-            this.totalReviews = reviewStats[0].totalReviews;
-            this.averageRating = parseFloat(reviewStats[0].averageRating.toFixed(1));
-        } else {
-            // If no reviews, reset to 0
-            this.totalReviews = 0;
-            this.averageRating = 0;
+        baseVariantSlug = attrString;
+    }
+
+    let variantSlug = `${productSlug}-${baseVariantSlug}`;
+    let count = 0;
+
+    // Check for duplicate variant slugs within the same product
+    const existingSlugs = new Set();
+    this.variants.forEach(v => {
+        if (v._id !== variant._id && v.slug) {
+            existingSlugs.add(v.slug);
         }
+    });
 
-        await this.save();
-        console.log(`✅ Updated review stats for ${this.name}: ${this.averageRating} avg, ${this.totalReviews} total`);
-        return this;
-    } catch (error) {
-        console.error('❌ Error updating review stats:', error);
-        throw error;
+    let tempSlug = variantSlug;
+    while (existingSlugs.has(tempSlug)) {
+        count++;
+        tempSlug = `${variantSlug}-${count}`;
     }
+
+    variant.slug = tempSlug;
 };
 
-// 🆕 NEW: Static method to update review stats for a product
-productSchema.statics.updateProductReviewStats = async function (productId) {
-    const product = await this.findById(productId);
-    if (!product) {
-        throw new Error('Product not found');
-    }
-    return await product.updateReviewStats();
-};
 // =============================================
-// 🎯 HELPER METHODS (MISSING METHODS ADDED)
+// 🎯 HELPER METHODS (UPDATED FOR SLUGS)
 // =============================================
 
 // Generate variant name from attributes
@@ -305,6 +303,17 @@ productSchema.methods.generateVariantSKU = function (combination) {
         attr.value.replace(/[^a-z0-9]/gi, '').toUpperCase().substring(0, 3)
     );
     return `${baseSKU}-${variantCodes.join('-')}`;
+};
+
+// 🆕 Generate variant slug from combination
+productSchema.methods.generateVariantSlugFromAttributes = function (combination) {
+    const productSlug = this.slug;
+    const variantSlugPart = combination
+        .map(attr => attr.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
+        .join('-')
+        .replace(/(^-|-$)+/g, '');
+
+    return `${productSlug}-${variantSlugPart}`;
 };
 
 // Format identifying attributes
@@ -334,11 +343,11 @@ productSchema.methods.generateVariantSpecifications = function (combination) {
 };
 
 // =============================================
-// 🎯 INSTANCE METHODS (UPDATED)
+// 🎯 INSTANCE METHODS (UPDATED WITH SLUG SUPPORT)
 // =============================================
 
-// Generate variants from configuration
-productSchema.methods.generateVariants = function (baseVariantData = {}) {
+// Generate variants from configuration (UPDATED with slug generation)
+productSchema.methods.generateVariants = async function (baseVariantData = {}) {
     if (!this.variantConfiguration.hasVariants) {
         throw new Error('Product is not configured for variants');
     }
@@ -346,53 +355,35 @@ productSchema.methods.generateVariants = function (baseVariantData = {}) {
     const variantSpecs = this.variantConfiguration.variantCreatingSpecs;
     const allCombinations = this.generateAttributeCombinations(variantSpecs);
 
-    this.variants = allCombinations.map(combination => {
+    this.variants = await Promise.all(allCombinations.map(async (combination) => {
         const variantName = this.generateVariantName(combination);
         const attributes = this.formatIdentifyingAttributes(combination);
+        const baseSlug = this.generateVariantSlugFromAttributes(combination);
 
-        return {
+        // Create variant object
+        const variant = {
             name: variantName,
             identifyingAttributes: attributes,
             price: this.basePrice,
             stockQuantity: 0,
             sku: this.generateVariantSKU(combination),
+            slug: baseSlug, // Initial slug
             specifications: this.generateVariantSpecifications(combination),
             ...baseVariantData
         };
-    });
+
+        // Generate unique slug for this variant
+        await this.generateVariantSlug(variant);
+
+        return variant;
+    }));
 
     this.variantConfiguration.hasVariants = true;
     this.markModified('variants');
 };
 
-// Generate all possible combinations of variant attributes
-productSchema.methods.generateAttributeCombinations = function (variantSpecs) {
-    const combinations = [];
-
-    function generateRecursive(current, index) {
-        if (index === variantSpecs.length) {
-            combinations.push([...current]);
-            return;
-        }
-
-        const spec = variantSpecs[index];
-        for (const value of spec.possibleValues) {
-            current.push({
-                key: spec.specKey,
-                label: spec.specLabel,
-                value: value
-            });
-            generateRecursive(current, index + 1);
-            current.pop();
-        }
-    }
-
-    generateRecursive([], 0);
-    return combinations;
-};
-
-// Add variant (UPDATED for consistent naming)
-productSchema.methods.addVariant = function (variant) {
+// Add variant (UPDATED with slug generation)
+productSchema.methods.addVariant = async function (variant) {
     if (!variant.name || typeof variant.price !== 'number' || variant.price < 0 || !variant.identifyingAttributes || !variant.identifyingAttributes.length) {
         throw new Error('Variant must have a name, valid price (>= 0), and at least one identifying attribute.');
     }
@@ -400,12 +391,39 @@ productSchema.methods.addVariant = function (variant) {
         throw new Error(`Variant SKU "${variant.sku}" already exists.`);
     }
 
+    // Generate slug for the new variant
+    await this.generateVariantSlug(variant);
+
     this.variants.push(variant);
     this.variantConfiguration.hasVariants = true;
     this.markModified('variants');
 };
 
-// Find variant by specific attributes (UPDATED for consistent naming)
+// 🆕 Get variant by slug
+productSchema.methods.findVariantBySlug = function (variantSlug) {
+    return this.variants.find(v => v.slug === variantSlug);
+};
+
+// 🆕 Get variant URL (useful for frontend)
+productSchema.methods.getVariantURL = function (variantSlug) {
+    const variant = this.findVariantBySlug(variantSlug);
+    if (!variant) return null;
+
+    return `/products/${this.slug}/variants/${variant.slug}`;
+};
+
+// 🆕 Get all variant slugs (useful for sitemap)
+productSchema.methods.getAllVariantSlugs = function () {
+    return this.variants
+        .filter(v => v.isActive && v.slug)
+        .map(v => ({
+            productSlug: this.slug,
+            variantSlug: v.slug,
+            variantName: v.name
+        }));
+};
+
+// Find variant by specific attributes
 productSchema.methods.findVariantByAttributes = function (attributes) {
     return this.variants.find(variant =>
         variant.identifyingAttributes.every(attr =>
@@ -414,7 +432,7 @@ productSchema.methods.findVariantByAttributes = function (attributes) {
     );
 };
 
-// Find variant (legacy method - UPDATED for consistent naming)
+// Find variant (legacy method)
 productSchema.methods.findVariant = function (attributes) {
     if (!attributes || typeof attributes !== 'object' || Object.keys(attributes).length === 0) {
         throw new Error('Attributes must be a non-empty object with key-value pairs.');
@@ -424,7 +442,7 @@ productSchema.methods.findVariant = function (attributes) {
     );
 };
 
-// 🆕 NEW: Bulk update variant prices
+// 🆕 Bulk update variant prices
 productSchema.methods.updateVariantsPricing = function (priceUpdate) {
     if (!this.variantConfiguration.hasVariants) {
         throw new Error('Product does not have variants');
@@ -447,12 +465,12 @@ productSchema.methods.updateVariantsPricing = function (priceUpdate) {
     this.markModified('variants');
 };
 
-// 🆕 NEW: Get variant by SKU
+// 🆕 Get variant by SKU
 productSchema.methods.findVariantBySKU = function (sku) {
     return this.variants.find(v => v.sku === sku);
 };
 
-// 🆕 NEW: Check if variant combination exists
+// 🆕 Check if variant combination exists
 productSchema.methods.variantExists = function (attributes) {
     return this.variants.some(variant =>
         variant.identifyingAttributes.every(attr =>
@@ -461,7 +479,7 @@ productSchema.methods.variantExists = function (attributes) {
     );
 };
 
-// 🆕 NEW: Get available colors with stock info
+// 🆕 Get available colors with stock info
 productSchema.virtual('availableColors').get(function () {
     if (!this.variantConfiguration.hasVariants || !this.variants.length) return [];
 
@@ -479,7 +497,8 @@ productSchema.virtual('availableColors').get(function () {
                 displayValue: colorAttr.displayValue || colorValue,
                 hexCode: colorAttr.hexCode,
                 stock: 0,
-                variants: []
+                variants: [],
+                slug: variant.slug // 🆕 Include variant slug
             };
 
             existing.stock += variant.stockQuantity;
@@ -492,7 +511,7 @@ productSchema.virtual('availableColors').get(function () {
 });
 
 // =============================================
-// 🎯 INSTANCE METHODS (Color Support)
+// 🎯 INSTANCE METHODS (Color Support with Slug)
 // =============================================
 
 /**
@@ -549,9 +568,9 @@ productSchema.methods.getColorStock = function (colorValue) {
 };
 
 /**
- * Simple method to add color variant
+ * Simple method to add color variant (UPDATED with slug generation)
  */
-productSchema.methods.addColorVariant = function (colorName, variantData) {
+productSchema.methods.addColorVariant = async function (colorName, variantData) {
     const colorVariant = {
         name: `${this.name} - ${colorName}`,
         price: variantData.price || this.basePrice,
@@ -570,6 +589,9 @@ productSchema.methods.addColorVariant = function (colorName, variantData) {
         },
         ...variantData
     };
+
+    // Generate slug for the color variant
+    await this.generateVariantSlug(colorVariant);
 
     this.variants.push(colorVariant);
     this.variantConfiguration.hasVariants = true;
@@ -620,6 +642,60 @@ productSchema.methods.getColorHexCode = function (colorName) {
     return colorMap[colorName.toLowerCase()] || '#CCCCCC';
 };
 
+// Virtual for reviews from separate collection
+productSchema.virtual('reviews', {
+    ref: 'Review',
+    localField: '_id',
+    foreignField: 'product'
+});
+
+// FIXED updateReviewStats method in productModel.js
+productSchema.methods.updateReviewStats = async function () {
+    const Review = mongoose.model('Review');
+
+    try {
+        const reviewStats = await Review.aggregate([
+            {
+                $match: {
+                    product: this._id,
+                    status: 'approved'
+                }
+            },
+            {
+                $group: {
+                    _id: '$product',
+                    totalReviews: { $sum: 1 },
+                    averageRating: { $avg: '$rating' }
+                }
+            }
+        ]);
+
+        if (reviewStats.length > 0) {
+            this.totalReviews = reviewStats[0].totalReviews;
+            this.averageRating = parseFloat(reviewStats[0].averageRating.toFixed(1));
+        } else {
+            // If no reviews, reset to 0
+            this.totalReviews = 0;
+            this.averageRating = 0;
+        }
+
+        await this.save();
+        return this;
+    } catch (error) {
+        console.error('❌ Error updating review stats:', error);
+        throw error;
+    }
+};
+
+// 🆕 NEW: Static method to update review stats for a product
+productSchema.statics.updateProductReviewStats = async function (productId) {
+    const product = await this.findById(productId);
+    if (!product) {
+        throw new Error('Product not found');
+    }
+    return await product.updateReviewStats();
+};
+
 productSchema.index({
     name: 'text',
     description: 'text',
@@ -635,5 +711,7 @@ productSchema.index({
     }
 });
 
+// 🆕 Index for variant slugs
+productSchema.index({ 'variants.slug': 1 });
 
 module.exports = mongoose.model('Product', productSchema);

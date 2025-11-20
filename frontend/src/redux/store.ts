@@ -7,11 +7,13 @@ import cartReducer from './slices/cartSlice';
 import reviewReducer from './slices/reviewSlice';
 import wishlistReducer from './slices/wishlistSlice';
 import preBuiltPCReducer from './slices/preBuiltPCSlice'; 
+import checkoutReducer from './slices/checkoutSlice';
 // import orderReducer from './slices/orderSlice';
 
 const store = configureStore({
     reducer: {
         productsState: productsReducer,
+        checkout: checkoutReducer,
         productState: productReducer,
         authState: authReducer,
         profileState: profileReducer,

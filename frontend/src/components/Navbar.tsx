@@ -25,47 +25,49 @@ import {
 } from '../../src/redux/selectors/index';
 import { baseURL } from './config/config';
 import SearchBar from './home/SearchBar';
+import api from '../components/config/axiosConfig';
 
-const navItems: NavItem[] = [
+// Types for fetched data
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  parent?: string;
+  image?: string;
+  productCount?: number;
+}
+
+interface Brand {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logo: {
+    url: string | null;
+    altText: string | null;
+    publicId: string | null;
+  };
+  productCount?: number;
+}
+
+// Updated navItems structure - will be populated dynamically
+let navItems: NavItem[] = [
   { label: 'Home', href: '/' },
   {
-    label: 'Shop',
-    href: '/products',
-    children: [
-      { label: 'Laptops', href: '/products/category/laptops' },
-      { label: 'Desktops', href: '/products/category/desktops' },
-      { label: 'Monitors', href: '/products/category/monitors' },
-      { label: 'Components', href: '/products/category/components' },
-      { label: 'Peripherals', href: '/products/category/peripherals' },
-    ],
+    label: 'Categories',
+    href: '/categories',
+    children: [] // Will be populated with categories from API
   },
   {
-    label: 'Brands',
+    label: 'Brands', 
     href: '/brands',
-    children: [
-      { label: 'Intel', href: '/brands/intel' },
-      { label: 'AMD', href: '/brands/amd' },
-      { label: 'Nvidia', href: '/brands/nvidia' },
-      { label: 'Logitech', href: '/brands/logitech' },
-      { label: 'Corsair', href: '/brands/corsair' },
-    ],
+    children: [] // Will be populated with brands from API
   },
-  { label: 'Pre Build PC', href: '/prebuilt-pcs' },
-  {
-    label: 'Services',
-    href: '/services',
-    children: [
-      { label: 'Custom Builds', href: '/services/custom-builds' },
-      { label: 'Repairs & Upgrades', href: '/services/repairs' },
-      { label: 'Consulting', href: '/services/consulting' },
-    ],
-  },
-  { label: 'Deals', href: '/deals' },
-  { label: 'Blog', href: '/blog' },
-  { label: 'Support', href: '/support' },
-  { label: 'About', href: '/about' },
-  { label: 'Contact', href: '/contact' },
+  { label: 'Pre-Built PC', href: '/prebuilt-pcs' },
+  { label: 'PC Build', href: '/pc-build' },
 ];
+
 // Updated AuthenticatedUserSection Component with Profile Button
 const AuthenticatedUserSection: React.FC<{ closeMobileMenu: () => void }> = ({ closeMobileMenu }) => {
   const dispatch = useAppDispatch();
@@ -164,8 +166,9 @@ const AuthenticatedUserSection: React.FC<{ closeMobileMenu: () => void }> = ({ c
     </div>
   );
 };
+
 const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
-  if (item.children) {
+  if (item.children && item.children.length > 0) {
     return (
       <li className="group relative">
         <Link
@@ -211,7 +214,7 @@ interface MobileNavLinkProps {
 const MobileNavLink: React.FC<MobileNavLinkProps> = ({ item, closeMenu }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  if (item.children) {
+  if (item.children && item.children.length > 0) {
     return (
       <li>
         <button
@@ -568,7 +571,88 @@ const MobileUserMenu: React.FC = () => {
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+
+  // Fetch categories and brands data
+  const fetchNavData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const [categoriesRes, brandsRes] = await Promise.all([
+        api.get('/categories'),
+        api.get('/brands'),
+      ]);
+
+      const categoriesData = categoriesRes.data;
+      const brandsData = brandsRes.data;
+
+      setCategories(categoriesData.categories || categoriesData || []);
+      setBrands(brandsData.brands || brandsData || []);
+    } catch (err) {
+      console.error('Error fetching navigation data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch navigation data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNavData();
+  }, []);
+
+  // Update navItems with fetched data
+  const updatedNavItems = React.useMemo(() => {
+    const categoryItems = categories.map(category => ({
+      label: category.name,
+      href: `/products/category/${category.slug}`
+    }));
+
+    const brandItems = brands.map(brand => ({
+      label: brand.name,
+      href: `/brands/${brand.slug}`
+    }));
+
+    return [
+      { label: 'Home', href: '/' },
+      {
+        label: 'Categories',
+        href: '/categories',
+        children: categoryItems
+      },
+      {
+        label: 'Brands',
+        href: '/brands', 
+        children: brandItems
+      },
+      { label: 'Pre-Built PC', href: '/prebuilt-pcs' },
+      { label: 'PC Build', href: '/pc-build' },
+
+
+
+
+
+      {
+    label: 'Services',
+    href: '/services',
+    children: [
+      { label: 'Custom Builds', href: '/services/custom-builds' },
+      { label: 'Repairs & Upgrades', href: '/services/repairs' },
+      { label: 'Consulting', href: '/services/consulting' },
+    ],
+  },
+  { label: 'Custom Pc', href: '/custom-pcs' },
+  { label: 'Blog', href: '/blog' },
+  { label: 'Support', href: '/support' },
+  { label: 'About', href: '/about' },
+  { label: 'Contact', href: '/contact' },
+    ];
+  }, [categories, brands]);
 
   useEffect(() => {
     if (isMenuOpen) {
@@ -667,7 +751,7 @@ const Navbar: React.FC = () => {
             {/* Desktop Navigation Links */}
             <nav className="hidden lg:flex h-12 items-center justify-center">
               <ul className="flex items-center space-x-1 font-medium">
-                {navItems.map((item) => (
+                {updatedNavItems.map((item) => (
                   <NavLink key={item.label} item={item} />
                 ))}
               </ul>
@@ -682,93 +766,77 @@ const Navbar: React.FC = () => {
       </header>
       
       {/* === MOBILE MENU FLYOUT === */}
-<div
-  role="dialog"
-  aria-modal="true"
-  aria-label="Main menu"
-  className={`fixed inset-0 z-50 lg:hidden ${!isMenuOpen && 'pointer-events-none'}`}
->
-  {/* Backdrop */}
-  <div
-    className={`fixed inset-0 bg-black/50 transition-opacity duration-300 ease-in-out ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`}
-    onClick={closeMobileMenu}
-    aria-hidden="true"
-  />
-
-  {/* Sidebar */}
-{/* === MOBILE MENU FLYOUT === */}
-<div
-  role="dialog"
-  aria-modal="true"
-  aria-label="Main menu"
-  className={`fixed inset-0 z-50 lg:hidden ${!isMenuOpen && 'pointer-events-none'}`}
->
-  {/* Backdrop */}
-  <div
-    className={`fixed inset-0 bg-black/50 transition-opacity duration-300 ease-in-out ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`}
-    onClick={closeMobileMenu}
-    aria-hidden="true"
-  />
-
-  {/* Sidebar */}
-  <div
-    className={`absolute top-0 left-0 h-full w-full max-w-sm bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
-  >
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-blue-600 text-white shrink-0">
-        <h2 className="text-xl font-bold">Menu</h2>
-        <button
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Main menu"
+        className={`fixed inset-0 z-50 lg:hidden ${!isMenuOpen && 'pointer-events-none'}`}
+      >
+        {/* Backdrop */}
+        <div
+          className={`fixed inset-0 bg-black/50 transition-opacity duration-300 ease-in-out ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`}
           onClick={closeMobileMenu}
-          className="p-2 text-white hover:text-blue-200 rounded-full hover:bg-blue-700 transition-colors"
-          aria-label="Close navigation menu"
-        >
-          <XIcon className="w-6 h-6" />
-        </button>
-      </div>
-      
-      {/* Navigation Links - Scrollable area */}
-      <nav className="flex-1 overflow-y-auto">
-        <ul className="flex flex-col divide-y divide-gray-200">
-          {navItems.map((item) => (
-            <MobileNavLink 
-              key={item.label} 
-              item={item} 
-              closeMenu={closeMobileMenu} 
-            />
-          ))}
-        </ul>
-      </nav>
+          aria-hidden="true"
+        />
 
-      {/* Compact User Section - Fixed at bottom */}
-      <div className="shrink-0 border-t border-gray-200 bg-white">
-        {isAuthenticated ? (
-          <AuthenticatedUserSection closeMobileMenu={closeMobileMenu} />
-        ) : (
-          <div className="p-4 bg-gray-50">
-            <div className="space-y-2">
-              <Link
-                to="/login"
-                className="block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium"
+        {/* Sidebar */}
+        <div
+          className={`absolute top-0 left-0 h-full w-full max-w-sm bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        >
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-blue-600 text-white shrink-0">
+              <h2 className="text-xl font-bold">Menu</h2>
+              <button
                 onClick={closeMobileMenu}
+                className="p-2 text-white hover:text-blue-200 rounded-full hover:bg-blue-700 transition-colors"
+                aria-label="Close navigation menu"
               >
-                Sign In
-              </Link>
-              <Link
-                to="/register"
-                className="block w-full text-center border border-blue-600 text-blue-600 py-2 px-4 rounded-md hover:bg-blue-50 transition-colors font-medium"
-                onClick={closeMobileMenu}
-              >
-                Create Account
-              </Link>
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Navigation Links - Scrollable area */}
+            <nav className="flex-1 overflow-y-auto">
+              <ul className="flex flex-col divide-y divide-gray-200">
+                {updatedNavItems.map((item) => (
+                  <MobileNavLink 
+                    key={item.label} 
+                    item={item} 
+                    closeMenu={closeMobileMenu} 
+                  />
+                ))}
+              </ul>
+            </nav>
+
+            {/* Compact User Section - Fixed at bottom */}
+            <div className="shrink-0 border-t border-gray-200 bg-white">
+              {isAuthenticated ? (
+                <AuthenticatedUserSection closeMobileMenu={closeMobileMenu} />
+              ) : (
+                <div className="p-4 bg-gray-50">
+                  <div className="space-y-2">
+                    <Link
+                      to="/login"
+                      className="block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium"
+                      onClick={closeMobileMenu}
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      to="/register"
+                      className="block w-full text-center border border-blue-600 text-blue-600 py-2 px-4 rounded-md hover:bg-blue-50 transition-colors font-medium"
+                      onClick={closeMobileMenu}
+                    >
+                      Create Account
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
-    </div>
-  </div>
-</div>
-</div>
     </>
   );
 };

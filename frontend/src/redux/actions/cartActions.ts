@@ -539,7 +539,6 @@ const syncGuestCart = () => async (dispatch: any, getState: any) => {
     // We don't need this because the modal only shows when appropriate
     
     if (guestCart.length > 0) {
-      console.log(`🛒 Syncing ${guestCart.length} guest cart items for user ${currentUser}`);
       
       // ✅ SIMPLIFIED: Just send all items to backend, let backend handle duplicates
       const response = await cartAPI.syncGuestCart(guestCart);
@@ -548,10 +547,8 @@ const syncGuestCart = () => async (dispatch: any, getState: any) => {
       localStorageUtils.clearGuestCart();
       localStorageUtils.setLastSyncedUser(currentUser);
       
-      console.log('✅ Cart sync completed successfully');
       toast.success(`Added ${guestCart.length} items to your cart!`);
     } else {
-      console.log('🛒 No guest cart items to sync');
     }
     
     // Always fetch fresh cart after sync
@@ -718,10 +715,7 @@ const removePreBuiltPCFromCart = (pcId: string) => async (dispatch: any, getStat
     
     const state = getState();
     const isGuest = !state.authState.isAuthenticated;
-    
-    console.log('🗑️ Removing pre-built PC:', { pcId, isGuest });
-
-    if (!pcId || pcId === 'undefined') {
+     if (!pcId || pcId === 'undefined') {
       throw new Error('Invalid PC ID');
     }
 

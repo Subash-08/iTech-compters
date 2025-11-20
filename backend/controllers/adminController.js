@@ -1,4 +1,4 @@
-// adminController.js - FIX THE IMPORT
+// adminController.js - UPDATED with linked products support
 const ProductModule = require("../models/productModel");
 const ErrorHandler = require('../utils/errorHandler')
 const categoryModel = require("../models/categoryModel");
@@ -17,12 +17,13 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler("Product not found", 404));
     }
 
-    // Define allowed fields that can be updated
+    // Define allowed fields that can be updated (ADDED linkedProducts)
     const allowedFields = [
         'name', 'description', 'brand', 'categories', 'status', 'condition',
         'isActive', 'definition', 'tags', 'label', 'specifications', 'features',
         'basePrice', 'offerPrice', 'discountPercentage', 'stockQuantity',
-        'barcode', 'sku', 'weight', 'dimensions', 'warranty', 'taxRate', 'notes'
+        'barcode', 'sku', 'weight', 'dimensions', 'warranty', 'taxRate', 'notes',
+        'linkedProducts' // 🆕 ADDED linkedProducts field
     ];
 
     const updateData = {};
@@ -33,6 +34,20 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             updateData[field] = req.body[field];
         }
     });
+
+    // 🆕 LINKED PRODUCTS VALIDATION
+    if (req.body.linkedProducts !== undefined) {
+        const validatedLinkedProducts = await validateLinkedProducts(
+            req.body.linkedProducts,
+            req.params.id
+        );
+
+        if (validatedLinkedProducts.error) {
+            return next(new ErrorHandler(validatedLinkedProducts.error, 400));
+        }
+
+        updateData.linkedProducts = validatedLinkedProducts.validated;
+    }
 
     // Handle complex objects separately
     if (req.body.variantConfiguration !== undefined) {
@@ -50,9 +65,25 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
         updateData.variants = await processVariantsUpdate(product.variants, req.body.variants);
     }
 
+    // Handle nested objects
+    if (req.body.images) {
+        updateData.images = { ...product.images, ...req.body.images };
+    }
+
+    if (req.body.dimensions) {
+        updateData.dimensions = { ...product.dimensions, ...req.body.dimensions };
+    }
+
+    if (req.body.weight) {
+        updateData.weight = { ...product.weight, ...req.body.weight };
+    }
+
+    if (req.body.meta) {
+        updateData.meta = { ...product.meta, ...req.body.meta };
+    }
+
     // Add updatedAt timestamp
     updateData.updatedAt = Date.now();
-
 
     // Perform the update
     product = await Product.findByIdAndUpdate(
@@ -73,7 +104,50 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// **NEW: Helper function to process variants with proper merging**
+// 🆕 NEW: Linked Products Validation Helper
+const validateLinkedProducts = async (linkedProducts, currentProductId) => {
+    if (!Array.isArray(linkedProducts)) {
+        return { error: "Linked products must be an array" };
+    }
+
+    // Remove duplicates
+    const uniqueLinkedProducts = [...new Set(linkedProducts)];
+
+    // Validate each linked product exists and is not the current product
+    const validatedLinkedProducts = [];
+
+    for (const linkedProductId of uniqueLinkedProducts) {
+        if (!mongoose.Types.ObjectId.isValid(linkedProductId)) {
+            return { error: `Invalid linked product ID: ${linkedProductId}` };
+        }
+
+        // Prevent self-linking
+        if (linkedProductId === currentProductId) {
+            return { error: 'Cannot link product to itself' };
+        }
+
+        // Check if product exists and is active
+        const linkedProduct = await Product.findOne({
+            _id: linkedProductId,
+            isActive: true
+        });
+
+        if (!linkedProduct) {
+            return { error: `Linked product with ID ${linkedProductId} not found or inactive` };
+        }
+
+        validatedLinkedProducts.push(linkedProductId);
+    }
+
+    // Limit the number of linked products to prevent abuse
+    if (validatedLinkedProducts.length > 50) {
+        return { error: 'Cannot link more than 50 products' };
+    }
+
+    return { validated: validatedLinkedProducts };
+};
+
+// **EXISTING: Helper function to process variants with proper merging**
 const processVariantsUpdate = async (existingVariants, newVariants) => {
     const processedVariants = [];
 
@@ -136,7 +210,7 @@ const processVariantsUpdate = async (existingVariants, newVariants) => {
     return processedVariants;
 };
 
-// **NEW: Helper to detect if variants match based on identifying attributes**
+// **EXISTING: Helper to detect if variants match based on identifying attributes**
 const areVariantsMatching = (existingVariant, newVariant) => {
     const existingAttrs = existingVariant.identifyingAttributes || [];
     const newAttrs = newVariant.identifyingAttributes || [];
@@ -152,7 +226,7 @@ const areVariantsMatching = (existingVariant, newVariant) => {
     );
 };
 
-// **NEW: Process identifying attributes with color detection and hex codes**
+// **EXISTING: Process identifying attributes with color detection and hex codes**
 const processIdentifyingAttributes = (attributes) => {
     return attributes.map(attr => {
         const processedAttr = {
@@ -174,7 +248,7 @@ const processIdentifyingAttributes = (attributes) => {
     });
 };
 
-// **NEW: Color hex code mapping (same as your frontend)**
+// **EXISTING: Color hex code mapping**
 const getColorHexCode = (colorName) => {
     const colorMap = {
         'red': '#dc2626',
@@ -197,45 +271,7 @@ const getColorHexCode = (colorName) => {
     return colorMap[colorName.toLowerCase()] || '#6b7280';
 };
 
-// **NEW: Specific endpoint for variant management**
-exports.updateProductVariants = catchAsyncErrors(async (req, res, next) => {
-    const product = await Product.findById(req.params.id);
-
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    if (!req.body.variants || !Array.isArray(req.body.variants)) {
-        return next(new ErrorHandler("Variants data is required", 400));
-    }
-
-    // Process variants with the helper function
-    const updatedVariants = await processVariantsUpdate(product.variants, req.body.variants);
-
-    // Update product with new variants
-    const updatedProduct = await Product.findByIdAndUpdate(
-        req.params.id,
-        {
-            $set: {
-                variants: updatedVariants,
-                updatedAt: Date.now()
-            }
-        },
-        {
-            new: true,
-            runValidators: true,
-            useFindAndModify: false,
-        }
-    );
-
-    res.status(200).json({
-        success: true,
-        message: "Product variants updated successfully",
-        product: updatedProduct,
-    });
-});
-
-
+// 🆕 UPDATE: Also update partialUpdateProduct to support linked products
 exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {
     const product = await Product.findById(req.params.id);
 
@@ -243,12 +279,12 @@ exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler("Product not found", 404));
     }
 
-    // List of allowed fields for partial update
+    // List of allowed fields for partial update (ADDED linkedProducts)
     const allowedFields = [
         'name', 'description', 'definition', 'brand', 'categories', 'tags',
         'condition', 'label', 'isActive', 'status', 'basePrice', 'offerPrice',
         'discountPercentage', 'taxRate', 'sku', 'barcode', 'stockQuantity',
-        'warranty', 'canonicalUrl', 'notes'
+        'warranty', 'canonicalUrl', 'notes', 'linkedProducts' // 🆕 ADDED
     ];
 
     // Build update object only with provided and allowed fields
@@ -258,6 +294,20 @@ exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {
             updates[field] = req.body[field];
         }
     });
+
+    // 🆕 LINKED PRODUCTS VALIDATION FOR PARTIAL UPDATE
+    if (req.body.linkedProducts !== undefined) {
+        const validatedLinkedProducts = await validateLinkedProducts(
+            req.body.linkedProducts,
+            req.params.id
+        );
+
+        if (validatedLinkedProducts.error) {
+            return next(new ErrorHandler(validatedLinkedProducts.error, 400));
+        }
+
+        updates.linkedProducts = validatedLinkedProducts.validated;
+    }
 
     // Handle nested objects
     if (req.body.images) {
@@ -296,10 +346,46 @@ exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// Update product status only
+// **EXISTING: Specific endpoint for variant management**
+exports.updateProductVariants = catchAsyncErrors(async (req, res, next) => {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+        return next(new ErrorHandler("Product not found", 404));
+    }
+
+    if (!req.body.variants || !Array.isArray(req.body.variants)) {
+        return next(new ErrorHandler("Variants data is required", 400));
+    }
+
+    // Process variants with the helper function
+    const updatedVariants = await processVariantsUpdate(product.variants, req.body.variants);
+
+    // Update product with new variants
+    const updatedProduct = await Product.findByIdAndUpdate(
+        req.params.id,
+        {
+            $set: {
+                variants: updatedVariants,
+                updatedAt: Date.now()
+            }
+        },
+        {
+            new: true,
+            runValidators: true,
+            useFindAndModify: false,
+        }
+    );
+
+    res.status(200).json({
+        success: true,
+        message: "Product variants updated successfully",
+        product: updatedProduct,
+    });
+});
+
+// **EXISTING: Update product status only**
 exports.updateProductStatus = catchAsyncErrors(async (req, res, next) => {
-
-
     const { status } = req.body;
 
     // Validate status
@@ -330,7 +416,7 @@ exports.updateProductStatus = catchAsyncErrors(async (req, res, next) => {
     }
 });
 
-// Update product inventory only
+// **EXISTING: Update product inventory only**
 exports.updateProductInventory = catchAsyncErrors(async (req, res, next) => {
     const { stockQuantity, sku, barcode } = req.body;
 

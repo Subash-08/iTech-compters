@@ -230,8 +230,6 @@ const PricingInventorySection: React.FC<PricingInventorySectionProps> = ({
               min="0"
               value={formData.stockQuantity && formData.stockQuantity < 10 ? formData.stockQuantity : 10}
               onChange={(e) => {
-                // This would typically update a separate lowStockThreshold field
-                console.log('Low stock threshold set to:', e.target.value);
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />

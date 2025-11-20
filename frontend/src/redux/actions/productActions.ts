@@ -145,14 +145,10 @@ export const productAPI = {
       // Map frontend sortBy to backend sort parameter
       if (filters.sortBy) {
         params.sort = sortMap[filters.sortBy] || 'createdAt';
-        console.log('🔀 Frontend sortBy:', filters.sortBy, '-> Backend sort:', params.sort);
       } else {
         // Default sort if not provided
         params.sort = 'createdAt';
-      }
-
-      console.log('🚀 API Call - Category:', categoryName, 'Params:', params);
-      
+      }      
       const response = await api.get<ProductsResponse>(`/products/category/${categoryName}`, { params });
       
       return response.data;
@@ -194,13 +190,9 @@ export const productAPI = {
       
       if (filters.sortBy) {
         params.sort = sortMap[filters.sortBy] || 'createdAt';
-        console.log('🔀 Frontend sortBy:', filters.sortBy, '-> Backend sort:', params.sort);
       } else {
         params.sort = 'createdAt';
-      }
-
-      console.log('🚀 API Call - Brand:', brandName, 'Params:', params);
-      
+      }      
       const response = await api.get<ProductsResponse>(`/products/brand/${brandName}`, { params });
       
       return response.data;
@@ -213,9 +205,6 @@ export const productAPI = {
   // ✅ FIXED: Get accurate price range for current filters
   getPriceRange: async (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }): Promise<{ minPrice: number; maxPrice: number }> => {
     try {
-      console.log('💰 Calculating price range with filters:', filters);
-      
-      // ✅ CRITICAL FIX: Remove price filters for base range calculation
       const rangeFilters = { ...filters };
       delete rangeFilters.minPrice;
       delete rangeFilters.maxPrice;
@@ -238,25 +227,17 @@ export const productAPI = {
       } else {
         response = await productAPI.getProducts(priceRangeParams);
       }
-
-      console.log('📊 Price range calculation found', response.products.length, 'products');
-
       if (response.products.length > 0) {
         // ✅ FIX: Use basePrice for range calculation, not offerPrice
         const prices = response.products.map(product => product.basePrice);
         
         const minPrice = Math.floor(Math.min(...prices));
-        const maxPrice = Math.ceil(Math.max(...prices));
-        
-        console.log('💵 Calculated price range:', { minPrice, maxPrice });
-        
+        const maxPrice = Math.ceil(Math.max(...prices));        
         return {
           minPrice: Math.max(0, minPrice),
           maxPrice: Math.max(minPrice + 100, maxPrice)
         };
       }
-
-      console.log('⚠️ No products found for price range, using defaults');
       return { minPrice: 0, maxPrice: 5000 };
     } catch (error: any) {
       console.error('❌ Error fetching price range:', error.message);
@@ -332,19 +313,14 @@ export const productActions = {
   // ✅ FIXED: Fetch base price range with explicit filters
 fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
   try {
-    console.log('🔄 Fetching base price range with filters:', filters);
     
-    // ✅ FIXED: Remove ALL filters for base range calculation
     const baseRangeFilters = {
       limit: 1000,
       page: 1,
       sortBy: 'price-low'
     };
     
-    const priceRange = await productAPI.getPriceRange(baseRangeFilters, routeParams);
-    
-    console.log('🎯 Base price range calculated:', priceRange);
-    
+    const priceRange = await productAPI.getPriceRange(baseRangeFilters, routeParams);    
     dispatch({
       type: 'products/updateAvailableFilters',
       payload: {
@@ -405,7 +381,6 @@ fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandNam
   // ✅ FIXED: Fetch price range - both min and max
   fetchPriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
-      console.log('💰 Fetching price range with filters:', filters);
       const priceRange = await productAPI.getPriceRange(filters, routeParams);
       
       dispatch({

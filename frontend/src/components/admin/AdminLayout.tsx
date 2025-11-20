@@ -39,6 +39,8 @@ import ShowcaseSectionForm from './showcase/ShowcaseSectionForm';
 import PreBuiltPCList from './prebuilt-pcs/PreBuiltPCList';
 import PreBuiltPCForm from './prebuilt-pcs/PreBuiltPCForm';
 import PreBuiltPCBenchmarks from './prebuilt-pcs/PreBuiltPCBenchmarks';
+import CouponList from './coupons/CouponList';
+import CouponForm from './coupons/CouponForm';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -434,6 +436,11 @@ const AdminLayout: React.FC = () => {
 <Route path="/prebuilt-pcs/new" element={<PreBuiltPCForm />} />
 <Route path="/prebuilt-pcs/edit/:id" element={<PreBuiltPCForm />} />
 <Route path="/prebuilt-pcs/benchmarks/:id" element={<PreBuiltPCBenchmarks />} />
+
+{/* 🆕 Coupon Routes */}
+  <Route path="/coupons" element={<CouponList />} />
+  <Route path="/coupons/new" element={<CouponForm />} />
+  <Route path="/coupons/edit/:id" element={<CouponForm />} />
             </Routes>
           </div>
         </main>

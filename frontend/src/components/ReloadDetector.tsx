@@ -18,10 +18,6 @@ const ReloadDetector: React.FC = () => {
       const newCount = reloadCount + 1;
       setReloadCount(newCount);
       sessionStorage.setItem('reloadCount', newCount.toString());
-      
-      console.log('🔄 PAGE RELOAD DETECTED!');
-      console.log('📍 Current URL:', window.location.href);
-      console.log('🔢 Total reloads:', newCount);
       console.trace('Stack trace for reload:');
     }
 
@@ -30,9 +26,6 @@ const ReloadDetector: React.FC = () => {
     forms.forEach((form, index) => {
       const originalSubmit = form.onsubmit;
       form.onsubmit = function(e) {
-        console.log(`📝 Form ${index} submitted - will cause reload!`);
-        console.log('Form action:', form.action);
-        console.log('Form method:', form.method);
         console.trace();
         if (originalSubmit) {
           return originalSubmit.call(this, e);
@@ -45,7 +38,6 @@ const ReloadDetector: React.FC = () => {
     Object.defineProperty(window.location, 'href', {
       get: originalLocationHref.get,
       set: (value) => {
-        console.log('❌ window.location.href changed to:', value);
         console.trace();
         return originalLocationHref.set!.call(window.location, value);
       }
@@ -54,7 +46,6 @@ const ReloadDetector: React.FC = () => {
     // Monitor for reload calls
     const originalReload = window.location.reload;
     window.location.reload = function() {
-      console.log('❌ window.location.reload() called!');
       console.trace();
       return originalReload.call(this);
     };

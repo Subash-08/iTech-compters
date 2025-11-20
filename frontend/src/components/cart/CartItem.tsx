@@ -17,17 +17,13 @@ const CartItem: React.FC<CartItemProps> = ({
   onUpdatePreBuiltPCQuantity,
   onRemovePreBuiltPC 
 }) => {
-  // Debug logging to see the actual item structure
-  console.log('🛒 CartItem Debug:', item);
 
   // Determine if this is a pre-built PC or regular product
   const isPreBuiltPC = item.productType === 'prebuilt-pc' || item.preBuiltPC || item.pcId;
-  
-  // Enhanced data extraction with comprehensive fallbacks
+
   const product = item.product || {};
   const preBuiltPC = item.preBuiltPC || {};
   
-  // FIXED: Get item ID - check multiple possible locations
   const getItemId = () => {
     if (isPreBuiltPC) {
       // Check all possible locations for PC ID
@@ -48,50 +44,40 @@ const CartItem: React.FC<CartItemProps> = ({
       images = product.images || item.images || [];
     }
     
-    console.log('🖼️ Raw images data:', images);
-    
     // Handle different image formats
     if (Array.isArray(images) && images.length > 0) {
       const firstImage = images[0];
       
       // If array of image objects with url property
       if (firstImage?.url) {
-        console.log('🖼️ Using image URL from object:', firstImage.url);
         return formatImageUrl(firstImage.url);
       }
       
       // If array of strings (URLs)
       if (typeof firstImage === 'string') {
-        console.log('🖼️ Using image URL from string:', firstImage);
         return formatImageUrl(firstImage);
       }
       
       // If array of objects with public_id and url (Cloudinary)
       if (firstImage?.public_id && firstImage?.url) {
-        console.log('🖼️ Using Cloudinary image:', firstImage.url);
         return formatImageUrl(firstImage.url);
       }
     }
     
     // Handle single image object
     if (images?.url) {
-      console.log('🖼️ Using single image URL:', images.url);
       return formatImageUrl(images.url);
     }
     
     // Handle thumbnail
     if (images?.thumbnail?.url) {
-      console.log('🖼️ Using thumbnail URL:', images.thumbnail.url);
       return formatImageUrl(images.thumbnail.url);
     }
     
     // Handle main image for pre-built PCs
     if (images?.main?.url) {
-      console.log('🖼️ Using main image URL:', images.main.url);
       return formatImageUrl(images.main.url);
     }
-    
-    console.log('🖼️ No valid image found, using placeholder');
     return '/images/placeholder-image.jpg'; // Make sure this path exists
   };
 
@@ -128,7 +114,7 @@ const CartItem: React.FC<CartItemProps> = ({
     
     if (isPreBuiltPC) {
       const pcSlug = preBuiltPC.slug || preBuiltPC._id || itemId;
-      return `/prebuilt-pc/${pcSlug}`;
+      return `/prebuilt-pcs/${pcSlug}`;
     } else {
       const baseLink = `/product/${product.slug || product._id || itemId}`;
       const variantId = item.variant?._id || item.variantId || item.variant?.variantId;
@@ -162,9 +148,7 @@ const CartItem: React.FC<CartItemProps> = ({
 
   // Handle quantity update
   const handleUpdateQuantity = (newQuantity: number) => {
-    const itemId = getItemId();
-    console.log('🔄 Updating quantity for:', { itemId, newQuantity, isPreBuiltPC });
-    
+    const itemId = getItemId();    
     if (isPreBuiltPC && onUpdatePreBuiltPCQuantity) {
       onUpdatePreBuiltPCQuantity(itemId, newQuantity);
     } else {
@@ -175,7 +159,6 @@ const CartItem: React.FC<CartItemProps> = ({
   // Handle remove
   const handleRemove = () => {
     const itemId = getItemId();
-    console.log('🗑️ Removing item:', { itemId, isPreBuiltPC });
     
     if (isPreBuiltPC && onRemovePreBuiltPC) {
       onRemovePreBuiltPC(itemId);
@@ -192,12 +175,10 @@ const CartItem: React.FC<CartItemProps> = ({
 
   // Handle image error with better fallback
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    console.log('🖼️ Image failed to load:', itemImage);
     const target = e.target as HTMLImageElement;
     
     // If the current src is already the placeholder, don't try to set it again
     if (target.src.includes('placeholder-image.jpg')) {
-      console.log('🖼️ Placeholder also failed to load');
       return;
     }
     
@@ -271,13 +252,13 @@ const CartItem: React.FC<CartItemProps> = ({
           </div>
         )}
         
-        <p className="text-gray-600 text-xl font-bold mt-1">${itemPrice.toFixed(2)}</p>
+        <p className="text-gray-600 text-xl font-bold mt-1">Rs {itemPrice.toFixed(2)}</p>
         
         {/* Enhanced debug info */}
         <div className="text-xs text-gray-400 mt-1">
           Type: {isPreBuiltPC ? 'Pre-built PC' : 'Product'} | 
           ID: {itemId} | 
-          Price: ${itemPrice} | 
+          Price: Rs {itemPrice} | 
           Qty: {item.quantity}
           {!isPreBuiltPC && item.variantId && ` | Variant: ${item.variantId}`}
         </div>
@@ -306,7 +287,7 @@ const CartItem: React.FC<CartItemProps> = ({
       
       <div className="text-right">
         <p className="text-lg font-bold text-gray-900">
-          ${(itemPrice * item.quantity).toFixed(2)}
+          Rs {(itemPrice * item.quantity).toFixed(2)}
         </p>
         <button 
           onClick={handleRemove}

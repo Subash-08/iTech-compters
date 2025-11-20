@@ -320,7 +320,6 @@ export const Icons = {
   MoreVertical: MoreVertical,
   MoreHorizontal: MoreHorizontal,
   Home: Home,
-  
   // Catalog Management
   Categories: FolderTree,
   Brands: Tag,

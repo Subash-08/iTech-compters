@@ -14,6 +14,7 @@ const {
     debugCategoryProducts,
     advancedSearch,
     getProductsForSelection,
+    getProductsByIds,
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
@@ -29,7 +30,7 @@ router.get("/products", getProducts);  // Get all products with advanced filteri
 router.get("/products/slug/:slug", getProductBySlug);  // Get product by slug
 router.get("/products/category/:categoryName", getProductsByCategory);  // Products of a category by name/slug
 router.get("/products/brand/:brandName", getProductsByBrand);  // Products of a brand by name/slug
-
+router.get("/products/by-ids", getProductsByIds);
 
 router.get("/products/filters", filterProducts);  // Filter products: price, rating, availability, condition
 router.get("/products/:id/variants", getProductVariants);  // Get all variants of a product

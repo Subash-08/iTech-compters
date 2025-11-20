@@ -100,9 +100,7 @@ const productSlice = createSlice({
     },
 
     clearFilters: (state, action) => {
-      console.log('🧹 Redux - Clearing filters, payload:', action.payload);
       
-      // Reset to initial filter state but preserve route-based filters
       const routeParams = action.payload;
       
       state.filters = {
@@ -111,21 +109,16 @@ const productSlice = createSlice({
         ...(routeParams?.categoryName && { category: routeParams.categoryName.replace(/-/g, ' ') }),
         ...(routeParams?.brandName && { brand: routeParams.brandName.replace(/-/g, ' ') }),
       };
-      
-      console.log('✅ Redux - Cleared filters, new state:', state.filters);
     },
     
     // ✅ FIXED: Update filters with proper merging
     updateFilters: (state, action) => {
-      console.log('🔄 Redux - Updating filters with:', action.payload);
       
-      // Merge new filters with current state
       state.filters = {
         ...state.filters,
         ...action.payload,
       };
       
-      console.log('✅ Redux - Updated filters:', state.filters);
     },
 
     // Pagination actions

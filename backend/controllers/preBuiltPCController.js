@@ -319,19 +319,6 @@ exports.updatePreBuiltPC = catchAsyncErrors(async (req, res, next) => {
             }
         });
 
-        // Debug log the final update data
-        console.log('🔄 Final Update Data:', {
-            basePrice: updateData.basePrice,
-            offerPrice: updateData.offerPrice,
-            totalPrice: updateData.totalPrice,
-            discountPrice: updateData.discountPrice,
-            condition: updateData.condition,
-            averageRating: updateData.averageRating,
-            totalReviews: updateData.totalReviews,
-            componentsCount: updateData.components ? updateData.components.length : 'unchanged',
-            imagesCount: updateData.images ? updateData.images.length : 'unchanged'
-        });
-
         // Perform the update
         preBuiltPC = await PreBuiltPC.findByIdAndUpdate(
             req.params.id,
@@ -516,15 +503,6 @@ exports.createPreBuiltPC = catchAsyncErrors(async (req, res, next) => {
             isTested: false,
             createdBy: req.user._id
         };
-
-        console.log('🔄 Creating PreBuiltPC with data:', {
-            basePrice: preBuiltPCData.basePrice,
-            offerPrice: preBuiltPCData.offerPrice,
-            totalPrice: preBuiltPCData.totalPrice,
-            discountPrice: preBuiltPCData.discountPrice,
-            condition: preBuiltPCData.condition
-        });
-
         const preBuiltPC = await PreBuiltPC.create(preBuiltPCData);
 
         res.status(201).json({

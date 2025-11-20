@@ -11,8 +11,6 @@ const Products: React.FC = () => {
     setLoading(true);
     try {
       const response = await api.post('/products', formData);
-
-      console.log('Product created:', response.data);
       setShowForm(false);
       // Show success message
     } catch (error) {

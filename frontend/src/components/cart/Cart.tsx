@@ -49,22 +49,13 @@ const Cart: React.FC = () => {
       const lastSyncedUser = localStorageUtils.getLastSyncedUser();
       const currentUserId = user._id;
 
-      console.log('🛒 Cart Sync Debug:');
-      console.log('🛒 guestCart length:', guestCart.length);
-      console.log('🛒 lastSyncedUser:', lastSyncedUser);
-      console.log('🛒 currentUserId:', currentUserId);
-      console.log('🛒 hasCheckedSync:', hasCheckedSync);
-
       // Show modal if there are guest items
       const shouldShowModal = guestCart.length > 0;
 
-      console.log('🛒 shouldShowModal:', shouldShowModal);
 
       if (shouldShowModal) {
-        console.log('🛒 Showing sync modal');
         setShowSyncModal(true);
       } else {
-        console.log('🛒 Not showing modal - conditions not met');
       }
       
       setHasCheckedSync(true);

@@ -1518,34 +1518,6 @@ exports.getAdminProductById = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-// ADMIN: Update product
-
-exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
-    let product = await Product.findById(req.params.id);
-
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
-
-    // Validate fields (avoid overwriting with invalid or empty data)
-    const allowedUpdates = ["name", "price", "description", "category", "stock", "images"];
-    const updates = {};
-    for (const key of allowedUpdates) {
-        if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
-
-    product = await Product.findByIdAndUpdate(req.params.id, updates, {
-        new: true,
-        runValidators: true,
-        useFindAndModify: false,
-    });
-
-    res.status(200).json({
-        success: true,
-        product,
-    });
-});
-
 
 // ADMIN: Delete product
 
@@ -1647,4 +1619,46 @@ exports.deleteVariant = catchAsyncErrors(async (req, res, next) => {
         success: true,
         message: "Variant deleted successfully",
     });
+});
+
+// Even better - normalize the status in the query
+exports.getProductsByIds = catchAsyncErrors(async (req, res, next) => {
+    const { ids } = req.query;
+    if (!ids) {
+        return next(new ErrorHandler('Product IDs are required', 400));
+    }
+
+    const productIds = Array.isArray(ids) ? ids : ids.split(',');
+    const validIds = productIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+
+    if (validIds.length === 0) {
+        return res.status(200).json({
+            success: true,
+            count: 0,
+            products: []
+        });
+    }
+
+    try {
+        // 🆕 BEST FIX: Use regex for case-insensitive status matching
+        const products = await Product.find({
+            _id: { $in: validIds },
+            isActive: true,
+            status: { $regex: /^published$/i } // Case insensitive match
+        })
+            .populate('brand', 'name slug')
+            .populate('categories', 'name slug')
+            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity variants variantConfiguration averageRating totalReviews tags isActive status condition')
+            .limit(50);
+
+        res.status(200).json({
+            success: true,
+            count: products.length,
+            products
+        });
+
+    } catch (error) {
+        console.error('💥 Database error:', error);
+        return next(new ErrorHandler('Database error while fetching products', 500));
+    }
 });

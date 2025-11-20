@@ -1,15 +1,39 @@
-const express = require('express');
-const { newOrder, getSingleOrder, myOrders, orders, updateOrder, deleteOrder } = require('../controllers/orderController');
+const express = require("express");
 const router = express.Router();
-const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
+const {
+    // User routes
+    getUserOrders,
+    getOrderDetails,
+    cancelOrder,
+    trackOrder,
 
-router.route('/order/new').post(isAuthenticatedUser, newOrder);
-router.route('/order/:id').get(isAuthenticatedUser, getSingleOrder);
-router.route('/myorders').get(isAuthenticatedUser, myOrders);
+    // Admin routes
+    getAllOrders,
+    getAdminOrderDetails,
+    updateOrderStatus,
+    addAdminNote,
+    getOrderAnalytics,
+    exportOrders
+} = require("../controllers/orderController");
 
-//Admin Routes
-router.route('/admin/orders').get(isAuthenticatedUser, authorizeRoles('admin'), orders)
-router.route('/admin/order/:id').put(isAuthenticatedUser, authorizeRoles('admin'), updateOrder)
-    .delete(isAuthenticatedUser, authorizeRoles('admin'), deleteOrder)
+const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
+
+// ==================== PUBLIC ROUTES ====================
+router.get("/orders/track/:orderNumber", trackOrder);
+
+// ==================== USER ROUTES ====================
+router.use(isAuthenticatedUser);
+
+router.get("/orders", getUserOrders);
+router.get("/orders/:orderId", getOrderDetails);
+router.put("/orders/:orderId/cancel", cancelOrder);
+
+// ==================== ADMIN ROUTES ====================
+router.get("/admin/orders", authorizeRoles('admin'), getAllOrders);
+router.get("/admin/orders/analytics", authorizeRoles('admin'), getOrderAnalytics);
+router.get("/admin/orders/export", authorizeRoles('admin'), exportOrders);
+router.get("/admin/orders/:orderId", authorizeRoles('admin'), getAdminOrderDetails);
+router.put("/admin/orders/:orderId/status", authorizeRoles('admin'), updateOrderStatus);
+router.post("/admin/orders/:orderId/notes", authorizeRoles('admin'), addAdminNote);
 
 module.exports = router;

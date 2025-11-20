@@ -199,6 +199,95 @@ const userSchema = new mongoose.Schema({
         }
     }],
 
+    // Add this to your userSchema, before the timestamps
+    addresses: [{
+        _id: {
+            type: mongoose.Schema.Types.ObjectId,
+            default: () => new mongoose.Types.ObjectId()
+        },
+        type: {
+            type: String,
+            enum: ["home", "work", "other"],
+            default: "home"
+        },
+        isDefault: {
+            type: Boolean,
+            default: false
+        },
+        firstName: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        lastName: {
+            type: String,
+            trim: true
+        },
+        phone: {
+            type: String,
+            required: true,
+            validate: {
+                validator: function (v) {
+                    return /^[6-9]\d{9}$/.test(v);
+                },
+                message: 'Invalid Indian phone number'
+            }
+        },
+        email: {
+            type: String,
+            required: true,
+            validate: {
+                validator: function (v) {
+                    return /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
+                },
+                message: 'Invalid email address'
+            }
+        },
+        addressLine1: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        addressLine2: {
+            type: String,
+            trim: true
+        },
+        city: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        state: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        pincode: {
+            type: String,
+            required: true,
+            validate: {
+                validator: function (v) {
+                    return /^\d{6}$/.test(v);
+                },
+                message: 'Invalid pincode (must be 6 digits)'
+            }
+        },
+        country: {
+            type: String,
+            default: "India",
+            trim: true
+        },
+        landmark: {
+            type: String,
+            trim: true
+        }
+    }],
+
+    // Add default address reference
+    defaultAddressId: {
+        type: mongoose.Schema.Types.ObjectId
+    },
+
     // ==================== E-COMMERCE (Basic - Detailed schemas later) ====================
     cartId: {
         type: mongoose.Schema.Types.ObjectId,

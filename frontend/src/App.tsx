@@ -23,6 +23,8 @@ import Wishlist from "./components/wishlist/Wishlist";
 import PreBuiltPCList from "./components/prebuild/PreBuiltPCList";
 import PreBuiltPCDetail from "./components/prebuild/PreBuiltPCDetail";
 import FeaturedPreBuiltPCs from "./components/prebuilt/FeaturedPreBuiltPCs";
+import PCBuilder from "./components/PCBuilder/PCBuilder";
+import Checkout from "./components/checkout/Checkout";
 
 // ✅ UPDATED: Root Layout - AuthInitializer at the top level
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -192,6 +194,19 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } 
           />
+
+          <Route 
+  path="/checkout" 
+  element={
+    <ProtectedRoute>
+      <PublicLayout>
+        <Checkout />
+      </PublicLayout>
+    </ProtectedRoute>
+  } 
+/>
+
+
           
           {/* Public Routes - With Header & Footer */}
           <Route 
@@ -254,6 +269,15 @@ const App: React.FC = () => {
             element={
               <PublicLayout>
                 <PreBuiltPCList />
+              </PublicLayout>
+            } 
+          />
+
+                    <Route 
+            path="/custom-pcs" 
+            element={
+              <PublicLayout>
+                <PCBuilder />
               </PublicLayout>
             } 
           />

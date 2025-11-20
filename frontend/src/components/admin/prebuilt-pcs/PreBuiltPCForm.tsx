@@ -318,16 +318,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     if (!isNewPC && existingImages.length > 0) {
       formDataToSend.append('existingImages', JSON.stringify(existingImages));
     }
-
-    // Debug: Log what we're sending
-    console.log('🔄 Sending FormData:', {
-      basePrice: formData.basePrice,
-      offerPrice: formData.offerPrice,
-      totalPrice: formData.basePrice,
-      discountPrice: formData.offerPrice,
-      discountPercentage: formData.discountPercentage
-    });
-
     if (!isNewPC && id) {
       await preBuiltPCService.updatePreBuiltPC(id, formDataToSend);
       toast.success('Pre-built PC updated successfully');

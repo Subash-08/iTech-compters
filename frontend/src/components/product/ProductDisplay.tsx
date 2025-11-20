@@ -8,6 +8,7 @@ import ProductSpecifications from './ProductSpecifications';
 import ProductFeatures from './ProductFeatures';
 import ProductDimensions from './ProductDimensions';
 import ProductReviewsSection from '../review/ProductReviewsSection';
+import LinkedProductsDisplay from './LinkedProductsDisplay'; // 🆕 Import the new component
 import { ProductData, Variant } from './productTypes';
 
 const ProductDisplay: React.FC = () => {
@@ -61,7 +62,6 @@ const ProductDisplay: React.FC = () => {
         
         // Handle URL variant parameter
         const urlVariantId = searchParams.get('variant');
-        console.log('🛒 URL variant parameter:', urlVariantId);
         
         // Handle variants with extensive validation
         if (productData.variants.length > 0) {
@@ -81,13 +81,11 @@ const ProductDisplay: React.FC = () => {
                 v._id?.toString() === urlVariantId || 
                 v.variantId?.toString() === urlVariantId
               );
-              console.log('🛒 Found URL variant:', defaultVariant);
             }
             
             // If no URL variant found or URL variant doesn't exist, use default logic
             if (!defaultVariant) {
               defaultVariant = validVariants.find(v => v.isActive) || validVariants[0];
-              console.log('🛒 Using default variant:', defaultVariant);
             }
             
             setSelectedVariant(defaultVariant);
@@ -124,12 +122,8 @@ const ProductDisplay: React.FC = () => {
 
     // If product has variants and a variant is selected, use variant specifications
     if (productData.variantConfiguration?.hasVariants && selectedVariant) {
-      console.log('📋 Using variant specifications for:', selectedVariant.name);
       return selectedVariant.specifications || [];
     }
-    
-    // If product has no variants or no variant selected, use product specifications
-    console.log('📋 Using product specifications');
     return productData.specifications || [];
   };
 
@@ -231,8 +225,10 @@ const ProductDisplay: React.FC = () => {
   useEffect(() => {
     if (selectedVariant && selectedVariant._id) {
       // Update URL without page reload
-      const newUrl = `${window.location.pathname}?variant=${selectedVariant._id}`;
+      const newUrl = `${window.location.pathname}?variant=${selectedVariant.slug || selectedVariant.name}`;
       window.history.replaceState({}, '', newUrl);
+      console.log(selectedVariant);
+      
     }
   }, [selectedVariant]);
 
@@ -352,6 +348,14 @@ const ProductDisplay: React.FC = () => {
       <ProductReviewsSection 
         productId={productData._id}
         product={productData}
+      />
+
+      {/* 🆕 Linked Products Section */}
+      <LinkedProductsDisplay 
+        productId={productData._id}
+        currentProductSlug={productData.slug}
+        title="You Might Also Like"
+        maxProducts={4}
       />
     </div>
   );

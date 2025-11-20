@@ -140,7 +140,6 @@ export const preBuiltPCService = {
 // In preBuiltPCService.ts - FIX error handling
 async createPreBuiltPC(formData: FormData) {
   try {
-    console.log('🔄 Creating Pre-built PC with FormData');
     
     const response = await api.post('/admin/prebuilt-pcs', formData, {
       timeout: 60000,
@@ -149,7 +148,6 @@ async createPreBuiltPC(formData: FormData) {
       },
     });
     
-    console.log('✅ Pre-built PC created successfully');
     return response.data;
   } catch (error: any) {
     console.error('❌ Service Error - createPreBuiltPC:', {
@@ -177,19 +175,11 @@ async createPreBuiltPC(formData: FormData) {
 // Update pre-built PC with better error handling
 async updatePreBuiltPC(id: string, formData: FormData) {
   try {
-    console.log('Updating Pre-built PC with FormData:', {
-      id,
-      entries: Array.from(formData.entries()).map(([key, value]) => ({
-        key,
-        value: value instanceof File ? `File: ${value.name}` : value
-      }))
-    });
     
     const response = await api.put(`/admin/prebuilt-pcs/${id}`, formData, {
       timeout: 60000,
     });
     
-    console.log('✅ Pre-built PC updated successfully');
     return response.data;
   } catch (error: any) {
     console.error('❌ Service Error - updatePreBuiltPC:', {

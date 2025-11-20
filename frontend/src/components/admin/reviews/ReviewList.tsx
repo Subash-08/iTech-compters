@@ -82,24 +82,11 @@ const ReviewList: React.FC = () => {
 
   const handleDeleteReview = async (reviewId: string, review: Review) => {
     try {
-      console.log('Attempting to delete review:', {
-        reviewId,
-        review: {
-          id: review._id,
-          user: review.user?.firstName,
-          rating: review.rating,
-          product: review.product?.name
-        }
-      });
 
       await reviewService.deleteReview(reviewId);
       
-      console.log('Review deleted successfully');
-      
-      // Remove the deleted review from local state
       setReviews(prev => prev.filter(rev => rev._id !== reviewId));
       
-      // Refresh the list to update pagination
       fetchAdminReviews();
       
     } catch (err: any) {

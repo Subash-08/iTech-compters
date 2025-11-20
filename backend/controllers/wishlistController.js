@@ -139,7 +139,6 @@ exports.getWishlist = catchAsyncErrors(async (req, res, next) => {
             );
 
             if (hasCorruptedData) {
-                console.log('🔄 Cleaning corrupted wishlist data...');
                 wishlist.items = wishlist.items.filter(item =>
                     (item.productType === 'product' && item.product && item.product._id) ||
                     (item.productType === 'prebuilt-pc' && item.preBuiltPC && item.preBuiltPC._id)

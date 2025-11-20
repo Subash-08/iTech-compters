@@ -43,17 +43,10 @@ const ProductDetailFilters: React.FC<ProductFiltersProps> = ({
 
   // ✅ FIXED: Update slider when filters OR base range changes
   useEffect(() => {
-    console.log('🔄 Slider values updating:', {
-      currentMin: currentFilters.minPrice,
-      currentMax: currentFilters.maxPrice,
-      baseMin,
-      baseMax,
-      isInitialized
-    });
+
 
     // Don't update until base range is loaded
     if (isLoading && !isInitialized) {
-      console.log('⏳ Waiting for base price range to load...');
       return;
     }
 
@@ -65,8 +58,6 @@ const ProductDetailFilters: React.FC<ProductFiltersProps> = ({
     const currentMax = (currentFilters.maxPrice !== undefined && currentFilters.maxPrice !== null) 
       ? currentFilters.maxPrice 
       : baseMax;
-    
-    console.log('🎯 Setting slider values:', [currentMin, currentMax]);
     setSliderValues([currentMin, currentMax]);
     
     if (!isInitialized) {
@@ -79,7 +70,6 @@ const ProductDetailFilters: React.FC<ProductFiltersProps> = ({
     if (!isLoading && isInitialized && 
         (currentFilters.minPrice === null || currentFilters.minPrice === undefined) && 
         (currentFilters.maxPrice === null || currentFilters.maxPrice === undefined)) {
-      console.log('🔄 Resetting slider to loaded base range:', [baseMin, baseMax]);
       setSliderValues([baseMin, baseMax]);
     }
   }, [baseMin, baseMax, isLoading, isInitialized, currentFilters.minPrice, currentFilters.maxPrice]);
@@ -95,9 +85,6 @@ const ProductDetailFilters: React.FC<ProductFiltersProps> = ({
   const handleSliderComplete = (value: number | number[]) => {
     if (Array.isArray(value)) {
       const [min, max] = value;
-      console.log('💰 Slider completed - updating price filters:', { min, max, baseMin, baseMax });
-      
-      // Determine which values to set (null if same as base range)
       const newMin = min === baseMin ? null : min;
       const newMax = max === baseMax ? null : max;
       
@@ -138,7 +125,6 @@ const ProductDetailFilters: React.FC<ProductFiltersProps> = ({
 
   // ✅ FIXED: Reset price range to base values
   const resetPriceRange = () => {
-    console.log('🔄 Resetting price range to base range');
     onUpdateFilter('minPrice', null);
     onUpdateFilter('maxPrice', null);
   };
@@ -164,9 +150,7 @@ const ProductDetailFilters: React.FC<ProductFiltersProps> = ({
 
   // ✅ FIXED: Handle filter removal for radio buttons
   const handleRadioFilter = (key: 'category' | 'brand' | 'condition' | 'rating', value: string | number | null) => {
-    console.log('🎛️ Radio filter change:', { key, value, current: currentFilters[key] });
-    
-    // If clicking the same value, remove the filter (toggle off)
+
     if (currentFilters[key] === value) {
       onUpdateFilter(key, null);
     } else {
@@ -291,7 +275,6 @@ const ProductDetailFilters: React.FC<ProductFiltersProps> = ({
                   <button
                     key={price}
                     onClick={() => {
-                      console.log('💨 Quick price filter:', price);
                       if (price >= baseMax) {
                         // If price is higher than base max, remove max filter
                         onUpdateFilter('maxPrice', null);

@@ -11,7 +11,6 @@ export const useAuthErrorHandler = () => {
 
   const handleAuthError = useCallback((error: any) => {
     if (error.response?.status === 401) {
-      console.log('🛑 Handling 401 auth error');
       
       // Clear local storage
       localStorage.removeItem('token');

@@ -16,6 +16,11 @@ const cartRoutes = require('./routes/cart');
 const heroSectionRoutes = require('./routes/heroSection');
 const showcaseSectionRoutes = require('./routes/showcaseSection');
 const preBuiltPCRoutes = require('./routes/preBuiltPC')
+const customPc = require('./routes/customPC')
+const couponRoutes = require('./routes/couponRoutes');
+const checkoutRoutes = require('./routes/checkout');
+const paymentRoutes = require('./routes/payment');
+const orderRoutes = require('./routes/order');
 
 dotenv.config({ path: path.join(__dirname, 'config/config.env') });
 
@@ -70,7 +75,11 @@ app.use('/api/v1', cartRoutes);
 app.use('/api/v1', heroSectionRoutes);
 app.use('/api/v1', showcaseSectionRoutes);
 app.use('/api/v1', preBuiltPCRoutes)
-
+app.use('/api/v1', customPc)
+app.use('/api/v1', couponRoutes);
+app.use('/api/v1', checkoutRoutes);
+app.use('/api/v1', paymentRoutes);
+app.use('/api/v1', orderRoutes);
 // Health check route
 app.get('/api/v1/health', (req, res) => {
     res.json({

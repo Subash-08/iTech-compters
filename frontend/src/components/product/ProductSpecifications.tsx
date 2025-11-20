@@ -19,8 +19,6 @@ const ProductSpecifications: React.FC<ProductSpecificationsProps> = ({
     section.specs.length > 0
   ) || [];
 
-  console.log('📋 Specifications to display:', validSpecifications);
-
   if (validSpecifications.length === 0) {
     return null;
   }

@@ -74,9 +74,7 @@ const Products: React.FC = () => {
 
   // Handle edit product
   const handleEdit = (product: Product) => {
-    setEditingProduct(product);
-    console.log(product);
-    
+    setEditingProduct(product);    
     setShowForm(true);
   };
 
@@ -85,8 +83,6 @@ const Products: React.FC = () => {
       const payload = { status: newStatus };
 
       const response = await api.patch(`/admin/products/${productId}/status`, payload);
-
-      console.log('✅ Status update successful:', response.data);
       return response.data;
     } catch (error) {
       console.error('💥 Error updating product status:', error);
@@ -116,8 +112,6 @@ const Products: React.FC = () => {
       const method = editingProduct ? 'put' : 'post';
 
       const response = await api[method](url, formData);
-
-      console.log('Product saved:', response.data);
       setShowForm(false);
       setEditingProduct(null); // Reset editing state
       fetchProducts(); // Refresh the list
