@@ -31,59 +31,78 @@ const cartAPI = {
   },
 
   // Add to cart (works for both authenticated and guest users)
-  addToCart: async (cartData: AddToCartData): Promise<{ data: any; message: string }> => {
-    try {
-      const response = await api.post('/cart', cartData);
-      toast.success('Product added to cart successfully');
-      return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        // User not authenticated - handle guest cart
-        const guestCart = localStorageUtils.getGuestCart();
-        const existingItemIndex = guestCart.findIndex(
-          item => item.productId === cartData.productId && 
-                 item.variantId === cartData.variantId
-        );
-
-        let updatedCart: GuestCartItem[];
-        if (existingItemIndex > -1) {
-          updatedCart = guestCart.map((item, index) => 
-            index === existingItemIndex 
-              ? { ...item, quantity: item.quantity + (cartData.quantity || 1) }
-              : item
-          );
-        } else {
-          const newItem: GuestCartItem = {
-            _id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            productId: cartData.productId,
-            variantId: cartData.variantId,
-            quantity: cartData.quantity || 1,
-            price: 0, // Will be updated by product fetch
-            addedAt: new Date().toISOString()
-          };
-          updatedCart = [...guestCart, newItem];
-        }
-
-        localStorageUtils.saveGuestCart(updatedCart);
-        toast.success('Product added to cart successfully');
-        
-        return {
-          success: true,
-          message: 'Product added to guest cart',
-          data: {
-            items: updatedCart,
-            totalItems: updatedCart.reduce((sum, item) => sum + item.quantity, 0),
-            totalPrice: updatedCart.reduce((sum, item) => sum + (item.quantity * item.price), 0),
-            isGuest: true
-          }
-        };
-      }
+addToCart: async (cartData: AddToCartData): Promise<{ data: any; message: string }> => {
+  try {
+    // FIXED: Consistent payload structure
+    const payload = {
+      productId: cartData.productId,
+      variantId: cartData.variantData?.variantId || cartData.variantId,
+      variantData: cartData.variantData, // Send full variant data
+      quantity: cartData.quantity || 1
+    };
+    
+    console.log('🛒 API Payload:', payload); // Debug log
+    
+    const response = await api.post('/cart', payload);
+    toast.success('Product added to cart successfully');
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 401) {
+      // Guest cart handling - FIXED variant data structure
+      const guestCart = localStorageUtils.getGuestCart();
       
-      const errorMessage = error.response?.data?.message || 'Failed to add product to cart';
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
+      const variantId = cartData.variantData?.variantId || cartData.variantId;
+      
+      const existingItemIndex = guestCart.findIndex(
+        item => item.productId === cartData.productId && 
+               item.variantId === variantId
+      );
+
+      let updatedCart: GuestCartItem[];
+      if (existingItemIndex > -1) {
+        updatedCart = guestCart.map((item, index) => 
+          index === existingItemIndex 
+            ? { 
+                ...item, 
+                quantity: item.quantity + (cartData.quantity || 1),
+                variant: cartData.variantData || item.variant // FIXED: Update variant data
+              }
+            : item
+        );
+      } else {
+        const newItem: GuestCartItem = {
+          _id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          productId: cartData.productId,
+          variantId: variantId,
+          variant: cartData.variantData, // FIXED: Store variant data
+          quantity: cartData.quantity || 1,
+          price: cartData.variantData?.price || 0,
+          addedAt: new Date().toISOString(),
+          productType: 'product'
+        };
+        updatedCart = [...guestCart, newItem];
+      }
+
+      localStorageUtils.saveGuestCart(updatedCart);
+      toast.success('Product added to cart successfully');
+      
+      return {
+        success: true,
+        message: 'Product added to guest cart',
+        data: {
+          items: updatedCart,
+          totalItems: updatedCart.reduce((sum, item) => sum + item.quantity, 0),
+          totalPrice: updatedCart.reduce((sum, item) => sum + (item.quantity * item.price), 0),
+          isGuest: true
+        }
+      };
     }
-  },
+    
+    const errorMessage = error.response?.data?.message || 'Failed to add product to cart';
+    toast.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+},
 
 // In cartAPI object - Update these methods to handle guest case
 removeFromCart: async (removeData: RemoveFromCartData): Promise<{ data: any; message: string }> => {
@@ -219,7 +238,6 @@ const fetchCart = () => async (dispatch: any, getState: any) => {
   }
 };
 
-// actions/cartActions.ts - ENHANCED with 404 handling
 const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: any) => {
   try {
     dispatch({ type: 'cart/updateCartStart' });
@@ -228,33 +246,15 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
     const isGuest = !state.authState.isAuthenticated;
     
     if (isGuest) {
-      // Get product details from Redux state first
-      const productsState = state.productsState;
-      let productDetails = productsState.products.find(p => p._id === cartData.productId) ||
-                          productsState.searchResults.find(p => p._id === cartData.productId);
-
-      if (!productDetails) {
-        try {
-          const productResponse = await api.get(`/products/${cartData.productId}`);
-          if (productResponse.data.success) {
-            productDetails = productResponse.data.data;
-          }
-        } catch (error: any) {
-          if (error.response?.status === 404) {
-            console.warn('🛒 Product not found in backend (404), using minimal data');
-            // Don't throw error, just continue with minimal data
-          } else {
-            console.error('🛒 Failed to fetch product from API:', error);
-            // For other errors, you might want to handle differently
-          }
-        }
-      }
-
-      // Get current guest cart
+      // Guest user handling - FIXED variant data structure
       const guestCart = localStorageUtils.getGuestCart();
+      
+      // FIXED: Use variantId from variantData consistently
+      const variantId = cartData.variantData?.variantId || cartData.variantId;
+      
       const existingItemIndex = guestCart.findIndex(
         item => item.productId === cartData.productId && 
-               item.variantId === cartData.variantId
+               item.variantId === variantId
       );
 
       let updatedCart;
@@ -265,51 +265,24 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
             ? { 
                 ...item, 
                 quantity: item.quantity + (cartData.quantity || 1),
-                price: productDetails?.offerPrice || productDetails?.basePrice || item.price || 0
+                price: cartData.variantData?.price || item.price || 0,
+                variant: cartData.variantData || item.variant // FIXED: Store variant data properly
               }
             : item
         );
       } else {
-        // Create new cart item - use whatever product data we have
-        const price = productDetails?.offerPrice || productDetails?.basePrice || 0;
+        // Create new cart item
+        const price = cartData.variantData?.price || 0;
         
-        const formattedProduct = productDetails ? {
-          _id: productDetails._id,
-          name: productDetails.name || 'Product',
-          images: formatProductImages(productDetails.images),
-          price: productDetails.price || 0,
-          slug: productDetails.slug || '',
-          stock: productDetails.stockQuantity || productDetails.stock || 0,
-          basePrice: productDetails.basePrice || 0,
-          offerPrice: productDetails.offerPrice || 0,
-          brand: productDetails.brand || {},
-          category: productDetails.categories?.[0] || {},
-          description: productDetails.description || '',
-          condition: productDetails.condition || 'New'
-        } : {
-          // Minimal fallback for missing products
-          _id: cartData.productId,
-          name: 'Product Not Found',
-          images: [],
-          price: 0,
-          slug: '',
-          stock: 0,
-          basePrice: 0,
-          offerPrice: 0,
-          brand: {},
-          category: {},
-          description: 'This product may no longer be available',
-          condition: 'Unknown'
-        };
-
         const newItem: GuestCartItem = {
           _id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           productId: cartData.productId,
-          variantId: cartData.variantId,
+          variantId: variantId, // FIXED: Use consistent variantId
+          variant: cartData.variantData, // FIXED: Store full variant data
           quantity: cartData.quantity || 1,
           price: price,
           addedAt: new Date().toISOString(),
-          product: formattedProduct
+          productType: 'product'
         };
         updatedCart = [...guestCart, newItem];
       }
@@ -328,8 +301,17 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
       toast.success('Product added to cart successfully');
       
     } else {
-      // For authenticated users, use the API
-      const response = await cartAPI.addToCart(cartData);
+      // For authenticated users, use the API - FIXED payload structure
+      const apiPayload = {
+        productId: cartData.productId,
+        variantId: cartData.variantData?.variantId || cartData.variantId, // FIXED: Consistent variantId
+        variantData: cartData.variantData, // Send full variant data
+        quantity: cartData.quantity || 1
+      };
+      
+      console.log('🛒 Sending to backend:', apiPayload); // Debug log
+      
+      const response = await cartAPI.addToCart(apiPayload);
       
       let items = [];
       let isGuestMode = false;

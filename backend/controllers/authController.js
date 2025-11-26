@@ -5,6 +5,7 @@ const sendToken = require('../utils/jwt');
 const crypto = require('crypto');
 const n8nService = require('../services/n8nService');
 const fs = require('fs');
+const Order = require('../models/orderModel');
 const path = require('path');
 // Add this function to your controller
 const { OAuth2Client } = require('google-auth-library');
@@ -428,17 +429,111 @@ exports.getAllUsers = catchAsyncError(async (req, res, next) => {
     });
 });
 
-// Get single user details (Admin)
+// Add to authController.js
+exports.getUserAnalytics = catchAsyncError(async (req, res, next) => {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+
+    // Total users count
+    const totalUsers = await User.countDocuments();
+
+    // Active users (logged in last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const activeUsers = await User.countDocuments({
+        lastLogin: { $gte: thirtyDaysAgo }
+    });
+
+    // New users this month
+    const newUsersThisMonth = await User.countDocuments({
+        createdAt: { $gte: startOfMonth }
+    });
+
+    // Verified users
+    const verifiedUsers = await User.countDocuments({
+        isEmailVerified: true
+    });
+
+    // Users created today
+    const newUsersToday = await User.countDocuments({
+        createdAt: { $gte: startOfToday }
+    });
+
+    res.status(200).json({
+        success: true,
+        data: {
+            totalUsers,
+            activeUsers,
+            newUsers: newUsersThisMonth,
+            newUsersToday,
+            verifiedUsers,
+            unverifiedUsers: totalUsers - verifiedUsers
+        }
+    });
+});
+
 exports.getSingleUser = catchAsyncError(async (req, res, next) => {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id)
+        .select('+socialLogins +addresses')
+        .populate({
+            path: 'orders',
+            select: 'orderNumber status totalAmount items createdAt paymentStatus pricing',
+            options: { sort: { createdAt: -1 }, limit: 10 }
+        });
 
     if (!user) {
         return next(new ErrorHandler('User not found', 404));
     }
 
+    // ✅ FIXED: Get ALL orders with pricing.total for accurate total spent
+    const allOrders = await Order.find({ user: req.params.id })
+        .select('status pricing')
+        .lean();
+
+    // ✅ FIXED: Calculate totalSpent from pricing.total for PAID orders only
+    const orderStats = {
+        total: allOrders.length,
+        completed: allOrders.filter(order => order.status === 'delivered').length,
+        pending: allOrders.filter(order => ['pending', 'confirmed', 'processing', 'shipped'].includes(order.status)).length,
+        cancelled: allOrders.filter(order => ['cancelled', 'refunded'].includes(order.status)).length,
+        totalSpent: allOrders
+            .filter(order => order.pricing && order.pricing.total > 0) // Only orders with pricing
+            .reduce((sum, order) => sum + (order.pricing.total || 0), 0)
+    };
+
     res.status(200).json({
         success: true,
-        user
+        user: {
+            // Basic profile
+            _id: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+            role: user.role,
+            status: user.status,
+            emailVerified: user.emailVerified,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+
+            // Social logins
+            socialLogins: user.socialLogins,
+            isGoogleUser: user.socialLogins?.some(login => login.provider === 'google'),
+
+            // Addresses
+            addresses: user.addresses,
+            defaultAddressId: user.defaultAddressId,
+
+            // E-commerce
+            cartId: user.cartId,
+            wishlistId: user.wishlistId,
+
+            // Orders
+            recentOrders: user.orders, // Recent 10 orders for display
+            orderStats // ✅ Accurate stats from ALL orders
+        }
     });
 });
 

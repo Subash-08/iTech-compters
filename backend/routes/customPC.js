@@ -9,7 +9,8 @@ const {
     updateQuoteStatus,
     getQuoteStats,
     deleteQuote,
-    extendQuoteExpiry
+    extendQuoteExpiry,
+    getPCAnalytics
 } = require('../controllers/customPCController');
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
 
@@ -17,6 +18,7 @@ const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenti
 router.get('/custom-pc/config', getPCBuilderConfig);
 router.get('/custom-pc/components/:category', getComponentsByCategory);
 router.post('/custom-pc/quote', createPCQuote);
+router.get('/admin/analytics/pc-builder', isAuthenticatedUser, authorizeRoles('admin'), getPCAnalytics);
 
 // Admin routes
 router.get('/custom-pc/admin/quotes', isAuthenticatedUser, authorizeRoles('admin'), getPCQuotes);

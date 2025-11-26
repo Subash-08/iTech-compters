@@ -5,10 +5,31 @@ import { CreateOrderRequest, GSTInfo } from '../types/checkout';
 
 // Checkout Service
 export const checkoutService = {
-  // Get checkout data
+  // Get checkout data - Handle empty cart gracefully
   async getCheckoutData(): Promise<{ success: boolean; data: any }> {
-    const response = await api.get('/checkout');
-    return response.data;
+    try {
+      const response = await api.get('/checkout');
+      return response.data;
+    } catch (error: any) {
+      // If cart is empty, return empty data structure
+      if (error.response?.status === 400 && error.response?.data?.message === 'Cart is empty') {
+        return {
+          success: true,
+          data: {
+            cartItems: [],
+            addresses: [],
+            pricing: {
+              subtotal: 0,
+              shipping: 0,
+              tax: 0,
+              discount: 0,
+              total: 0
+            }
+          }
+        };
+      }
+      throw error;
+    }
   },
 
   // Calculate checkout with coupon
@@ -59,12 +80,22 @@ export const checkoutService = {
       setAsDefault
     });
     return response.data;
+  },
+
+  // Delete address
+  async deleteAddress(addressId: string): Promise<{ 
+    success: boolean; 
+    message: string;
+    deletedAddressId: string;
+  }> {
+    const response = await api.delete(`/checkout/address/${addressId}`);
+    return response.data;
   }
 };
 
 // Checkout Actions
 export const checkoutActions = {
-  // Get checkout data
+  // Get checkout data - Handle empty cart gracefully
   fetchCheckoutData: createAsyncThunk(
     'checkout/fetchCheckoutData',
     async (_, { rejectWithValue }) => {
@@ -73,7 +104,10 @@ export const checkoutActions = {
         return response.data;
       } catch (error: any) {
         const errorMessage = error.response?.data?.message || 'Failed to fetch checkout data';
-        toast.error(errorMessage);
+        // Don't show toast for empty cart - it's a normal state after order creation
+        if (errorMessage !== 'Cart is empty') {
+          toast.error(errorMessage);
+        }
         return rejectWithValue(errorMessage);
       }
     }
@@ -138,6 +172,35 @@ export const checkoutActions = {
         const errorMessage = error.response?.data?.message || 'Failed to update address';
         toast.error(errorMessage);
         return rejectWithValue(errorMessage);
+      }
+    }
+  ),
+
+  // Delete address
+  deleteAddress: createAsyncThunk(
+    'checkout/deleteAddress',
+    async (addressId: string, { rejectWithValue }) => {
+      try {
+        const response = await checkoutService.deleteAddress(addressId);
+        toast.success(response.message || 'Address deleted successfully!');
+        return response;
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || 'Failed to delete address';
+        toast.error(errorMessage);
+        return rejectWithValue(errorMessage);
+      }
+    }
+  ),
+
+  // Clear checkout data after successful payment
+  clearCheckoutData: createAsyncThunk(
+    'checkout/clearCheckoutData',
+    async (_, { rejectWithValue }) => {
+      try {
+        // This just triggers the state clearing in the slice
+        return { success: true };
+      } catch (error: any) {
+        return rejectWithValue(error.message);
       }
     }
   )

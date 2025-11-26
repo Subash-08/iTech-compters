@@ -25,6 +25,9 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
     updateFormData({ [field]: value });
   };
 
+  // Check if product has variants (to disable certain fields)
+  const hasVariants = formData.variantConfiguration.hasVariants && formData.variants.length > 0;
+
   // Safe array access with fallbacks and better loading states
   const safeBrands = Array.isArray(brands) ? brands : [];
   const safeCategories = Array.isArray(categories) ? categories : [];
@@ -35,7 +38,8 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
     const brand = safeBrands.find(b => b._id === formData.brand);
     return brand ? brand.name : 'Loading...';
   };
-    useEffect(() => {
+
+  useEffect(() => {
   }, [formData, formData.status]); // Specifically track status changes
 
   const getSelectedCategoryNames = () => {
@@ -56,6 +60,23 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           </span>
         )}
       </div>
+
+      {/* Variant Warning */}
+      {hasVariants && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <div>
+              <span className="text-sm font-medium text-yellow-800">Product Has Variants</span>
+              <p className="text-sm text-yellow-700 mt-1">
+                Pricing and inventory are managed at the variant level. Base product pricing fields are disabled.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 gap-6">
         {/* Product Name */}
@@ -181,6 +202,28 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           )}
         </div>
 
+        {/* HSN Code */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            HSN Code
+          </label>
+          <input
+            type="text"
+            value={formData.hsn || ''}
+            onChange={(e) => handleInputChange('hsn', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Enter HSN code for tax purposes"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Harmonized System Nomenclature code for tax calculation
+          </p>
+          {isEditMode && formData.hsn && (
+            <p className="text-xs text-green-600 mt-1">
+              Current: {formData.hsn}
+            </p>
+          )}
+        </div>
+
         {/* Description */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -268,56 +311,53 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             )}
           </div>
 
-            {/* Status */}
-           {/* Status */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Status
-  </label>
-  <select
-    value={formData.status}
-    onChange={(e) => {
-      const newStatus = e.target.value;
-      
-      handleInputChange('status', newStatus);
-    }}
-    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-  >
-    <option value="Draft">Draft</option>
-    <option value="Published">Published</option>
-    <option value="OutOfStock">Out of Stock</option>
-    <option value="Archived">Archived</option>
-    <option value="Discontinued">Discontinued</option>
-  </select>
-  
-  {/* Enhanced debug info */}
-  {isEditMode && (
-    <div className="mt-2 space-y-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-      <div className="flex justify-between items-center">
-        <p className="text-xs font-medium text-yellow-800">Debug Info:</p>
-        <span className="text-xs text-yellow-600">Status Field</span>
-      </div>
-      <div className="grid grid-cols-2 gap-1 text-xs">
-        <div>
-          <span className="font-medium">Current Value:</span> 
-          <span className={`ml-1 ${formData.status === 'Published' ? 'text-green-600' : 'text-blue-600'}`}>
-            {formData.status}
-          </span>
-        </div>
-        <div>
-          <span className="font-medium">Select Value:</span> 
-          <span className="ml-1 text-gray-600">{formData.status}</span>
-        </div>
-      </div>
-      <button
-        type="button"
-        className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded border border-yellow-300"
-      >
-        Check Current Status
-      </button>
-    </div>
-  )}
-</div>
+          {/* Status */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => {
+                const newStatus = e.target.value;
+                handleInputChange('status', newStatus);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="Draft">Draft</option>
+              <option value="Published">Published</option>
+              <option value="OutOfStock">Out of Stock</option>
+              <option value="Archived">Archived</option>
+              <option value="Discontinued">Discontinued</option>
+            </select>
+            
+            {isEditMode && (
+              <div className="mt-2 space-y-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-medium text-yellow-800">Debug Info:</p>
+                  <span className="text-xs text-yellow-600">Status Field</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1 text-xs">
+                  <div>
+                    <span className="font-medium">Current Value:</span> 
+                    <span className={`ml-1 ${formData.status === 'Published' ? 'text-green-600' : 'text-blue-600'}`}>
+                      {formData.status}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Select Value:</span> 
+                    <span className="ml-1 text-gray-600">{formData.status}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded border border-yellow-300"
+                >
+                  Check Current Status
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -382,6 +422,12 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               </div>
               <div>
                 <span className="font-medium">Status:</span> {formData.status}
+              </div>
+              <div>
+                <span className="font-medium">HSN:</span> {formData.hsn || 'Not set'}
+              </div>
+              <div>
+                <span className="font-medium">Variants:</span> {hasVariants ? `${formData.variants.length} active` : 'No variants'}
               </div>
             </div>
           </div>

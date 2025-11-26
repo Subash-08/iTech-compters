@@ -4,6 +4,7 @@ import ProductGrid from './ProductGrid';
 import ProductFilters from './ProductFilters';
 import { Product, ProductsResponse, ProductFilters as FiltersType } from '../types/product';
 import api from '../../config/axiosConfig'; // Import your axios config
+import { toast } from 'react-toastify';
 
 const Products: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
@@ -100,30 +101,62 @@ const Products: React.FC = () => {
     }
   };
 
-  // Handle form submission for both create and edit using Axios
-  const handleSubmit = async (formData: ProductFormData) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const url = editingProduct 
-        ? `/admin/product/${editingProduct._id}` // Update endpoint
-        : '/admin/product/new'; // Create endpoint
+ // Handle form submission for both create and edit using Axios
+const handleSubmit = async (formData: ProductFormData) => {
+  setLoading(true);
+  setError(null);
+  try {
+    const url = editingProduct 
+      ? `/admin/product/${editingProduct._id}` // Update endpoint
+      : '/admin/product/new'; // Create endpoint
 
-      const method = editingProduct ? 'put' : 'post';
+    const method = editingProduct ? 'put' : 'post';
 
-      const response = await api[method](url, formData);
-      setShowForm(false);
-      setEditingProduct(null); // Reset editing state
-      fetchProducts(); // Refresh the list
-      alert(`Product ${editingProduct ? 'updated' : 'created'} successfully!`);
-    } catch (error) {
-      console.error('Error saving product:', error);
-      setError(error instanceof Error ? error.message : 'Error saving product. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    // 🆕 Prepare data with new fields and proper pricing structure
+    const submitData = {
+      ...formData,
+      // 🆕 Ensure proper field mapping for backend
+      mrp: formData.mrp || undefined, // Send undefined if 0 to use backend defaults
+      hsn: formData.hsn || undefined,
+      manufacturerImages: formData.manufacturerImages || [],
+      
+      // 🆕 Backward compatibility - ensure offerPrice is set correctly
+      offerPrice: formData.offerPrice || formData.basePrice,
+      
+      // 🆕 Handle variant pricing logic
+      ...(formData.variantConfiguration.hasVariants && {
+        // When variants exist, base pricing might be ignored by backend
+        // but we still send it for consistency
+        basePrice: formData.basePrice || 0,
+        mrp: formData.mrp || undefined
+      })
+    };
 
+    const response = await api[method](url, submitData);
+    setShowForm(false);
+    setEditingProduct(null); // Reset editing state
+    fetchProducts(); // Refresh the list
+    
+    // 🆕 Use toast instead of alert for better UX
+    toast.success(`Product ${editingProduct ? 'updated' : 'created'} successfully!`);
+    
+  } catch (error: any) {
+    console.error('Error saving product:', error);
+    
+    // 🆕 Enhanced error handling
+    const errorMessage = error.response?.data?.message 
+      || error.response?.data?.error 
+      || error.message 
+      || 'Error saving product. Please try again.';
+    
+    setError(errorMessage);
+    
+    // 🆕 Show toast for API errors
+    toast.error(`Failed to ${editingProduct ? 'update' : 'create'} product: ${errorMessage}`);
+  } finally {
+    setLoading(false);
+  }
+};
   // Handle cancel edit
   const handleCancel = () => {
     setShowForm(false);

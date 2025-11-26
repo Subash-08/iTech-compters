@@ -79,70 +79,75 @@ const handleStatusChange = async (productId: string, newStatus: string) => {
     onEdit(formReadyProduct);
   };
 
-  const transformProductForForm = (product: Product): any => {
-    return {
-      name: product.name || '',
-      brand: typeof product.brand === 'object' ? product.brand._id : product.brand || '',
-      categories: Array.isArray(product.categories) 
-        ? product.categories.map(cat => typeof cat === 'object' ? cat._id : cat)
-        : [],
-      tags: product.tags || [],
-      condition: product.condition || 'New',
-      label: product.label || '',
-      isActive: product.isActive !== undefined ? product.isActive : true,
-      status: product.status || 'Draft',
-      description: product.description || '',
-      definition: product.definition || '',
-      
-      images: {
-        thumbnail: product.images?.thumbnail || { url: '', altText: '' },
-        hoverImage: product.images?.hoverImage || undefined,
-        gallery: product.images?.gallery || []
-      },
-      
-      basePrice: product.basePrice || 0,
-      offerPrice: product.offerPrice || 0,
-      discountPercentage: product.discountPercentage || 0,
-      taxRate: product.taxRate || 0,
-      sku: product.sku || '',
-      barcode: product.barcode || '',
-      stockQuantity: product.stockQuantity || 0,
-      
-      variantConfiguration: product.variantConfiguration || {
-        hasVariants: false,
-        variantType: 'None',
-        variantCreatingSpecs: [],
-        variantAttributes: []
-      },
-      variants: product.variants || [],
-      
-      specifications: product.specifications || [],
-      features: product.features || [],
-      
-      dimensions: product.dimensions || {
-        length: 0,
-        width: 0,
-        height: 0,
-        unit: 'cm'
-      },
-      weight: product.weight || {
-        value: 0,
-        unit: 'kg'
-      },
-      
-      warranty: product.warranty || '',
-      meta: product.meta || {
-        title: '',
-        description: '',
-        keywords: []
-      },
-      canonicalUrl: product.canonicalUrl || '',
-      linkedProducts: product.linkedProducts || [],
-      notes: product.notes || '',
-      
-      _id: product._id || product.id
-    };
+const transformProductForForm = (product: Product): any => {
+  return {
+    name: product.name || '',
+    brand: typeof product.brand === 'object' ? product.brand._id : product.brand || '',
+    categories: Array.isArray(product.categories) 
+      ? product.categories.map(cat => typeof cat === 'object' ? cat._id : cat)
+      : [],
+    tags: product.tags || [],
+    condition: product.condition || 'New',
+    label: product.label || '',
+    isActive: product.isActive !== undefined ? product.isActive : true,
+    status: product.status || 'Draft',
+    description: product.description || '',
+    definition: product.definition || '',
+    
+    // 🆕 NEW FIELDS
+    hsn: product.hsn || '',
+    mrp: product.mrp || 0,
+    manufacturerImages: product.manufacturerImages || [],
+    
+    images: {
+      thumbnail: product.images?.thumbnail || { url: '', altText: '' },
+      hoverImage: product.images?.hoverImage || undefined,
+      gallery: product.images?.gallery || []
+    },
+    
+    basePrice: product.basePrice || 0,
+    offerPrice: product.offerPrice || 0,
+    discountPercentage: product.discountPercentage || 0,
+    taxRate: product.taxRate || 0,
+    sku: product.sku || '',
+    barcode: product.barcode || '',
+    stockQuantity: product.stockQuantity || 0,
+    
+    variantConfiguration: product.variantConfiguration || {
+      hasVariants: false,
+      variantType: 'None',
+      variantCreatingSpecs: [],
+      variantAttributes: []
+    },
+    variants: product.variants || [],
+    
+    specifications: product.specifications || [],
+    features: product.features || [],
+    
+    dimensions: product.dimensions || {
+      length: 0,
+      width: 0,
+      height: 0,
+      unit: 'cm'
+    },
+    weight: product.weight || {
+      value: 0,
+      unit: 'kg'
+    },
+    
+    warranty: product.warranty || '',
+    meta: product.meta || {
+      title: '',
+      description: '',
+      keywords: []
+    },
+    canonicalUrl: product.canonicalUrl || '',
+    linkedProducts: product.linkedProducts || [],
+    notes: product.notes || '',
+    
+    _id: product._id || product.id
   };
+};
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -166,12 +171,12 @@ const handleStatusChange = async (productId: string, newStatus: string) => {
     }
   };
 
-  const getStockColor = (stock: number, hasVariants: boolean) => {
-    if (hasVariants) return 'bg-blue-100 text-blue-800';
-    if (stock > 10) return 'bg-green-100 text-green-800';
-    if (stock > 0) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
-  };
+const getStockColor = (stock: number, hasVariants: boolean) => {
+  if (hasVariants) return 'bg-blue-100 text-blue-800';
+  if (stock > 10) return 'bg-green-100 text-green-800';
+  if (stock > 0) return 'bg-yellow-100 text-yellow-800';
+  return 'bg-red-100 text-red-800';
+};
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -321,34 +326,89 @@ const handleStatusChange = async (productId: string, newStatus: string) => {
                     </div>
                   </td>
 
-                  {/* Price */}
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">
-                      ${product.basePrice.toFixed(2)}
-                    </div>
-                    {product.offerPrice > 0 && product.offerPrice < product.basePrice && (
-                      <div className="text-sm text-green-600 font-medium">
-                        ${product.offerPrice.toFixed(2)}
-                        <span className="text-xs text-red-600 ml-1">
-                          (-{Math.round(((product.basePrice - product.offerPrice) / product.basePrice) * 100)}%)
-                        </span>
-                      </div>
-                    )}
-                  </td>
+{/* Price */}
+<td className="px-6 py-4">
+  <div className="flex flex-col space-y-1">
+    {/* 🆕 Use virtual fields for pricing display */}
+    {product.priceRange?.hasRange ? (
+      // Show price range for products with variants
+      <div className="text-sm font-medium text-gray-900">
+        ${product.priceRange.min.toFixed(2)} - ${product.priceRange.max.toFixed(2)}
+      </div>
+    ) : (
+      // Show single price for products without variants
+      <div className="text-sm font-medium text-gray-900">
+        ${(product.sellingPrice || product.basePrice).toFixed(2)}
+      </div>
+    )}
+    
+    {/* 🆕 Show MRP and discount if available */}
+    {product.displayMrp && product.displayMrp > (product.sellingPrice || product.basePrice) && (
+      <div className="flex items-center space-x-2">
+        <span className="text-xs text-gray-500 line-through">
+          ${product.displayMrp.toFixed(2)}
+        </span>
+        {product.calculatedDiscount > 0 && (
+          <span className="text-xs text-green-600 font-medium">
+            {product.calculatedDiscount}% OFF
+          </span>
+        )}
+      </div>
+    )}
+    
+    {/* 🆕 Backward compatibility - show old pricing if virtual fields not available */}
+    {!product.displayMrp && product.offerPrice > 0 && product.offerPrice < product.basePrice && (
+      <div className="text-sm text-green-600 font-medium">
+        ${product.offerPrice.toFixed(2)}
+        <span className="text-xs text-red-600 ml-1">
+          (-{Math.round(((product.basePrice - product.offerPrice) / product.basePrice) * 100)}%)
+        </span>
+      </div>
+    )}
+  </div>
+</td>
 
-                  {/* Stock */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col space-y-1">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStockColor(product.stockQuantity, product.variantConfiguration?.hasVariants || false)}`}>
-                        {product.variantConfiguration?.hasVariants ? 'Has Variants' : `${product.stockQuantity} in stock`}
-                      </span>
-                      {product.variantConfiguration?.hasVariants && product.variants && (
-                        <span className="text-xs text-gray-500">
-                          {product.variants.length} variant{product.variants.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                  </td>
+{/* Price */}
+<td className="px-6 py-4">
+  <div className="flex flex-col space-y-1">
+    {/* 🆕 Use virtual fields for pricing display */}
+    {product.priceRange?.hasRange ? (
+      // Show price range for products with variants
+      <div className="text-sm font-medium text-gray-900">
+        ${product.priceRange.min.toFixed(2)} - ${product.priceRange.max.toFixed(2)}
+      </div>
+    ) : (
+      // Show single price for products without variants
+      <div className="text-sm font-medium text-gray-900">
+        ${(product.sellingPrice || product.basePrice).toFixed(2)}
+      </div>
+    )}
+    
+    {/* 🆕 Show MRP and discount if available */}
+    {product.displayMrp && product.displayMrp > (product.sellingPrice || product.basePrice) && (
+      <div className="flex items-center space-x-2">
+        <span className="text-xs text-gray-500 line-through">
+          ${product.displayMrp.toFixed(2)}
+        </span>
+        {product.calculatedDiscount > 0 && (
+          <span className="text-xs text-green-600 font-medium">
+            {product.calculatedDiscount}% OFF
+          </span>
+        )}
+      </div>
+    )}
+    
+    {/* 🆕 Backward compatibility - show old pricing if virtual fields not available */}
+    {!product.displayMrp && product.offerPrice > 0 && product.offerPrice < product.basePrice && (
+      <div className="text-sm text-green-600 font-medium">
+        ${product.offerPrice.toFixed(2)}
+        <span className="text-xs text-red-600 ml-1">
+          (-{Math.round(((product.basePrice - product.offerPrice) / product.basePrice) * 100)}%)
+        </span>
+      </div>
+    )}
+  </div>
+</td>
 
                   {/* Status with Dropdown */}
                   <td className="px-6 py-4">

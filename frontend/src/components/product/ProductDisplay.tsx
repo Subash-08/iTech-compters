@@ -10,6 +10,7 @@ import ProductDimensions from './ProductDimensions';
 import ProductReviewsSection from '../review/ProductReviewsSection';
 import LinkedProductsDisplay from './LinkedProductsDisplay'; // 🆕 Import the new component
 import { ProductData, Variant } from './productTypes';
+import ManufacturerImages from './ManufacturerImages';
 
 const ProductDisplay: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -337,6 +338,8 @@ const ProductDisplay: React.FC = () => {
         dimensions={productData.dimensions}
         weight={productData.weight}
       />
+
+       <ManufacturerImages productData={productData} />
 
       {/* 🆕 FIX: Pass the correct specifications */}
       <ProductSpecifications 

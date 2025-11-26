@@ -14,7 +14,6 @@ import api from '../../config/axiosConfig';
 import { toast } from 'react-toastify';
 
 const initialProductData: ProductFormData = {
-  // ... (your existing initialProductData)
   name: '',
   brand: '',
   categories: [],
@@ -25,6 +24,11 @@ const initialProductData: ProductFormData = {
   status: 'Draft',
   description: '',
   definition: '',
+  
+  // 🆕 NEW FIELDS
+  hsn: '', // Add HSN field
+  mrp: 0, // Add MRP field
+  manufacturerImages: [], // Add manufacturerImages array
   
   images: {
     thumbnail: { url: '', altText: '' },
@@ -68,7 +72,7 @@ const initialProductData: ProductFormData = {
     keywords: []
   },
   canonicalUrl: '',
-  linkedProducts: [], // 🆕 This field exists in your initial data
+  linkedProducts: [],
   notes: ''
 };
 
@@ -112,59 +116,64 @@ const ProductForm: React.FC<ProductFormProps> = ({
     console.error('Product Form Error:', error);
   };
 
-  // Initialize form data when initialData changes
-  useEffect(() => {
-    if (initialData && !isInitialized) {
-      const mergedData = {
-        ...initialProductData,
-        ...initialData,
-        images: {
-          ...initialProductData.images,
-          ...(initialData.images || {}),
-          thumbnail: {
-            url: initialData.images?.thumbnail?.url || initialProductData.images.thumbnail.url,
-            altText: initialData.images?.thumbnail?.altText || initialProductData.images.thumbnail.altText
-          }
-        },
-        variantConfiguration: {
-          ...initialProductData.variantConfiguration,
-          ...(initialData.variantConfiguration || {})
-        },
-        dimensions: {
-          ...initialProductData.dimensions,
-          ...(initialData.dimensions || {})
-        },
-        weight: {
-          ...initialProductData.weight,
-          ...(initialData.weight || {})
-        },
-        meta: {
-          ...initialProductData.meta,
-          ...(initialData.meta || {})
-        },
-        description: initialData.description && initialData.description !== "" ? initialData.description : initialProductData.description,
-        definition: initialData.definition && initialData.definition !== "" ? initialData.definition : initialProductData.definition,
-        label: initialData.label && initialData.label !== "" ? initialData.label : initialProductData.label,
-        sku: initialData.sku && initialData.sku !== "" ? initialData.sku : initialProductData.sku,
-        barcode: initialData.barcode && initialData.barcode !== "" ? initialData.barcode : initialProductData.barcode,
-        warranty: initialData.warranty && initialData.warranty !== "" ? initialData.warranty : initialProductData.warranty,
-        canonicalUrl: initialData.canonicalUrl && initialData.canonicalUrl !== "" ? initialData.canonicalUrl : initialProductData.canonicalUrl,
-        notes: initialData.notes && initialData.notes !== "" ? initialData.notes : initialProductData.notes,
-        tags: Array.isArray(initialData.tags) && initialData.tags.length > 0 ? initialData.tags : initialProductData.tags,
-        specifications: Array.isArray(initialData.specifications) && initialData.specifications.length > 0 ? initialData.specifications : initialProductData.specifications,
-        features: Array.isArray(initialData.features) && initialData.features.length > 0 ? initialData.features : initialProductData.features,
-        linkedProducts: Array.isArray(initialData.linkedProducts) && initialData.linkedProducts.length > 0 ? initialData.linkedProducts : initialProductData.linkedProducts,
-        variants: Array.isArray(initialData.variants) && initialData.variants.length > 0 ? initialData.variants : initialProductData.variants
-      };
-      
-      setFormData(mergedData);
-      setIsInitialized(true);
-    } else if (!initialData && !isInitialized) {
-      setFormData(initialProductData);
-      setIsInitialized(true);
-    }
-  }, [initialData, isInitialized]);
-
+// Initialize form data when initialData changes
+useEffect(() => {
+  if (initialData && !isInitialized) {
+    const mergedData = {
+      ...initialProductData,
+      ...initialData,
+      // 🆕 Handle new fields
+      hsn: initialData.hsn || initialProductData.hsn,
+      mrp: initialData.mrp || initialProductData.mrp,
+      manufacturerImages: Array.isArray(initialData.manufacturerImages) && initialData.manufacturerImages.length > 0 
+        ? initialData.manufacturerImages 
+        : initialProductData.manufacturerImages,
+      images: {
+        ...initialProductData.images,
+        ...(initialData.images || {}),
+        thumbnail: {
+          url: initialData.images?.thumbnail?.url || initialProductData.images.thumbnail.url,
+          altText: initialData.images?.thumbnail?.altText || initialProductData.images.thumbnail.altText
+        }
+      },
+      variantConfiguration: {
+        ...initialProductData.variantConfiguration,
+        ...(initialData.variantConfiguration || {})
+      },
+      dimensions: {
+        ...initialProductData.dimensions,
+        ...(initialData.dimensions || {})
+      },
+      weight: {
+        ...initialProductData.weight,
+        ...(initialData.weight || {})
+      },
+      meta: {
+        ...initialProductData.meta,
+        ...(initialData.meta || {})
+      },
+      description: initialData.description && initialData.description !== "" ? initialData.description : initialProductData.description,
+      definition: initialData.definition && initialData.definition !== "" ? initialData.definition : initialProductData.definition,
+      label: initialData.label && initialData.label !== "" ? initialData.label : initialProductData.label,
+      sku: initialData.sku && initialData.sku !== "" ? initialData.sku : initialProductData.sku,
+      barcode: initialData.barcode && initialData.barcode !== "" ? initialData.barcode : initialProductData.barcode,
+      warranty: initialData.warranty && initialData.warranty !== "" ? initialData.warranty : initialProductData.warranty,
+      canonicalUrl: initialData.canonicalUrl && initialData.canonicalUrl !== "" ? initialData.canonicalUrl : initialProductData.canonicalUrl,
+      notes: initialData.notes && initialData.notes !== "" ? initialData.notes : initialProductData.notes,
+      tags: Array.isArray(initialData.tags) && initialData.tags.length > 0 ? initialData.tags : initialProductData.tags,
+      specifications: Array.isArray(initialData.specifications) && initialData.specifications.length > 0 ? initialData.specifications : initialProductData.specifications,
+      features: Array.isArray(initialData.features) && initialData.features.length > 0 ? initialData.features : initialProductData.features,
+      linkedProducts: Array.isArray(initialData.linkedProducts) && initialData.linkedProducts.length > 0 ? initialData.linkedProducts : initialProductData.linkedProducts,
+      variants: Array.isArray(initialData.variants) && initialData.variants.length > 0 ? initialData.variants : initialProductData.variants
+    };
+    
+    setFormData(mergedData);
+    setIsInitialized(true);
+  } else if (!initialData && !isInitialized) {
+    setFormData(initialProductData);
+    setIsInitialized(true);
+  }
+}, [initialData, isInitialized]);
   // Reset form when switching between products
   useEffect(() => {
     if (initialData) {
@@ -236,64 +245,179 @@ const ProductForm: React.FC<ProductFormProps> = ({
     });
   };
 
-  // 🆕 Enhanced handleSubmit with error handling
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitLoading(true);
+// 🆕 Enhanced handleSubmit with error handling
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setSubmitLoading(true);
+  
+  try {
+    // Enhanced validation
+    const errors = [];
+    if (!formData.name?.trim()) errors.push('Product name is required');
+    if (!formData.description?.trim()) errors.push('Product description is required');
+    if (!formData.brand) errors.push('Brand is required');
+    if (!formData.categories.length) errors.push('At least one category is required');
     
-    try {
-      // Enhanced validation
-      const errors = [];
-      if (!formData.name?.trim()) errors.push('Product name is required');
-      if (!formData.description?.trim()) errors.push('Product description is required');
-      if (!formData.brand) errors.push('Brand is required');
-      if (!formData.categories.length) errors.push('At least one category is required');
-      if (!formData.basePrice || formData.basePrice <= 0) errors.push('Valid base price is required');
-      if (!formData.images?.thumbnail?.url) errors.push('Thumbnail image is required');
-
-      if (errors.length > 0) {
-        // 🆕 Show validation errors as toast
-        errors.forEach(error => toast.error(error));
-        setSubmitLoading(false);
-        return;
+    // 🆕 FIX: Only validate base price if product doesn't have variants
+    const hasActiveVariants = formData.variantConfiguration.hasVariants && formData.variants.length > 0;
+    
+    if (!hasActiveVariants) {
+      // Only require base price if no variants exist
+      if (!formData.basePrice || formData.basePrice <= 0) {
+        errors.push('Valid base price is required');
       }
-      
-      // Ensure variant stock is calculated correctly
-      const finalFormData = { ...formData };
-      if (formData.variantConfiguration.hasVariants && formData.variants.length > 0) {
-        finalFormData.stockQuantity = formData.variants.reduce(
-          (total, variant) => total + (variant.stockQuantity || 0), 0
-        );
-      }
-      
-      // 🆕 Call onSubmit and handle potential errors
-      await onSubmit(finalFormData);
-      
-      // 🆕 Show success toast
-      toast.success(
-        initialData ? 'Product updated successfully!' : 'Product created successfully!'
+    } else {
+      // 🆕 Validate that variants have proper pricing
+      const variantsWithInvalidPrice = formData.variants.filter(
+        variant => !variant.price || variant.price <= 0
       );
       
-    } catch (error) {
-      // 🆕 Handle submission errors
-      showErrorToast(error);
-    } finally {
-      setSubmitLoading(false);
+      if (variantsWithInvalidPrice.length > 0) {
+        errors.push(`${variantsWithInvalidPrice.length} variant(s) have invalid pricing. All variants must have a valid price.`);
+      }
+      
+      // 🆕 Validate that variants have names
+      const variantsWithoutName = formData.variants.filter(
+        variant => !variant.name?.trim()
+      );
+      
+      if (variantsWithoutName.length > 0) {
+        errors.push(`${variantsWithoutName.length} variant(s) are missing names. All variants must have a name.`);
+      }
     }
-  };
+    
+    if (!formData.images?.thumbnail?.url) errors.push('Thumbnail image is required');
+
+    if (errors.length > 0) {
+      // 🆕 Show validation errors as toast
+      errors.forEach(error => toast.error(error));
+      setSubmitLoading(false);
+      return;
+    }
+    
+    // 🆕 FIX: Clean up data before sending to backend
+    const finalFormData = cleanFormData(formData);
+    
+    // Ensure variant stock is calculated correctly
+    if (hasActiveVariants) {
+      finalFormData.stockQuantity = formData.variants.reduce(
+        (total, variant) => total + (variant.stockQuantity || 0), 0
+      );
+    }
+    
+    console.log('Final data being submitted:', finalFormData); // 🆕 Debug log
+    
+    // 🆕 Call onSubmit and handle potential errors
+    await onSubmit(finalFormData);
+    
+    // 🆕 Show success toast
+    toast.success(
+      initialData ? 'Product updated successfully!' : 'Product created successfully!'
+    );
+    
+  } catch (error) {
+    // 🆕 Handle submission errors
+    showErrorToast(error);
+  } finally {
+    setSubmitLoading(false);
+  }
+};
+
+// 🆕 ADD: Function to clean form data before submission
+const cleanFormData = (data: ProductFormData): ProductFormData => {
+  const cleaned = { ...data };
+  
+  // 🆕 Clean gallery images - remove empty images
+  if (cleaned.images?.gallery) {
+    cleaned.images.gallery = cleaned.images.gallery.filter(
+      (image: any) => image.url && image.url.trim() !== '' && image.altText && image.altText.trim() !== ''
+    );
+  }
+  
+  // 🆕 Clean manufacturer images - remove empty images
+  if (cleaned.manufacturerImages) {
+    cleaned.manufacturerImages = cleaned.manufacturerImages.filter(
+      (image: any) => image.url && image.url.trim() !== '' && image.altText && image.altText.trim() !== ''
+    );
+  }
+  
+  // 🆕 Clean variant gallery images
+  if (cleaned.variants) {
+    cleaned.variants = cleaned.variants.map(variant => ({
+      ...variant,
+      images: {
+        ...variant.images,
+        gallery: (variant.images?.gallery || []).filter(
+          (image: any) => image.url && image.url.trim() !== '' && image.altText && image.altText.trim() !== ''
+        )
+      }
+    }));
+  }
+  
+  // 🆕 Clean empty specifications
+  if (cleaned.specifications) {
+    cleaned.specifications = cleaned.specifications.filter(spec => 
+      spec.sectionTitle?.trim() || (spec.specs && spec.specs.length > 0)
+    );
+    
+    // Clean empty specs within each specification
+    cleaned.specifications = cleaned.specifications.map(spec => ({
+      ...spec,
+      specs: (spec.specs || []).filter(s => s.key?.trim() && s.value?.trim())
+    })).filter(spec => spec.specs.length > 0 || spec.sectionTitle?.trim());
+  }
+  
+  // 🆕 Clean empty features
+  if (cleaned.features) {
+    cleaned.features = cleaned.features.filter(feature => 
+      feature.title?.trim() && feature.description?.trim()
+    );
+  }
+  
+  // 🆕 Clean empty variant specifications
+  if (cleaned.variants) {
+    cleaned.variants = cleaned.variants.map(variant => ({
+      ...variant,
+      specifications: (variant.specifications || []).filter(spec => 
+        spec.sectionTitle?.trim() || (spec.specs && spec.specs.length > 0)
+      ).map(spec => ({
+        ...spec,
+        specs: (spec.specs || []).filter(s => s.key?.trim() && s.value?.trim())
+      })).filter(spec => spec.specs.length > 0 || spec.sectionTitle?.trim())
+    }));
+  }
+  
+  // 🆕 Clean empty arrays
+  if (cleaned.tags && cleaned.tags.length === 0) delete cleaned.tags;
+  if (cleaned.linkedProducts && cleaned.linkedProducts.length === 0) delete cleaned.linkedProducts;
+  if (cleaned.manufacturerImages && cleaned.manufacturerImages.length === 0) delete cleaned.manufacturerImages;
+  
+  // 🆕 Clean empty strings and zero values for optional fields
+  if (cleaned.hsn === '') delete cleaned.hsn;
+  if (cleaned.mrp === 0) delete cleaned.mrp;
+  if (cleaned.canonicalUrl === '') delete cleaned.canonicalUrl;
+  if (cleaned.notes === '') delete cleaned.notes;
+  if (cleaned.label === '') delete cleaned.label;
+  if (cleaned.definition === '') delete cleaned.definition;
+  
+  return cleaned;
+};
 
   const handleSectionChange = (sectionId: string) => {
     setActiveSection(sectionId);
   };
-
-  const handleCancel = () => {
-    // 🆕 Show cancellation toast
+const handleCancel = () => {
+  // 🆕 Show appropriate cancellation message based on context
+  if (initialData) {
+    toast.info('Product update cancelled');
+  } else {
     toast.info('Product creation cancelled');
-    
-    setIsInitialized(false);
-    setFormData(initialProductData);
-    if (onCancel) onCancel();
-  };
+  }
+  
+  setIsInitialized(false);
+  setFormData(initialProductData);
+  if (onCancel) onCancel();
+};
 
 const sections = [
     { id: 'basic', label: 'Basic Info', component: BasicInfoSection },

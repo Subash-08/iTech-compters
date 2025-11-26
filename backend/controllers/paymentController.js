@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const catchAsyncErrors = require('../middlewares/catchAsyncError');
 const ErrorHandler = require('../utils/errorHandler');
+const InvoiceGenerator = require('../utils/invoiceGenerator');
 
 // @desc    Create Razorpay order for payment
 // @route   POST /api/payment/razorpay/create-order
@@ -16,9 +17,6 @@ const createRazorpayOrder = catchAsyncErrors(async (req, res, next) => {
     try {
         const { orderId } = req.body;
         const userId = req.user._id;
-
-        console.log('🟡 Creating Razorpay order for:', { orderId, userId });
-
         // Validate order exists and belongs to user
         const order = await Order.findOne({
             _id: orderId,
@@ -137,7 +135,6 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
         }
 
         // 2. Fetch Order (Read-Only for checks)
-        // We need the order to check if it exists and to find the correct attempt ID
         const order = await Order.findOne({
             _id: orderId,
             user: userId
@@ -147,28 +144,39 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Order not found', 404));
         }
 
-        // 3. FAST EXIT: Idempotency Check
-        // If the order is already marked as Paid, stop immediately.
+        // 3. IDEMPOTENCY CHECK - If already paid and stock reduced, return success
         if (order.isPaid || order.status === 'confirmed') {
-            return res.status(200).json({
-                success: true,
-                message: 'Payment already verified',
-                data: {
-                    orderId: order._id,
-                    orderNumber: order.orderNumber,
-                    paymentId: razorpay_payment_id,
-                    alreadyVerified: true
-                }
-            });
+            console.log('✅ Order already confirmed, checking stock status...');
+
+            // Check if stock was already reduced by looking for timeline event
+            const stockReduced = order.orderTimeline.some(event =>
+                event.event === 'stock_reduced'
+            );
+
+            if (stockReduced) {
+                console.log('✅ Stock already reduced, returning success');
+                return res.status(200).json({
+                    success: true,
+                    message: 'Payment already verified and stock processed',
+                    data: {
+                        orderId: order._id,
+                        orderNumber: order.orderNumber,
+                        paymentId: razorpay_payment_id,
+                        alreadyVerified: true,
+                        stockReduced: true
+                    }
+                });
+            } else {
+                console.log('⚠️ Order confirmed but stock not reduced, proceeding with stock reduction...');
+                // Continue with the flow to reduce stock
+            }
         }
 
         // 4. Robust Attempt Lookup
-        // Priority: Match the Razorpay Order ID from the gateway response.
         let attempt = order.payment.attempts.find(
             (a) => a.razorpayOrderId === razorpay_order_id
         );
 
-        // Fallback: Use the attemptId sent by frontend
         if (!attempt && attemptId) {
             attempt = order.payment.attempts.id(attemptId);
         }
@@ -216,7 +224,6 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
         }
 
         // 7. Validate Amount (Prevent tampering)
-        // payment.amount is in paise (integer), order.pricing.total is standard currency
         const expectedAmountInPaise = Math.round(order.pricing.total * 100);
 
         if (expectedAmountInPaise !== payment.amount) {
@@ -279,7 +286,6 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             created_at: payment.created_at
         };
 
-        // 👇 YOU MUST ADD "const updateResult =" HERE 👇
         const updateResult = await Order.updateOne(
             {
                 "_id": orderId,
@@ -317,31 +323,157 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             }
         );
 
-        // NOW this will work because updateResult is defined above
         if (updateResult.matchedCount === 0) {
             console.error('❌ Critical: Atomic update failed - Order/Attempt not found');
             return next(new ErrorHandler('Failed to update order: Record not found', 500));
         }
 
-        if (updateResult.modifiedCount === 0) {
-            console.log('⚠️ Note: Payment update matched but modified 0 documents.');
-        } else {
-            console.log('✅ Atomic update successful - order confirmed');
-        }
-        // 10. Stock Reservation (Optional - assuming this function exists)
-        // Note: We fetch the order again if reserveStockForOrder expects a document
-        // Or you can pass the ID if your function supports it.
+        console.log('✅ Atomic update successful - order confirmed');
+
+        // ============================================================
+        // 10. ✅ STOCK REDUCTION - MOVED HERE FROM handlePaymentSuccess
+        // ============================================================
+        console.log('🔄 Starting stock reduction process...');
         try {
-            const refreshedOrder = await Order.findById(orderId);
-            if (typeof reserveStockForOrder === 'function') {
-                await reserveStockForOrder(refreshedOrder);
-            }
+            await reduceStockForOrder(order);
+            console.log('✅ Stock reduction completed successfully');
+
+            // Add stock reduction timeline event
+            await Order.updateOne(
+                { "_id": orderId },
+                {
+                    $push: {
+                        orderTimeline: {
+                            event: "stock_reduced",
+                            message: "Product stock reduced after payment verification",
+                            changedBy: userId,
+                            changedAt: new Date()
+                        }
+                    }
+                }
+            );
+
         } catch (stockError) {
-            console.error("Stock reservation warning:", stockError);
-            // Don't fail the request, payment is already secure.
+            console.error('❌ Stock reduction failed:', stockError);
+            // Don't fail the payment, but log it for admin review
+            await Order.updateOne(
+                { "_id": orderId },
+                {
+                    $push: {
+                        adminNotes: {
+                            note: `Stock reduction failed: ${stockError.message}`,
+                            addedBy: userId,
+                            addedAt: new Date()
+                        },
+                        orderTimeline: {
+                            event: "stock_reduction_failed",
+                            message: `Stock reduction failed: ${stockError.message}`,
+                            changedBy: userId,
+                            changedAt: new Date()
+                        }
+                    }
+                }
+            );
         }
 
-        // 11. Send Success Response
+        // 11. Clear user's cart
+        console.log('🔵 Clearing cart for user:', userId);
+        try {
+            const cartCleared = await require('./cartController').clearCartAfterPayment(userId);
+            console.log('✅ Cart cleared:', cartCleared);
+        } catch (cartError) {
+            console.error('❌ Cart clearance failed:', cartError);
+            // Don't fail the payment process
+        }
+
+        // ============================================================
+        // ✅ AUTOMATIC INVOICE GENERATION - FIXED VERSION
+        // ============================================================
+        console.log('🔄 Starting automatic invoice generation after payment...');
+        let invoiceGenerated = false;
+        let invoiceData = null;
+
+        try {
+            // Get the updated order - FIXED: Use correct field names from your Order schema
+            const orderForInvoice = await Order.findById(orderId)
+                .populate('user', 'firstName lastName email phone');
+
+            if (orderForInvoice) {
+                console.log('📄 Order found for invoice:', orderForInvoice.orderNumber);
+                console.log('📄 Order items:', orderForInvoice.items);
+
+                // Generate invoice automatically after payment verification
+                invoiceData = await InvoiceGenerator.generateAutoInvoice(orderForInvoice, orderForInvoice.user);
+
+                // Update order with auto-generated invoice
+                await Order.updateOne(
+                    { "_id": orderId },
+                    {
+                        $set: {
+                            "invoices.autoGenerated": {
+                                invoiceNumber: invoiceData.invoiceNumber,
+                                pdfPath: invoiceData.filePath,
+                                pdfUrl: invoiceData.pdfUrl,
+                                generatedAt: new Date(),
+                                version: 1,
+                                status: 'generated'
+                            }
+                        },
+                        $push: {
+                            orderTimeline: {
+                                event: "invoice_generated",
+                                message: "Invoice automatically generated after payment verification",
+                                metadata: {
+                                    invoiceNumber: invoiceData.invoiceNumber,
+                                    type: 'auto_generated'
+                                },
+                                changedBy: userId,
+                                changedAt: new Date()
+                            }
+                        }
+                    }
+                );
+
+                invoiceGenerated = true;
+                console.log('✅ Automatic invoice generated successfully');
+                console.log('📄 Invoice URL:', invoiceData.pdfUrl);
+                console.log('📄 Invoice Number:', invoiceData.invoiceNumber);
+
+            } else {
+                console.error('❌ Could not find order for invoice generation');
+            }
+
+        } catch (invoiceError) {
+            console.error('❌ Automatic invoice generation failed:', invoiceError);
+            console.error('❌ Invoice error stack:', invoiceError.stack);
+
+            // Mark invoice generation as failed but don't stop payment process
+            await Order.updateOne(
+                { "_id": orderId },
+                {
+                    $set: {
+                        "invoices.autoGenerated": {
+                            status: 'failed',
+                            error: invoiceError.message,
+                            attemptedAt: new Date()
+                        }
+                    },
+                    $push: {
+                        orderTimeline: {
+                            event: "invoice_generation_failed",
+                            message: "Automatic invoice generation failed after payment",
+                            metadata: {
+                                error: invoiceError.message
+                            },
+                            changedBy: userId,
+                            changedAt: new Date()
+                        }
+                    }
+                }
+            );
+        }
+
+        // 12. Send Success Response
         res.status(200).json({
             success: true,
             message: 'Payment verified successfully',
@@ -350,19 +482,178 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                 orderNumber: order.orderNumber,
                 paymentId: razorpay_payment_id,
                 amount: order.pricing.total,
-                status: 'confirmed'
+                status: 'confirmed',
+                stockReduced: true
             }
         });
 
     } catch (error) {
         console.error('Verify payment error:', error);
-        // Handle Razorpay specific errors
         if (error.error?.description) {
             return next(new ErrorHandler(`Payment verification error: ${error.error.description}`, 400));
         }
         next(new ErrorHandler(error.message || 'Payment verification failed', 500));
     }
 });
+
+
+// ==================== STOCK REDUCTION HELPER FUNCTIONS ====================
+
+/**
+ * Reduce stock for all items in an order
+ */
+const reduceStockForOrder = async (order) => {
+    const stockReductionResults = {
+        successful: [],
+        failed: []
+    };
+
+    // Process each item in the order
+    for (const item of order.items) {
+        try {
+            console.log(`🔄 Processing stock reduction for: ${item.name} (${item.productType})`);
+
+            if (item.productType === 'product') {
+                await reduceProductStock(item);
+            } else if (item.productType === 'prebuilt-pc') {
+                await reducePreBuiltPCStock(item);
+            } else {
+                throw new Error(`Unknown product type: ${item.productType}`);
+            }
+
+            stockReductionResults.successful.push({
+                productId: item.product,
+                productType: item.productType,
+                name: item.name,
+                quantity: item.quantity
+            });
+
+            console.log(`✅ Stock reduced for: ${item.name}`);
+
+        } catch (error) {
+            console.error(`❌ Failed to reduce stock for ${item.name}:`, error.message);
+            stockReductionResults.failed.push({
+                productId: item.product,
+                productType: item.productType,
+                name: item.name,
+                quantity: item.quantity,
+                error: error.message
+            });
+        }
+    }
+
+    // Log results
+    console.log('📊 Stock Reduction Summary:');
+    console.log(`✅ Successful: ${stockReductionResults.successful.length}`);
+    console.log(`❌ Failed: ${stockReductionResults.failed.length}`);
+
+    if (stockReductionResults.failed.length > 0) {
+        throw new Error(`Stock reduction failed for ${stockReductionResults.failed.length} items`);
+    }
+
+    return stockReductionResults;
+};
+
+/**
+ * Reduce stock for a regular product (with or without variants)
+ */
+const reduceProductStock = async (item) => {
+    const Product = mongoose.model('Product');
+
+    // Find the product
+    const product = await Product.findById(item.product);
+    if (!product) {
+        throw new Error(`Product not found: ${item.product}`);
+    }
+
+    // Check if product has variants
+    if (product.variantConfiguration.hasVariants && item.variant && item.variant.variantId) {
+        // Reduce stock for specific variant
+        await reduceVariantStock(product, item);
+    } else {
+        // Reduce stock for main product
+        await reduceMainProductStock(product, item);
+    }
+};
+
+/**
+ * Reduce stock for a product variant
+ */
+const reduceVariantStock = async (product, item) => {
+    const variant = product.variants.id(item.variant.variantId);
+    if (!variant) {
+        throw new Error(`Variant not found: ${item.variant.variantId}`);
+    }
+
+    if (variant.stockQuantity < item.quantity) {
+        throw new Error(`Insufficient stock for variant. Available: ${variant.stockQuantity}, Requested: ${item.quantity}`);
+    }
+
+    // Reduce variant stock
+    variant.stockQuantity -= item.quantity;
+
+    // Update variant status if stock becomes 0
+    if (variant.stockQuantity === 0) {
+        variant.isActive = false;
+    }
+
+    // Save the product
+    await product.save();
+
+    console.log(`✅ Variant stock reduced: ${variant.name} - New stock: ${variant.stockQuantity}`);
+};
+
+/**
+ * Reduce stock for main product (no variants)
+ */
+const reduceMainProductStock = async (product, item) => {
+    if (product.stockQuantity < item.quantity) {
+        throw new Error(`Insufficient stock for product. Available: ${product.stockQuantity}, Requested: ${item.quantity}`);
+    }
+
+    // Reduce main product stock
+    product.stockQuantity -= item.quantity;
+
+    // Update product status if stock becomes 0
+    if (product.stockQuantity === 0 && product.status === 'Published') {
+        product.status = 'OutOfStock';
+    }
+
+    // Save the product
+    await product.save();
+
+    console.log(`✅ Main product stock reduced: ${product.name} - New stock: ${product.stockQuantity}`);
+};
+
+/**
+ * Reduce stock for a prebuilt PC
+ */
+const reducePreBuiltPCStock = async (item) => {
+    const PreBuiltPC = mongoose.model('PreBuiltPC');
+
+    // Find the prebuilt PC
+    const preBuiltPC = await PreBuiltPC.findById(item.product);
+    if (!preBuiltPC) {
+        throw new Error(`PreBuilt PC not found: ${item.product}`);
+    }
+
+    if (preBuiltPC.stockQuantity < item.quantity) {
+        throw new Error(`Insufficient stock for PreBuilt PC. Available: ${preBuiltPC.stockQuantity}, Requested: ${item.quantity}`);
+    }
+
+    // Reduce prebuilt PC stock
+    preBuiltPC.stockQuantity -= item.quantity;
+
+    // Update status if stock becomes 0
+    if (preBuiltPC.stockQuantity === 0) {
+        preBuiltPC.isActive = false;
+    }
+
+    // Save the prebuilt PC
+    await preBuiltPC.save();
+
+    console.log(`✅ PreBuilt PC stock reduced: ${preBuiltPC.name} - New stock: ${preBuiltPC.stockQuantity}`);
+};
 
 // @desc    Get payment status
 // @route   GET /api/payment/order/:orderId/status
@@ -452,7 +743,6 @@ const handleRazorpayWebhook = catchAsyncErrors(async (req, res, next) => {
 const reserveStockForOrder = async (order) => {
     // Check if already processed
     if (order.status === Order.ORDER_STATUS.CONFIRMED) {
-        console.log('Order already confirmed, skipping stock reservation');
         return;
     }
 
@@ -532,7 +822,6 @@ const handlePaymentCaptured = async (event) => {
 
     // Check if already processed
     if (order.isPaid) {
-        console.log('Order already paid, skipping webhook processing');
         return;
     }
 

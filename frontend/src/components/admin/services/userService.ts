@@ -1,5 +1,12 @@
 import api from '../../config/axiosConfig';
-import { User, UserFilters, UserFormData, UpdateUserRoleData, UpdateUserStatusData } from './types/user';
+import { 
+  User, 
+  UserFilters, 
+  UserFormData, 
+  UpdateUserRoleData, 
+  UpdateUserStatusData,
+  DetailedUser 
+} from '../types/user';
 
 export const userService = {
   // Get all users (admin only)
@@ -8,8 +15,14 @@ export const userService = {
     return response.data;
   },
 
-  // Get single user by ID
+  // Get single user by ID (basic info)
   async getUser(id: string) {
+    const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
+
+  // ✅ ADDED: Get detailed user information with addresses, orders, etc.
+  async getUserDetails(id: string): Promise<{ user: DetailedUser }> {
     const response = await api.get(`/users/${id}`);
     return response.data;
   },

@@ -67,10 +67,13 @@ export interface CheckoutState {
   loading: boolean;
   error: string | null;
   couponApplied: CheckoutCoupon | null;
-  selectedShippingAddress: string | null;
-  selectedBillingAddress: string | null;
+  selectedShippingAddress: string | null;  // This stores the address ID
+  selectedBillingAddress: string | null;   // This stores the address ID
+  currentShippingAddress: CheckoutAddress | null;  // This stores the address object
+  currentBillingAddress: CheckoutAddress | null;   // This stores the address object
   gstInfo: GSTInfo | null;
   paymentMethod: 'card' | 'upi' | 'netbanking' | 'cod' | 'wallet' | null;
+  orderCreationData: any | null;
 }
 
 export interface CreateOrderRequest {

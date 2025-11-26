@@ -199,3 +199,21 @@ html {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* Ensure images display properly in wishlist */
+.wishlist-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Fix for aspect ratio */
+.aspect-square {
+  position: relative;
+}
+
+.aspect-square img {
+  position: absolute;
+  top: 0;
+  left: 0;
+}

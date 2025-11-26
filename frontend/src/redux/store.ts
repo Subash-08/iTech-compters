@@ -8,7 +8,7 @@ import reviewReducer from './slices/reviewSlice';
 import wishlistReducer from './slices/wishlistSlice';
 import preBuiltPCReducer from './slices/preBuiltPCSlice'; 
 import checkoutReducer from './slices/checkoutSlice';
-// import orderReducer from './slices/orderSlice';
+import orderReducer from './slices/orderSlice';
 
 const store = configureStore({
     reducer: {
@@ -21,7 +21,7 @@ const store = configureStore({
         reviewState: reviewReducer,
         wishlistState: wishlistReducer,
         preBuiltPCs: preBuiltPCReducer,
-        // orderState: orderReducer,
+        orderState: orderReducer,
     }
 });
 

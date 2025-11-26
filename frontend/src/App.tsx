@@ -25,6 +25,10 @@ import PreBuiltPCDetail from "./components/prebuild/PreBuiltPCDetail";
 import FeaturedPreBuiltPCs from "./components/prebuilt/FeaturedPreBuiltPCs";
 import PCBuilder from "./components/PCBuilder/PCBuilder";
 import Checkout from "./components/checkout/Checkout";
+import OrderConfirmation from "./components/checkout/OrderConfirmation";
+import OrderList from "./components/order/OrderList";
+import OrderDetails from "./components/order/OrderDetails";
+import OrderTracking from "./components/order/OrderTracking";
 
 // ✅ UPDATED: Root Layout - AuthInitializer at the top level
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -205,9 +209,47 @@ const App: React.FC = () => {
     </ProtectedRoute>
   } 
 />
+<Route 
+  path="/account/orders" 
+  element={
+    <ProtectedRoute>
+      <PublicLayout>
+        <OrderList />
+      </PublicLayout>
+    </ProtectedRoute>
+  } 
+/>
 
+<Route 
+  path="/account/orders/:orderId" 
+  element={
+    <ProtectedRoute>
+      <PublicLayout>
+        <OrderDetails />
+      </PublicLayout>
+    </ProtectedRoute>
+  } 
+/>
 
-          
+<Route 
+  path="/orders/track/:orderNumber" 
+  element={
+        <ProtectedRoute>
+    <PublicLayout>
+      <OrderTracking />
+    </PublicLayout>
+    </ProtectedRoute>
+  } 
+/>
+<Route 
+    path="/order-confirmation/:orderNumber" 
+    element={
+        // 1. MUST be protected, as it contains sensitive order data
+        <ProtectedRoute>
+                <OrderConfirmation />
+        </ProtectedRoute>
+    } 
+/>         
           {/* Public Routes - With Header & Footer */}
           <Route 
             path="/" 

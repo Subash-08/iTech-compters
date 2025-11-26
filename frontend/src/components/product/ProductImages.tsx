@@ -13,38 +13,66 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
 
   // Get all available images - update when variant changes
   const getAllImages = () => {
-    const images: string[] = [];
+    const images: Array<{url: string, altText: string, type: string}> = [];
     
-    // Add variant images first
+    // Add variant images first (highest priority)
     if (selectedVariant?.images) {
       if (selectedVariant.images.thumbnail?.url) {
-        images.push(selectedVariant.images.thumbnail.url);
+        images.push({
+          url: selectedVariant.images.thumbnail.url,
+          altText: selectedVariant.images.thumbnail.altText || `${productData.name} - ${selectedVariant.name}`,
+          type: 'variant-thumbnail'
+        });
       }
       if (selectedVariant.images.gallery) {
         selectedVariant.images.gallery.forEach(img => {
-          if (img.url) images.push(img.url);
+          if (img.url) {
+            images.push({
+              url: img.url,
+              altText: img.altText || `${productData.name} - ${selectedVariant.name}`,
+              type: 'variant-gallery'
+            });
+          }
         });
       }
     }
     
     // Add product base images as fallback
-    if (images.length === 0 && productData.images) {
+    if (productData.images) {
       if (productData.images.thumbnail?.url) {
-        images.push(productData.images.thumbnail.url);
+        images.push({
+          url: productData.images.thumbnail.url,
+          altText: productData.images.thumbnail.altText || productData.name,
+          type: 'product-thumbnail'
+        });
       }
       if (productData.images.gallery) {
         productData.images.gallery.forEach(img => {
-          if (img.url) images.push(img.url);
+          if (img.url) {
+            images.push({
+              url: img.url,
+              altText: img.altText || productData.name,
+              type: 'product-gallery'
+            });
+          }
         });
       }
       if (productData.images.hoverImage?.url) {
-        images.push(productData.images.hoverImage.url);
+        images.push({
+          url: productData.images.hoverImage.url,
+          altText: productData.images.hoverImage.altText || productData.name,
+          type: 'product-hover'
+        });
       }
     }
     
     // Add placeholder if no images found
     if (images.length === 0) {
-      images.push('/placeholder-image.jpg');
+      images.push({
+        url: '/placeholder-image.jpg',
+        altText: 'Product image not available',
+        type: 'placeholder'
+      });
     }
     
     return images;
@@ -69,8 +97,8 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
       <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-center h-96">
         {!imageError && currentImage ? (
           <img
-            src={currentImage}
-            alt={productData.name}
+            src={currentImage.url}
+            alt={currentImage.altText}
             className="max-h-full max-w-full object-contain"
             onError={handleImageError}
           />
@@ -97,8 +125,8 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
               }}
             >
               <img
-                src={image}
-                alt={`${productData.name} view ${index + 1}`}
+                src={image.url}
+                alt={image.altText}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.currentTarget.src = '/placeholder-thumbnail.jpg';

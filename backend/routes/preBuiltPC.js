@@ -17,7 +17,8 @@ const {
     getBenchmarkCategories,
     getPerformanceStats,
     createPreBuiltPC,
-    getAdminPreBuiltPCs
+    getAdminPreBuiltPCs,
+    getPreBuiltPCAnalytics
 } = require('../controllers/preBuiltPCController');
 
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
@@ -50,6 +51,8 @@ router.post(
     handleMulterError,      // Error handling for uploads
     createPreBuiltPC        // Controller function
 );
+
+router.get('/admin/analytics/prebuilt-pcs', isAuthenticatedUser, authorizeRoles('admin'), getPreBuiltPCAnalytics);
 
 router.put(
     '/admin/prebuilt-pcs/:id',

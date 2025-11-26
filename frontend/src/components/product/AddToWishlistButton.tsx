@@ -1,12 +1,23 @@
-// components/wishlist/AddToWishlistButton.tsx - FIXED VERSION
+// components/wishlist/AddToWishlistButton.tsx - UPDATED VERSION
 import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { wishlistActions } from '../../redux/actions/wishlistActions';
 import { selectIsInWishlist, selectIsGuestWishlist } from '../../redux/selectors/wishlistSelectors';
 import { toast } from 'react-toastify';
 
+interface VariantData {
+  variantId: string;
+  name?: string;
+  price?: number;
+  mrp?: number;
+  stock?: number;
+  attributes?: Array<{ key: string; label: string; value: string }>;
+  sku?: string;
+}
+
 interface AddToWishlistButtonProps {
   productId: string;
+  variant?: VariantData | null; // NEW: Accept variant data
   productType?: 'product' | 'prebuilt-pc';
   className?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -15,13 +26,18 @@ interface AddToWishlistButtonProps {
 
 const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({ 
   productId, 
+  variant, // NEW: Variant data
   productType = 'product',
   className = '',
   size = 'md',
   showTooltip = true
 }) => {
   const dispatch = useAppDispatch();
-  const isInWishlist = useAppSelector(selectIsInWishlist(productId));
+  
+  // CHANGED: Create unique identifier for wishlist items with variants
+  const wishlistItemId = variant?.variantId ? `${productId}_${variant.variantId}` : productId;
+  
+  const isInWishlist = useAppSelector(selectIsInWishlist(wishlistItemId));
   const isGuestWishlist = useAppSelector(selectIsGuestWishlist);
   const wishlistItems = useAppSelector(state => state.wishlistState.items || []);
   const isAuthenticated = useAppSelector(state => state.authState.isAuthenticated);
@@ -35,23 +51,19 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
     try {
       if (isInWishlist) {
         await dispatch(wishlistActions.removeFromWishlist({ 
-          productId,
+          productId: wishlistItemId, // Use unique ID for removal
           productType 
-        })); // ✅ REMOVED .unwrap()
+        }));
         
         toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} removed from wishlist`);
       } else {
-        if (productType === 'prebuilt-pc') {
-          await dispatch(wishlistActions.addToWishlist({ 
-            productId,
-            productType: 'prebuilt-pc'
-          })); // ✅ REMOVED .unwrap()
-        } else {
-          await dispatch(wishlistActions.addToWishlist({ 
-            productId,
-            productType: 'product'
-          })); // ✅ REMOVED .unwrap()
-        }
+        // CHANGED: Send variant data when adding to wishlist
+        await dispatch(wishlistActions.addToWishlist({ 
+          productId,
+          variant, // NEW: Send variant data
+          productType
+        }));
+        
         if (!isAuthenticated && showTooltip) {
           setShowGuestTooltip(true);
           setTimeout(() => setShowGuestTooltip(false), 3000);
@@ -62,13 +74,10 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
     } catch (error: any) {
       console.error('❌ Wishlist toggle error:', error);
       
-      // Enhanced error handling
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update wishlist';
       
-      // Don't show error toast for PreBuiltPC 404 (it might use guest fallback)
       if (!(productType === 'prebuilt-pc' && error.response?.status === 404)) {
         toast.error(errorMessage);
-      } else {
       }
     } finally {
       setLoading(false);

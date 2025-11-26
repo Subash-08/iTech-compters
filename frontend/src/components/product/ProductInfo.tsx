@@ -16,26 +16,30 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
   selectedAttributes,
   onAttributeChange
 }) => {
-  // Get current price and stock info
+  // 🆕 UPDATED: Get current price and stock info using virtual fields
   const getCurrentPriceInfo = () => {
     if (selectedVariant) {
       return {
-        price: selectedVariant.price,
-        offerPrice: selectedVariant.offerPrice,
-        stockQuantity: selectedVariant.stockQuantity
+        // 🆕 Use variant MRP if available, otherwise use variant price as fallback
+        price: selectedVariant.mrp || selectedVariant.price,
+        sellingPrice: selectedVariant.price, // 🆕 What customer actually pays
+        stockQuantity: selectedVariant.stockQuantity,
+        hasDiscount: selectedVariant.mrp && selectedVariant.mrp > selectedVariant.price
       };
     }
     
+    // 🆕 Use virtual fields for base product
     return {
-      price: productData.basePrice || 0,
-      offerPrice: productData.offerPrice || 0,
-      stockQuantity: productData.stockQuantity || 0
+      price: productData.displayMrp || productData.basePrice || 0,
+      sellingPrice: productData.sellingPrice || productData.basePrice || 0,
+      stockQuantity: productData.stockQuantity || 0,
+      hasDiscount: productData.calculDiscount && productData.calculatedDiscount > 0
     };
   };
 
   const currentPriceInfo = getCurrentPriceInfo();
 
-  // Calculate tax
+  // 🆕 Calculate tax based on selling price
   const calculateTax = (price: number) => {
     const taxRate = productData.taxRate || 0;
     return (price * taxRate) / 100;
@@ -78,6 +82,26 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
     return productData.sku;
   };
 
+  // 🆕 Get discount percentage
+  const getDiscountPercentage = () => {
+    if (selectedVariant && selectedVariant.mrp && selectedVariant.mrp > selectedVariant.price) {
+      return Math.round(((selectedVariant.mrp - selectedVariant.price) / selectedVariant.mrp) * 100);
+    }
+    return productData.calculatedDiscount || 0;
+  };
+
+  // 🆕 Show price range for products with variants
+  const renderPriceRange = () => {
+    if (productData.priceRange?.hasRange && !selectedVariant) {
+      return (
+        <div className="text-lg text-gray-900 font-semibold">
+          ${productData.priceRange.min.toFixed(2)} - ${productData.priceRange.max.toFixed(2)}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       {/* Product Title - Shows variant name when selected */}
@@ -108,6 +132,12 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
           )}
           <span>•</span>
           <span>SKU: {getDisplaySku()}</span>
+          {productData.hsn && (
+            <>
+              <span>•</span>
+              <span>HSN: {productData.hsn}</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -124,32 +154,44 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         </span>
       </div>
 
-      {/* Price */}
+      {/* 🆕 UPDATED: Price Display with New Virtual Fields */}
       <div className="space-y-2">
-        <div className="flex items-center space-x-3">
-          <span className="text-3xl font-bold text-gray-900">
-            ${currentPriceInfo.offerPrice || currentPriceInfo.price}
-          </span>
-          {currentPriceInfo.offerPrice < currentPriceInfo.price && (
-            <>
-              <span className="text-xl text-gray-500 line-through">
-                ${currentPriceInfo.price}
-              </span>
-              <span className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1 rounded">
-                Save ${(currentPriceInfo.price - currentPriceInfo.offerPrice).toFixed(2)}
-              </span>
-            </>
-          )}
-        </div>
-        {productData.discountPercentage > 0 && (
-          <div className="text-sm text-green-600 font-medium">
-            {productData.discountPercentage}% OFF
+        {/* Price Range for Variants */}
+        {renderPriceRange()}
+        
+        {/* Single Price Display */}
+        {(!productData.priceRange?.hasRange || selectedVariant) && (
+          <div className="flex items-center space-x-3">
+            {/* 🆕 Show selling price (what customer pays) */}
+            <span className="text-3xl font-bold text-gray-900">
+              ${currentPriceInfo.sellingPrice.toFixed(2)}
+            </span>
+            
+            {/* 🆕 Show MRP with strikethrough if there's a discount */}
+            {currentPriceInfo.hasDiscount && currentPriceInfo.price > currentPriceInfo.sellingPrice && (
+              <>
+                <span className="text-xl text-gray-500 line-through">
+                  ${currentPriceInfo.price.toFixed(2)}
+                </span>
+                <span className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1 rounded">
+                  Save ${(currentPriceInfo.price - currentPriceInfo.sellingPrice).toFixed(2)}
+                </span>
+              </>
+            )}
           </div>
         )}
+        
+        {/* 🆕 Discount Percentage */}
+        {getDiscountPercentage() > 0 && (
+          <div className="text-sm text-green-600 font-medium">
+            {getDiscountPercentage()}% OFF
+          </div>
+        )}
+        
         <div className="text-sm text-gray-600">
           Inclusive of all taxes
           {productData.taxRate && productData.taxRate > 0 && (
-            <span> (incl. ${calculateTax(currentPriceInfo.offerPrice || currentPriceInfo.price).toFixed(2)} tax)</span>
+            <span> (incl. ${calculateTax(currentPriceInfo.sellingPrice).toFixed(2)} tax)</span>
           )}
         </div>
       </div>
@@ -173,6 +215,13 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
           </>
         ) : (
           <span className="text-red-600 text-sm font-medium">Out of Stock</span>
+        )}
+        
+        {/* 🆕 Show total variants stock if product has variants */}
+        {productData.hasActiveVariants && productData.totalStock && (
+          <span className="text-blue-600 text-sm">
+            • {productData.totalStock} total across all variants
+          </span>
         )}
       </div>
 
@@ -200,7 +249,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
           disabled={!canAddToCart}
         />
         
-        {/* Buy Now Button (Optional - you can create a similar component) */}
+        {/* Buy Now Button */}
         <button
           className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
             !canAddToCart
@@ -213,7 +262,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         </button>
       </div>
 
-      {/* Selected Variant Info - Now redundant since title shows variant name */}
+      {/* Selected Variant Info */}
       {selectedVariant && selectedVariant.identifyingAttributes && selectedVariant.identifyingAttributes.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-blue-800 text-sm">
@@ -221,6 +270,12 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
             {selectedVariant.identifyingAttributes.map(attr => (
               <span key={attr.key} className="ml-2">
                 {attr.label}: {attr.displayValue || attr.value}
+                {attr.hexCode && (
+                  <div 
+                    className="inline-block w-3 h-3 rounded-full border border-gray-300 ml-1 align-middle"
+                    style={{ backgroundColor: attr.hexCode }}
+                  />
+                )}
               </span>
             ))}
           </p>
@@ -250,6 +305,16 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         <div className="border-t border-gray-200 pt-4">
           <h3 className="text-lg font-medium text-gray-900 mb-2">Description</h3>
           <p className="text-gray-600 text-sm leading-relaxed">{productData.description}</p>
+        </div>
+      )}
+
+      {/* 🆕 HSN Code Display */}
+      {productData.hsn && (
+        <div className="border-t border-gray-200 pt-4">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Tax Information</h3>
+          <p className="text-gray-600 text-sm">
+            HSN Code: <span className="font-medium">{productData.hsn}</span>
+          </p>
         </div>
       )}
     </div>

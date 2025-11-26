@@ -514,7 +514,132 @@ exports.getPCQuote = catchAsyncErrors(async (req, res, next) => {
         }
     });
 });
+// Add to customPCController.js
+exports.getPCAnalytics = catchAsyncErrors(async (req, res, next) => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+    const [
+        basicStats,
+        weeklyQuotes,
+        topComponents,
+        popularCategories,
+        conversionStats
+    ] = await Promise.all([
+        // Basic stats from existing method
+        PCQuote.getStats(),
+        // Weekly quotes (last 8 weeks)
+        PCQuote.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: new Date(Date.now() - 56 * 24 * 60 * 60 * 1000) }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        $week: '$createdAt'
+                    },
+                    quotes: { $sum: 1 },
+                    conversions: {
+                        $sum: {
+                            $cond: [{ $in: ['$status', ['approved', 'converted']] }, 1, 0]
+                        }
+                    }
+                }
+            },
+            { $sort: { _id: 1 } },
+            { $limit: 8 }
+        ]),
+        // Top components
+        PCQuote.aggregate([
+            { $unwind: '$components' },
+            {
+                $group: {
+                    _id: {
+                        componentId: '$components.component',
+                        category: '$components.category'
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: '_id.componentId',
+                    foreignField: '_id',
+                    as: 'componentInfo'
+                }
+            },
+            { $unwind: '$componentInfo' },
+            {
+                $group: {
+                    _id: '$_id.category',
+                    topComponent: {
+                        $first: {
+                            component: '$componentInfo.name',
+                            count: '$count'
+                        }
+                    }
+                }
+            },
+            { $sort: { 'topComponent.count': -1 } }
+        ]),
+        // Popular categories
+        PCQuote.aggregate([
+            { $unwind: '$components' },
+            {
+                $group: {
+                    _id: '$components.category',
+                    usageCount: { $sum: 1 }
+                }
+            },
+            { $sort: { usageCount: -1 } },
+            { $limit: 5 }
+        ]),
+        // Conversion stats
+        PCQuote.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalQuotes: { $sum: 1 },
+                    convertedQuotes: {
+                        $sum: {
+                            $cond: [{ $in: ['$status', ['approved', 'converted']] }, 1, 0]
+                        }
+                    }
+                }
+            }
+        ])
+    ]);
+
+    const conversionRate = conversionStats[0] ?
+        (conversionStats[0].convertedQuotes / conversionStats[0].totalQuotes) * 100 : 0;
+
+    res.status(200).json({
+        success: true,
+        data: {
+            totalQuotes: basicStats.total,
+            approvedQuotes: basicStats.byStatus.find(s => s.status === 'approved')?.count || 0,
+            expiredQuotes: basicStats.expired,
+            pendingQuotes: basicStats.pending,
+            conversionRate: Math.round(conversionRate * 100) / 100,
+            topComponents: topComponents.map(item => ({
+                category: item._id,
+                component: item.topComponent.component,
+                count: item.topComponent.count
+            })),
+            popularCategories: popularCategories.map(item => ({
+                category: item._id,
+                usageCount: item.usageCount
+            })),
+            weeklyQuotes: weeklyQuotes.map(week => ({
+                week: `Week ${week._id}`,
+                quotes: week.quotes,
+                conversions: week.conversions
+            }))
+        }
+    });
+});
 // Update quote status with validation (Admin)
 exports.updateQuoteStatus = catchAsyncErrors(async (req, res, next) => {
     const { status, adminNotes, assignedTo } = req.body;

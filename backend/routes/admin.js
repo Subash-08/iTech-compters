@@ -12,7 +12,8 @@ const {
 } = require('../controllers/adminController'); // Make sure this points to your actual controller file
 
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
-
+const { getQuickStats } = require('../controllers/analyticsController');
+router.get('/admin/analytics/quick-stats', authorizeRoles('admin'), getQuickStats);
 // Admin product routes
 router.patch('/admin/products/:id/status', isAuthenticatedUser, authorizeRoles('admin'), updateProductStatus);
 router.put('/admin/product/:id', isAuthenticatedUser, authorizeRoles('admin'), updateProduct);

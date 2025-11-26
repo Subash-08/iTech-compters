@@ -13,6 +13,11 @@ export interface Product {
   description: string;
   definition: string;
   
+  // 🆕 NEW FIELDS
+  hsn?: string; // HSN code for tax purposes
+  mrp?: number; // Maximum Retail Price (strikethrough price)
+  manufacturerImages?: ImageData[]; // A+ content images from manufacturer
+  
   // Images
   images: {
     thumbnail: ImageData;
@@ -20,15 +25,26 @@ export interface Product {
     gallery: ImageData[];
   };
   
-  // Pricing & Inventory
+  // Pricing & Inventory - 🆕 UPDATED
   basePrice: number;
-  offerPrice: number;
+  offerPrice: number; // Kept for backward compatibility
   discountPercentage: number;
   taxRate: number;
   sku: string;
   barcode: string;
   stockQuantity: number;
   hasVariants?: boolean;
+  
+  // 🆕 VIRTUAL FIELDS (from backend - for display)
+  sellingPrice?: number; // Virtual: Always uses variant prices if variants exist, otherwise product basePrice
+  displayMrp?: number; // Virtual: Always uses variant MRP if variants exist, otherwise product MRP
+  calculatedDiscount?: number; // Virtual: Dynamic discount calculation based on MRP vs selling price
+  priceRange?: { // Virtual: Shows min-max price range for variants
+    min: number;
+    max: number;
+    hasRange: boolean;
+  };
+  hasActiveVariants?: boolean; // Virtual: Checks if product has active variants
   
   // Variants
   variantConfiguration: VariantConfiguration;
@@ -80,6 +96,11 @@ export interface ProductFormData {
   description: string;
   definition: string;
   
+  // 🆕 NEW FIELDS
+  hsn?: string;
+  mrp?: number;
+  manufacturerImages?: ImageData[];
+  
   // Images
   images: {
     thumbnail: ImageData;
@@ -87,9 +108,9 @@ export interface ProductFormData {
     gallery: ImageData[];
   };
   
-  // Pricing & Inventory
+  // Pricing & Inventory - 🆕 UPDATED
   basePrice: number;
-  offerPrice: number;
+  offerPrice: number; // Kept for backward compatibility
   discountPercentage: number;
   taxRate: number;
   sku: string;
@@ -130,6 +151,7 @@ export interface ProductFormData {
 export interface ImageData {
   url: string;
   altText: string;
+  sectionTitle?: string;
 }
 
 export interface VariantConfiguration {
@@ -158,7 +180,9 @@ export interface ProductVariant {
   sku: string;
   barcode: string;
   price: number;
-  offerPrice: number;
+  mrp?: number; // 🆕 MRP for variants
+  offerPrice: number; // Kept for backward compatibility
+  hsn?: string; // 🆕 HSN for variants
   stockQuantity: number;
   identifyingAttributes: IdentifyingAttribute[];
   images: {
@@ -217,4 +241,46 @@ export interface ProductFilters {
   sort: string;
   page: number;
   limit: number;
+}
+
+// 🆕 ADD: For product listing display with new virtual fields
+export interface ProductListingItem {
+  id: string;
+  name: string;
+  slug: string;
+  brand: Brand;
+  categories: Category[];
+  images: {
+    thumbnail: ImageData;
+  };
+  // 🆕 USE VIRTUAL FIELDS for display
+  sellingPrice: number; // What customer pays (variant priority)
+  displayMrp: number; // Strikethrough price (variant priority)
+  calculatedDiscount: number; // Discount percentage
+  priceRange?: { // For variants price range
+    min: number;
+    max: number;
+    hasRange: boolean;
+  };
+  hasVariants: boolean;
+  hasActiveVariants?: boolean;
+  variantConfiguration: VariantConfiguration;
+  averageRating?: number;
+  totalReviews?: number;
+  stockQuantity: number;
+  hsn?: string;
+  mrp?: number;
+}
+
+// 🆕 ADD: Price display helper types
+export interface ProductPriceDisplay {
+  sellingPrice: number;
+  displayMrp: number;
+  calculatedDiscount: number;
+  hasDiscount: boolean;
+  priceRange?: {
+    min: number;
+    max: number;
+    hasRange: boolean;
+  };
 }

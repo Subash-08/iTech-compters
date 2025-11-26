@@ -17,15 +17,34 @@ const wishlistSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: "Product",
             required: function () {
-                return this.productType === 'product'; // ✅ Only required for regular products
+                return this.productType === 'product';
             }
         },
         preBuiltPC: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'PreBuiltPC',
             required: function () {
-                return this.productType === 'prebuilt-pc'; // ✅ Only required for PreBuiltPCs
+                return this.productType === 'prebuilt-pc';
             }
+        },
+        variant: {
+            variantId: {
+                type: mongoose.Schema.Types.ObjectId,
+                required: false
+            },
+            name: String,
+            price: Number,
+            mrp: Number,
+            stock: Number,
+            attributes: [{
+                key: String,
+                label: String,
+                value: String,
+                displayValue: String,
+                hexCode: String,
+                isColor: Boolean
+            }],
+            sku: String
         },
         addedAt: {
             type: Date,
@@ -56,13 +75,25 @@ wishlistSchema.index({ userId: 1 });
 wishlistSchema.index({ lastUpdated: 1 });
 wishlistSchema.index({ 'items.addedAt': 1 });
 
-// models/Wishlist.js - FIXED addItem method (optional, for consistency)
-wishlistSchema.methods.addItem = async function (productId, productType = 'product') {
-    // 🛑 FIX: Check both product types for existing items
-    const existingItem = this.items.find(item =>
-        (item.product && item.product.toString() === productId.toString()) ||
-        (item.preBuiltPC && item.preBuiltPC.toString() === productId.toString())
-    );
+// ✅ FIXED: addItem method with proper error handling
+wishlistSchema.methods.addItem = async function (productId, variantData = null, productType = 'product') {
+    const existingItem = this.items.find(item => {
+        if (item.productType !== productType) return false;
+
+        if (productType === 'product') {
+            const sameProduct = item.product && item.product.toString() === productId.toString();
+
+            if (variantData && variantData.variantId) {
+                const sameVariant = item.variant && item.variant.variantId.toString() === variantData.variantId.toString();
+                return sameProduct && sameVariant;
+            }
+
+            return sameProduct && !item.variant;
+        } else if (productType === 'prebuilt-pc') {
+            return item.preBuiltPC && item.preBuiltPC.toString() === productId.toString();
+        }
+        return false;
+    });
 
     if (existingItem) {
         throw new Error('Item already in wishlist');
@@ -72,7 +103,6 @@ wishlistSchema.methods.addItem = async function (productId, productType = 'produ
         throw new Error('Wishlist cannot have more than 100 items');
     }
 
-    // 🛑 FIX: Create item based on product type
     const newItem = {
         productType: productType,
         addedAt: new Date()
@@ -80,30 +110,41 @@ wishlistSchema.methods.addItem = async function (productId, productType = 'produ
 
     if (productType === 'product') {
         newItem.product = productId;
+        if (variantData && variantData.variantId) {
+            newItem.variant = {
+                variantId: variantData.variantId,
+                name: variantData.name,
+                price: variantData.price,
+                mrp: variantData.mrp,
+                stock: variantData.stock,
+                attributes: variantData.attributes || [],
+                sku: variantData.sku
+            };
+        }
     } else if (productType === 'prebuilt-pc') {
         newItem.preBuiltPC = productId;
     }
 
     this.items.push(newItem);
-
     return this.save();
 };
 
-// models/Wishlist.js - FIXED removeItem method
-wishlistSchema.methods.removeItem = async function (productId) {
+// ✅ FIXED: removeItem method for both product types
+wishlistSchema.methods.removeItem = async function (productId, variantId = null, productType = 'product') {
     const initialLength = this.items.length;
 
-    // 🛑 FIX: Check both product and preBuiltPC fields
     this.items = this.items.filter(item => {
-        // Check regular products
-        if (item.product && item.product.toString() === productId.toString()) {
-            return false; // Remove this item
+        if (productType === 'product' && item.productType === 'product') {
+            if (item.product && item.product.toString() === productId.toString()) {
+                if (variantId) {
+                    return !(item.variant && item.variant.variantId.toString() === variantId.toString());
+                }
+                return false;
+            }
+        } else if (productType === 'prebuilt-pc' && item.productType === 'prebuilt-pc') {
+            return !(item.preBuiltPC && item.preBuiltPC.toString() === productId.toString());
         }
-        // Check Pre-built PCs
-        if (item.preBuiltPC && item.preBuiltPC.toString() === productId.toString()) {
-            return false; // Remove this item
-        }
-        return true; // Keep this item
+        return true;
     });
 
     if (this.items.length === initialLength) {
@@ -118,12 +159,32 @@ wishlistSchema.methods.clearWishlist = async function () {
     return this.save();
 };
 
-// models/Wishlist.js - FIXED hasItem method
-wishlistSchema.methods.hasItem = function (productId) {
-    return this.items.some(item =>
-        (item.product && item.product.toString() === productId.toString()) ||
-        (item.preBuiltPC && item.preBuiltPC.toString() === productId.toString())
-    );
+wishlistSchema.methods.hasItem = function (productId, variantId = null, productType = 'product') {
+    return this.items.some(item => {
+        if (productType === 'product' && item.productType === 'product') {
+            if (item.product && item.product.toString() === productId.toString()) {
+                if (variantId) {
+                    return item.variant && item.variant.variantId.toString() === variantId.toString();
+                }
+                return true;
+            }
+        } else if (productType === 'prebuilt-pc' && item.productType === 'prebuilt-pc') {
+            return item.preBuiltPC && item.preBuiltPC.toString() === productId.toString();
+        }
+        return false;
+    });
+};
+
+wishlistSchema.methods.getItem = function (productId, variantId = null) {
+    return this.items.find(item => {
+        if (item.product && item.product.toString() === productId.toString()) {
+            if (variantId) {
+                return item.variant && item.variant.variantId.toString() === variantId.toString();
+            }
+            return !item.variant;
+        }
+        return false;
+    });
 };
 
 module.exports = mongoose.model("Wishlist", wishlistSchema);

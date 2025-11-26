@@ -13,52 +13,62 @@ const imageSchema = new Schema({
     altText: { type: String, trim: true, required: true },
 }, { _id: false });
 
+// 🏭 Manufacturer Images Schema (Simplified)
+const manufacturerImageSchema = new Schema({
+    url: { type: String, required: true },
+    altText: { type: String, trim: true, required: true },
+    sectionTitle: { type: String, trim: true }
+}, { _id: false });
+
 // ⚙️ Specification Schema
 const specificationSchema = new Schema({
     sectionTitle: { type: String, trim: true },
     specs: [{ key: { type: String, required: true, trim: true }, value: { type: String, required: true, trim: true } }],
 }, { _id: false });
 
-// 🎨 ENHANCED Variant Schema with Color Support and Slug
+// 🎨 Variant Schema with CLEAR Pricing
 const variantSchema = new Schema({
     name: { type: String, required: true, trim: true },
-    slug: { type: String, trim: true, lowercase: true, index: true }, // 🆕 Added slug for variant
+    slug: { type: String, trim: true, lowercase: true, index: true },
     sku: { type: String, unique: true, trim: true, sparse: true },
     barcode: { type: String, unique: true, trim: true, sparse: true },
-    price: { type: Number, required: true, min: 0 },
-    offerPrice: { type: Number, min: 0, default: 0 },
+
+    // 💰 CLEAR PRICING STRUCTURE
+    price: { type: Number, required: true, min: 0 }, // Selling price (what customer pays)
+    mrp: { type: Number, min: 0 }, // Maximum Retail Price (strikethrough)
+    offerPrice: { type: Number, min: 0 }, // 🆕 Keep for backward compatibility
+
+    hsn: { type: String, trim: true },
     stockQuantity: {
         type: Number,
         min: 0,
         default: 0,
         validate: integerValidator
     },
-    // 🆕 ENHANCED: Color support in identifying attributes
     identifyingAttributes: [{
         key: { type: String, required: true, trim: true },
         label: { type: String, required: true, trim: true },
         value: { type: String, required: true, trim: true },
         displayValue: { type: String, trim: true },
-        // 🆕 Simple color properties
-        hexCode: { type: String, trim: true }, // For color swatches
-        isColor: { type: Boolean, default: false } // Auto-detected
+        hexCode: { type: String, trim: true },
+        isColor: { type: Boolean, default: false }
     }],
-    // 🆕 ENHANCED: Variant-specific images (different for each color)
     images: {
         thumbnail: imageSchema,
-        gallery: [imageSchema], // Different gallery for each color variant
+        gallery: [imageSchema],
     },
     isActive: { type: Boolean, default: true },
     specifications: [specificationSchema]
-}, { _id: true, timestamps: true }); // 🆕 Added timestamps for variants
-
+}, { _id: true, timestamps: true });
 // 🌟 Feature Schema
+
+
 const featureSchema = new Schema({
     title: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
 }, { _id: false });
 
-// 🧠 ENHANCED Main Product Schema with Color Support
+// 🧠 Main Product Schema - SIMPLIFIED
 const productSchema = new Schema({
     name: { type: String, required: true, trim: true, index: true },
     slug: { type: String, required: true, unique: true, trim: true, lowercase: true, index: true },
@@ -71,15 +81,23 @@ const productSchema = new Schema({
     status: { type: String, enum: ['Draft', 'Published', 'OutOfStock', 'Archived', 'Discontinued'], index: true },
     description: { type: String, trim: true },
     definition: { type: String, trim: true },
-    // 🆕 Base images (fallback when variant doesn't have specific images)
+
+    // 🖼️ IMAGES
     images: {
         thumbnail: imageSchema,
         hoverImage: imageSchema,
         gallery: [imageSchema],
     },
-    basePrice: { type: Number, required: true, min: 0 },
-    offerPrice: { type: Number, min: 0, default: 0 },
-    discountPercentage: { type: Number, min: 0, max: 100, default: 0 },
+
+    // 🏭 MANUFACTURER IMAGES
+    manufacturerImages: [manufacturerImageSchema],
+
+    // 💰 PRODUCT-LEVEL PRICING (Only used when no variants)
+    basePrice: { type: Number, required: true, min: 0 }, // Selling price
+    mrp: { type: Number, min: 0 }, // Maximum Retail Price
+
+    // 🏷️ PRODUCT IDENTIFICATION
+    hsn: { type: String, trim: true },
     taxRate: { type: Number, min: 0, default: 0 },
     sku: { type: String, unique: true, trim: true, sparse: true },
     barcode: { type: String, unique: true, trim: true, sparse: true },
@@ -89,33 +107,35 @@ const productSchema = new Schema({
         default: 0,
         validate: integerValidator
     },
-    // 🆕 ENHANCED: Simplified variant configuration for colors
+
+    // 🔧 VARIANT CONFIGURATION (Simplified)
     variantConfiguration: {
         hasVariants: { type: Boolean, default: false },
         variantType: {
             type: String,
-            enum: ['None', 'Specifications', 'Attributes', 'Mixed', 'Color'],
-            default: 'None' // 🆕 Added 'Color' type
+            enum: ['None', 'Color', 'Specifications', 'Attributes', 'Mixed'], // 🆕 UPDATED
+            default: 'None'
         },
-        // For technical specs (RAM, Storage, etc.)
-        variantCreatingSpecs: [{
+        variantCreatingSpecs: [{ // 🆕 KEEP this for backward compatibility
             sectionTitle: { type: String, trim: true },
             specKey: { type: String, trim: true },
             specLabel: { type: String, trim: true },
             possibleValues: [{ type: String, trim: true }]
         }],
-        // 🆕 SIMPLIFIED: For colors - just type color names
-        variantAttributes: [{
-            key: { type: String, trim: true, default: 'color' },
-            label: { type: String, trim: true, default: 'Color' },
-            values: [{
-                type: String,
-                trim: true,
-                required: true
-            }]
+        variantAttributes: [{ // 🆕 KEEP this for backward compatibility
+            key: { type: String, trim: true },
+            label: { type: String, trim: true },
+            values: [{ type: String, trim: true }]
+        }],
+        attributes: [{
+            key: { type: String, trim: true },
+            label: { type: String, trim: true },
+            values: [{ type: String, trim: true }]
         }]
     },
     variants: [variantSchema],
+
+    // 📋 PRODUCT DETAILS
     specifications: [specificationSchema],
     features: [featureSchema],
     dimensions: {
@@ -129,8 +149,12 @@ const productSchema = new Schema({
         unit: { type: String, enum: ['g', 'kg', 'lb', 'oz'], default: 'kg' },
     },
     warranty: { type: String, trim: true },
+
+    // ⭐ RATINGS & REVIEWS
     averageRating: { type: Number, min: 0, max: 5, default: 0 },
     totalReviews: { type: Number, min: 0, default: 0 },
+
+    // 🔍 SEO
     meta: {
         title: { type: String, trim: true },
         description: { type: String, trim: true },
@@ -142,41 +166,124 @@ const productSchema = new Schema({
 }, { timestamps: true, toJSON: { virtuals: true }, strictPopulate: false });
 
 // =============================================
-// 🎯 VIRTUAL FIELDS (UPDATED)
+// 🎯 UPDATED VIRTUAL FIELDS (CONSISTENT PRICING)
 // =============================================
 
 productSchema.virtual('totalStock').get(function () {
-    return (this.variantConfiguration.hasVariants && this.variants.length > 0)
-        ? this.variants.reduce((sum, v) => sum + v.stockQuantity, 0)
-        : this.stockQuantity;
+    if (this.variantConfiguration.hasVariants && this.variants.length > 0) {
+        return this.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+    }
+    return this.stockQuantity || 0;
 });
 
-productSchema.virtual('lowestPrice').get(function () {
+// 🆕 CONSISTENT: Always use variant prices if variants exist
+productSchema.virtual('sellingPrice').get(function () {
     if (this.variantConfiguration.hasVariants && this.variants.length > 0) {
-        const prices = this.variants.map(v => (v.offerPrice > 0 ? v.offerPrice : v.price) || Infinity);
+        const activeVariants = this.variants.filter(v => v.isActive);
+        if (activeVariants.length === 0) return this.basePrice || 0;
+
+        const prices = activeVariants.map(v => v.price || Infinity);
         return Math.min(...prices);
     }
-    return (this.offerPrice > 0 && this.offerPrice < this.basePrice) ? this.offerPrice : this.basePrice;
+    return this.basePrice || 0;
 });
 
-productSchema.virtual('variantOptions').get(function () {
-    if (!this.variantConfiguration.hasVariants) return {};
+// 🆕 CONSISTENT: Always use variant MRP if variants exist
+productSchema.virtual('displayMrp').get(function () {
+    if (this.variantConfiguration.hasVariants && this.variants.length > 0) {
+        const activeVariants = this.variants.filter(v => v.isActive);
+        if (activeVariants.length === 0) return this.mrp || this.basePrice || 0;
 
-    const options = {};
-    this.variantConfiguration.variantCreatingSpecs.forEach(spec => {
-        options[spec.specKey] = {
-            label: spec.specLabel,
-            values: [...new Set(this.variants
-                .map(v => v.identifyingAttributes.find(a => a.key === spec.specKey)?.value)
-                .filter(Boolean)
-            )]
+        const mrps = activeVariants.map(v => v.mrp || v.price || 0);
+        return Math.max(...mrps);
+    }
+    return this.mrp || this.basePrice || 0;
+});
+
+// 🆕 Calculate discount based on MRP vs Selling Price
+productSchema.virtual('discountPercentage').get(function () {
+    const mrp = this.displayMrp;
+    const sellingPrice = this.sellingPrice;
+
+    if (mrp > sellingPrice && mrp > 0) {
+        return Math.round(((mrp - sellingPrice) / mrp) * 100);
+    }
+    return 0;
+});
+
+// 🆕 Backward compatibility - alias for existing code
+productSchema.virtual('lowestPrice').get(function () {
+    return this.sellingPrice;
+});
+
+// 🆕 Get price range for variants
+productSchema.virtual('priceRange').get(function () {
+    if (!this.variantConfiguration.hasVariants || this.variants.length === 0) {
+        return {
+            min: this.basePrice,
+            max: this.basePrice,
+            hasRange: false
         };
+    }
+
+    const activeVariants = this.getActiveVariants();
+    if (activeVariants.length === 0) {
+        return {
+            min: this.basePrice,
+            max: this.basePrice,
+            hasRange: false
+        };
+    }
+
+    const prices = activeVariants.map(v => v.price).filter(price => price > 0);
+    if (prices.length === 0) {
+        return {
+            min: this.basePrice,
+            max: this.basePrice,
+            hasRange: false
+        };
+    }
+
+    return {
+        min: Math.min(...prices),
+        max: Math.max(...prices),
+        hasRange: prices.length > 1
+    };
+});
+
+// 🆕 Get available colors
+productSchema.virtual('availableColors').get(function () {
+    if (!this.variantConfiguration.hasVariants || !this.variants.length) return [];
+
+    const colorMap = new Map();
+
+    this.variants.forEach(variant => {
+        const colorAttr = variant.identifyingAttributes.find(attr =>
+            attr.key === 'color' || attr.isColor
+        );
+
+        if (colorAttr && variant.isActive) {
+            const colorValue = colorAttr.value;
+            const existing = colorMap.get(colorValue) || {
+                value: colorValue,
+                displayValue: colorAttr.displayValue || colorValue,
+                hexCode: colorAttr.hexCode,
+                stock: 0,
+                variants: [],
+                slug: variant.slug
+            };
+
+            existing.stock += variant.stockQuantity;
+            existing.variants.push(variant._id);
+            colorMap.set(colorValue, existing);
+        }
     });
-    return options;
+
+    return Array.from(colorMap.values());
 });
 
 // =============================================
-// 🎯 MIDDLEWARE (UPDATED)
+// 🎯 FIXED MIDDLEWARE (NO MORE SLUG REGENERATION ON EVERY SAVE)
 // =============================================
 
 // Pre-validate: Generate unique slug for product
@@ -210,15 +317,24 @@ productSchema.pre('validate', async function (next) {
     next();
 });
 
-// Pre-save: Calculate offerPrice, update status, and generate variant slugs
+// Pre-save: Handle pricing and variant slugs ONLY when needed
 productSchema.pre('save', async function (next) {
-    // Pricing logic
-    if (this.isModified('basePrice') || this.isModified('discountPercentage')) {
-        this.offerPrice = this.basePrice * (1 - (this.discountPercentage / 100));
-        if (this.offerPrice < 0) this.offerPrice = 0;
+    // Set MRP if not provided (MRP should be >= basePrice)
+    if (!this.mrp || this.mrp < this.basePrice) {
+        this.mrp = this.basePrice;
     }
 
-    // Stock/status logic - use variantConfiguration.hasVariants
+    // 🆕 FIX: Only generate variant slugs for NEW variants or when name changes
+    if (this.variants && this.variants.length > 0) {
+        for (let variant of this.variants) {
+            // Only generate slug if variant is new or name was modified
+            if (!variant.slug || variant.isModified('name') || variant.isModified('identifyingAttributes')) {
+                await this.generateVariantSlug(variant);
+            }
+        }
+    }
+
+    // Stock/status logic
     if (this.isModified('stockQuantity') || this.isModified('variants') || this.isNew) {
         const totalStock = this.totalStock;
 
@@ -231,15 +347,12 @@ productSchema.pre('save', async function (next) {
         }
     }
 
-    // 🆕 Generate slugs for variants
-    if (this.variants && this.variants.length > 0) {
-        for (let variant of this.variants) {
-            await this.generateVariantSlug(variant);
-        }
-    }
-
     next();
 });
+
+// =============================================
+// 🎯 ESSENTIAL METHODS (ALL IN SCHEMA)
+// =============================================
 
 // 🆕 Generate unique slug for variant
 productSchema.methods.generateVariantSlug = async function (variant) {
@@ -247,11 +360,9 @@ productSchema.methods.generateVariantSlug = async function (variant) {
         throw new Error('Variant name is required to generate slug.');
     }
 
-    // Start with product slug as base
     const productSlug = this.slug;
     let baseVariantSlug = variant.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-    // If variant name is too generic, use identifying attributes
     if (!baseVariantSlug || baseVariantSlug === productSlug) {
         const attrString = variant.identifyingAttributes
             ?.map(attr => attr.value)
@@ -284,11 +395,165 @@ productSchema.methods.generateVariantSlug = async function (variant) {
     variant.slug = tempSlug;
 };
 
-// =============================================
-// 🎯 HELPER METHODS (UPDATED FOR SLUGS)
-// =============================================
+// 🆕 Find variant by attributes (UNIFIED METHOD)
+productSchema.methods.findVariant = function (attributes = {}) {
+    if (!attributes || Object.keys(attributes).length === 0) {
+        return this.variants.find(v => v.isActive) || null;
+    }
 
-// Generate variant name from attributes
+    return this.variants.find(variant =>
+        variant.identifyingAttributes.every(attr =>
+            attributes[attr.key] === attr.value
+        )
+    );
+};
+
+// 🆕 Get active variants only
+productSchema.methods.getActiveVariants = function () {
+    return this.variants.filter(v => v.isActive);
+};
+
+// 🆕 Check if variant exists
+productSchema.methods.variantExists = function (attributes) {
+    return !!this.findVariant(attributes);
+};
+
+// 🆕 Get variants by color
+productSchema.methods.getVariantsByColor = function (colorValue) {
+    return this.variants.filter(variant =>
+        variant.identifyingAttributes.some(attr =>
+            (attr.key === 'color' || attr.isColor) && attr.value === colorValue
+        )
+    );
+};
+
+// 🆕 Find variant by color
+productSchema.methods.findVariantByColor = function (colorValue) {
+    return this.variants.find(variant =>
+        variant.identifyingAttributes.some(attr =>
+            (attr.key === 'color' || attr.isColor) && attr.value === colorValue
+        )
+    );
+};
+
+// 🆕 Get gallery images for specific color
+productSchema.methods.getColorGallery = function (colorValue) {
+    const variant = this.findVariantByColor(colorValue);
+
+    // Return variant-specific gallery if available
+    if (variant && variant.images.gallery.length > 0) {
+        return variant.images.gallery;
+    }
+
+    // Fallback to product base gallery
+    return this.images.gallery;
+};
+
+// 🆕 Check if color is available (has stock)
+productSchema.methods.isColorAvailable = function (colorValue) {
+    const variants = this.getVariantsByColor(colorValue);
+    return variants.some(variant => variant.stockQuantity > 0 && variant.isActive);
+};
+
+// 🆕 Get total stock for a color
+productSchema.methods.getColorStock = function (colorValue) {
+    const variants = this.getVariantsByColor(colorValue);
+    return variants.reduce((total, variant) => total + variant.stockQuantity, 0);
+};
+
+// 🆕 Simple method to add color variant
+productSchema.methods.addColorVariant = async function (colorName, variantData) {
+    const colorVariant = {
+        name: `${this.name} - ${colorName}`,
+        price: variantData.price || this.basePrice,
+        mrp: variantData.mrp || this.mrp || variantData.price || this.basePrice,
+        stockQuantity: variantData.stockQuantity || 0,
+        identifyingAttributes: [{
+            key: 'color',
+            label: 'Color',
+            value: colorName,
+            displayValue: colorName.charAt(0).toUpperCase() + colorName.slice(1),
+            isColor: true,
+            hexCode: variantData.hexCode || this.getColorHexCode(colorName)
+        }],
+        images: {
+            thumbnail: variantData.thumbnail || this.images.thumbnail,
+            gallery: variantData.gallery || []
+        },
+        ...variantData
+    };
+
+    // Generate slug for the color variant
+    await this.generateVariantSlug(colorVariant);
+
+    this.variants.push(colorVariant);
+    this.variantConfiguration.hasVariants = true;
+    this.variantConfiguration.variantType = 'Color';
+
+    // Auto-add color to variantAttributes if not exists
+    const colorAttribute = this.variantConfiguration.attributes.find(
+        attr => attr.key === 'color'
+    );
+
+    if (!colorAttribute) {
+        this.variantConfiguration.attributes.push({
+            key: 'color',
+            label: 'Color',
+            values: [colorName]
+        });
+    } else if (!colorAttribute.values.includes(colorName)) {
+        colorAttribute.values.push(colorName);
+    }
+
+    this.markModified('variants');
+    this.markModified('variantConfiguration');
+};
+
+// 🆕 Generate variants from configuration
+productSchema.methods.generateVariants = async function (baseVariantData = {}) {
+    if (!this.variantConfiguration.hasVariants) {
+        throw new Error('Product is not configured for variants');
+    }
+
+    const combinations = this.generateAttributeCombinations();
+
+    this.variants = await Promise.all(combinations.map(async (combination) => {
+        const variantName = this.generateVariantName(combination);
+        const attributes = this.formatIdentifyingAttributes(combination);
+        const baseSlug = this.generateVariantSlugFromAttributes(combination);
+
+        const variant = {
+            name: variantName,
+            identifyingAttributes: attributes,
+            price: this.basePrice,
+            mrp: this.mrp || this.basePrice,
+            stockQuantity: 0,
+            sku: this.generateVariantSKU(combination),
+            slug: baseSlug,
+            specifications: this.generateVariantSpecifications(combination),
+            ...baseVariantData
+        };
+
+        await this.generateVariantSlug(variant);
+        return variant;
+    }));
+
+    this.variantConfiguration.hasVariants = true;
+    this.markModified('variants');
+};
+
+// 🆕 Helper to get hex code from color name
+productSchema.methods.getColorHexCode = function (colorName) {
+    const colorMap = {
+        'red': '#FF0000', 'blue': '#0000FF', 'green': '#008000', 'black': '#000000',
+        'white': '#FFFFFF', 'gray': '#808080', 'silver': '#C0C0C0', 'gold': '#FFD700',
+        'purple': '#800080', 'pink': '#FFC0CB', 'orange': '#FFA500', 'yellow': '#FFFF00',
+        'brown': '#A52A2A', 'navy': '#000080', 'teal': '#008080', 'maroon': '#800000'
+    };
+    return colorMap[colorName.toLowerCase()] || '#CCCCCC';
+};
+
+// 🆕 Generate variant name from attributes
 productSchema.methods.generateVariantName = function (combination) {
     const attributeStrings = combination.map(attr =>
         `${attr.label}: ${attr.value}`
@@ -296,7 +561,7 @@ productSchema.methods.generateVariantName = function (combination) {
     return `${this.name} - ${attributeStrings.join(' | ')}`;
 };
 
-// Generate SKU from combination
+// 🆕 Generate SKU from combination
 productSchema.methods.generateVariantSKU = function (combination) {
     const baseSKU = this.sku || this.name.replace(/[^a-z0-9]/gi, '').toUpperCase().substring(0, 6);
     const variantCodes = combination.map(attr =>
@@ -312,134 +577,60 @@ productSchema.methods.generateVariantSlugFromAttributes = function (combination)
         .map(attr => attr.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
         .join('-')
         .replace(/(^-|-$)+/g, '');
-
     return `${productSlug}-${variantSlugPart}`;
 };
 
-// Format identifying attributes
+// 🆕 Format identifying attributes
 productSchema.methods.formatIdentifyingAttributes = function (combination) {
     return combination.map(attr => ({
         key: attr.key,
         label: attr.label,
         value: attr.value,
-        displayValue: attr.value // Can be customized
+        displayValue: attr.value
     }));
 };
 
-// Generate variant-specific specifications
+// 🆕 Generate variant-specific specifications
 productSchema.methods.generateVariantSpecifications = function (combination) {
     const variantSpecs = [];
-
     combination.forEach(attr => {
         variantSpecs.push({
             sectionTitle: attr.label,
-            specs: [
-                { key: attr.key, value: attr.value }
-            ]
+            specs: [{ key: attr.key, value: attr.value }]
         });
     });
-
     return variantSpecs;
 };
 
-// =============================================
-// 🎯 INSTANCE METHODS (UPDATED WITH SLUG SUPPORT)
-// =============================================
-
-// Generate variants from configuration (UPDATED with slug generation)
-productSchema.methods.generateVariants = async function (baseVariantData = {}) {
-    if (!this.variantConfiguration.hasVariants) {
-        throw new Error('Product is not configured for variants');
+// 🆕 Generate attribute combinations
+productSchema.methods.generateAttributeCombinations = function () {
+    if (!this.variantConfiguration.attributes || this.variantConfiguration.attributes.length === 0) {
+        return [];
     }
 
-    const variantSpecs = this.variantConfiguration.variantCreatingSpecs;
-    const allCombinations = this.generateAttributeCombinations(variantSpecs);
+    const combinations = [];
+    const attributes = this.variantConfiguration.attributes;
 
-    this.variants = await Promise.all(allCombinations.map(async (combination) => {
-        const variantName = this.generateVariantName(combination);
-        const attributes = this.formatIdentifyingAttributes(combination);
-        const baseSlug = this.generateVariantSlugFromAttributes(combination);
+    function generate(index, current) {
+        if (index === attributes.length) {
+            combinations.push([...current]);
+            return;
+        }
 
-        // Create variant object
-        const variant = {
-            name: variantName,
-            identifyingAttributes: attributes,
-            price: this.basePrice,
-            stockQuantity: 0,
-            sku: this.generateVariantSKU(combination),
-            slug: baseSlug, // Initial slug
-            specifications: this.generateVariantSpecifications(combination),
-            ...baseVariantData
-        };
-
-        // Generate unique slug for this variant
-        await this.generateVariantSlug(variant);
-
-        return variant;
-    }));
-
-    this.variantConfiguration.hasVariants = true;
-    this.markModified('variants');
-};
-
-// Add variant (UPDATED with slug generation)
-productSchema.methods.addVariant = async function (variant) {
-    if (!variant.name || typeof variant.price !== 'number' || variant.price < 0 || !variant.identifyingAttributes || !variant.identifyingAttributes.length) {
-        throw new Error('Variant must have a name, valid price (>= 0), and at least one identifying attribute.');
-    }
-    if (variant.sku && this.variants.some(v => v.sku === variant.sku)) {
-        throw new Error(`Variant SKU "${variant.sku}" already exists.`);
+        const attribute = attributes[index];
+        for (const value of attribute.values) {
+            current.push({
+                key: attribute.key,
+                label: attribute.label,
+                value: value
+            });
+            generate(index + 1, current);
+            current.pop();
+        }
     }
 
-    // Generate slug for the new variant
-    await this.generateVariantSlug(variant);
-
-    this.variants.push(variant);
-    this.variantConfiguration.hasVariants = true;
-    this.markModified('variants');
-};
-
-// 🆕 Get variant by slug
-productSchema.methods.findVariantBySlug = function (variantSlug) {
-    return this.variants.find(v => v.slug === variantSlug);
-};
-
-// 🆕 Get variant URL (useful for frontend)
-productSchema.methods.getVariantURL = function (variantSlug) {
-    const variant = this.findVariantBySlug(variantSlug);
-    if (!variant) return null;
-
-    return `/products/${this.slug}/variants/${variant.slug}`;
-};
-
-// 🆕 Get all variant slugs (useful for sitemap)
-productSchema.methods.getAllVariantSlugs = function () {
-    return this.variants
-        .filter(v => v.isActive && v.slug)
-        .map(v => ({
-            productSlug: this.slug,
-            variantSlug: v.slug,
-            variantName: v.name
-        }));
-};
-
-// Find variant by specific attributes
-productSchema.methods.findVariantByAttributes = function (attributes) {
-    return this.variants.find(variant =>
-        variant.identifyingAttributes.every(attr =>
-            attributes[attr.key] === attr.value
-        )
-    );
-};
-
-// Find variant (legacy method)
-productSchema.methods.findVariant = function (attributes) {
-    if (!attributes || typeof attributes !== 'object' || Object.keys(attributes).length === 0) {
-        throw new Error('Attributes must be a non-empty object with key-value pairs.');
-    }
-    return this.variants.find(v =>
-        v.identifyingAttributes.every(attr => attributes[attr.key] === attr.value)
-    );
+    generate(0, []);
+    return combinations;
 };
 
 // 🆕 Bulk update variant prices
@@ -465,183 +656,6 @@ productSchema.methods.updateVariantsPricing = function (priceUpdate) {
     this.markModified('variants');
 };
 
-// 🆕 Get variant by SKU
-productSchema.methods.findVariantBySKU = function (sku) {
-    return this.variants.find(v => v.sku === sku);
-};
-
-// 🆕 Check if variant combination exists
-productSchema.methods.variantExists = function (attributes) {
-    return this.variants.some(variant =>
-        variant.identifyingAttributes.every(attr =>
-            attributes[attr.key] === attr.value
-        )
-    );
-};
-
-// 🆕 Get available colors with stock info
-productSchema.virtual('availableColors').get(function () {
-    if (!this.variantConfiguration.hasVariants || !this.variants.length) return [];
-
-    const colorMap = new Map();
-
-    this.variants.forEach(variant => {
-        const colorAttr = variant.identifyingAttributes.find(attr =>
-            attr.key === 'color' || attr.isColor
-        );
-
-        if (colorAttr && variant.isActive) {
-            const colorValue = colorAttr.value;
-            const existing = colorMap.get(colorValue) || {
-                value: colorValue,
-                displayValue: colorAttr.displayValue || colorValue,
-                hexCode: colorAttr.hexCode,
-                stock: 0,
-                variants: [],
-                slug: variant.slug // 🆕 Include variant slug
-            };
-
-            existing.stock += variant.stockQuantity;
-            existing.variants.push(variant._id);
-            colorMap.set(colorValue, existing);
-        }
-    });
-
-    return Array.from(colorMap.values());
-});
-
-// =============================================
-// 🎯 INSTANCE METHODS (Color Support with Slug)
-// =============================================
-
-/**
- * Find variant by color
- */
-productSchema.methods.findVariantByColor = function (colorValue) {
-    return this.variants.find(variant =>
-        variant.identifyingAttributes.some(attr =>
-            (attr.key === 'color' || attr.isColor) && attr.value === colorValue
-        )
-    );
-};
-
-/**
- * Get all variants for a specific color
- */
-productSchema.methods.getVariantsByColor = function (colorValue) {
-    return this.variants.filter(variant =>
-        variant.identifyingAttributes.some(attr =>
-            (attr.key === 'color' || attr.isColor) && attr.value === colorValue
-        )
-    );
-};
-
-/**
- * Get gallery images for specific color
- */
-productSchema.methods.getColorGallery = function (colorValue) {
-    const variant = this.findVariantByColor(colorValue);
-
-    // Return variant-specific gallery if available
-    if (variant && variant.images.gallery.length > 0) {
-        return variant.images.gallery;
-    }
-
-    // Fallback to product base gallery
-    return this.images.gallery;
-};
-
-/**
- * Check if color is available (has stock)
- */
-productSchema.methods.isColorAvailable = function (colorValue) {
-    const variants = this.getVariantsByColor(colorValue);
-    return variants.some(variant => variant.stockQuantity > 0 && variant.isActive);
-};
-
-/**
- * Get total stock for a color
- */
-productSchema.methods.getColorStock = function (colorValue) {
-    const variants = this.getVariantsByColor(colorValue);
-    return variants.reduce((total, variant) => total + variant.stockQuantity, 0);
-};
-
-/**
- * Simple method to add color variant (UPDATED with slug generation)
- */
-productSchema.methods.addColorVariant = async function (colorName, variantData) {
-    const colorVariant = {
-        name: `${this.name} - ${colorName}`,
-        price: variantData.price || this.basePrice,
-        stockQuantity: variantData.stockQuantity || 0,
-        identifyingAttributes: [{
-            key: 'color',
-            label: 'Color',
-            value: colorName,
-            displayValue: colorName.charAt(0).toUpperCase() + colorName.slice(1),
-            isColor: true,
-            hexCode: variantData.hexCode || this.getColorHexCode(colorName)
-        }],
-        images: {
-            thumbnail: variantData.thumbnail || this.images.thumbnail,
-            gallery: variantData.gallery || []
-        },
-        ...variantData
-    };
-
-    // Generate slug for the color variant
-    await this.generateVariantSlug(colorVariant);
-
-    this.variants.push(colorVariant);
-    this.variantConfiguration.hasVariants = true;
-    this.variantConfiguration.variantType = 'Color';
-
-    // Auto-add color to variantAttributes if not exists
-    const colorAttribute = this.variantConfiguration.variantAttributes.find(
-        attr => attr.key === 'color'
-    );
-
-    if (!colorAttribute) {
-        this.variantConfiguration.variantAttributes.push({
-            key: 'color',
-            label: 'Color',
-            values: [colorName]
-        });
-    } else if (!colorAttribute.values.includes(colorName)) {
-        colorAttribute.values.push(colorName);
-    }
-
-    this.markModified('variants');
-    this.markModified('variantConfiguration');
-};
-
-/**
- * Helper to get hex code from color name
- */
-productSchema.methods.getColorHexCode = function (colorName) {
-    const colorMap = {
-        'red': '#FF0000',
-        'blue': '#0000FF',
-        'green': '#008000',
-        'black': '#000000',
-        'white': '#FFFFFF',
-        'gray': '#808080',
-        'silver': '#C0C0C0',
-        'gold': '#FFD700',
-        'purple': '#800080',
-        'pink': '#FFC0CB',
-        'orange': '#FFA500',
-        'yellow': '#FFFF00',
-        'brown': '#A52A2A',
-        'navy': '#000080',
-        'teal': '#008080',
-        'maroon': '#800000'
-    };
-
-    return colorMap[colorName.toLowerCase()] || '#CCCCCC';
-};
-
 // Virtual for reviews from separate collection
 productSchema.virtual('reviews', {
     ref: 'Review',
@@ -649,7 +663,7 @@ productSchema.virtual('reviews', {
     foreignField: 'product'
 });
 
-// FIXED updateReviewStats method in productModel.js
+// Update review stats method
 productSchema.methods.updateReviewStats = async function () {
     const Review = mongoose.model('Review');
 
@@ -674,7 +688,6 @@ productSchema.methods.updateReviewStats = async function () {
             this.totalReviews = reviewStats[0].totalReviews;
             this.averageRating = parseFloat(reviewStats[0].averageRating.toFixed(1));
         } else {
-            // If no reviews, reset to 0
             this.totalReviews = 0;
             this.averageRating = 0;
         }
@@ -687,7 +700,7 @@ productSchema.methods.updateReviewStats = async function () {
     }
 };
 
-// 🆕 NEW: Static method to update review stats for a product
+// Static method to update review stats
 productSchema.statics.updateProductReviewStats = async function (productId) {
     const product = await this.findById(productId);
     if (!product) {
@@ -696,6 +709,7 @@ productSchema.statics.updateProductReviewStats = async function (productId) {
     return await product.updateReviewStats();
 };
 
+// Indexes
 productSchema.index({
     name: 'text',
     description: 'text',
@@ -704,14 +718,13 @@ productSchema.index({
 }, {
     name: "product_search_index",
     weights: {
-        name: 10,        // Highest priority
-        tags: 5,         // Medium priority  
-        'variants.name': 3, // Lower priority
-        description: 1   // Lowest priority
+        name: 10,
+        tags: 5,
+        'variants.name': 3,
+        description: 1
     }
 });
 
-// 🆕 Index for variant slugs
 productSchema.index({ 'variants.slug': 1 });
 
 module.exports = mongoose.model('Product', productSchema);

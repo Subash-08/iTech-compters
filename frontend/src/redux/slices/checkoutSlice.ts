@@ -1,6 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 import { checkoutActions } from '../actions/checkoutActions';
-import { CheckoutState, CheckoutData, CheckoutCoupon, GSTInfo } from '../types/checkout';
+import { CheckoutState } from '../types/checkout';
 
 const initialState: CheckoutState = {
   data: null,
@@ -9,85 +9,93 @@ const initialState: CheckoutState = {
   couponApplied: null,
   selectedShippingAddress: null,
   selectedBillingAddress: null,
+  currentShippingAddress: null,
+  currentBillingAddress: null,
   gstInfo: null,
-  paymentMethod: null
+  paymentMethod: null,
+  orderCreationData: null
 };
 
 const checkoutSlice = createSlice({
   name: 'checkout',
   initialState,
   reducers: {
-    // Clear checkout error
-    clearCheckoutError: (state) => {
-      state.error = null;
-    },
-
-    // Set shipping address
-    setShippingAddress: (state, action: PayloadAction<string>) => {
+    setShippingAddress: (state, action) => {
       state.selectedShippingAddress = action.payload;
     },
-
-    // Set billing address
-    setBillingAddress: (state, action: PayloadAction<string>) => {
+    setBillingAddress: (state, action) => {
       state.selectedBillingAddress = action.payload;
     },
-
-    // Set GST information
-    setGSTInfo: (state, action: PayloadAction<GSTInfo>) => {
+    setGSTInfo: (state, action) => {
       state.gstInfo = action.payload;
     },
-
-    // Set payment method
-    setPaymentMethod: (state, action: PayloadAction<'card' | 'upi' | 'netbanking' | 'cod' | 'wallet'>) => {
+    setPaymentMethod: (state, action) => {
       state.paymentMethod = action.payload;
     },
-
-    // Clear applied coupon
     clearCoupon: (state) => {
       state.couponApplied = null;
-      if (state.data?.pricing) {
-        state.data.pricing.discount = 0;
-        state.data.pricing.total = state.data.pricing.subtotal + state.data.pricing.shipping + state.data.pricing.tax;
-      }
     },
-
-    // Reset checkout state
-    resetCheckout: () => initialState,
-
-    // Update checkout data (for manual updates)
-    updateCheckoutData: (state, action: PayloadAction<Partial<CheckoutData>>) => {
+    setOrderCreationData: (state, action) => {
+      state.orderCreationData = action.payload;
+    },
+    clearCheckoutData: (state) => {
       if (state.data) {
-        state.data = { ...state.data, ...action.payload };
+        state.data.cartItems = [];
+        state.data.pricing = {
+          subtotal: 0,
+          shipping: 0,
+          tax: 0,
+          discount: 0,
+          total: 0
+        };
       }
+      state.couponApplied = null;
+      state.orderCreationData = null;
+    },
+    resetCheckoutState: (state) => {
+      return initialState;
     }
   },
   extraReducers: (builder) => {
-    // Fetch checkout data
     builder
+      // Fetch checkout data
       .addCase(checkoutActions.fetchCheckoutData.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(checkoutActions.fetchCheckoutData.fulfilled, (state, action: PayloadAction<CheckoutData>) => {
+      .addCase(checkoutActions.fetchCheckoutData.fulfilled, (state, action) => {
         state.loading = false;
         state.data = action.payload;
         
-        // Set default addresses if available
-        if (action.payload.defaultAddressId) {
-          state.selectedShippingAddress = action.payload.defaultAddressId;
-          state.selectedBillingAddress = action.payload.defaultAddressId;
-        } else if (action.payload.addresses.length > 0) {
-          state.selectedShippingAddress = action.payload.addresses[0]._id;
-          state.selectedBillingAddress = action.payload.addresses[0]._id;
+        // Auto-select default address if none selected
+        if (!state.selectedShippingAddress && action.payload.addresses?.length > 0) {
+          const defaultAddress = action.payload.addresses.find(addr => addr.isDefault) || action.payload.addresses[0];
+          if (defaultAddress) {
+            state.selectedShippingAddress = defaultAddress._id;
+          }
         }
+        
+        state.error = null;
       })
       .addCase(checkoutActions.fetchCheckoutData.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-      });
-
-    // Calculate checkout with coupon
-    builder
+        if (action.payload === 'Cart is empty') {
+          state.data = {
+            cartItems: [],
+            addresses: state.data?.addresses || [],
+            pricing: {
+              subtotal: 0,
+              shipping: 0,
+              tax: 0,
+              discount: 0,
+              total: 0
+            }
+          };
+        }
+      })
+      
+      // Calculate checkout
       .addCase(checkoutActions.calculateCheckout.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -95,72 +103,108 @@ const checkoutSlice = createSlice({
       .addCase(checkoutActions.calculateCheckout.fulfilled, (state, action) => {
         state.loading = false;
         if (state.data) {
-          state.data.cartItems = action.payload.cartItems;
           state.data.pricing = action.payload.pricing;
         }
         state.couponApplied = action.payload.coupon || null;
+        state.error = null;
       })
       .addCase(checkoutActions.calculateCheckout.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-        state.couponApplied = null;
-      });
-
-    // Create order
-    builder
+      })
+      
+      // Create order
       .addCase(checkoutActions.createOrder.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(checkoutActions.createOrder.fulfilled, (state) => {
+      .addCase(checkoutActions.createOrder.fulfilled, (state, action) => {
         state.loading = false;
-        // Optionally clear checkout data after successful order
-        // state.data = null;
-        // state.couponApplied = null;
+        state.orderCreationData = action.payload;
+        state.error = null;
       })
       .addCase(checkoutActions.createOrder.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-      });
-
-    // Save address
-    builder
+      })
+      
+      // Save address
+      .addCase(checkoutActions.saveAddress.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(checkoutActions.saveAddress.fulfilled, (state, action) => {
-        if (state.data) {
-          state.data.addresses.push(action.payload.address);
-          if (action.payload.address.isDefault) {
-            state.data.defaultAddressId = action.payload.address._id;
-            state.selectedShippingAddress = action.payload.address._id;
-            state.selectedBillingAddress = action.payload.address._id;
-          }
+        state.loading = false;
+        // Auto-select the newly created address
+        if (action.payload.address && action.payload.address._id) {
+          state.selectedShippingAddress = action.payload.address._id;
         }
-      });
-
-    // Update address
-    builder
+        state.error = null;
+      })
+      .addCase(checkoutActions.saveAddress.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      
+      // Update address
+      .addCase(checkoutActions.updateAddress.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(checkoutActions.updateAddress.fulfilled, (state, action) => {
-        if (state.data) {
-          const index = state.data.addresses.findIndex(addr => addr._id === action.payload.address._id);
-          if (index !== -1) {
-            state.data.addresses[index] = action.payload.address;
-          }
-          if (action.payload.address.isDefault) {
-            state.data.defaultAddressId = action.payload.address._id;
-          }
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(checkoutActions.updateAddress.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      
+      // Delete address
+      .addCase(checkoutActions.deleteAddress.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(checkoutActions.deleteAddress.fulfilled, (state, action) => {
+        state.loading = false;
+        // If deleted address was selected, clear selection
+        if (state.selectedShippingAddress === action.payload.deletedAddressId) {
+          state.selectedShippingAddress = null;
         }
+        state.error = null;
+      })
+      .addCase(checkoutActions.deleteAddress.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      
+      // Clear checkout data after payment
+      .addCase(checkoutActions.clearCheckoutData.fulfilled, (state) => {
+        if (state.data) {
+          state.data.cartItems = [];
+          state.data.pricing = {
+            subtotal: 0,
+            shipping: 0,
+            tax: 0,
+            discount: 0,
+            total: 0
+          };
+        }
+        state.couponApplied = null;
+        state.orderCreationData = null;
       });
   }
 });
 
 export const {
-  clearCheckoutError,
   setShippingAddress,
   setBillingAddress,
   setGSTInfo,
   setPaymentMethod,
   clearCoupon,
-  resetCheckout,
-  updateCheckoutData
+  setOrderCreationData,
+  clearCheckoutData,
+  resetCheckoutState
 } = checkoutSlice.actions;
 
 export default checkoutSlice.reducer;

@@ -138,14 +138,14 @@ const UserList: React.FC = () => {
         />
       ) : (
         <>
-          <UserTable
-            users={users}
-            onEdit={handleEdit}
-            onStatusChange={handleStatusChange}
-            onRoleChange={handleRoleChange}
-            loading={loading}
-            currentUserId={currentUserId}
-          />
+<UserTable
+  users={users}
+  onEdit={() => {}} // Keep for now or remove from props if not needed
+  onStatusChange={handleStatusChange}
+  onRoleChange={handleRoleChange}
+  loading={loading}
+  currentUserId={currentUserId}
+/>
 
           {/* Pagination */}
           {totalCount > (filters.limit || 10) && (

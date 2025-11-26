@@ -97,6 +97,90 @@ exports.getAdminPreBuiltPCs = catchAsyncErrors(async (req, res, next) => {
     }
 });
 
+// Add to preBuiltPCController.js
+exports.getPreBuiltPCAnalytics = catchAsyncErrors(async (req, res, next) => {
+    const [
+        totalPreBuiltPCs,
+        activePreBuiltPCs,
+        featuredPreBuiltPCs,
+        pcsByCategory,
+        performanceStats,
+        priceRanges
+    ] = await Promise.all([
+        // Total pre-built PCs
+        PreBuiltPC.countDocuments(),
+        // Active pre-built PCs
+        PreBuiltPC.countDocuments({ isActive: true }),
+        // Featured pre-built PCs
+        PreBuiltPC.countDocuments({ isFeatured: true }),
+        // Pre-built PCs by category
+        PreBuiltPC.aggregate([
+            {
+                $group: {
+                    _id: '$category',
+                    count: { $sum: 1 },
+                    avgPrice: { $avg: '$totalPrice' }
+                }
+            },
+            { $sort: { count: -1 } }
+        ]),
+        // Performance stats
+        PreBuiltPC.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    avgPerformanceRating: { $avg: '$performanceRating' },
+                    maxPerformanceRating: { $max: '$performanceRating' },
+                    minPerformanceRating: { $min: '$performanceRating' },
+                    avgPrice: { $avg: '$totalPrice' },
+                    totalValue: { $sum: '$totalPrice' }
+                }
+            }
+        ]),
+        // Price ranges
+        PreBuiltPC.aggregate([
+            {
+                $bucket: {
+                    groupBy: '$totalPrice',
+                    boundaries: [0, 30000, 60000, 90000, 120000, 150000],
+                    default: '150000+',
+                    output: {
+                        count: { $sum: 1 },
+                        avgPerformance: { $avg: '$performanceRating' }
+                    }
+                }
+            }
+        ])
+    ]);
+
+    res.status(200).json({
+        success: true,
+        data: {
+            totalPreBuiltPCs,
+            activePreBuiltPCs,
+            inactivePreBuiltPCs: totalPreBuiltPCs - activePreBuiltPCs,
+            featuredPreBuiltPCs,
+            pcsByCategory: pcsByCategory.map(item => ({
+                category: item._id,
+                count: item.count,
+                avgPrice: Math.round(item.avgPrice || 0)
+            })),
+            performanceStats: performanceStats[0] || {
+                avgPerformanceRating: 0,
+                maxPerformanceRating: 0,
+                minPerformanceRating: 0,
+                avgPrice: 0,
+                totalValue: 0
+            },
+            priceRanges: priceRanges.map(range => ({
+                range: range._id,
+                count: range.count,
+                avgPerformance: Math.round((range.avgPerformance || 0) * 100) / 100
+            }))
+        }
+    });
+});
+
 // Update Pre-built PC - COMPLETE FIXED VERSION
 exports.updatePreBuiltPC = catchAsyncErrors(async (req, res, next) => {
     try {

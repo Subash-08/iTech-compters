@@ -2,6 +2,7 @@
 export interface Image {
   url: string;
   altText: string;
+  sectionTitle?: string; // 🆕 For manufacturer images
 }
 
 export interface VariantSpec {
@@ -65,12 +66,15 @@ export interface Variant {
   sku: string;
   barcode: string;
   price: number;
+  mrp?: number; // 🆕 MRP for variants
   offerPrice: number;
+  hsn?: string; // 🆕 HSN for variants
   stockQuantity: number;
   identifyingAttributes: IdentifyingAttribute[];
   images: VariantImages;
   isActive: boolean;
   specifications: SpecificationSection[];
+  slug?: string; // 🆕 Variant slug
 }
 
 export interface ProductData {
@@ -93,30 +97,50 @@ export interface ProductData {
   status: string;
   description?: string;
   definition?: string;
-  basePrice: number;
-  offerPrice: number;
-  discountPercentage: number;
-  taxRate?: number;
-  stockQuantity: number;
-  variants: Variant[];
-  averageRating: number;
-  totalReviews: number;
-  slug: string;
-  createdAt: string;
-  totalStock: number;
-  lowestPrice: number;
-  availableColors: Array<{
+  
+  // 🆕 NEW FIELDS
+  hsn?: string; // HSN code
+  mrp?: number; // Maximum Retail Price
+  manufacturerImages?: Image[]; // A+ content images
+  
+  // 🆕 VIRTUAL FIELDS (from backend)
+  sellingPrice?: number; // Virtual: Always uses variant prices if variants exist
+  displayMrp?: number; // Virtual: Always uses variant MRP if variants exist
+  calculatedDiscount?: number; // Virtual: Dynamic discount calculation
+  priceRange?: { // Virtual: Shows min-max price range for variants
+    min: number;
+    max: number;
+    hasRange: boolean;
+  };
+  hasActiveVariants?: boolean; // Virtual: Checks if product has active variants
+  totalStock?: number; // Virtual: Total stock across all variants
+  availableColors?: Array<{
     value: string;
     displayValue: string;
     hexCode: string;
     stock: number;
     variants: string[];
   }>;
+  
+  // Pricing fields (kept for backward compatibility)
+  basePrice: number;
+  offerPrice: number;
+  discountPercentage: number;
+  taxRate?: number;
+  stockQuantity: number;
+  
+  variants: Variant[];
+  averageRating: number;
+  totalReviews: number;
+  slug: string;
+  createdAt: string;
+  
   images: {
     thumbnail: Image;
-    hoverImage: Image;
+    hoverImage?: Image;
     gallery: Image[];
   };
+  
   variantConfiguration: {
     hasVariants: boolean;
     variantType: string;
@@ -133,6 +157,7 @@ export interface ProductData {
       values: string[];
     }>;
   };
+  
   specifications?: SpecificationSection[];
   features?: Feature[];
   dimensions?: Dimensions;

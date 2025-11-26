@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { loadRazorpay, RazorpayResponse, RazorpayError } from '../utils/razorpay';
-import api from '../config/axiosConfig'; // Import your axios config
+import api from '../config/axiosConfig';
 
 const PaymentMethod: React.FC<PaymentMethodProps> = ({
   selectedMethod,
@@ -15,26 +15,44 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
   const [processing, setProcessing] = useState<boolean>(false);
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
   const [autoOpened, setAutoOpened] = useState<boolean>(false);
+  const [hasFailed, setHasFailed] = useState<boolean>(false);
+  
+  // Use ref to track if payment is currently open
+  const isPaymentOpenRef = useRef<boolean>(false);
+  const paymentAttemptsRef = useRef<number>(0);
+  const maxAttempts = 3;
 
-// ✅ AUTO-OPEN RAZORPAY WHEN ORDER ID IS AVAILABLE
-useEffect(() => {
-  if (orderId && selectedMethod === 'razorpay' && !processing && !autoOpened) {
-    console.log('🔄 Auto-opening Razorpay for order:', orderId);
-    setAutoOpened(true);
-    initializeRazorpayPayment();
-  }
-}, [orderId, selectedMethod, processing, autoOpened]);
+  // ✅ FIXED: Auto-open only when all conditions are met including valid amount
+  useEffect(() => {
+    if (orderId && 
+        selectedMethod === 'razorpay' && 
+        !processing && 
+        !autoOpened && 
+        !hasFailed &&
+        paymentAttemptsRef.current === 0 &&
+        !isPaymentOpenRef.current &&
+        amount > 0) { // ✅ ADDED: Check for valid amount
+      
+      console.log('🔄 Auto-opening Razorpay for order:', { orderId, amount });
+      setAutoOpened(true);
+      isPaymentOpenRef.current = true;
+      initializeRazorpayPayment();
+    }
+  }, [orderId, selectedMethod, processing, autoOpened, hasFailed, amount]); // ✅ ADDED: amount to dependencies
 
-  // Reset auto-opened state when orderId changes
+  // Reset states when orderId changes
   useEffect(() => {
     setAutoOpened(false);
+    setHasFailed(false);
+    isPaymentOpenRef.current = false;
+    paymentAttemptsRef.current = 0;
   }, [orderId]);
 
   const paymentMethods: PaymentMethodType[] = [
     {
       id: 'razorpay',
-      name: 'Secure Payment',
-      description: 'Pay via Credit/Debit Card, UPI, Net Banking, Wallet',
+      name: hasFailed ? 'Retry Secure Payment' : 'Secure Payment',
+      description: hasFailed ? 'Click to retry payment' : 'Pay via Credit/Debit Card, UPI, Net Banking, Wallet',
       icon: '💳',
       supportedMethods: ['Cards', 'UPI', 'Net Banking', 'Wallets', 'Pay Later']
     }
@@ -43,19 +61,38 @@ useEffect(() => {
   const initializeRazorpayPayment = async (): Promise<void> => {
     console.log('🟡 Initializing Razorpay payment:', { orderId, amount });
     
-    if (!orderId || amount <= 0) {
-      console.error('❌ Invalid order details:', { orderId, amount });
-      onPaymentError('Invalid order details. Please try again.');
+    // ✅ IMPROVED VALIDATION: Better error messages
+    if (!orderId) {
+      console.error('❌ Invalid order details: Missing orderId');
+      onPaymentError('Order not found. Please try creating the order again.');
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      console.error('❌ Invalid amount for payment:', amount);
+      onPaymentError('Order amount is not available. Please refresh the page or try again.');
+      return;
+    }
+
+    // Check maximum attempts
+    if (paymentAttemptsRef.current >= maxAttempts) {
+      console.error('❌ Maximum payment attempts reached');
+      onPaymentError('Maximum payment attempts reached. Please contact support.');
       return;
     }
 
     try {
       setProcessing(true);
+      isPaymentOpenRef.current = true;
+      paymentAttemptsRef.current += 1;
       
-      console.log('🟡 Creating Razorpay order for:', orderId);
+      console.log('🟡 Creating Razorpay order for:', { orderId, amount });
       
-      // ✅ FIXED: Use axios instead of fetch (handles auth automatically)
-      const response = await api.post('/payment/razorpay/create-order', { orderId });
+      // ✅ FIXED: Pass amount to backend to ensure consistency
+      const response = await api.post('/payment/razorpay/create-order', { 
+        orderId,
+        amount: Math.round(amount * 100) // Convert to paise for Razorpay
+      });
       const result = response.data;
 
       console.log('🟡 Razorpay order response:', result);
@@ -84,8 +121,8 @@ useEffect(() => {
 
       const options = {
         key: "rzp_test_Rhd3c2tvDK3obS",
-        amount: result.data.amount,
-        currency: result.data.currency,
+        amount: result.data.amount || Math.round(amount * 100), // Fallback to frontend amount
+        currency: result.data.currency || 'INR',
         name: 'iTech Store',
         description: `Order #${orderId}`,
         order_id: razorpayOrderId,
@@ -108,12 +145,10 @@ useEffect(() => {
         modal: {
           ondismiss: function() {
             console.log('❌ Payment cancelled by user');
-            setProcessing(false);
-            setAutoOpened(false);
-            onSelectMethod(null);
+            handlePaymentClose();
           },
-          escape: false,
-          backdropclose: false
+          escape: true, // Allow escape key
+          backdropclose: true // Allow backdrop click
         }
       };
 
@@ -121,9 +156,13 @@ useEffect(() => {
       
       razorpayInstance.on('payment.failed', function (response: RazorpayError) {
         console.error('❌ Payment failed:', response);
-        setProcessing(false);
-        setAutoOpened(false);
-        onPaymentError(response.error.description || 'Payment failed. Please try again.');
+        handlePaymentFailure(response.error.description || 'Payment failed. Please try again.');
+      });
+
+      // Handle when modal is closed without payment
+      razorpayInstance.on('modal.closed', function() {
+        console.log('ℹ️ Payment modal closed');
+        handlePaymentClose();
       });
 
       razorpayInstance.open();
@@ -131,45 +170,78 @@ useEffect(() => {
 
     } catch (error: any) {
       console.error('❌ Payment initialization error:', error);
-      onPaymentError(error.message || 'Failed to initialize payment');
-      setProcessing(false);
-      setAutoOpened(false);
+      handlePaymentFailure(error.message || 'Failed to initialize payment');
     }
   };
 
-const handlePaymentSuccess = async (response: RazorpayResponse): Promise<void> => {
-  console.log('🎯 Payment successful, starting verification...', response);
-  
-  try {
-    setProcessing(true);
-    setAutoOpened(true); // ✅ PREVENT AUTO-REOPENING
-
-    const verifyResponse = await api.post('/payment/razorpay/verify', {
-      razorpay_order_id: response.razorpay_order_id,
-      razorpay_payment_id: response.razorpay_payment_id,
-      razorpay_signature: response.razorpay_signature,
-      orderId: orderId,
-      attemptId: currentAttemptId
-    });
-
-    console.log('✅ Verification successful:', verifyResponse.data);
-    
-    // ✅ SUCCESS - Navigate away
-    onPaymentSuccess(verifyResponse.data);
-
-  } catch (error: any) {
-    console.error('💥 Payment verification error:', error);
-    
-    // ✅ Don't auto-retry, let user manually retry
-    setAutoOpened(true); // Prevent auto-reopening
-    onPaymentError('Payment verification failed. Please try again manually.');
-    
-  } finally {
+  const handlePaymentClose = (): void => {
+    console.log('🔄 Resetting payment state after close');
     setProcessing(false);
-    setCurrentAttemptId(null);
-  }
-};
+    isPaymentOpenRef.current = false;
+    // Don't set autoOpened to false - we want to prevent auto-reopening
+  };
 
+  const handlePaymentFailure = (errorMessage: string): void => {
+    console.error('💥 Payment failed:', errorMessage);
+    setProcessing(false);
+    setHasFailed(true); // ✅ Mark as failed to prevent auto-reopening
+    isPaymentOpenRef.current = false;
+    onPaymentError(errorMessage);
+  };
+
+  const handlePaymentSuccess = async (response: RazorpayResponse): Promise<void> => {
+    console.log('🎯 Payment successful, starting verification...', response);
+    
+    try {
+      setProcessing(true);
+
+      const verifyResponse = await api.post('/payment/razorpay/verify', {
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_signature: response.razorpay_signature,
+        orderId: orderId,
+        attemptId: currentAttemptId
+      });
+
+      console.log('✅ Verification successful:', verifyResponse.data);
+      
+      // ✅ SUCCESS - Reset all states
+      setProcessing(false);
+      setHasFailed(false);
+      isPaymentOpenRef.current = false;
+      paymentAttemptsRef.current = 0;
+      
+      onPaymentSuccess(verifyResponse.data);
+
+    } catch (error: any) {
+      console.error('💥 Payment verification error:', error);
+      handlePaymentFailure('Payment verification failed. Please try again.');
+    }
+  };
+
+  const handleMethodSelect = (method: 'razorpay'): void => {
+    if (processing) return;
+    
+    // ✅ ADDED: Check for valid amount before proceeding
+    if (!amount || amount <= 0) {
+      onPaymentError('Order amount is not available. Please wait or refresh the page.');
+      return;
+    }
+    
+    onSelectMethod(method);
+    
+    // Manual retry - reset failure state
+    if (hasFailed) {
+      setHasFailed(false);
+      setAutoOpened(false);
+      isPaymentOpenRef.current = false;
+    }
+    
+    // Initiate payment when selected (manual retry)
+    if (method === 'razorpay' && orderId && amount > 0) {
+      initializeRazorpayPayment();
+    }
+  };
 
   const formatCurrency = (amount: number, currencyCode: string = 'INR'): string => {
     const validCurrency = currencyCode && typeof currencyCode === 'string' && currencyCode.length === 3 
@@ -187,23 +259,41 @@ const handlePaymentSuccess = async (response: RazorpayResponse): Promise<void> =
     }
   };
 
-  const handleMethodSelect = (method: 'razorpay'): void => {
-    if (processing) return;
-    
-    onSelectMethod(method);
-    
-    // Auto-initiate Razorpay payment when selected
-    if (method === 'razorpay' && orderId && amount > 0) {
-      initializeRazorpayPayment();
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-medium text-gray-900">Select Payment Method</h3>
-        <p className="text-sm text-gray-600 mt-1">Complete your purchase securely</p>
+        <h3 className="text-lg font-medium text-gray-900">
+          {hasFailed ? 'Payment Failed - Try Again' : 'Select Payment Method'}
+        </h3>
+        <p className="text-sm text-gray-600 mt-1">
+          {hasFailed ? 'Your payment failed. Please try again.' : 'Complete your purchase securely'}
+        </p>
       </div>
+      
+      {/* Error Message */}
+      {hasFailed && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <div className="flex-shrink-0">
+              <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <p className="text-red-700 text-sm">
+                Payment failed. Click the payment method below to try again.
+                {paymentAttemptsRef.current >= maxAttempts && (
+                  <span className="block mt-1 font-medium">
+                    Maximum attempts reached. Please contact support.
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid gap-4">
         {paymentMethods.map((method) => (
@@ -212,9 +302,17 @@ const handlePaymentSuccess = async (response: RazorpayResponse): Promise<void> =
             className={`border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${
               selectedMethod === method.id
                 ? 'border-blue-500 bg-blue-50 shadow-sm'
-                : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
-            } ${processing ? 'opacity-60 cursor-not-allowed' : ''}`}
-            onClick={() => !processing && handleMethodSelect(method.id)}
+                : hasFailed 
+                  ? 'border-red-300 bg-red-50 hover:border-red-400'
+                  : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+            } ${processing ? 'opacity-60 cursor-not-allowed' : ''} ${
+              paymentAttemptsRef.current >= maxAttempts ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            onClick={() => {
+              if (!processing && paymentAttemptsRef.current < maxAttempts) {
+                handleMethodSelect(method.id);
+              }
+            }}
           >
             <div className="flex items-center space-x-4">
               <div className="flex-shrink-0">
@@ -234,28 +332,27 @@ const handlePaymentSuccess = async (response: RazorpayResponse): Promise<void> =
                   )}
                 </div>
                 
-                <p className="text-sm text-gray-600 mt-1">
+                <p className={`text-sm mt-1 ${
+                  hasFailed ? 'text-red-600' : 'text-gray-600'
+                }`}>
                   {method.description}
                 </p>
                 
-                {/* Supported payment methods */}
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {method.supportedMethods.map((supportedMethod, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700"
-                    >
-                      {supportedMethod}
+                {/* Attempt counter */}
+                {paymentAttemptsRef.current > 0 && (
+                  <div className="mt-2">
+                    <span className="text-xs text-gray-500">
+                      Attempt {paymentAttemptsRef.current} of {maxAttempts}
                     </span>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
               
               <div className="flex-shrink-0 ml-4">
                 <div
                   className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                     selectedMethod === method.id
-                      ? 'border-blue-500 bg-blue-500'
+                      ? hasFailed ? 'border-red-500 bg-red-500' : 'border-blue-500 bg-blue-500'
                       : 'border-gray-300 bg-white'
                   }`}
                 >

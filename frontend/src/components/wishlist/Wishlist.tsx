@@ -24,9 +24,9 @@ const Wishlist: React.FC = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
 
-  // State for sync modal
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [hasCheckedSync, setHasCheckedSync] = useState(false);
+
   useEffect(() => {
     dispatch(wishlistActions.fetchWishlist());
   }, [dispatch]);
@@ -35,12 +35,9 @@ const Wishlist: React.FC = () => {
   useEffect(() => {    
     if (!loading && isAuthenticated && user && !hasCheckedSync) {
       const guestWishlist = localStorageUtils.getGuestWishlist();
-
-      // Show sync modal if there are guest wishlist items
       if (guestWishlist.length > 0) {
         setShowSyncModal(true);
       }
-      
       setHasCheckedSync(true);
     }
   }, [loading, isAuthenticated, user, hasCheckedSync]);
@@ -49,7 +46,6 @@ const Wishlist: React.FC = () => {
     try {
       setShowSyncModal(false);
       await dispatch(wishlistActions.syncGuestWishlist());
-      // Refresh wishlist after sync
       await dispatch(wishlistActions.fetchWishlist());
     } catch (error) {
       console.error('Failed to sync wishlist:', error);
@@ -60,13 +56,13 @@ const Wishlist: React.FC = () => {
     setShowSyncModal(false);
   };
 
-  // ✅ FIX: Update to accept both productId and productType
-  const handleRemoveFromWishlist = (productId: string, productType: 'product' | 'prebuilt-pc') => {
+const handleRemoveFromWishlist = (productId: string, productType: 'product' | 'prebuilt-pc') => {
+    console.log('🗑️ Removing from parent:', productId, 'Type:', productType);
     dispatch(wishlistActions.removeFromWishlist({ 
-      productId, 
-      productType // ✅ Now passing productType
+        productId, // ✅ Send product ID
+        productType 
     }));
-  };
+};
 
   const handleClearWishlist = () => {
     dispatch(wishlistActions.clearWishlist());
@@ -87,7 +83,6 @@ const Wishlist: React.FC = () => {
     );
   }
 
-  // Get guest wishlist count for modal
   const guestWishlistCount = localStorageUtils.getGuestWishlist().length;
 
   return (
@@ -100,7 +95,6 @@ const Wishlist: React.FC = () => {
       />
 
       <div className="container mx-auto px-4 py-8">
-        
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">My Wishlist</h1>
@@ -182,12 +176,11 @@ const Wishlist: React.FC = () => {
                 <WishlistItem 
                   key={item._id} 
                   item={item} 
-                  onRemove={handleRemoveFromWishlist} // ✅ Now passes both productId and productType
+                  onRemove={handleRemoveFromWishlist} // ✅ Now only passes itemId
                 />
               ))}
             </div>
             
-            {/* Guest info footer */}
             {isGuestWishlist && (
               <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center justify-between">

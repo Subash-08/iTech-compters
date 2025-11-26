@@ -18,7 +18,8 @@ const {
     updateUserRole,
     updateUserStatus,
     deleteUser,
-    getCompleteUserProfile
+    getCompleteUserProfile,
+    getUserAnalytics
 } = require('../controllers/authController');
 
 
@@ -49,6 +50,8 @@ router.put('/profile', isAuthenticatedUser, userUpload.single('avatar'), handleM
 router.delete('/profile/avatar', isAuthenticatedUser, removeAvatar);
 router.put('/password/update', isAuthenticatedUser, updatePassword);
 router.get('/user/complete-profile', isAuthenticatedUser, getCompleteUserProfile);
+
+router.get('/admin/analytics/users', isAuthenticatedUser, authorizeRoles('admin'), getUserAnalytics);
 
 
 

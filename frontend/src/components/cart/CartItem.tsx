@@ -184,9 +184,6 @@ const CartItem: React.FC<CartItemProps> = ({
     
     // Try different placeholder paths
     const placeholderPaths = [
-      '/images/placeholder-image.jpg',
-      '/placeholder-image.jpg',
-      '/img/placeholder.jpg',
       'https://via.placeholder.com/150?text=No+Image'
     ];
     

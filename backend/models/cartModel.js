@@ -89,15 +89,17 @@ cartSchema.pre('save', function (next) {
 cartSchema.index({ userId: 1 });
 cartSchema.index({ lastUpdated: 1 });
 
-// Instance methods - Updated with backward compatibility
+// Enhanced addItem method with debugging
 cartSchema.methods.addItem = async function (productId, variantData = null, quantity = 1, price = 0, productType = 'product') {
+    console.log('🛒 addItem called with:', { productId, variantData, quantity, price, productType });
+
     if (quantity < 1 || quantity > 100) {
         throw new Error('Quantity must be between 1 and 100');
     }
 
-    // Backward compatibility: if only productId is provided, assume it's a regular product
+    // Backward compatibility handling
     if (typeof productId === 'object' && productId.productType) {
-        // New format with productType
+        console.log('🛒 Using new format with productType');
         productType = productId.productType;
         variantData = productId.variantData;
         quantity = productId.quantity;
@@ -109,16 +111,28 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
         if (item.productType !== productType) return false;
 
         if (productType === 'product') {
-            return item.product.toString() === productId.toString() &&
-                (variantData ?
-                    item.variant?.variantId?.toString() === variantData.variantId?.toString() :
-                    !item.variant?.variantId
-                );
+            const productMatch = item.product.toString() === productId.toString();
+            const variantMatch = variantData ?
+                item.variant?.variantId?.toString() === variantData.variantId?.toString() :
+                !item.variant?.variantId;
+
+            console.log('🛒 Item comparison:', {
+                itemProduct: item.product.toString(),
+                targetProduct: productId.toString(),
+                itemVariant: item.variant?.variantId,
+                targetVariant: variantData?.variantId,
+                productMatch,
+                variantMatch
+            });
+
+            return productMatch && variantMatch;
         } else if (productType === 'prebuilt-pc') {
             return item.preBuiltPC.toString() === productId.toString();
         }
         return false;
     });
+
+    console.log('🛒 Existing item index:', existingItemIndex);
 
     if (existingItemIndex > -1) {
         const newQuantity = this.items[existingItemIndex].quantity + quantity;
@@ -126,6 +140,7 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
             throw new Error('Total quantity cannot exceed 100');
         }
         this.items[existingItemIndex].quantity = newQuantity;
+        console.log('🛒 Updated existing item quantity to:', newQuantity);
     } else {
         if (this.items.length >= 50) {
             throw new Error('Cart cannot have more than 50 items');
@@ -141,15 +156,25 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
         // Add product reference based on type
         if (productType === 'product') {
             newItem.product = productId;
-            // Add variant data if provided (only for products)
+            // Add variant data if provided
             if (variantData) {
-                newItem.variant = variantData;
+                newItem.variant = {
+                    variantId: variantData.variantId,
+                    name: variantData.name,
+                    price: variantData.price,
+                    mrp: variantData.mrp,
+                    stock: variantData.stock,
+                    attributes: variantData.attributes,
+                    sku: variantData.sku
+                };
+                console.log('🛒 Added variant data to new item:', newItem.variant);
             }
         } else if (productType === 'prebuilt-pc') {
             newItem.preBuiltPC = productId;
         }
 
         this.items.push(newItem);
+        console.log('🛒 Added new item to cart');
     }
 
     return this.save();

@@ -27,41 +27,6 @@ const cartPopulation = [
     }
 ];
 
-const validateProduct = async (productId, variantId = null) => {
-    const product = await Product.findById(productId);
-    if (!product) {
-        throw new ErrorHandler('Product not found', 404);
-    }
-
-    let price = product.offerPrice || product.basePrice;
-    let variantData = null;
-    let stock = product.stockQuantity || product.stock;
-
-    if (variantId && product.variants && product.variants.length > 0) {
-        const variant = product.variants.find(v => v._id.toString() === variantId);
-        if (!variant) {
-            throw new ErrorHandler('Variant not found', 404);
-        }
-        if (variant.stockQuantity < 1) {
-            throw new ErrorHandler('Variant is out of stock', 400);
-        }
-        price = variant.offerPrice || variant.price;
-        stock = variant.stockQuantity;
-        variantData = {
-            variantId: variant._id,
-            name: variant.name,
-            price: variant.price,
-            stock: variant.stockQuantity,
-            attributes: variant.identifyingAttributes || []
-        };
-    } else {
-        if (stock < 1) {
-            throw new ErrorHandler('Product is out of stock', 400);
-        }
-    }
-
-    return { product, price, variantData, stock };
-};
 
 // FIXED: Updated to include pre-built PC population
 const getOrCreateUserCart = async (userId) => {
@@ -123,48 +88,85 @@ exports.getMyCart = catchAsyncErrors(async (req, res, next) => {
 // @route   POST /api/v1/cart
 // @access  Public/Private
 exports.addToCart = catchAsyncErrors(async (req, res, next) => {
-    const { productId, variantId, quantity = 1 } = req.body;
+    const { productId, variantId, variantData, quantity = 1 } = req.body; // NEW: Added variantData
 
     if (!productId) {
         return next(new ErrorHandler('Product ID is required', 400));
     }
 
-    // Validate product
-    const validation = await validateProduct(productId, variantId);
+    // Validate product - UPDATED to handle variant data
+    const validation = await validateProduct(productId, variantId || variantData?.variantId);
 
     if (quantity > validation.stock) {
         return next(new ErrorHandler(`Only ${validation.stock} items available in stock`, 400));
     }
 
     if (!req.user) {
-        // Guest user handling (your existing logic)
-        // ... keep your guest cart logic ...
+        // Guest user handling - UPDATED to include variant data
+        const guestCart = req.session.guestCart || [];
+
+        // Check if item already exists in guest cart
+        const existingItemIndex = guestCart.findIndex(item =>
+            item.productId === productId &&
+            item.variantId === (variantId || variantData?.variantId)
+        );
+
+        let updatedCart;
+        if (existingItemIndex > -1) {
+            // Update quantity of existing item
+            updatedCart = guestCart.map((item, index) =>
+                index === existingItemIndex
+                    ? {
+                        ...item,
+                        quantity: item.quantity + quantity,
+                        variant: variantData || item.variant // NEW: Update variant data
+                    }
+                    : item
+            );
+        } else {
+            // Add new item with variant data
+            const newItem = {
+                _id: `guest_${Date.now()}`,
+                productId,
+                variantId: variantId || variantData?.variantId,
+                variant: variantData, // NEW: Store variant data
+                quantity,
+                price: validation.price,
+                addedAt: new Date().toISOString(),
+                product: validation.product
+            };
+            updatedCart = [...guestCart, newItem];
+        }
+
+        // Save to session
+        req.session.guestCart = updatedCart;
+
         return res.status(200).json({
             success: true,
             message: 'Product added to guest cart',
             data: {
-                items: [{
-                    product: validation.product,
-                    variant: validation.variantData,
-                    quantity,
-                    price: validation.price,
-                    addedAt: new Date()
-                }],
-                totalItems: quantity,
-                totalPrice: quantity * validation.price,
+                items: updatedCart,
+                totalItems: updatedCart.reduce((sum, item) => sum + item.quantity, 0),
+                totalPrice: updatedCart.reduce((sum, item) => sum + (item.quantity * item.price), 0),
                 isGuest: true
             }
         });
     }
 
-    // Authenticated user
+    // Authenticated user - UPDATED to handle variant data
     const userId = req.user._id;
     const cart = await getOrCreateUserCart(userId);
 
     try {
-        await cart.addItem(productId, validation.variantData, quantity, validation.price);
+        // UPDATED: Pass variant data to addItem method
+        await cart.addItem(
+            productId,
+            validation.variantData || variantData, // Use provided variant data
+            quantity,
+            validation.price
+        );
 
-        // FIXED: Populate both product types after adding
+        // Populate both product types after adding
         const updatedCart = await Cart.findById(cart._id).populate(cartPopulation);
 
         res.status(200).json({
@@ -176,6 +178,70 @@ exports.addToCart = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler(error.message, 400));
     }
 });
+
+// UPDATED: validateProduct function to handle variant data
+const validateProduct = async (productId, variantId) => {
+    const product = await Product.findById(productId)
+        .select('name images basePrice mrp offerPrice stockQuantity variants variantConfiguration');
+
+    if (!product) {
+        throw new ErrorHandler('Product not found', 404);
+    }
+
+    let variantData = null;
+    let price = product.basePrice;
+    let stock = product.stockQuantity;
+
+    // Check if product has variants
+    if (variantId && product.variants && product.variants.length > 0) {
+        const variant = product.variants.find(v => v._id.toString() === variantId);
+        if (variant) {
+            variantData = {
+                variantId: variant._id,
+                name: variant.name,
+                price: variant.price,
+                mrp: variant.mrp,
+                stock: variant.stockQuantity,
+                attributes: variant.identifyingAttributes,
+                sku: variant.sku
+            };
+            price = variant.price;
+            stock = variant.stockQuantity;
+        }
+    }
+
+    // If no variant found but product has variants, use first variant as default
+    if (!variantData && product.variants && product.variants.length > 0) {
+        const firstVariant = product.variants[0];
+        variantData = {
+            variantId: firstVariant._id,
+            name: firstVariant.name,
+            price: firstVariant.price,
+            mrp: firstVariant.mrp,
+            stock: firstVariant.stockQuantity,
+            attributes: firstVariant.identifyingAttributes,
+            sku: firstVariant.sku
+        };
+        price = firstVariant.price;
+        stock = firstVariant.stockQuantity;
+    }
+
+    return {
+        product: {
+            _id: product._id,
+            name: product.name,
+            images: product.images,
+            basePrice: product.basePrice,
+            mrp: product.mrp,
+            offerPrice: product.offerPrice,
+            slug: product.slug,
+            stockQuantity: stock
+        },
+        variantData,
+        price,
+        stock
+    };
+};
 
 // @desc    Add Pre-built PC to cart
 // @route   POST /api/v1/cart/prebuilt-pc/add
@@ -430,22 +496,54 @@ exports.updatePreBuiltPCQuantity = catchAsyncErrors(async (req, res, next) => {
 exports.clearCart = catchAsyncErrors(async (req, res, next) => {
     const userId = req.user._id;
 
-    const cart = await Cart.findOne({ userId });
-
-    if (!cart) {
-        return next(new ErrorHandler('Cart not found', 404));
-    }
-
     try {
-        await cart.clearCart();
+        const cart = await Cart.findOne({ userId });
 
+        if (!cart) {
+            return res.status(200).json({
+                success: true,
+                message: 'Cart is already empty',
+                data: { items: [], totalItems: 0, totalPrice: 0 }
+            });
+        }
+
+        // Clear cart items
+        cart.items = [];
+        cart.totalItems = 0;
+        cart.totalPrice = 0;
+
+        await cart.save();
         res.status(200).json({
             success: true,
             message: 'Cart cleared successfully',
-            data: cart
+            data: {
+                items: [],
+                totalItems: 0,
+                totalPrice: 0
+            }
         });
     } catch (error) {
-        return next(new ErrorHandler(error.message, 400));
+        console.error('❌ Clear cart error:', error);
+        return next(new ErrorHandler('Failed to clear cart', 500));
+    }
+});
+
+// Add this helper function for clearing cart after payment
+exports.clearCartAfterPayment = catchAsyncErrors(async (userId) => {
+    try {
+        const cart = await Cart.findOne({ userId });
+
+        if (cart) {
+            cart.items = [];
+            cart.totalItems = 0;
+            cart.totalPrice = 0;
+            await cart.save();
+        }
+
+        return true;
+    } catch (error) {
+        console.error('❌ Clear cart after payment error:', error);
+        return false;
     }
 });
 

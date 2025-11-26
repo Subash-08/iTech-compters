@@ -21,6 +21,7 @@ const couponRoutes = require('./routes/couponRoutes');
 const checkoutRoutes = require('./routes/checkout');
 const paymentRoutes = require('./routes/payment');
 const orderRoutes = require('./routes/order');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 
 dotenv.config({ path: path.join(__dirname, 'config/config.env') });
 
@@ -64,6 +65,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 // app.use(express.static(path.join(__dirname, 'public')));
 
 // API Routes
+app.use('/api/v1/admin/analytics', analyticsRoutes);
 app.use('/api/v1', productRoutes);
 app.use("/api/v1", categoryRoutes);
 app.use("/api/v1", brandRoutes);

@@ -1,20 +1,15 @@
 const express = require("express");
 const {
-    getProducts, getProductById, getProductBySlug, getProductsByCategory,
+    getProducts, getProductBySlug, getProductsByCategory,
     getProductsByBrand, searchProducts, filterProducts, getProductVariants,
     createProduct,
-    getAdminProducts, getAdminProductById, updateProduct, deleteProduct,
+    getAdminProducts, getAdminProductById, deleteProduct,
     addVariant, updateVariant, deleteVariant, addMultipleProducts,
     getAllProducts,
-    updateProductStatus,
-    debugCategories,
-    debugBrands,
-    debugCategoryStructure,
-    debugProductCategories,
-    debugCategoryProducts,
     advancedSearch,
     getProductsForSelection,
     getProductsByIds,
+    getProductAnalytics,
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
@@ -47,6 +42,7 @@ router.get("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), g
 router.delete("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), deleteProduct);  // Delete product
 router.post("/admin/products/bulk", isAuthenticatedUser, authorizeRoles("admin"), addMultipleProducts);
 
+router.get('/admin/analytics/products', isAuthenticatedUser, authorizeRoles('admin'), getProductAnalytics);
 
 // Admin routes for variants
 router.post("/admin/product/:id/variant", isAuthenticatedUser, authorizeRoles("admin"), addVariant);  // Add variant

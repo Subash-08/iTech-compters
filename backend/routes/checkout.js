@@ -5,7 +5,8 @@ const {
     calculateCheckout,
     createOrder,
     saveAddress,
-    updateAddress
+    updateAddress,
+    deleteAddress
 } = require("../controllers/checkout");
 const { isAuthenticatedUser } = require("../middlewares/authenticate");
 
@@ -16,5 +17,7 @@ router.get("/checkout", getCheckoutData);
 router.post("/checkout/calculate", calculateCheckout);
 router.post("/checkout/create-order", createOrder);
 router.post("/checkout/address", saveAddress);
+router.put("/checkout/address/:id", updateAddress);
+router.delete("/checkout/address/:id", deleteAddress);
 
 module.exports = router;

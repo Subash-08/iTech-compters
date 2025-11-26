@@ -7,10 +7,11 @@ const Wishlist = require("../models/wishlistModel");
 const User = require("../models/userModel");
 const PreBuiltPC = require('../models/preBuiltPCModel');
 
-// Add Pre-built PC to wishlist
+// ✅ FIXED: Add Pre-built PC to wishlist
 exports.addPreBuiltPCToWishlist = catchAsyncErrors(async (req, res, next) => {
     try {
         const { pcId } = req.body;
+        const userId = req.user._id; // ✅ Consistent field name
 
         if (!pcId) {
             return next(new ErrorHandler('Pre-built PC ID is required', 400));
@@ -26,12 +27,12 @@ exports.addPreBuiltPCToWishlist = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Pre-built PC not found', 404));
         }
 
-        let wishlist = await Wishlist.findOne({ user: req.user._id });
+        let wishlist = await Wishlist.findOne({ userId }); // ✅ Use userId
 
         if (!wishlist) {
             // Create new wishlist if it doesn't exist
             wishlist = await Wishlist.create({
-                user: req.user._id,
+                userId: userId, // ✅ Use userId
                 items: [{
                     productType: 'prebuilt-pc',
                     preBuiltPC: pcId,
@@ -58,8 +59,11 @@ exports.addPreBuiltPCToWishlist = catchAsyncErrors(async (req, res, next) => {
 
         await wishlist.save();
 
-        // Populate the wishlist with PC details
-        await wishlist.populate('items.preBuiltPC', 'name images totalPrice discountPrice slug category performanceRating');
+        // ✅ FIXED: Proper population with price fields
+        await wishlist.populate({
+            path: 'items.preBuiltPC',
+            select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
+        });
 
         res.status(200).json({
             success: true,
@@ -72,29 +76,39 @@ exports.addPreBuiltPCToWishlist = catchAsyncErrors(async (req, res, next) => {
     }
 });
 
-// controllers/wishlistController.js - FIX PreBuiltPC removal population
+// ✅ FIXED: Remove Pre-built PC from wishlist
 exports.removePreBuiltPCFromWishlist = catchAsyncErrors(async (req, res, next) => {
     const { pcId } = req.params;
-    const userId = req.user._id;
+    const userId = req.user._id; // ✅ Consistent field name
 
     if (!pcId) {
         return next(new ErrorHandler('Pre-built PC ID is required', 400));
     }
 
-    // Find wishlist by userId
+    // ✅ FIXED: Use userId consistently
     const wishlist = await Wishlist.findOne({ userId });
     if (!wishlist) {
         return next(new ErrorHandler('Wishlist not found', 404));
     }
 
     try {
-        await wishlist.removeItem(pcId);
+        // ✅ FIXED: Manual removal instead of calling non-existent method
+        const initialLength = wishlist.items.length;
+        wishlist.items = wishlist.items.filter(item =>
+            !(item.preBuiltPC && item.preBuiltPC.toString() === pcId)
+        );
 
-        // 🛑 CRITICAL FIX: Properly populate BOTH product types after removal
+        if (wishlist.items.length === initialLength) {
+            return next(new ErrorHandler('Pre-built PC not found in wishlist', 404));
+        }
+
+        await wishlist.save();
+
+        // ✅ FIXED: Proper population for both product types
         const updatedWishlist = await Wishlist.findById(wishlist._id)
             .populate({
                 path: 'items.product',
-                select: 'name images basePrice offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews',
+                select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'categories', select: 'name' }
@@ -102,10 +116,7 @@ exports.removePreBuiltPCFromWishlist = catchAsyncErrors(async (req, res, next) =
             })
             .populate({
                 path: 'items.preBuiltPC',
-                select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews',
-                populate: [
-                    { path: 'category', select: 'name' }
-                ]
+                select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews'
             });
 
         res.status(200).json({
@@ -114,78 +125,19 @@ exports.removePreBuiltPCFromWishlist = catchAsyncErrors(async (req, res, next) =
             data: updatedWishlist
         });
     } catch (error) {
-        return next(new ErrorHandler(error.message, 404));
-    }
-});
-
-// UPDATE: getWishlist function with data cleaning
-exports.getWishlist = catchAsyncErrors(async (req, res, next) => {
-    try {
-        let wishlist = await Wishlist.findOne({ userId: req.user._id }) // ✅ Use userId
-            .populate('items.product', 'name images basePrice offerPrice slug brand categories')
-            .populate('items.preBuiltPC', 'name images totalPrice discountPrice slug category performanceRating');
-
-        if (!wishlist) {
-            wishlist = await Wishlist.create({
-                userId: req.user._id, // ✅ Use userId
-                items: []
-            });
-        } else {
-            // ✅ Check and clean corrupted data automatically
-            const hasCorruptedData = wishlist.items.some(item =>
-                (item.productType === 'product' && (!item.product || !item.product._id)) ||
-                (item.productType === 'prebuilt-pc' && (!item.preBuiltPC || !item.preBuiltPC._id)) ||
-                (!item.productType) // Items without productType
-            );
-
-            if (hasCorruptedData) {
-                wishlist.items = wishlist.items.filter(item =>
-                    (item.productType === 'product' && item.product && item.product._id) ||
-                    (item.productType === 'prebuilt-pc' && item.preBuiltPC && item.preBuiltPC._id)
-                );
-                await wishlist.save();
-                // Re-populate after cleaning
-                await wishlist.populate('items.product items.preBuiltPC');
-            }
-        }
-
-        res.status(200).json({
-            success: true,
-            data: wishlist
-        });
-
-    } catch (error) {
         return next(new ErrorHandler(error.message, 500));
     }
 });
 
-
-// @desc    Remove item from wishlist
-// @route   DELETE /api/v1/wishlist/remove/:productId
-// @access  Private
-// controllers/wishlistController.js - IMPROVED removeFromWishlist
-// controllers/wishlistController.js - ENSURE consistent population
-exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
-    const { productId } = req.params;
+// ✅ FIXED: Single getWishlist function (removed duplicate)
+exports.getWishlist = catchAsyncErrors(async (req, res, next) => {
     const userId = req.user._id;
 
-    if (!productId) {
-        return next(new ErrorHandler('Product ID is required', 400));
-    }
-
-    const wishlist = await Wishlist.findOne({ userId });
-    if (!wishlist) {
-        return next(new ErrorHandler('Wishlist not found', 404));
-    }
-
     try {
-        await wishlist.removeItem(productId);
-
-        // 🛑 CRITICAL: Same population logic for both endpoints
-        const updatedWishlist = await Wishlist.findById(wishlist._id)
+        let wishlist = await Wishlist.findOne({ userId })
             .populate({
                 path: 'items.product',
-                select: 'name images basePrice offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews',
+                select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'categories', select: 'name' }
@@ -193,100 +145,159 @@ exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
             })
             .populate({
                 path: 'items.preBuiltPC',
-                select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews',
-                populate: [
-                    { path: 'category', select: 'name' }
-                ]
+                select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
             });
+
+        if (!wishlist) {
+            wishlist = await Wishlist.create({
+                userId,
+                items: []
+            });
+        }
+
+        // ✅ FIXED: Enhanced pricing calculation for all items
+        const enhancedItems = wishlist.items.map(item => {
+            if (item.productType === 'product' && item.product) {
+                const product = item.product;
+
+                let displayPrice = product.offerPrice > 0 ? product.offerPrice : product.basePrice || 0;
+                let displayMrp = product.mrp || displayPrice;
+                let displayName = product.name || 'Product';
+                let image = product.images?.thumbnail?.url ||
+                    product.images?.gallery?.[0]?.url ||
+                    'https://via.placeholder.com/300x300?text=Product+1';
+
+                // Use variant data if available
+                if (item.variant && item.variant.variantId) {
+                    displayPrice = item.variant.price || displayPrice;
+                    displayMrp = item.variant.mrp || item.variant.price || displayMrp;
+
+                    if (item.variant.name) {
+                        displayName = `${product.name} - ${item.variant.name}`;
+                    }
+
+                    // Use variant image if available
+                    if (product.variants) {
+                        const variantFromProduct = product.variants.find(v =>
+                            v._id.toString() === item.variant.variantId
+                        );
+                        if (variantFromProduct?.images?.thumbnail?.url) {
+                            image = variantFromProduct.images.thumbnail.url;
+                        }
+                    }
+                }
+
+                const discountPercentage = displayMrp > displayPrice
+                    ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
+                    : 0;
+
+                return {
+                    ...item.toObject(),
+                    displayPrice,
+                    displayMrp,
+                    discountPercentage,
+                    displayName,
+                    image
+                };
+            } else if (item.productType === 'prebuilt-pc' && item.preBuiltPC) {
+                const pc = item.preBuiltPC;
+
+                const displayPrice = pc.discountPrice > 0 ? pc.discountPrice : pc.totalPrice || 0;
+                const displayMrp = pc.totalPrice || displayPrice;
+                const displayName = pc.name || 'Pre-built PC';
+                const image = pc.images?.[0]?.url || 'https://via.placeholder.com/300x300?text=Product+1';
+
+                const discountPercentage = displayMrp > displayPrice
+                    ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
+                    : 0;
+
+                return {
+                    ...item.toObject(),
+                    displayPrice,
+                    displayMrp,
+                    discountPercentage,
+                    displayName,
+                    image
+                };
+            }
+
+            // Return original item if no product/PC found
+            return item;
+        });
 
         res.status(200).json({
             success: true,
-            message: 'Item removed from wishlist',
-            data: updatedWishlist
+            data: {
+                ...wishlist.toObject(),
+                items: enhancedItems
+            }
         });
+
     } catch (error) {
-        return next(new ErrorHandler(error.message, 404));
+        console.error('❤️ Wishlist get error:', error);
+        return next(new ErrorHandler(error.message, 500));
     }
 });
 
-// controllers/wishlistController.js
-
-// In your wishlistController.js - FIX THE POPULATION
-exports.getMyWishlist = catchAsyncErrors(async (req, res, next) => {
-    const userId = req.user._id;
-
-    // ✅ FIX: Add price fields to the population
-    const wishlist = await Wishlist.findOne({ userId })
-        .populate({
-            path: 'items.product',
-            select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications', // ✅ ADD PRICE FIELDS
-            populate: [
-                { path: 'brand', select: 'name' },
-                { path: 'category', select: 'name' }
-            ]
-        });
-
-    if (!wishlist) {
-        // Create an empty wishlist if it doesn't exist
-        const newWishlist = await Wishlist.create({ userId, items: [] });
-        return res.status(200).json({
-            success: true,
-            count: 0,
-            data: newWishlist
-        });
-    }
-
-    res.status(200).json({
-        success: true,
-        count: wishlist.items.length,
-        data: wishlist
-    });
-});
-
-// @desc    Check if product is in wishlist
-// @route   GET /api/v1/wishlist/check/:productId
-// @access  Private
-exports.checkWishlistItem = catchAsyncErrors(async (req, res, next) => {
+// controllers/wishlistController.js - UNIVERSAL REMOVAL
+exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
     const { productId } = req.params;
     const userId = req.user._id;
 
-    if (!productId) {
-        return next(new ErrorHandler('Product ID is required', 400));
-    }
+    console.log('🗑️ Removing item from wishlist:', productId);
 
-    // Fix: Check directly in Wishlist collection
     const wishlist = await Wishlist.findOne({ userId });
 
     if (!wishlist) {
-        return res.status(200).json({
-            success: true,
-            isInWishlist: false,
-            message: 'Product is not in wishlist'
-        });
+        return next(new ErrorHandler('Wishlist not found', 404));
     }
 
-    const isInWishlist = wishlist.items.some(item =>
-        item.product.toString() === productId
+    // ✅ FIXED: Remove by product ID for both regular products AND pre-built PCs
+    const itemIndex = wishlist.items.findIndex(item =>
+        (item.product && item.product.toString() === productId) ||
+        (item.preBuiltPC && item.preBuiltPC.toString() === productId)
     );
+
+    if (itemIndex === -1) {
+        return next(new ErrorHandler('Item not found in wishlist', 404));
+    }
+
+    // Remove the item
+    wishlist.items.splice(itemIndex, 1);
+    await wishlist.save();
+
+    // Return updated wishlist with proper population
+    const updatedWishlist = await Wishlist.findById(wishlist._id)
+        .populate({
+            path: 'items.product',
+            select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants',
+            populate: [
+                { path: 'brand', select: 'name' },
+                { path: 'categories', select: 'name' }
+            ]
+        })
+        .populate({
+            path: 'items.preBuiltPC',
+            select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
+        });
 
     res.status(200).json({
         success: true,
-        isInWishlist,
-        message: isInWishlist ? 'Product is in wishlist' : 'Product is not in wishlist'
+        message: 'Item removed from wishlist',
+        data: updatedWishlist
     });
 });
 
-// @desc    Add product to wishlist
-// @route   POST /api/v1/wishlist/add
-// @access  Private
-// controllers/wishlistController.js - CHECK addToWishlist
+// ✅ FIXED: Add product to wishlist
 exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
-    const { productId } = req.body;
+    const { productId, variant } = req.body;
     const userId = req.user._id;
 
     if (!productId) {
         return next(new ErrorHandler('Product ID is required', 400));
     }
+
+    console.log('❤️ Adding to wishlist:', { productId, variant });
 
     // Find or create wishlist
     let wishlist = await Wishlist.findOne({ userId });
@@ -299,29 +310,52 @@ exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
     }
 
     try {
-        // Check if item already exists
-        const existingItem = wishlist.items.find(item =>
-            item.product && item.product.toString() === productId
-        );
+        // Check for existing item
+        const existingItem = wishlist.items.find(item => {
+            const sameProduct = item.product && item.product.toString() === productId;
+
+            if (variant && variant.variantId) {
+                return sameProduct && item.variant?.variantId === variant.variantId;
+            } else {
+                return sameProduct && !item.variant;
+            }
+        });
 
         if (existingItem) {
+            console.log('❤️ Item already exists in wishlist');
             return next(new ErrorHandler('Product already in wishlist', 400));
         }
 
-        // Add the item
-        wishlist.items.push({
+        // Create the item with proper variant data structure
+        const newItem = {
             product: productId,
             productType: 'product',
             addedAt: new Date()
-        });
+        };
 
+        // Store variant data if provided
+        if (variant && variant.variantId) {
+            newItem.variant = {
+                variantId: variant.variantId,
+                name: variant.name,
+                price: variant.price,
+                mrp: variant.mrp,
+                stock: variant.stock,
+                attributes: variant.attributes,
+                sku: variant.sku
+            };
+            console.log('❤️ Storing variant data:', newItem.variant);
+        }
+
+        console.log('❤️ Adding new wishlist item:', newItem);
+        wishlist.items.push(newItem);
         await wishlist.save();
 
-        // 🛑 CRITICAL: Populate the response with product details
+        // Enhanced population and pricing calculation
         const populatedWishlist = await Wishlist.findById(wishlist._id)
             .populate({
                 path: 'items.product',
-                select: 'name images basePrice offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews',
+                select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'categories', select: 'name' }
@@ -329,69 +363,110 @@ exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
             })
             .populate({
                 path: 'items.preBuiltPC',
-                select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews',
-                populate: [
-                    { path: 'category', select: 'name' }
-                ]
+                select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
             });
 
         res.status(200).json({
             success: true,
-            message: 'Product added to wishlist',
-            data: populatedWishlist // 🛑 Make sure this includes the new item
+            message: variant ? 'Product variant added to wishlist' : 'Product added to wishlist',
+            data: populatedWishlist
         });
 
     } catch (error) {
+        console.error('❤️ Wishlist add error:', error);
         return next(new ErrorHandler(error.message, 500));
     }
 });
 
-// controllers/wishlistController.js - FIXED CLEAR WISHLIST
-// @desc    Clear entire wishlist
-// @route   DELETE /api/v1/wishlist/clear
-// @access  Private
-exports.clearWishlist = catchAsyncErrors(async (req, res, next) => {
+// ✅ FIXED: Check if product is in wishlist
+exports.checkWishlistItem = catchAsyncErrors(async (req, res, next) => {
+    const { productId } = req.params;
     const userId = req.user._id;
 
-    // Find user's wishlist
-    let wishlist = await Wishlist.findOne({ userId });
+    if (!productId) {
+        return next(new ErrorHandler('Product ID is required', 400));
+    }
+
+    const wishlist = await Wishlist.findOne({ userId });
 
     if (!wishlist) {
-        // If no wishlist exists, create an empty one
-        wishlist = await Wishlist.create({ userId, items: [] });
-
-        // Update user's wishlistId reference
-        await User.findByIdAndUpdate(userId, { wishlistId: wishlist._id });
-
         return res.status(200).json({
             success: true,
-            message: 'Wishlist cleared successfully',
-            data: {
-                items: [],
-                itemCount: 0,
-                isGuest: false
-            }
+            isInWishlist: false,
+            message: 'Product is not in wishlist'
         });
     }
 
-    // ✅ Use the clearWishlist method from your model
-    await wishlist.clearWishlist();
-
-    // ✅ Populate the empty wishlist for consistent response
-    const populatedWishlist = await Wishlist.findById(wishlist._id)
-        .populate({
-            path: 'items.product',
-            select: 'name images price slug stock brand category discountPrice ratings',
-            populate: [
-                { path: 'brand', select: 'name' },
-                { path: 'category', select: 'name' }
-            ]
-        });
+    const isInWishlist = wishlist.items.some(item =>
+        item.product && item.product.toString() === productId
+    );
 
     res.status(200).json({
         success: true,
-        message: 'Wishlist cleared successfully', // ✅ Fixed message
-        data: populatedWishlist // ✅ Now populatedWishlist is defined
+        isInWishlist,
+        message: isInWishlist ? 'Product is in wishlist' : 'Product is not in wishlist'
+    });
+});
+
+// ✅ FIXED: Clear entire wishlist
+exports.clearWishlist = catchAsyncErrors(async (req, res, next) => {
+    const userId = req.user._id;
+
+    let wishlist = await Wishlist.findOne({ userId });
+
+    if (!wishlist) {
+        wishlist = await Wishlist.create({ userId, items: [] });
+
+        // Update user's wishlistId reference if exists
+        await User.findByIdAndUpdate(userId, { wishlistId: wishlist._id });
+    }
+
+    // Clear all items
+    wishlist.items = [];
+    await wishlist.save();
+
+    // Return empty wishlist with proper structure
+    const emptyWishlist = await Wishlist.findById(wishlist._id)
+        .populate('items.product items.preBuiltPC');
+
+    res.status(200).json({
+        success: true,
+        message: 'Wishlist cleared successfully',
+        data: emptyWishlist
+    });
+});
+
+// ✅ Keep this function for backward compatibility
+exports.getMyWishlist = catchAsyncErrors(async (req, res, next) => {
+    const userId = req.user._id;
+
+    const wishlist = await Wishlist.findOne({ userId })
+        .populate({
+            path: 'items.product',
+            select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications',
+            populate: [
+                { path: 'brand', select: 'name' },
+                { path: 'categories', select: 'name' }
+            ]
+        })
+        .populate({
+            path: 'items.preBuiltPC',
+            select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
+        });
+
+    if (!wishlist) {
+        const newWishlist = await Wishlist.create({ userId, items: [] });
+        return res.status(200).json({
+            success: true,
+            count: 0,
+            data: newWishlist
+        });
+    }
+
+    res.status(200).json({
+        success: true,
+        count: wishlist.items.length,
+        data: wishlist
     });
 });
 // ==================== ADMIN WISHLIST CONTROLLERS ====================

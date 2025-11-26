@@ -3,11 +3,20 @@ import React, { useState } from 'react';
 import { useAppDispatch } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
 
+interface VariantData {
+  variantId: string;
+  name?: string;
+  price?: number;
+  mrp?: number;
+  stock?: number;
+  attributes?: Array<{ key: string; label: string; value: string }>;
+  sku?: string;
+}
+
 interface AddToCartButtonProps {
   productId: string;
-  variantId?: string;
-  productData?: any;
-  productType?: 'product' | 'prebuilt-pc'; // NEW: Add productType
+  variant?: VariantData | null; // CHANGED: Accept full variant object
+  productType?: 'product' | 'prebuilt-pc';
   className?: string;
   quantity?: number;
   disabled?: boolean;
@@ -18,9 +27,8 @@ interface AddToCartButtonProps {
 
 const AddToCartButton: React.FC<AddToCartButtonProps> = ({ 
   productId, 
-  variantId, 
-  productData,
-  productType = 'product', // Default to 'product' for backward compatibility
+  variant, // CHANGED: Now accepts full variant object
+  productType = 'product',
   className = '',
   quantity = 1,
   disabled = false,
@@ -37,20 +45,19 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
     setLoading(true);
     try {
       if (productType === 'prebuilt-pc') {
-        // Use pre-built PC specific action
         await dispatch(cartActions.addPreBuiltPCToCart({ 
           pcId: productId, 
           quantity 
         }));
       } else {
-        // Use regular product action
+        // CHANGED: Send both productId and variant data
         await dispatch(cartActions.addToCart({ 
           productId, 
-          variantId, 
+          variantId: variant?.variantId, // Extract variantId from variant object
+          variantData: variant, // Send full variant data
           quantity 
         }));
       }
-      // Optional: Show success message or notification
     } catch (error) {
       console.error('Failed to add to cart:', error);
     } finally {

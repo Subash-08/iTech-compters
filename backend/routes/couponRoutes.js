@@ -8,7 +8,8 @@ const {
     updateCouponStatus,
     deleteCoupon,
     validateCoupon,
-    getActiveCoupons
+    getActiveCoupons,
+    getCouponAnalytics
 } = require("../controllers/couponController");
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
 
@@ -32,6 +33,8 @@ router.post(
     authorizeRoles('admin'),
     createCoupon
 );
+
+router.get('/admin/analytics/coupons', isAuthenticatedUser, authorizeRoles('admin'), getCouponAnalytics);
 
 router.get(
     "/admin/coupons",

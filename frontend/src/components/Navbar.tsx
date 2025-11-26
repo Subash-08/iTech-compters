@@ -264,7 +264,7 @@ const MobileNavLink: React.FC<MobileNavLinkProps> = ({ item, closeMenu }) => {
 // Common user menu items configuration
 const getUserMenuItems = (userRole?: string) => [
   { label: 'My Profile', href: '/profile', icon: 'user' },
-  { label: 'My Orders', href: '/orders', icon: 'orders' },
+  { label: 'My Orders', href: 'account/orders', icon: 'orders' },
   { label: 'Wishlist', href: '/wishlist', icon: 'heart' },
   { label: 'Settings', href: '/settings', icon: 'settings' },
   ...(userRole === 'admin' ? [{ label: 'Admin Dashboard', href: '/admin', icon: 'admin' }] : []),

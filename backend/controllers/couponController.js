@@ -160,6 +160,71 @@ const createCoupon = catchAsyncErrors(async (req, res, next) => {
     }
 });
 
+// Add to couponController.js
+const getCouponAnalytics = catchAsyncErrors(async (req, res, next) => {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    // Total coupons
+    const totalCoupons = await Coupon.countDocuments();
+
+    // Active coupons
+    const activeCoupons = await Coupon.countDocuments({
+        status: 'active',
+        $and: [
+            { startDate: { $lte: today } },
+            {
+                $or: [
+                    { endDate: { $gte: today } },
+                    { endDate: null }
+                ]
+            }
+        ]
+    });
+
+    // Expired coupons
+    const expiredCoupons = await Coupon.countDocuments({
+        endDate: { $lt: today }
+    });
+
+    // Most used coupon
+    const mostUsedCoupon = await Coupon.findOne()
+        .sort({ usageCount: -1 })
+        .select('code usageCount discountValue discountType');
+
+    // Total usage count
+    const totalUsage = await Coupon.aggregate([
+        {
+            $group: {
+                _id: null,
+                totalUsage: { $sum: '$usageCount' }
+            }
+        }
+    ]);
+
+    // Coupons created this month
+    const newCouponsThisMonth = await Coupon.countDocuments({
+        createdAt: { $gte: startOfMonth }
+    });
+
+    res.status(200).json({
+        success: true,
+        data: {
+            totalCoupons,
+            activeCoupons,
+            expiredCoupons,
+            totalUsage: totalUsage[0]?.totalUsage || 0,
+            mostUsedCoupon: mostUsedCoupon ? {
+                code: mostUsedCoupon.code,
+                usageCount: mostUsedCoupon.usageCount,
+                discount: mostUsedCoupon.discountValue,
+                type: mostUsedCoupon.discountType
+            } : null,
+            newCouponsThisMonth
+        }
+    });
+});
+
 // @desc    Get all coupons
 // @route   GET /api/admin/coupons
 // @access  Private/Admin
@@ -501,5 +566,6 @@ module.exports = {
     updateCouponStatus,
     deleteCoupon,
     validateCoupon,
-    getActiveCoupons
+    getActiveCoupons,
+    getCouponAnalytics
 };

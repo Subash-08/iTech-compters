@@ -46,6 +46,15 @@ export interface CartState {
 export interface AddToCartData {
   productId: string;
   variantId?: string;
+  variantData?: { // NEW: Proper variant data structure
+    variantId: string;
+    name?: string;
+    price?: number;
+    mrp?: number;
+    stock?: number;
+    attributes?: Array<{ key: string; label: string; value: string }>;
+    sku?: string;
+  };
   quantity?: number;
 }
 

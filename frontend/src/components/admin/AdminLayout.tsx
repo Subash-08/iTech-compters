@@ -41,6 +41,11 @@ import PreBuiltPCForm from './prebuilt-pcs/PreBuiltPCForm';
 import PreBuiltPCBenchmarks from './prebuilt-pcs/PreBuiltPCBenchmarks';
 import CouponList from './coupons/CouponList';
 import CouponForm from './coupons/CouponForm';
+import OrderList from './order/OrderList';
+import OrderAnalytics from './order/OrderAnalytics';
+import OrderDetails from './order/OrderDetails';
+import UserDetailPage from './user/UserDetailPage';
+import Dashboard from './dashboard/Dashboard';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -407,6 +412,7 @@ const AdminLayout: React.FC = () => {
           <div className="max-w-7xl mx-auto">
             {/* Render the appropriate component based on route */}
             <Routes>
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/categories" element={<CategoryList />} />
               <Route path="/categories/new" element={<CategoryForm />} />
               <Route path="/categories/edit/:id" element={<CategoryForm />} />
@@ -417,6 +423,7 @@ const AdminLayout: React.FC = () => {
               <Route path="/brands/edit/:slug" element={<BrandForm />} />
               {/* User Management Routes */}
               <Route path="/users" element={<UserList />} />
+              <Route path="/users/:id" element={<UserDetailPage />} />
               <Route path="/reviews" element={<ReviewList />} />
                 {/* Hero Section Routes */}
               <Route path="/hero-sections" element={<HeroSectionList />} />
@@ -441,6 +448,11 @@ const AdminLayout: React.FC = () => {
   <Route path="/coupons" element={<CouponList />} />
   <Route path="/coupons/new" element={<CouponForm />} />
   <Route path="/coupons/edit/:id" element={<CouponForm />} />
+
+
+  <Route path="/orders" element={<OrderList />} />
+  <Route path="/orders/analytics" element={<OrderAnalytics />} />
+  <Route path="/orders/:orderId" element={<OrderDetails />} />
             </Routes>
           </div>
         </main>

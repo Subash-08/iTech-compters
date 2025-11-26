@@ -3,6 +3,7 @@ import { User } from '../types/user';
 import StatusBadge from '../common/StatusBadge';
 import { Icons } from '../Icon';
 import { baseURL } from '../../config/config';
+import { useNavigate } from 'react-router-dom';
 
 interface UserTableProps {
   users: User[];
@@ -36,6 +37,7 @@ const UserTable: React.FC<UserTableProps> = ({
   loading = false,
   currentUserId
 }) => {
+   const navigate = useNavigate();
   const getRoleBadge = (role: string) => {
     const roleConfig = {
       admin: { label: 'Admin', className: 'bg-purple-100 text-purple-800' },
@@ -214,13 +216,13 @@ const UserTable: React.FC<UserTableProps> = ({
                         {(user.status || 'active') === 'active' ? 'Deactivate' : 'Activate'}
                       </button>
 
-                      {/* View Details */}
                       <button
-                        onClick={() => onEdit(user)}
-                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                      >
-                        <Icons.Eye className="w-4 h-4" />
-                      </button>
+          onClick={() => navigate(`/admin/users/${user._id}`)} // ✅ CHANGED
+          className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+          title="View full details"
+        >
+          <Icons.Eye className="w-4 h-4" />
+        </button>
                     </div>
                   </td>
                 </tr>
