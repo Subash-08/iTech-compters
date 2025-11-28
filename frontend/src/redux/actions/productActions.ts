@@ -1,26 +1,28 @@
-// redux/actions/productActions.ts
+// redux/actions/productActions.ts - FIXED VERSION
 import { toast } from 'react-toastify';
 import api from '../../components/config/axiosConfig';
 import { Product, ProductsResponse, ProductFilters, AvailableFilters } from '../types/productTypes';
 
-// Enhanced API Service with Price Range Support
+// Enhanced API Service with Proper Parameter Formatting
 export const productAPI = {
   getProducts: async (filters: ProductFilters): Promise<ProductsResponse> => {
     try {
+      // 🛑 FIX: Use proper parameter names that backend expects
       const params: Record<string, any> = {
         page: filters.page || 1,
         limit: filters.limit || 12,
         status: 'Published',
       };
 
-      // ✅ Use the correct parameter names
-      if (filters.category) params.category = filters.category;
-      if (filters.brand) params.brand = filters.brand;
+      // 🛑 CRITICAL FIX: Use array format for brands and categories
+      if (filters.brand) params.brands = Array.isArray(filters.brand) ? filters.brand : [filters.brand];
+      if (filters.category) params.categories = Array.isArray(filters.category) ? filters.category : [filters.category];
+      
       if (filters.condition) params.condition = filters.condition;
       if (filters.inStock) params.inStock = 'true';
       if (filters.minPrice) params.minPrice = filters.minPrice;
       
-      // ✅ CRITICAL FIX: Only send maxPrice if it's greater than 0
+      // Only send maxPrice if it's greater than 0
       if (filters.maxPrice && filters.maxPrice > 0) {
         params.maxPrice = filters.maxPrice;
       }
@@ -28,15 +30,18 @@ export const productAPI = {
       if (filters.rating) params.rating = filters.rating;
       if (filters.search) params.search = filters.search;
 
-      // Sort mapping
+      // 🛑 FIX: Use 'sort' parameter (not 'sortBy')
       const sortMap: Record<string, string> = {
-        'featured': 'newest',
-        'newest': 'newest', 
-        'price-low': 'price-asc',
-        'price-high': 'price-desc',
-        'rating': 'popular'
+        'featured': '-createdAt',
+        'newest': '-createdAt', 
+        'price-low': 'basePrice',
+        'price-high': '-basePrice',
+        'rating': '-averageRating'
       };
-      params.sort = sortMap[filters.sortBy || 'featured'] || 'newest';
+      
+      params.sort = sortMap[filters.sortBy || 'featured'] || '-createdAt';
+
+      console.log('🔄 Sending API request with params:', params);
 
       const response = await api.get<ProductsResponse>('/products', { params });
       
@@ -51,7 +56,7 @@ export const productAPI = {
     }
   },
 
-    searchProducts: async (query: string, limit: number = 5): Promise<Product[]> => {
+  searchProducts: async (query: string, limit: number = 5): Promise<Product[]> => {
     try {
       const params: Record<string, any> = {
         search: query,
@@ -67,7 +72,7 @@ export const productAPI = {
     }
   },
 
-  // ✅ ADD: Advanced search with filters
+  // Advanced search with filters
   advancedSearch: async (query: string, filters: Partial<ProductFilters> = {}): Promise<ProductsResponse> => {
     try {
       const params: Record<string, any> = {
@@ -77,26 +82,27 @@ export const productAPI = {
         status: 'Published',
       };
 
-      // Add optional filters
-      if (filters.category) params.category = filters.category;
-      if (filters.brand) params.brand = filters.brand;
+      // 🛑 FIX: Use array format
+      if (filters.brand) params.brands = Array.isArray(filters.brand) ? filters.brand : [filters.brand];
+      if (filters.category) params.categories = Array.isArray(filters.category) ? filters.category : [filters.category];
+      
       if (filters.minPrice) params.minPrice = filters.minPrice;
       if (filters.maxPrice && filters.maxPrice > 0) params.maxPrice = filters.maxPrice;
       if (filters.rating) params.rating = filters.rating;
       if (filters.inStock) params.inStock = 'true';
       if (filters.condition) params.condition = filters.condition;
 
-      // Sort mapping
+      // 🛑 FIX: Use 'sort' parameter
       const sortMap: Record<string, string> = {
-        'featured': 'createdAt',
-        'newest': 'createdAt', 
+        'featured': '-createdAt',
+        'newest': '-createdAt', 
         'price-low': 'basePrice',
         'price-high': '-basePrice',
         'rating': '-averageRating'
       };
       
       if (filters.sortBy) {
-        params.sort = sortMap[filters.sortBy] || 'createdAt';
+        params.sort = sortMap[filters.sortBy] || '-createdAt';
       }
 
       const response = await api.get<ProductsResponse>('/products', { params });
@@ -119,13 +125,13 @@ export const productAPI = {
         limit: filters.limit || 12,
       };
 
-      // ✅ FIX: Use correct parameter names
-      if (filters.brand) params.brand = filters.brand;
+      // 🛑 FIX: Use array format for brands
+      if (filters.brand) params.brands = Array.isArray(filters.brand) ? filters.brand : [filters.brand];
+      
       if (filters.condition) params.condition = filters.condition;
       if (filters.inStock) params.inStock = 'true';
       if (filters.minPrice) params.minPrice = filters.minPrice;
       
-      // ✅ CRITICAL FIX: Only send maxPrice if it's greater than 0
       if (filters.maxPrice && filters.maxPrice > 0) {
         params.maxPrice = filters.maxPrice;
       }
@@ -133,22 +139,23 @@ export const productAPI = {
       if (filters.rating) params.rating = filters.rating;
       if (filters.search) params.search = filters.search;
 
-      // ✅ FIXED: Sort parameter - backend expects 'sort' not 'sortBy'
+      // 🛑 FIX: Use 'sort' parameter
       const sortMap: Record<string, string> = {
-        'featured': 'createdAt',
-        'newest': 'createdAt', 
+        'featured': '-createdAt',
+        'newest': '-createdAt', 
         'price-low': 'basePrice',
         'price-high': '-basePrice',
         'rating': '-averageRating'
       };
       
-      // Map frontend sortBy to backend sort parameter
       if (filters.sortBy) {
-        params.sort = sortMap[filters.sortBy] || 'createdAt';
+        params.sort = sortMap[filters.sortBy] || '-createdAt';
       } else {
-        // Default sort if not provided
-        params.sort = 'createdAt';
+        params.sort = '-createdAt';
       }      
+      
+      console.log('🔄 Sending category request with params:', params);
+      
       const response = await api.get<ProductsResponse>(`/products/category/${categoryName}`, { params });
       
       return response.data;
@@ -165,13 +172,13 @@ export const productAPI = {
         limit: filters.limit || 12,
       };
 
-      // ✅ FIX: Use correct parameter names
-      if (filters.category) params.category = filters.category;
+      // 🛑 FIX: Use array format for categories
+      if (filters.category) params.categories = Array.isArray(filters.category) ? filters.category : [filters.category];
+      
       if (filters.condition) params.condition = filters.condition;
       if (filters.inStock) params.inStock = 'true';
       if (filters.minPrice) params.minPrice = filters.minPrice;
       
-      // ✅ CRITICAL FIX: Only send maxPrice if it's greater than 0
       if (filters.maxPrice && filters.maxPrice > 0) {
         params.maxPrice = filters.maxPrice;
       }
@@ -179,20 +186,23 @@ export const productAPI = {
       if (filters.rating) params.rating = filters.rating;
       if (filters.search) params.search = filters.search;
 
-      // ✅ FIXED: Sort parameter
+      // 🛑 FIX: Use 'sort' parameter
       const sortMap: Record<string, string> = {
-        'featured': 'createdAt',
-        'newest': 'createdAt', 
+        'featured': '-createdAt',
+        'newest': '-createdAt', 
         'price-low': 'basePrice',
         'price-high': '-basePrice',
         'rating': '-averageRating'
       };
       
       if (filters.sortBy) {
-        params.sort = sortMap[filters.sortBy] || 'createdAt';
+        params.sort = sortMap[filters.sortBy] || '-createdAt';
       } else {
-        params.sort = 'createdAt';
+        params.sort = '-createdAt';
       }      
+      
+      console.log('🔄 Sending brand request with params:', params);
+      
       const response = await api.get<ProductsResponse>(`/products/brand/${brandName}`, { params });
       
       return response.data;
@@ -202,24 +212,22 @@ export const productAPI = {
     }
   },
 
-  // ✅ FIXED: Get accurate price range for current filters
+  // Get accurate price range for current filters
   getPriceRange: async (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }): Promise<{ minPrice: number; maxPrice: number }> => {
     try {
       const rangeFilters = { ...filters };
       delete rangeFilters.minPrice;
       delete rangeFilters.maxPrice;
       
-      // ✅ FIX: Use proper parameters for price range calculation
       const priceRangeParams = {
         ...rangeFilters,
         limit: 1000,
         page: 1,
-        sortBy: 'price-low' // Get cheapest first for accurate min price
+        sortBy: 'price-low'
       };
 
       let response: ProductsResponse;
 
-      // Use the same endpoint as products for accurate range
       if (routeParams?.categoryName) {
         response = await productAPI.getProductsByCategory(routeParams.categoryName, priceRangeParams);
       } else if (routeParams?.brandName) {
@@ -227,8 +235,8 @@ export const productAPI = {
       } else {
         response = await productAPI.getProducts(priceRangeParams);
       }
+      
       if (response.products.length > 0) {
-        // ✅ FIX: Use basePrice for range calculation, not offerPrice
         const prices = response.products.map(product => product.basePrice);
         
         const minPrice = Math.floor(Math.min(...prices));
@@ -245,7 +253,7 @@ export const productAPI = {
     }
   },
 
-  // ✅ UPDATED: Get max price only (for backward compatibility)
+  // Get max price only (for backward compatibility)
   getMaxPrice: async (filters: Partial<ProductFilters>): Promise<number> => {
     try {
       const priceRange = await productAPI.getPriceRange(filters);
@@ -257,9 +265,9 @@ export const productAPI = {
   },
 };
 
-// Enhanced Action Creators with Price Range Support
+// Enhanced Action Creators with Proper Parameter Handling
 export const productActions = {
-  // ✅ FIXED: Fetch products with proper price range handling
+  // 🛑 FIXED: Fetch products with proper parameter formatting
   fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
       dispatch({ type: 'products/fetchProductsStart' });
@@ -282,16 +290,17 @@ export const productActions = {
           totalPages: response.totalPages,
           totalProducts: response.totalProducts,
           currentPage: response.currentPage,
+          // 🛑 FIX: Include search query in response
+          searchQuery: filters.search || null,
         },
       });
 
       // Extract available filters from products
       dispatch(productActions.extractAvailableFilters(response.products, routeParams));
       
-      // ✅ FIXED: Fetch base price range WITHOUT current price filters
+      // Fetch base price range WITHOUT current price filters
       const baseFilters = { 
         ...filters,
-        // Remove price filters for base range calculation
         minPrice: undefined,
         maxPrice: undefined,
         limit: 1000, 
@@ -310,45 +319,44 @@ export const productActions = {
     }
   },
 
-  // ✅ FIXED: Fetch base price range with explicit filters
-fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
-  try {
-    
-    const baseRangeFilters = {
-      limit: 1000,
-      page: 1,
-      sortBy: 'price-low'
-    };
-    
-    const priceRange = await productAPI.getPriceRange(baseRangeFilters, routeParams);    
-    dispatch({
-      type: 'products/updateAvailableFilters',
-      payload: {
-        priceRange: {
-          min: priceRange.minPrice,
-          max: priceRange.maxPrice,
+  // Fetch base price range with explicit filters
+  fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
+    try {
+      const baseRangeFilters = {
+        limit: 1000,
+        page: 1,
+        sortBy: 'price-low'
+      };
+      
+      const priceRange = await productAPI.getPriceRange(baseRangeFilters, routeParams);    
+      dispatch({
+        type: 'products/updateAvailableFilters',
+        payload: {
+          priceRange: {
+            min: priceRange.minPrice,
+            max: priceRange.maxPrice,
+          },
+          baseMinPrice: priceRange.minPrice,
+          baseMaxPrice: priceRange.maxPrice,
         },
-        baseMinPrice: priceRange.minPrice,
-        baseMaxPrice: priceRange.maxPrice,
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching base price range:', error);
-    dispatch({
-      type: 'products/updateAvailableFilters',
-      payload: {
-        priceRange: {
-          min: 0,
-          max: 5000,
+      });
+    } catch (error) {
+      console.error('Error fetching base price range:', error);
+      dispatch({
+        type: 'products/updateAvailableFilters',
+        payload: {
+          priceRange: {
+            min: 0,
+            max: 5000,
+          },
+          baseMinPrice: 0,
+          baseMaxPrice: 5000,
         },
-        baseMinPrice: 0,
-        baseMaxPrice: 5000,
-      },
-    });
-  }
-},
+      });
+    }
+  },
 
-  // ✅ ENHANCED: Extract available filters with ALL options for current route
+  // Extract available filters with ALL options for current route
   extractAvailableFilters: (products: Product[], routeParams?: { brandName?: string; categoryName?: string }) => (dispatch: any) => {
     const brands = new Set<string>();
     const categories = new Set<string>();
@@ -378,7 +386,7 @@ fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandNam
     });
   },
 
-  // ✅ FIXED: Fetch price range - both min and max
+  // Fetch price range - both min and max
   fetchPriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
       const priceRange = await productAPI.getPriceRange(filters, routeParams);
@@ -394,7 +402,6 @@ fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandNam
       });
     } catch (error) {
       console.error('Error fetching price range:', error);
-      // Set default price range on error
       dispatch({
         type: 'products/updateAvailableFilters',
         payload: {
@@ -437,7 +444,7 @@ fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandNam
     payload: filters,
   }),
 
-    quickSearch: (query: string) => async (dispatch: any) => {
+  quickSearch: (query: string) => async (dispatch: any) => {
     try {
       dispatch({ type: 'products/quickSearchStart' });
       
@@ -455,12 +462,12 @@ fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandNam
     }
   },
 
-  // ✅ ADD: Clear search results
+  // Clear search results
   clearSearchResults: () => ({
     type: 'products/clearSearchResults',
   }),
 
-  // ✅ ADD: Advanced search with filters
+  // Advanced search with filters
   advancedSearch: (query: string, filters: ProductFilters) => async (dispatch: any) => {
     try {
       dispatch({ type: 'products/fetchProductsStart' });
@@ -474,6 +481,7 @@ fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandNam
           totalPages: response.totalPages,
           totalProducts: response.totalProducts,
           currentPage: response.currentPage,
+          searchQuery: query,
         },
       });
     } catch (error: any) {

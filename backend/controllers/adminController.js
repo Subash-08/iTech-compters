@@ -1,4 +1,4 @@
-// adminController.js - UPDATED with MRP, HSN, and manufacturer images support
+// adminController.js - UPDATED with file upload support for product updates
 const ProductModule = require("../models/productModel");
 const ErrorHandler = require('../utils/errorHandler')
 const categoryModel = require("../models/categoryModel");
@@ -190,196 +190,392 @@ const validateLinkedProducts = async (linkedProducts, currentProductId) => {
     return { validated: validatedLinkedProducts };
 };
 
-// 🆕 UPDATED UPDATE PRODUCT with MRP, HSN, and manufacturer images support
-exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
-    let product = await Product.findById(req.params.id);
+// 🆕 NEW: Process uploaded files for updates
+const processUploadedFiles = (req) => {
+    const fileMap = {};
 
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
+    if (req.files) {
+        Object.entries(req.files).forEach(([fieldname, files]) => {
+            fileMap[fieldname] = files.map(file => ({
+                url: `${req.protocol}://${req.get('host')}/uploads/products/${file.filename}`,
+                filename: file.filename,
+                originalName: file.originalname
+            }));
+        });
     }
 
-    // 🆕 UPDATED: Define allowed fields with new MRP, HSN, and manufacturerImages fields
-    const allowedFields = [
-        'name', 'description', 'brand', 'categories', 'status', 'condition',
-        'isActive', 'definition', 'tags', 'label', 'specifications', 'features',
-        'basePrice', 'offerPrice', 'mrp', 'discountPercentage', 'stockQuantity', // 🆕 Added mrp
-        'barcode', 'sku', 'weight', 'dimensions', 'warranty', 'taxRate', 'notes',
-        'linkedProducts', 'hsn', 'manufacturerImages' // 🆕 Added hsn and manufacturerImages
-    ];
+    return fileMap;
+};
 
-    const updateData = {};
+// 🆕 NEW: Merge uploaded files with existing image data for updates
+const mergeImagesWithUploads = (existingImages, uploadedFiles, currentProductImages) => {
+    // Start with existing form data images
+    let merged = { ...existingImages };
 
-    // Only update allowed fields that are provided
-    allowedFields.forEach(field => {
-        if (req.body[field] !== undefined) {
-            updateData[field] = req.body[field];
-        }
-    });
-
-    // 🆕 UPDATED: Handle MRP backward compatibility
-    if (req.body.offerPrice !== undefined && req.body.mrp === undefined) {
-        // If offerPrice is provided but mrp is not, use offerPrice as MRP for backward compatibility
-        updateData.mrp = req.body.offerPrice;
-    }
-
-    // 🆕 LINKED PRODUCTS VALIDATION
-    if (req.body.linkedProducts !== undefined) {
-        const validatedLinkedProducts = await validateLinkedProducts(
-            req.body.linkedProducts,
-            req.params.id
-        );
-
-        if (validatedLinkedProducts.error) {
-            return next(new ErrorHandler(validatedLinkedProducts.error, 400));
-        }
-
-        updateData.linkedProducts = validatedLinkedProducts.validated;
-    }
-
-    // Handle complex objects separately
-    if (req.body.variantConfiguration !== undefined) {
-        updateData.variantConfiguration = {
-            hasVariants: req.body.variantConfiguration.hasVariants !== undefined
-                ? req.body.variantConfiguration.hasVariants
-                : product.variantConfiguration.hasVariants,
-            variantType: req.body.variantConfiguration.variantType || product.variantConfiguration.variantType,
-            variantCreatingSpecs: req.body.variantConfiguration.variantCreatingSpecs || product.variantConfiguration.variantCreatingSpecs,
-            variantAttributes: req.body.variantConfiguration.variantAttributes || product.variantConfiguration.variantAttributes
+    // Handle thumbnail - use uploaded file if provided, otherwise keep existing URL
+    if (uploadedFiles.thumbnail && uploadedFiles.thumbnail[0]) {
+        merged.thumbnail = {
+            url: uploadedFiles.thumbnail[0].url,
+            altText: merged.thumbnail?.altText || 'Product thumbnail'
         };
+    } else if (!merged.thumbnail?.url && currentProductImages?.thumbnail?.url) {
+        // Keep existing thumbnail if no new upload and form data doesn't have URL
+        merged.thumbnail = currentProductImages.thumbnail;
     }
 
-    if (req.body.variants !== undefined && Array.isArray(req.body.variants)) {
-        // 🆕 UPDATED: Use the updated processVariantsUpdate with MRP support
-        updateData.variants = await processVariantsUpdate(product.variants, req.body.variants);
+    // Handle hover image
+    if (uploadedFiles.hoverImage && uploadedFiles.hoverImage[0]) {
+        merged.hoverImage = {
+            url: uploadedFiles.hoverImage[0].url,
+            altText: merged.hoverImage?.altText || 'Product hover image'
+        };
+    } else if (!merged.hoverImage?.url && currentProductImages?.hoverImage?.url) {
+        // Keep existing hover image if no new upload
+        merged.hoverImage = currentProductImages.hoverImage;
     }
 
-    // Handle nested objects
-    if (req.body.images) {
-        updateData.images = { ...product.images, ...req.body.images };
+    // Handle gallery - combine uploaded files with existing gallery
+    const uploadedGallery = uploadedFiles.gallery ? uploadedFiles.gallery.map(file => ({
+        url: file.url,
+        altText: file.originalName.split('.')[0] || 'Product gallery image'
+    })) : [];
+
+    // If we have uploaded gallery images, use them (replacing blob URLs)
+    if (uploadedGallery.length > 0) {
+        merged.gallery = uploadedGallery;
+    } else if (!merged.gallery && currentProductImages?.gallery) {
+        // Keep existing gallery if no new uploads
+        merged.gallery = currentProductImages.gallery;
     }
 
-    if (req.body.dimensions) {
-        updateData.dimensions = { ...product.dimensions, ...req.body.dimensions };
+    return merged;
+};
+
+// 🆕 NEW: Merge manufacturer images with uploads
+const mergeManufacturerImagesWithUploads = (existingManufacturerImages, uploadedFiles, currentManufacturerImages) => {
+    let result = existingManufacturerImages || [];
+
+    if (uploadedFiles.manufacturerImages) {
+        const uploadedManufacturer = uploadedFiles.manufacturerImages.map(file => ({
+            url: file.url,
+            altText: file.originalName.split('.')[0] || 'Manufacturer image',
+            sectionTitle: ''
+        }));
+
+        result = uploadedManufacturer;
+    } else if (!result.length && currentManufacturerImages) {
+        // Keep existing manufacturer images if no new uploads
+        result = currentManufacturerImages;
     }
 
-    if (req.body.weight) {
-        updateData.weight = { ...product.weight, ...req.body.weight };
-    }
+    return result;
+};
 
-    if (req.body.meta) {
-        updateData.meta = { ...product.meta, ...req.body.meta };
-    }
+// 🆕 UPDATED UPDATE PRODUCT with file upload support
+exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
+    try {
+        console.log('📦 Received product update request');
+        console.log('📁 Uploaded files:', req.files);
+        console.log('📝 Request body:', req.body);
 
-    // 🆕 Handle manufacturer images
-    if (req.body.manufacturerImages !== undefined) {
-        updateData.manufacturerImages = req.body.manufacturerImages;
-    }
+        let product = await Product.findById(req.params.id);
 
-    // Add updatedAt timestamp
-    updateData.updatedAt = Date.now();
-
-    // Perform the update
-    product = await Product.findByIdAndUpdate(
-        req.params.id,
-        { $set: updateData },
-        {
-            new: true,
-            runValidators: true,
-            useFindAndModify: false,
+        if (!product) {
+            return next(new ErrorHandler("Product not found", 404));
         }
-    ).populate("categories", "name slug")
-        .populate("brand", "name slug");
 
-    res.status(200).json({
-        success: true,
-        message: "Product updated successfully",
-        product,
-    });
+        // 🆕 FIX: Parse the productData from FormData if files are uploaded
+        let updateData = {};
+        let productData = {};
+
+        if (req.files && Object.keys(req.files).length > 0) {
+            // If files are uploaded, parse productData from FormData
+            try {
+                productData = typeof req.body.productData === 'string'
+                    ? JSON.parse(req.body.productData)
+                    : req.body.productData;
+            } catch (parseError) {
+                console.error('Error parsing productData:', parseError);
+                return next(new ErrorHandler("Invalid product data format", 400));
+            }
+
+            console.log('📋 Parsed product data for update:', productData);
+
+            // Process uploaded files
+            const uploadedFiles = processUploadedFiles(req);
+            console.log('🖼️ Processed uploaded files for update:', uploadedFiles);
+
+            // Merge uploaded files with existing image data
+            const finalImages = mergeImagesWithUploads(
+                productData.images || {},
+                uploadedFiles,
+                product.images
+            );
+            const finalManufacturerImages = mergeManufacturerImagesWithUploads(
+                productData.manufacturerImages,
+                uploadedFiles,
+                product.manufacturerImages
+            );
+
+            console.log('🎯 Final images for update:', finalImages);
+            console.log('🏭 Final manufacturer images for update:', finalManufacturerImages);
+
+            // Use the parsed productData for updates
+            updateData = { ...productData };
+            updateData.images = finalImages;
+            updateData.manufacturerImages = finalManufacturerImages;
+
+        } else {
+            // No files uploaded, use regular request body
+            productData = req.body;
+
+            // 🆕 UPDATED: Define allowed fields with new MRP, HSN, and manufacturerImages fields
+            const allowedFields = [
+                'name', 'description', 'brand', 'categories', 'status', 'condition',
+                'isActive', 'definition', 'tags', 'label', 'specifications', 'features',
+                'basePrice', 'offerPrice', 'mrp', 'discountPercentage', 'stockQuantity',
+                'barcode', 'sku', 'weight', 'dimensions', 'warranty', 'taxRate', 'notes',
+                'linkedProducts', 'hsn', 'manufacturerImages'
+            ];
+
+            // Only update allowed fields that are provided
+            allowedFields.forEach(field => {
+                if (productData[field] !== undefined) {
+                    updateData[field] = productData[field];
+                }
+            });
+
+            // Handle complex objects separately
+            if (productData.variantConfiguration !== undefined) {
+                updateData.variantConfiguration = {
+                    hasVariants: productData.variantConfiguration.hasVariants !== undefined
+                        ? productData.variantConfiguration.hasVariants
+                        : product.variantConfiguration.hasVariants,
+                    variantType: productData.variantConfiguration.variantType || product.variantConfiguration.variantType,
+                    variantCreatingSpecs: productData.variantConfiguration.variantCreatingSpecs || product.variantConfiguration.variantCreatingSpecs,
+                    variantAttributes: productData.variantConfiguration.variantAttributes || product.variantConfiguration.variantAttributes
+                };
+            }
+
+            // Handle nested objects
+            if (productData.images) {
+                updateData.images = { ...product.images, ...productData.images };
+            }
+
+            if (productData.dimensions) {
+                updateData.dimensions = { ...product.dimensions, ...productData.dimensions };
+            }
+
+            if (productData.weight) {
+                updateData.weight = { ...product.weight, ...productData.weight };
+            }
+
+            if (productData.meta) {
+                updateData.meta = { ...product.meta, ...productData.meta };
+            }
+        }
+
+        // 🆕 UPDATED: Handle MRP backward compatibility
+        if (productData.offerPrice !== undefined && productData.mrp === undefined) {
+            // If offerPrice is provided but mrp is not, use offerPrice as MRP for backward compatibility
+            updateData.mrp = productData.offerPrice;
+        }
+
+        // 🆕 LINKED PRODUCTS VALIDATION
+        if (productData.linkedProducts !== undefined) {
+            const validatedLinkedProducts = await validateLinkedProducts(
+                productData.linkedProducts,
+                req.params.id
+            );
+
+            if (validatedLinkedProducts.error) {
+                return next(new ErrorHandler(validatedLinkedProducts.error, 400));
+            }
+
+            updateData.linkedProducts = validatedLinkedProducts.validated;
+        }
+
+        // Handle variants separately (for both file and non-file uploads)
+        if (productData.variants !== undefined && Array.isArray(productData.variants)) {
+            // 🆕 UPDATED: Use the updated processVariantsUpdate with MRP support
+            updateData.variants = await processVariantsUpdate(product.variants, productData.variants);
+        }
+
+        // Add updatedAt timestamp
+        updateData.updatedAt = Date.now();
+
+        console.log('📤 Final update data:', updateData);
+
+        // Perform the update
+        product = await Product.findByIdAndUpdate(
+            req.params.id,
+            { $set: updateData },
+            {
+                new: true,
+                runValidators: true,
+                useFindAndModify: false,
+            }
+        ).populate("categories", "name slug")
+            .populate("brand", "name slug");
+
+        res.status(200).json({
+            success: true,
+            message: "Product updated successfully",
+            product,
+        });
+
+    } catch (error) {
+        console.error('❌ Error in updateProduct:', error);
+        next(error);
+    }
 });
 
-// 🆕 UPDATED PARTIAL UPDATE with MRP, HSN, and manufacturer images support
+// 🆕 UPDATED PARTIAL UPDATE with file upload support
 exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {
-    const product = await Product.findById(req.params.id);
+    try {
+        console.log('📦 Received product partial update request');
+        console.log('📁 Uploaded files:', req.files);
 
-    if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
-    }
+        const product = await Product.findById(req.params.id);
 
-    // 🆕 UPDATED: List of allowed fields with new MRP, HSN, and manufacturerImages fields
-    const allowedFields = [
-        'name', 'description', 'definition', 'brand', 'categories', 'tags',
-        'condition', 'label', 'isActive', 'status', 'basePrice', 'offerPrice', 'mrp',
-        'discountPercentage', 'taxRate', 'sku', 'barcode', 'stockQuantity',
-        'warranty', 'canonicalUrl', 'notes', 'linkedProducts', 'hsn', 'manufacturerImages'
-    ];
-
-    // Build update object only with provided and allowed fields
-    const updates = {};
-    allowedFields.forEach(field => {
-        if (req.body[field] !== undefined) {
-            updates[field] = req.body[field];
-        }
-    });
-
-    // 🆕 UPDATED: Handle MRP backward compatibility
-    if (req.body.offerPrice !== undefined && req.body.mrp === undefined) {
-        updates.mrp = req.body.offerPrice;
-    }
-
-    // 🆕 LINKED PRODUCTS VALIDATION FOR PARTIAL UPDATE
-    if (req.body.linkedProducts !== undefined) {
-        const validatedLinkedProducts = await validateLinkedProducts(
-            req.body.linkedProducts,
-            req.params.id
-        );
-
-        if (validatedLinkedProducts.error) {
-            return next(new ErrorHandler(validatedLinkedProducts.error, 400));
+        if (!product) {
+            return next(new ErrorHandler("Product not found", 404));
         }
 
-        updates.linkedProducts = validatedLinkedProducts.validated;
-    }
+        // 🆕 FIX: Parse the updateData from FormData if files are uploaded
+        let updateData = {};
 
-    // Handle nested objects
-    if (req.body.images) {
-        updates.images = { ...product.images, ...req.body.images };
-    }
+        if (req.files && Object.keys(req.files).length > 0) {
+            // If files are uploaded, parse updateData from FormData
+            try {
+                updateData = typeof req.body.updateData === 'string'
+                    ? JSON.parse(req.body.updateData)
+                    : req.body.updateData;
+            } catch (parseError) {
+                console.error('Error parsing updateData:', parseError);
+                return next(new ErrorHandler("Invalid update data format", 400));
+            }
 
-    if (req.body.dimensions) {
-        updates.dimensions = { ...product.dimensions, ...req.body.dimensions };
-    }
+            // Process uploaded files
+            const uploadedFiles = processUploadedFiles(req);
 
-    if (req.body.weight) {
-        updates.weight = { ...product.weight, ...req.body.weight };
-    }
+            // Merge uploaded files with update data
+            if (uploadedFiles.thumbnail && uploadedFiles.thumbnail[0]) {
+                updateData.images = updateData.images || {};
+                updateData.images.thumbnail = {
+                    url: uploadedFiles.thumbnail[0].url,
+                    altText: updateData.images.thumbnail?.altText || 'Product thumbnail'
+                };
+            }
 
-    if (req.body.meta) {
-        updates.meta = { ...product.meta, ...req.body.meta };
-    }
+            if (uploadedFiles.hoverImage && uploadedFiles.hoverImage[0]) {
+                updateData.images = updateData.images || {};
+                updateData.images.hoverImage = {
+                    url: uploadedFiles.hoverImage[0].url,
+                    altText: updateData.images.hoverImage?.altText || 'Product hover image'
+                };
+            }
 
-    // 🆕 Handle manufacturer images
-    if (req.body.manufacturerImages !== undefined) {
-        updates.manufacturerImages = req.body.manufacturerImages;
-    }
+            if (uploadedFiles.gallery) {
+                updateData.images = updateData.images || {};
+                updateData.images.gallery = uploadedFiles.gallery.map(file => ({
+                    url: file.url,
+                    altText: file.originalName.split('.')[0] || 'Product gallery image'
+                }));
+            }
 
-    updates.updatedAt = Date.now();
+            if (uploadedFiles.manufacturerImages) {
+                updateData.manufacturerImages = uploadedFiles.manufacturerImages.map(file => ({
+                    url: file.url,
+                    altText: file.originalName.split('.')[0] || 'Manufacturer image',
+                    sectionTitle: ''
+                }));
+            }
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-        req.params.id,
-        { $set: updates },
-        {
-            new: true,
-            runValidators: true,
-            useFindAndModify: false,
+        } else {
+            // No files uploaded, use regular request body
+            updateData = req.body;
+
+            // 🆕 UPDATED: List of allowed fields with new MRP, HSN, and manufacturerImages fields
+            const allowedFields = [
+                'name', 'description', 'definition', 'brand', 'categories', 'tags',
+                'condition', 'label', 'isActive', 'status', 'basePrice', 'offerPrice', 'mrp',
+                'discountPercentage', 'taxRate', 'sku', 'barcode', 'stockQuantity',
+                'warranty', 'canonicalUrl', 'notes', 'linkedProducts', 'hsn', 'manufacturerImages'
+            ];
+
+            // Build update object only with provided and allowed fields
+            const updates = {};
+            allowedFields.forEach(field => {
+                if (updateData[field] !== undefined) {
+                    updates[field] = updateData[field];
+                }
+            });
+            updateData = updates;
+
+            // Handle nested objects
+            if (req.body.images) {
+                updateData.images = { ...product.images, ...req.body.images };
+            }
+
+            if (req.body.dimensions) {
+                updateData.dimensions = { ...product.dimensions, ...req.body.dimensions };
+            }
+
+            if (req.body.weight) {
+                updateData.weight = { ...product.weight, ...req.body.weight };
+            }
+
+            if (req.body.meta) {
+                updateData.meta = { ...product.meta, ...req.body.meta };
+            }
         }
-    ).populate("categories", "name slug")
-        .populate("brand", "name slug");
 
-    res.status(200).json({
-        success: true,
-        message: "Product updated successfully",
-        product: updatedProduct,
-    });
+        // 🆕 UPDATED: Handle MRP backward compatibility
+        if (updateData.offerPrice !== undefined && updateData.mrp === undefined) {
+            updateData.mrp = updateData.offerPrice;
+        }
+
+        // 🆕 LINKED PRODUCTS VALIDATION FOR PARTIAL UPDATE
+        if (updateData.linkedProducts !== undefined) {
+            const validatedLinkedProducts = await validateLinkedProducts(
+                updateData.linkedProducts,
+                req.params.id
+            );
+
+            if (validatedLinkedProducts.error) {
+                return next(new ErrorHandler(validatedLinkedProducts.error, 400));
+            }
+
+            updateData.linkedProducts = validatedLinkedProducts.validated;
+        }
+
+        // Add updatedBy and updatedAt
+        updateData.updatedAt = Date.now();
+
+        console.log('📤 Final partial update data:', updateData);
+
+        const updatedProduct = await Product.findByIdAndUpdate(
+            req.params.id,
+            { $set: updateData },
+            {
+                new: true,
+                runValidators: true,
+                useFindAndModify: false,
+            }
+        ).populate("categories", "name slug")
+            .populate("brand", "name slug");
+
+        res.status(200).json({
+            success: true,
+            message: "Product updated successfully",
+            product: updatedProduct,
+        });
+
+    } catch (error) {
+        console.error('❌ Error in partialUpdateProduct:', error);
+        next(error);
+    }
 });
 
 // 🆕 UPDATED: Specific endpoint for variant management with MRP support

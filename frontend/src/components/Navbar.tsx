@@ -65,7 +65,6 @@ let navItems: NavItem[] = [
     children: [] // Will be populated with brands from API
   },
   { label: 'Pre-Built PC', href: '/prebuilt-pcs' },
-  { label: 'PC Build', href: '/pc-build' },
 ];
 
 // Updated AuthenticatedUserSection Component with Profile Button
@@ -631,7 +630,6 @@ const Navbar: React.FC = () => {
         children: brandItems
       },
       { label: 'Pre-Built PC', href: '/prebuilt-pcs' },
-      { label: 'PC Build', href: '/pc-build' },
 
 
 

@@ -8,7 +8,7 @@ const PreBuiltPC = require('../models/preBuiltPCModel');
 
 // ==================== HELPER FUNCTIONS ====================
 
-// Common population configuration
+// FIXED: Common population configuration
 const cartPopulation = [
     {
         path: 'items.product',
@@ -22,7 +22,11 @@ const cartPopulation = [
         path: 'items.preBuiltPC',
         select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews components',
         populate: [
-            { path: 'category', select: 'name' }
+            { path: 'category', select: 'name' },
+            {
+                path: 'images', // ✅ ADD THIS LINE - This was missing!
+                select: 'url public_id thumbnail main gallery' // Include all image fields
+            }
         ]
     }
 ];
@@ -40,14 +44,9 @@ const getOrCreateUserCart = async (userId) => {
     return cart;
 };
 
-// ==================== CONTROLLERS ====================
-
-// @desc    Get cart (works for both guests and authenticated users)
-// @route   GET /api/v1/cart
-// @access  Public/Private
+// Make sure ALL cart functions use the same cartPopulation
 exports.getMyCart = catchAsyncErrors(async (req, res, next) => {
     if (!req.user) {
-        // Guest user - return empty cart structure
         return res.status(200).json({
             success: true,
             data: {
@@ -59,13 +58,11 @@ exports.getMyCart = catchAsyncErrors(async (req, res, next) => {
         });
     }
 
-    // Authenticated user
     const userId = req.user._id;
 
-    // Get cart with proper population for both product types
+    // ✅ Use the standardized cartPopulation
     let cart = await Cart.findOne({ userId }).populate(cartPopulation);
 
-    // If no cart exists, create one
     if (!cart) {
         cart = await Cart.create({
             userId,
@@ -84,31 +81,36 @@ exports.getMyCart = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// @desc    Add item to cart (works for both guests and authenticated users)
-// @route   POST /api/v1/cart
-// @access  Public/Private
+// controllers/cartController.js - IMPROVED addToCart
 exports.addToCart = catchAsyncErrors(async (req, res, next) => {
-    const { productId, variantId, variantData, quantity = 1 } = req.body; // NEW: Added variantData
+    const { productId, variantId, quantity = 1 } = req.body;
+
+    console.log('🛒 Backend received:', {
+        productId,
+        variantId,
+        quantity,
+        body: req.body
+    });
 
     if (!productId) {
         return next(new ErrorHandler('Product ID is required', 400));
     }
 
-    // Validate product - UPDATED to handle variant data
-    const validation = await validateProduct(productId, variantId || variantData?.variantId);
+    // ✅ FIXED: Handle products with and without variants
+    const validation = await validateProduct(productId, variantId);
 
     if (quantity > validation.stock) {
         return next(new ErrorHandler(`Only ${validation.stock} items available in stock`, 400));
     }
 
     if (!req.user) {
-        // Guest user handling - UPDATED to include variant data
+        // Guest user handling
         const guestCart = req.session.guestCart || [];
 
         // Check if item already exists in guest cart
         const existingItemIndex = guestCart.findIndex(item =>
             item.productId === productId &&
-            item.variantId === (variantId || variantData?.variantId)
+            item.variantId === variantId // This can be undefined for products without variants
         );
 
         let updatedCart;
@@ -118,18 +120,16 @@ exports.addToCart = catchAsyncErrors(async (req, res, next) => {
                 index === existingItemIndex
                     ? {
                         ...item,
-                        quantity: item.quantity + quantity,
-                        variant: variantData || item.variant // NEW: Update variant data
+                        quantity: item.quantity + quantity
                     }
                     : item
             );
         } else {
-            // Add new item with variant data
+            // Add new item
             const newItem = {
                 _id: `guest_${Date.now()}`,
                 productId,
-                variantId: variantId || variantData?.variantId,
-                variant: variantData, // NEW: Store variant data
+                variantId: variantId, // Can be undefined
                 quantity,
                 price: validation.price,
                 addedAt: new Date().toISOString(),
@@ -153,15 +153,15 @@ exports.addToCart = catchAsyncErrors(async (req, res, next) => {
         });
     }
 
-    // Authenticated user - UPDATED to handle variant data
+    // Authenticated user
     const userId = req.user._id;
     const cart = await getOrCreateUserCart(userId);
 
     try {
-        // UPDATED: Pass variant data to addItem method
+        // ✅ FIXED: Pass variantData only if it exists
         await cart.addItem(
             productId,
-            validation.variantData || variantData, // Use provided variant data
+            validation.variantData, // This will be null for products without variants
             quantity,
             validation.price
         );
@@ -175,6 +175,7 @@ exports.addToCart = catchAsyncErrors(async (req, res, next) => {
             data: updatedCart
         });
     } catch (error) {
+        console.error('❌ Add to cart error in controller:', error);
         return next(new ErrorHandler(error.message, 400));
     }
 });
@@ -243,9 +244,7 @@ const validateProduct = async (productId, variantId) => {
     };
 };
 
-// @desc    Add Pre-built PC to cart
-// @route   POST /api/v1/cart/prebuilt-pc/add
-// @access  Private
+// controllers/cartController.js - FIXED addPreBuiltPCToCart
 exports.addPreBuiltPCToCart = catchAsyncErrors(async (req, res, next) => {
     try {
         const { pcId, quantity = 1 } = req.body;
@@ -258,15 +257,21 @@ exports.addPreBuiltPCToCart = catchAsyncErrors(async (req, res, next) => {
         const preBuiltPC = await PreBuiltPC.findOne({
             _id: pcId,
             isActive: true
-        });
+        }).select('stockQuantity discountPrice totalPrice name slug images specifications performanceRating'); // Select needed fields
 
         if (!preBuiltPC) {
             return next(new ErrorHandler('Pre-built PC not found', 404));
         }
 
-        // Check stock availability
-        if (preBuiltPC.stockQuantity < quantity) {
-            return next(new ErrorHandler(`Only ${preBuiltPC.stockQuantity} units available`, 400));
+        // FIXED: Better stock validation with proper checks
+        const availableStock = preBuiltPC.stockQuantity || 0;
+        const requestedQuantity = quantity || 1;
+
+        if (availableStock < requestedQuantity) {
+            return next(new ErrorHandler(
+                `Only ${availableStock} unit${availableStock !== 1 ? 's' : ''} available`,
+                400
+            ));
         }
 
         const price = preBuiltPC.discountPrice || preBuiltPC.totalPrice;
@@ -281,7 +286,7 @@ exports.addPreBuiltPCToCart = catchAsyncErrors(async (req, res, next) => {
                 items: [{
                     productType: 'prebuilt-pc',
                     preBuiltPC: pcId,
-                    quantity: quantity,
+                    quantity: requestedQuantity,
                     price: price,
                     addedAt: new Date()
                 }]
@@ -295,15 +300,24 @@ exports.addPreBuiltPCToCart = catchAsyncErrors(async (req, res, next) => {
             );
 
             if (existingItem) {
-                const newQuantity = existingItem.quantity + quantity;
+                const newQuantity = existingItem.quantity + requestedQuantity;
+
+                // Check max quantity limit
                 if (newQuantity > 100) {
                     return next(new ErrorHandler('Total quantity cannot exceed 100', 400));
                 }
-                if (preBuiltPC.stockQuantity < newQuantity) {
-                    return next(new ErrorHandler(`Only ${preBuiltPC.stockQuantity} units available`, 400));
+
+                // Check stock availability for new total quantity
+                if (availableStock < newQuantity) {
+                    return next(new ErrorHandler(
+                        `Only ${availableStock} unit${availableStock !== 1 ? 's' : ''} available. You already have ${existingItem.quantity} in cart`,
+                        400
+                    ));
                 }
+
                 existingItem.quantity = newQuantity;
             } else {
+                // Check cart item limit
                 if (cart.items.length >= 50) {
                     return next(new ErrorHandler('Cart cannot have more than 50 items', 400));
                 }
@@ -312,7 +326,7 @@ exports.addPreBuiltPCToCart = catchAsyncErrors(async (req, res, next) => {
                 cart.items.push({
                     productType: 'prebuilt-pc',
                     preBuiltPC: pcId,
-                    quantity: quantity,
+                    quantity: requestedQuantity,
                     price: price,
                     addedAt: new Date()
                 });
@@ -321,8 +335,14 @@ exports.addPreBuiltPCToCart = catchAsyncErrors(async (req, res, next) => {
 
         await cart.save();
 
-        // FIXED: Use consistent population
-        const populatedCart = await Cart.findById(cart._id).populate(cartPopulation);
+        // FIXED: Use consistent population with error handling
+        let populatedCart;
+        try {
+            populatedCart = await Cart.findById(cart._id).populate(cartPopulation);
+        } catch (populateError) {
+            console.warn('Population failed, returning basic cart:', populateError);
+            populatedCart = cart;
+        }
 
         res.status(200).json({
             success: true,
@@ -336,13 +356,11 @@ exports.addPreBuiltPCToCart = catchAsyncErrors(async (req, res, next) => {
     }
 });
 
-// @desc    Remove item from cart
-// @route   DELETE /api/v1/cart
-// @access  Private
+
+// controllers/cartController.js - COMPLETE FIX
 exports.removeFromCart = catchAsyncErrors(async (req, res, next) => {
     const { productId, variantId } = req.body;
     const userId = req.user._id;
-
     if (!productId) {
         return next(new ErrorHandler('Product ID is required', 400));
     }
@@ -355,11 +373,32 @@ exports.removeFromCart = catchAsyncErrors(async (req, res, next) => {
 
     try {
         const searchProductId = productId.toString();
-        const searchVariantId = variantId ? variantId.toString() : null;
 
-        await cart.removeItem(searchProductId, searchVariantId);
+        // ✅ COMPLETE FIX: Handle both cases (with and without variantId)
+        const initialLength = cart.items.length;
 
-        // FIXED: Populate both product types after removal
+        if (variantId) {
+            // Remove specific variant
+            const searchVariantId = variantId.toString();
+            cart.items = cart.items.filter(item =>
+                !(item.productType === 'product' &&
+                    item.product?.toString() === searchProductId &&
+                    item.variant?.variantId?.toString() === searchVariantId)
+            );
+        } else {
+            // Remove ANY item with this productId (regardless of variant)
+            cart.items = cart.items.filter(item =>
+                !(item.productType === 'product' &&
+                    item.product?.toString() === searchProductId)
+            );
+        }
+        if (cart.items.length === initialLength) {
+            throw new Error('Item not found in cart');
+        }
+
+        await cart.save();
+
+        // Populate and return updated cart
         const updatedCart = await Cart.findById(cart._id).populate(cartPopulation);
 
         res.status(200).json({
@@ -548,9 +587,7 @@ exports.clearCartAfterPayment = catchAsyncErrors(async (userId) => {
 });
 
 
-// @desc    Sync guest cart after login
-// @route   POST /api/v1/cart/sync
-// @access  Private
+// FIXED: syncGuestCart function
 exports.syncGuestCart = catchAsyncErrors(async (req, res, next) => {
     const { items, mergeStrategy = 'merge' } = req.body;
     const userId = req.user._id;
@@ -559,7 +596,6 @@ exports.syncGuestCart = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler('Items array is required', 400));
     }
 
-    // Validate all items first
     const validatedItems = [];
     for (const item of items) {
         try {
@@ -584,7 +620,7 @@ exports.syncGuestCart = catchAsyncErrors(async (req, res, next) => {
     const userCart = await getOrCreateUserCart(userId);
 
     if (mergeStrategy === 'replace') {
-        await userCart.clearCart();
+        userCart.items = [];
     }
 
     // Add validated items to cart
@@ -601,14 +637,8 @@ exports.syncGuestCart = catchAsyncErrors(async (req, res, next) => {
         }
     }
 
-    const updatedCart = await Cart.findById(userCart._id).populate({
-        path: 'items.product',
-        select: 'name images price slug stock discountPrice brand category variants basePrice offerPrice',
-        populate: [
-            { path: 'brand', select: 'name' },
-            { path: 'category', select: 'name' }
-        ]
-    });
+    // ✅ Use the standardized cartPopulation
+    const updatedCart = await Cart.findById(userCart._id).populate(cartPopulation);
 
     res.status(200).json({
         success: true,
@@ -678,24 +708,12 @@ exports.validateGuestCart = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-// ==================== ADMIN CART CONTROLLERS ====================
-
-// @desc    Get cart of any user (Admin)
-// @route   GET /api/v1/admin/cart/user/:userId
-// @access  Private/Admin
+// Fix getUserCart function
 exports.getUserCart = catchAsyncErrors(async (req, res, next) => {
     const { userId } = req.params;
 
-    const cart = await Cart.findOne({ userId })
-        .populate({
-            path: 'items.product',
-            select: 'name images price slug stock discountPrice brand category variants basePrice offerPrice', // ADD basePrice and offerPrice here
-            populate: [
-                { path: 'brand', select: 'name' },
-                { path: 'category', select: 'name' }
-            ]
-        })
-        .populate('items.variant', 'name price stock basePrice offerPrice');
+    // ✅ Use standardized cartPopulation
+    const cart = await Cart.findOne({ userId }).populate(cartPopulation);
 
     if (!cart) {
         return next(new ErrorHandler('Cart not found for this user', 404));
@@ -704,6 +722,32 @@ exports.getUserCart = catchAsyncErrors(async (req, res, next) => {
     res.status(200).json({
         success: true,
         data: cart
+    });
+});
+
+// Fix getAllCarts function
+exports.getAllCarts = catchAsyncErrors(async (req, res, next) => {
+    const resultsPerPage = parseInt(req.query.limit) || 20;
+    const currentPage = parseInt(req.query.page) || 1;
+
+    // ✅ Use standardized cartPopulation
+    const carts = await Cart.find()
+        .populate('userId', 'firstName lastName email avatar')
+        .populate(cartPopulation[0]) // items.product
+        .populate(cartPopulation[1]) // items.preBuiltPC
+        .sort({ lastUpdated: -1 })
+        .skip(resultsPerPage * (currentPage - 1))
+        .limit(resultsPerPage);
+
+    const totalCount = await Cart.countDocuments();
+
+    res.status(200).json({
+        success: true,
+        count: carts.length,
+        totalCount,
+        resultsPerPage,
+        currentPage,
+        data: carts
     });
 });
 

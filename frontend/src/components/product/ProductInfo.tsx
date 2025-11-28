@@ -66,6 +66,20 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
   // Check if product can be added to cart
   const canAddToCart = currentPriceInfo.stockQuantity > 0 && hasValidVariantSelection();
 
+  const getVariantData = () => {
+    if (!selectedVariant) return null;
+
+    return {
+      variantId: selectedVariant._id, // Use _id as variantId
+      name: selectedVariant.name,
+      price: selectedVariant.price,
+      mrp: selectedVariant.mrp,
+      stock: selectedVariant.stockQuantity,
+      attributes: selectedVariant.identifyingAttributes,
+      sku: selectedVariant.sku
+    };
+  };
+
   // Get display name - show variant name if selected, otherwise product name
   const getDisplayName = () => {
     if (selectedVariant?.name) {
@@ -196,7 +210,6 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         </div>
       </div>
 
-      {/* 🚀 DYNAMIC VARIANT SELECTORS - ALL IN ONE PLACE */}
       <VariantSelectors
         productData={productData}
         selectedAttributes={selectedAttributes}
@@ -234,12 +247,11 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         </div>
       )}
 
-      {/* Action Buttons */}
       <div className="flex space-x-4">
-        {/* Add to Cart Button */}
+        {/* Add to Cart Button - FIXED: Pass variant data instead of variantId */}
         <AddToCartButton
           productId={productData._id}
-          variantId={getVariantId()}
+          variant={getVariantData()} // ✅ CHANGED: Pass full variant object
           quantity={1}
           className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
             !canAddToCart
@@ -247,7 +259,9 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
               : 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
           }`}
           disabled={!canAddToCart}
-        />
+        >
+          Add to Cart
+        </AddToCartButton>
         
         {/* Buy Now Button */}
         <button

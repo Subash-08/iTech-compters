@@ -101,62 +101,82 @@ const Products: React.FC = () => {
     }
   };
 
- // Handle form submission for both create and edit using Axios
-const handleSubmit = async (formData: ProductFormData) => {
+// Use axios for both JSON and FormData - this should work!
+const handleSubmit = async (formData: FormData | any) => {
   setLoading(true);
   setError(null);
   try {
     const url = editingProduct 
-      ? `/admin/product/${editingProduct._id}` // Update endpoint
-      : '/admin/product/new'; // Create endpoint
+      ? `/admin/product/${editingProduct._id}`
+      : '/admin/product/new';
 
-    const method = editingProduct ? 'put' : 'post';
+    let response;
 
-    // 🆕 Prepare data with new fields and proper pricing structure
-    const submitData = {
-      ...formData,
-      // 🆕 Ensure proper field mapping for backend
-      mrp: formData.mrp || undefined, // Send undefined if 0 to use backend defaults
-      hsn: formData.hsn || undefined,
-      manufacturerImages: formData.manufacturerImages || [],
+    if (formData instanceof FormData) {
+      console.log('Submitting with FormData using axios');
       
-      // 🆕 Backward compatibility - ensure offerPrice is set correctly
-      offerPrice: formData.offerPrice || formData.basePrice,
+      // 🆕 Use axios which is already configured correctly
+      const method = editingProduct ? 'put' : 'post';
+      const apiResponse = await api[method](url, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+          // Authorization header is automatically added by axios interceptor
+        }
+      });
+      response = apiResponse.data;
       
-      // 🆕 Handle variant pricing logic
-      ...(formData.variantConfiguration.hasVariants && {
-        // When variants exist, base pricing might be ignored by backend
-        // but we still send it for consistency
-        basePrice: formData.basePrice || 0,
-        mrp: formData.mrp || undefined
-      })
-    };
+    } else {
+      console.log('Submitting with JSON data');
+      
+      const submitData = {
+        ...formData,
+        mrp: formData.mrp || undefined,
+        hsn: formData.hsn || undefined,
+        manufacturerImages: formData.manufacturerImages || [],
+        offerPrice: formData.offerPrice || formData.basePrice,
+        ...(formData.variantConfiguration.hasVariants && {
+          basePrice: formData.basePrice || 0,
+          mrp: formData.mrp || undefined
+        })
+      };
 
-    const response = await api[method](url, submitData);
+      const method = editingProduct ? 'put' : 'post';
+      const apiResponse = await api[method](url, submitData);
+      response = apiResponse.data;
+    }
+
     setShowForm(false);
-    setEditingProduct(null); // Reset editing state
-    fetchProducts(); // Refresh the list
+    setEditingProduct(null);
+    fetchProducts();
     
-    // 🆕 Use toast instead of alert for better UX
     toast.success(`Product ${editingProduct ? 'updated' : 'created'} successfully!`);
+    
+    return response;
     
   } catch (error: any) {
     console.error('Error saving product:', error);
     
-    // 🆕 Enhanced error handling
-    const errorMessage = error.response?.data?.message 
-      || error.response?.data?.error 
-      || error.message 
-      || 'Error saving product. Please try again.';
+    let errorMessage = 'Error saving product. Please try again.';
     
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    } else if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    } else if (error.message) {
+      errorMessage = error.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    }
+
     setError(errorMessage);
-    
-    // 🆕 Show toast for API errors
     toast.error(`Failed to ${editingProduct ? 'update' : 'create'} product: ${errorMessage}`);
+    
+    throw error;
   } finally {
     setLoading(false);
   }
 };
+
   // Handle cancel edit
   const handleCancel = () => {
     setShowForm(false);

@@ -1,4 +1,4 @@
-// components/product/AddToCartButton.tsx - UPDATED VERSION
+// components/product/AddToCartButton.tsx - ENHANCED DEBUG
 import React, { useState } from 'react';
 import { useAppDispatch } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
@@ -15,7 +15,7 @@ interface VariantData {
 
 interface AddToCartButtonProps {
   productId: string;
-  variant?: VariantData | null; // CHANGED: Accept full variant object
+  variant?: VariantData | null;
   productType?: 'product' | 'prebuilt-pc';
   className?: string;
   quantity?: number;
@@ -27,7 +27,7 @@ interface AddToCartButtonProps {
 
 const AddToCartButton: React.FC<AddToCartButtonProps> = ({ 
   productId, 
-  variant, // CHANGED: Now accepts full variant object
+  variant,
   productType = 'product',
   className = '',
   quantity = 1,
@@ -42,6 +42,15 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const handleAddToCart = async () => {
     if (loading || disabled) return;
     
+    console.log('🛒 AddToCartButton clicked with:', {
+      productId,
+      variant,
+      productType,
+      quantity,
+      hasVariant: !!variant,
+      variantId: variant?.variantId
+    });
+    
     setLoading(true);
     try {
       if (productType === 'prebuilt-pc') {
@@ -50,13 +59,17 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           quantity 
         }));
       } else {
-        // CHANGED: Send both productId and variant data
-        await dispatch(cartActions.addToCart({ 
+        // ✅ FIXED: Send both productId and variant data
+        const cartPayload = {
           productId, 
           variantId: variant?.variantId, // Extract variantId from variant object
           variantData: variant, // Send full variant data
           quantity 
-        }));
+        };
+        
+        console.log('🛒 Dispatching cart payload:', cartPayload);
+        
+        await dispatch(cartActions.addToCart(cartPayload));
       }
     } catch (error) {
       console.error('Failed to add to cart:', error);

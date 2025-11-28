@@ -89,7 +89,7 @@ cartSchema.pre('save', function (next) {
 cartSchema.index({ userId: 1 });
 cartSchema.index({ lastUpdated: 1 });
 
-// Enhanced addItem method with debugging
+// models/Cart.js - FIXED addItem method
 cartSchema.methods.addItem = async function (productId, variantData = null, quantity = 1, price = 0, productType = 'product') {
     console.log('🛒 addItem called with:', { productId, variantData, quantity, price, productType });
 
@@ -97,11 +97,20 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
         throw new Error('Quantity must be between 1 and 100');
     }
 
+    // ✅ FIXED: Handle case where variantData might be just a variantId string
+    let actualVariantData = variantData;
+
+    // If variantData is just a string (variantId), convert to object
+    if (typeof variantData === 'string') {
+        actualVariantData = { variantId: variantData };
+        console.log('🛒 Converted string variantId to object:', actualVariantData);
+    }
+
     // Backward compatibility handling
     if (typeof productId === 'object' && productId.productType) {
         console.log('🛒 Using new format with productType');
         productType = productId.productType;
-        variantData = productId.variantData;
+        actualVariantData = productId.variantData;
         quantity = productId.quantity;
         price = productId.price;
         productId = productId.productId;
@@ -111,23 +120,35 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
         if (item.productType !== productType) return false;
 
         if (productType === 'product') {
-            const productMatch = item.product.toString() === productId.toString();
-            const variantMatch = variantData ?
-                item.variant?.variantId?.toString() === variantData.variantId?.toString() :
-                !item.variant?.variantId;
+            // ✅ FIXED: Extract product ID from both object and string
+            const itemProductId = item.product?._id?.toString() || item.product?.toString();
+            const targetProductId = productId.toString();
 
-            console.log('🛒 Item comparison:', {
-                itemProduct: item.product.toString(),
-                targetProduct: productId.toString(),
-                itemVariant: item.variant?.variantId,
-                targetVariant: variantData?.variantId,
+            const productMatch = itemProductId === targetProductId;
+
+            // ✅ FIXED: Extract variant ID from both object and string
+            const itemVariantId = item.variant?.variantId?._id?.toString() ||
+                item.variant?.variantId?.toString();
+            const targetVariantId = actualVariantData?.variantId?.toString();
+
+            const variantMatch = actualVariantData ?
+                itemVariantId === targetVariantId :
+                !itemVariantId;
+
+            console.log('🛒 FIXED Item comparison:', {
+                itemProductId,
+                targetProductId,
+                itemVariantId,
+                targetVariantId,
                 productMatch,
                 variantMatch
             });
 
             return productMatch && variantMatch;
         } else if (productType === 'prebuilt-pc') {
-            return item.preBuiltPC.toString() === productId.toString();
+            const itemPCId = item.preBuiltPC?._id?.toString() || item.preBuiltPC?.toString();
+            const targetPCId = productId.toString();
+            return itemPCId === targetPCId;
         }
         return false;
     });
@@ -155,17 +176,17 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
 
         // Add product reference based on type
         if (productType === 'product') {
-            newItem.product = productId;
+            newItem.product = productId; // This should be just the ID, not populated object
             // Add variant data if provided
-            if (variantData) {
+            if (actualVariantData) {
                 newItem.variant = {
-                    variantId: variantData.variantId,
-                    name: variantData.name,
-                    price: variantData.price,
-                    mrp: variantData.mrp,
-                    stock: variantData.stock,
-                    attributes: variantData.attributes,
-                    sku: variantData.sku
+                    variantId: actualVariantData.variantId,
+                    name: actualVariantData.name,
+                    price: actualVariantData.price,
+                    mrp: actualVariantData.mrp,
+                    stock: actualVariantData.stock,
+                    attributes: actualVariantData.attributes,
+                    sku: actualVariantData.sku
                 };
                 console.log('🛒 Added variant data to new item:', newItem.variant);
             }
@@ -209,36 +230,51 @@ cartSchema.methods.updateQuantity = async function (productId, variantId = null,
     return this.save();
 };
 
-// Updated removeItem with productType support
+// models/Cart.js - SIMPLIFIED removeItem
 cartSchema.methods.removeItem = async function (productId, variantId = null, productType = 'product') {
     const initialLength = this.items.length;
+
+    console.log('🛒 Cart removeItem called:', {
+        productId,
+        variantId,
+        productType,
+        initialItems: this.items.length
+    });
 
     const searchProductId = productId.toString();
     const searchVariantId = variantId ? variantId.toString() : null;
 
+    // ✅ SIMPLIFIED: Remove any item matching productId (ignore variant if not provided)
     this.items = this.items.filter(item => {
         if (item.productType !== productType) return true;
 
         if (productType === 'product') {
-            const itemProductId = item.product.toString();
-            const itemVariantId = item.variant?.variantId?.toString();
+            const productMatch = item.product?.toString() === searchProductId;
 
             if (searchVariantId) {
-                return !(itemProductId === searchProductId && itemVariantId === searchVariantId);
+                // Remove specific variant
+                const variantMatch = item.variant?.variantId?.toString() === searchVariantId;
+                return !(productMatch && variantMatch);
             } else {
-                return !(itemProductId === searchProductId && !itemVariantId);
+                // Remove any item with this productId
+                return !productMatch;
             }
         } else if (productType === 'prebuilt-pc') {
-            const itemPCId = item.preBuiltPC.toString();
-            return !(itemPCId === searchProductId);
+            return item.preBuiltPC?.toString() !== searchProductId;
         }
 
         return true;
     });
 
+    console.log('🛒 After removal:', {
+        remainingItems: this.items.length,
+        removed: initialLength - this.items.length
+    });
+
     if (this.items.length === initialLength) {
-        throw new Error('Item not found in cart');
+        throw new Error(`Item not found in cart. Product: ${productId}, Variant: ${variantId}, Type: ${productType}`);
     }
+
     return this.save();
 };
 

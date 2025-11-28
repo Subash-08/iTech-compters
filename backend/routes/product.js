@@ -13,6 +13,7 @@ const {
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
+const { productUpload, handleMulterError } = require("../config/multerConfig");
 
 const router = express.Router();
 
@@ -36,8 +37,18 @@ router.get("/products/:id/variants", getProductVariants);  // Get all variants o
 router.get('/admin/products', isAuthenticatedUser, authorizeRoles("admin"), getAdminProducts);
 
 // Update product status
-
-router.post("/admin/product/new", isAuthenticatedUser, authorizeRoles("admin"), createProduct);  // Create new product
+router.post("/admin/product/new",
+    isAuthenticatedUser,
+    authorizeRoles("admin"),
+    productUpload.fields([
+        { name: 'thumbnail', maxCount: 1 },
+        { name: 'hoverImage', maxCount: 1 },
+        { name: 'gallery', maxCount: 10 },
+        { name: 'manufacturerImages', maxCount: 10 }
+    ]),
+    handleMulterError,
+    createProduct
+);
 router.get("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), getAdminProductById);  // Get product by ID (admin)
 router.delete("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), deleteProduct);  // Delete product
 router.post("/admin/products/bulk", isAuthenticatedUser, authorizeRoles("admin"), addMultipleProducts);

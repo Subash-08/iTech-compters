@@ -1,4 +1,4 @@
-// components/prebuilt/PreBuiltPCAddToCartButton.tsx
+// components/prebuilt/PreBuiltPCAddToCartButton.tsx - FIXED VERSION
 import React, { useState } from 'react';
 import { useAppDispatch } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
@@ -30,6 +30,7 @@ const PreBuiltPCAddToCartButton: React.FC<PreBuiltPCAddToCartButtonProps> = ({
     
     setLoading(true);
     try {
+      // ✅ FIXED: Make sure we're calling the action correctly
       await dispatch(cartActions.addPreBuiltPCToCart({ 
         pcId, 
         quantity 

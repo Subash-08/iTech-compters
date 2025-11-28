@@ -104,12 +104,51 @@ class APIFeatures {
 
         // Handle price range filters
         if (this.queryString.minPrice || this.queryString.maxPrice) {
-            queryCopy.basePrice = {};
+            const priceConditions = [];
+
             if (this.queryString.minPrice) {
-                queryCopy.basePrice.$gte = Number(this.queryString.minPrice);
+                const minPrice = Number(this.queryString.minPrice);
+
+                priceConditions.push({
+                    'variantConfiguration.hasVariants': false,
+                    'basePrice': { $gte: minPrice }
+                });
+                priceConditions.push({
+                    'variantConfiguration.hasVariants': true,
+                    'variants.price': { $gte: minPrice },
+                    'variants.isActive': true
+                });
             }
+
             if (this.queryString.maxPrice) {
-                queryCopy.basePrice.$lte = Number(this.queryString.maxPrice);
+                const maxPrice = Number(this.queryString.maxPrice);
+
+                if (priceConditions.length > 0) {
+                    priceConditions.forEach(condition => {
+                        if (condition['variantConfiguration.hasVariants'] === false) {
+                            condition.basePrice = condition.basePrice || {};
+                            condition.basePrice.$lte = maxPrice;
+                        } else {
+                            condition['variants.price'] = condition['variants.price'] || {};
+                            condition['variants.price'].$lte = maxPrice;
+                        }
+                    });
+                } else {
+                    priceConditions.push({
+                        'variantConfiguration.hasVariants': false,
+                        'basePrice': { $lte: maxPrice }
+                    });
+                    priceConditions.push({
+                        'variantConfiguration.hasVariants': true,
+                        'variants.price': { $lte: maxPrice },
+                        'variants.isActive': true
+                    });
+                }
+            }
+
+            if (priceConditions.length > 0) {
+                queryCopy.$or = queryCopy.$or || [];
+                queryCopy.$or.push(...priceConditions);
             }
         }
 

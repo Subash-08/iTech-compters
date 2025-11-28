@@ -9,7 +9,7 @@ import SpecificationsSection from './sections/SpecificationsSection';
 import FeaturesSection from './sections/FeaturesSection';
 import DimensionsWeightSection from './sections/DimensionsWeightSection';
 import SeoSection from './sections/SeoSection';
-import LinkedProductsSection from './LinkedProductsSection'; // 🆕 Add this import
+import LinkedProductsSection from './LinkedProductsSection';
 import api from '../../config/axiosConfig';
 import { toast } from 'react-toastify';
 
@@ -26,9 +26,9 @@ const initialProductData: ProductFormData = {
   definition: '',
   
   // 🆕 NEW FIELDS
-  hsn: '', // Add HSN field
-  mrp: 0, // Add MRP field
-  manufacturerImages: [], // Add manufacturerImages array
+  hsn: '',
+  mrp: 0,
+  manufacturerImages: [],
   
   images: {
     thumbnail: { url: '', altText: '' },
@@ -77,8 +77,8 @@ const initialProductData: ProductFormData = {
 };
 
 interface ProductFormProps {
-  initialData?: Partial<ProductFormData> & { _id?: string }; // 🆕 Add _id for current product
-  onSubmit: (data: ProductFormData) => Promise<void>;
+  initialData?: Partial<ProductFormData> & { _id?: string };
+  onSubmit: (data: FormData | ProductFormData) => Promise<void>; // 🆕 Update to accept FormData
   loading?: boolean;
   onCancel?: () => void;
 }
@@ -96,9 +96,19 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  // 🆕 Get current product ID for edit mode
+  // 🆕 ADD: File upload state
+  const [uploadedFiles, setUploadedFiles] = useState<{
+    thumbnail?: File;
+    hoverImage?: File;
+    gallery: File[];
+    manufacturer: File[];
+  }>({
+    gallery: [],
+    manufacturer: []
+  });
+
   const currentProductId = initialData?._id;
-  // 🆕 Toast error handler using react-toastify
+
   const showErrorToast = (error: any) => {
     let errorMessage = 'An unexpected error occurred';
     
@@ -116,94 +126,63 @@ const ProductForm: React.FC<ProductFormProps> = ({
     console.error('Product Form Error:', error);
   };
 
-// Initialize form data when initialData changes
-useEffect(() => {
-  if (initialData && !isInitialized) {
-    const mergedData = {
-      ...initialProductData,
-      ...initialData,
-      // 🆕 Handle new fields
-      hsn: initialData.hsn || initialProductData.hsn,
-      mrp: initialData.mrp || initialProductData.mrp,
-      manufacturerImages: Array.isArray(initialData.manufacturerImages) && initialData.manufacturerImages.length > 0 
-        ? initialData.manufacturerImages 
-        : initialProductData.manufacturerImages,
-      images: {
-        ...initialProductData.images,
-        ...(initialData.images || {}),
-        thumbnail: {
-          url: initialData.images?.thumbnail?.url || initialProductData.images.thumbnail.url,
-          altText: initialData.images?.thumbnail?.altText || initialProductData.images.thumbnail.altText
-        }
-      },
-      variantConfiguration: {
-        ...initialProductData.variantConfiguration,
-        ...(initialData.variantConfiguration || {})
-      },
-      dimensions: {
-        ...initialProductData.dimensions,
-        ...(initialData.dimensions || {})
-      },
-      weight: {
-        ...initialProductData.weight,
-        ...(initialData.weight || {})
-      },
-      meta: {
-        ...initialProductData.meta,
-        ...(initialData.meta || {})
-      },
-      description: initialData.description && initialData.description !== "" ? initialData.description : initialProductData.description,
-      definition: initialData.definition && initialData.definition !== "" ? initialData.definition : initialProductData.definition,
-      label: initialData.label && initialData.label !== "" ? initialData.label : initialProductData.label,
-      sku: initialData.sku && initialData.sku !== "" ? initialData.sku : initialProductData.sku,
-      barcode: initialData.barcode && initialData.barcode !== "" ? initialData.barcode : initialProductData.barcode,
-      warranty: initialData.warranty && initialData.warranty !== "" ? initialData.warranty : initialProductData.warranty,
-      canonicalUrl: initialData.canonicalUrl && initialData.canonicalUrl !== "" ? initialData.canonicalUrl : initialProductData.canonicalUrl,
-      notes: initialData.notes && initialData.notes !== "" ? initialData.notes : initialProductData.notes,
-      tags: Array.isArray(initialData.tags) && initialData.tags.length > 0 ? initialData.tags : initialProductData.tags,
-      specifications: Array.isArray(initialData.specifications) && initialData.specifications.length > 0 ? initialData.specifications : initialProductData.specifications,
-      features: Array.isArray(initialData.features) && initialData.features.length > 0 ? initialData.features : initialProductData.features,
-      linkedProducts: Array.isArray(initialData.linkedProducts) && initialData.linkedProducts.length > 0 ? initialData.linkedProducts : initialProductData.linkedProducts,
-      variants: Array.isArray(initialData.variants) && initialData.variants.length > 0 ? initialData.variants : initialProductData.variants
-    };
-    
-    setFormData(mergedData);
-    setIsInitialized(true);
-  } else if (!initialData && !isInitialized) {
-    setFormData(initialProductData);
-    setIsInitialized(true);
-  }
-}, [initialData, isInitialized]);
-  // Reset form when switching between products
+  // Initialize form data when initialData changes
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !isInitialized) {
       const mergedData = {
         ...initialProductData,
         ...initialData,
+        hsn: initialData.hsn || initialProductData.hsn,
+        mrp: initialData.mrp || initialProductData.mrp,
+        manufacturerImages: Array.isArray(initialData.manufacturerImages) && initialData.manufacturerImages.length > 0 
+          ? initialData.manufacturerImages 
+          : initialProductData.manufacturerImages,
         images: {
           ...initialProductData.images,
-          ...initialData.images
+          ...(initialData.images || {}),
+          thumbnail: {
+            url: initialData.images?.thumbnail?.url || initialProductData.images.thumbnail.url,
+            altText: initialData.images?.thumbnail?.altText || initialProductData.images.thumbnail.altText
+          }
         },
         variantConfiguration: {
           ...initialProductData.variantConfiguration,
-          ...initialData.variantConfiguration
+          ...(initialData.variantConfiguration || {})
         },
         dimensions: {
           ...initialProductData.dimensions,
-          ...initialData.dimensions
+          ...(initialData.dimensions || {})
         },
         weight: {
           ...initialProductData.weight,
-          ...initialData.weight
+          ...(initialData.weight || {})
         },
         meta: {
           ...initialProductData.meta,
-          ...initialData.meta
-        }
+          ...(initialData.meta || {})
+        },
+        description: initialData.description && initialData.description !== "" ? initialData.description : initialProductData.description,
+        definition: initialData.definition && initialData.definition !== "" ? initialData.definition : initialProductData.definition,
+        label: initialData.label && initialData.label !== "" ? initialData.label : initialProductData.label,
+        sku: initialData.sku && initialData.sku !== "" ? initialData.sku : initialProductData.sku,
+        barcode: initialData.barcode && initialData.barcode !== "" ? initialData.barcode : initialProductData.barcode,
+        warranty: initialData.warranty && initialData.warranty !== "" ? initialData.warranty : initialProductData.warranty,
+        canonicalUrl: initialData.canonicalUrl && initialData.canonicalUrl !== "" ? initialData.canonicalUrl : initialProductData.canonicalUrl,
+        notes: initialData.notes && initialData.notes !== "" ? initialData.notes : initialProductData.notes,
+        tags: Array.isArray(initialData.tags) && initialData.tags.length > 0 ? initialData.tags : initialProductData.tags,
+        specifications: Array.isArray(initialData.specifications) && initialData.specifications.length > 0 ? initialData.specifications : initialProductData.specifications,
+        features: Array.isArray(initialData.features) && initialData.features.length > 0 ? initialData.features : initialProductData.features,
+        linkedProducts: Array.isArray(initialData.linkedProducts) && initialData.linkedProducts.length > 0 ? initialData.linkedProducts : initialProductData.linkedProducts,
+        variants: Array.isArray(initialData.variants) && initialData.variants.length > 0 ? initialData.variants : initialProductData.variants
       };
+      
       setFormData(mergedData);
+      setIsInitialized(true);
+    } else if (!initialData && !isInitialized) {
+      setFormData(initialProductData);
+      setIsInitialized(true);
     }
-  }, [initialData]);
+  }, [initialData, isInitialized]);
 
   const fetchBrandsAndCategories = async () => {
     try {
@@ -228,7 +207,7 @@ useEffect(() => {
 
     } catch (error) {
       console.error('Error fetching brands and categories:', error);
-      showErrorToast(error); // 🆕 Show toast for fetch errors
+      showErrorToast(error);
       setBrands([]);
       setCategories([]);
     }
@@ -245,181 +224,230 @@ useEffect(() => {
     });
   };
 
-// 🆕 Enhanced handleSubmit with error handling
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setSubmitLoading(true);
-  
-  try {
-    // Enhanced validation
-    const errors = [];
-    if (!formData.name?.trim()) errors.push('Product name is required');
-    if (!formData.description?.trim()) errors.push('Product description is required');
-    if (!formData.brand) errors.push('Brand is required');
-    if (!formData.categories.length) errors.push('At least one category is required');
+  // 🆕 UPDATED: Handle form submission with FormData support
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitLoading(true);
     
-    // 🆕 FIX: Only validate base price if product doesn't have variants
-    const hasActiveVariants = formData.variantConfiguration.hasVariants && formData.variants.length > 0;
-    
-    if (!hasActiveVariants) {
-      // Only require base price if no variants exist
-      if (!formData.basePrice || formData.basePrice <= 0) {
-        errors.push('Valid base price is required');
-      }
-    } else {
-      // 🆕 Validate that variants have proper pricing
-      const variantsWithInvalidPrice = formData.variants.filter(
-        variant => !variant.price || variant.price <= 0
-      );
+    try {
+      // Enhanced validation
+      const errors = [];
+      if (!formData.name?.trim()) errors.push('Product name is required');
+      if (!formData.description?.trim()) errors.push('Product description is required');
+      if (!formData.brand) errors.push('Brand is required');
+      if (!formData.categories.length) errors.push('At least one category is required');
       
-      if (variantsWithInvalidPrice.length > 0) {
-        errors.push(`${variantsWithInvalidPrice.length} variant(s) have invalid pricing. All variants must have a valid price.`);
+      const hasActiveVariants = formData.variantConfiguration.hasVariants && formData.variants.length > 0;
+      
+      if (!hasActiveVariants) {
+        if (!formData.basePrice || formData.basePrice <= 0) {
+          errors.push('Valid base price is required');
+        }
+      } else {
+        const variantsWithInvalidPrice = formData.variants.filter(
+          variant => !variant.price || variant.price <= 0
+        );
+        
+        if (variantsWithInvalidPrice.length > 0) {
+          errors.push(`${variantsWithInvalidPrice.length} variant(s) have invalid pricing. All variants must have a valid price.`);
+        }
+        
+        const variantsWithoutName = formData.variants.filter(
+          variant => !variant.name?.trim()
+        );
+        
+        if (variantsWithoutName.length > 0) {
+          errors.push(`${variantsWithoutName.length} variant(s) are missing names. All variants must have a name.`);
+        }
       }
       
-      // 🆕 Validate that variants have names
-      const variantsWithoutName = formData.variants.filter(
-        variant => !variant.name?.trim()
-      );
-      
-      if (variantsWithoutName.length > 0) {
-        errors.push(`${variantsWithoutName.length} variant(s) are missing names. All variants must have a name.`);
+      // 🆕 FIX: Check for thumbnail (either URL or uploaded file)
+      const hasThumbnail = formData.images?.thumbnail?.url || uploadedFiles.thumbnail;
+      if (!hasThumbnail) {
+        errors.push('Thumbnail image is required');
       }
-    }
-    
-    if (!formData.images?.thumbnail?.url) errors.push('Thumbnail image is required');
 
-    if (errors.length > 0) {
-      // 🆕 Show validation errors as toast
-      errors.forEach(error => toast.error(error));
+      if (errors.length > 0) {
+        errors.forEach(error => toast.error(error));
+        setSubmitLoading(false);
+        return;
+      }
+      
+      // Clean up data before sending to backend
+      const finalFormData = cleanFormData(formData);
+      
+      // Ensure variant stock is calculated correctly
+      if (hasActiveVariants) {
+        finalFormData.stockQuantity = formData.variants.reduce(
+          (total, variant) => total + (variant.stockQuantity || 0), 0
+        );
+      }
+      
+      // 🆕 Check if we have uploaded files
+      const hasUploadedFiles = 
+        uploadedFiles.thumbnail || 
+        uploadedFiles.hoverImage || 
+        uploadedFiles.gallery.length > 0 || 
+        uploadedFiles.manufacturer.length > 0;
+
+      if (hasUploadedFiles) {
+        // 🆕 CREATE FORM DATA FOR FILE UPLOAD
+        const formDataToSend = new FormData();
+        
+        // Append the product data as JSON
+        formDataToSend.append('productData', JSON.stringify(finalFormData));
+        
+        // Append files if they exist
+        if (uploadedFiles.thumbnail) {
+          formDataToSend.append('thumbnail', uploadedFiles.thumbnail);
+        }
+        if (uploadedFiles.hoverImage) {
+          formDataToSend.append('hoverImage', uploadedFiles.hoverImage);
+        }
+        
+        // Append gallery files
+        uploadedFiles.gallery.forEach(file => {
+          formDataToSend.append('gallery', file);
+        });
+        
+        // Append manufacturer files
+        uploadedFiles.manufacturer.forEach(file => {
+          formDataToSend.append('manufacturerImages', file);
+        });
+        
+        console.log('Submitting FormData with files:', {
+          productData: finalFormData,
+          files: {
+            thumbnail: uploadedFiles.thumbnail?.name,
+            hoverImage: uploadedFiles.hoverImage?.name,
+            gallery: uploadedFiles.gallery.length,
+            manufacturer: uploadedFiles.manufacturer.length
+          }
+        });
+        
+        // 🆕 Call onSubmit with FormData
+        await onSubmit(formDataToSend);
+      } else {
+        // Use regular JSON if no files
+        console.log('Submitting with JSON data (no files)');
+        await onSubmit(finalFormData);
+      }
+      
+      // 🆕 Show success toast
+      toast.success(
+        initialData ? 'Product updated successfully!' : 'Product created successfully!'
+      );
+      
+    } catch (error) {
+      // 🆕 Handle submission errors
+      showErrorToast(error);
+    } finally {
       setSubmitLoading(false);
-      return;
     }
+  };
+
+  // Function to clean form data before submission
+  const cleanFormData = (data: ProductFormData): ProductFormData => {
+    const cleaned = { ...data };
     
-    // 🆕 FIX: Clean up data before sending to backend
-    const finalFormData = cleanFormData(formData);
-    
-    // Ensure variant stock is calculated correctly
-    if (hasActiveVariants) {
-      finalFormData.stockQuantity = formData.variants.reduce(
-        (total, variant) => total + (variant.stockQuantity || 0), 0
+    // Clean gallery images - remove empty images
+    if (cleaned.images?.gallery) {
+      cleaned.images.gallery = cleaned.images.gallery.filter(
+        (image: any) => image.url && image.url.trim() !== '' && image.altText && image.altText.trim() !== ''
       );
     }
     
-    console.log('Final data being submitted:', finalFormData); // 🆕 Debug log
+    // Clean manufacturer images - remove empty images
+    if (cleaned.manufacturerImages) {
+      cleaned.manufacturerImages = cleaned.manufacturerImages.filter(
+        (image: any) => image.url && image.url.trim() !== '' && image.altText && image.altText.trim() !== ''
+      );
+    }
     
-    // 🆕 Call onSubmit and handle potential errors
-    await onSubmit(finalFormData);
+    // Clean variant gallery images
+    if (cleaned.variants) {
+      cleaned.variants = cleaned.variants.map(variant => ({
+        ...variant,
+        images: {
+          ...variant.images,
+          gallery: (variant.images?.gallery || []).filter(
+            (image: any) => image.url && image.url.trim() !== '' && image.altText && image.altText.trim() !== ''
+          )
+        }
+      }));
+    }
     
-    // 🆕 Show success toast
-    toast.success(
-      initialData ? 'Product updated successfully!' : 'Product created successfully!'
-    );
-    
-  } catch (error) {
-    // 🆕 Handle submission errors
-    showErrorToast(error);
-  } finally {
-    setSubmitLoading(false);
-  }
-};
-
-// 🆕 ADD: Function to clean form data before submission
-const cleanFormData = (data: ProductFormData): ProductFormData => {
-  const cleaned = { ...data };
-  
-  // 🆕 Clean gallery images - remove empty images
-  if (cleaned.images?.gallery) {
-    cleaned.images.gallery = cleaned.images.gallery.filter(
-      (image: any) => image.url && image.url.trim() !== '' && image.altText && image.altText.trim() !== ''
-    );
-  }
-  
-  // 🆕 Clean manufacturer images - remove empty images
-  if (cleaned.manufacturerImages) {
-    cleaned.manufacturerImages = cleaned.manufacturerImages.filter(
-      (image: any) => image.url && image.url.trim() !== '' && image.altText && image.altText.trim() !== ''
-    );
-  }
-  
-  // 🆕 Clean variant gallery images
-  if (cleaned.variants) {
-    cleaned.variants = cleaned.variants.map(variant => ({
-      ...variant,
-      images: {
-        ...variant.images,
-        gallery: (variant.images?.gallery || []).filter(
-          (image: any) => image.url && image.url.trim() !== '' && image.altText && image.altText.trim() !== ''
-        )
-      }
-    }));
-  }
-  
-  // 🆕 Clean empty specifications
-  if (cleaned.specifications) {
-    cleaned.specifications = cleaned.specifications.filter(spec => 
-      spec.sectionTitle?.trim() || (spec.specs && spec.specs.length > 0)
-    );
-    
-    // Clean empty specs within each specification
-    cleaned.specifications = cleaned.specifications.map(spec => ({
-      ...spec,
-      specs: (spec.specs || []).filter(s => s.key?.trim() && s.value?.trim())
-    })).filter(spec => spec.specs.length > 0 || spec.sectionTitle?.trim());
-  }
-  
-  // 🆕 Clean empty features
-  if (cleaned.features) {
-    cleaned.features = cleaned.features.filter(feature => 
-      feature.title?.trim() && feature.description?.trim()
-    );
-  }
-  
-  // 🆕 Clean empty variant specifications
-  if (cleaned.variants) {
-    cleaned.variants = cleaned.variants.map(variant => ({
-      ...variant,
-      specifications: (variant.specifications || []).filter(spec => 
+    // Clean empty specifications
+    if (cleaned.specifications) {
+      cleaned.specifications = cleaned.specifications.filter(spec => 
         spec.sectionTitle?.trim() || (spec.specs && spec.specs.length > 0)
-      ).map(spec => ({
+      );
+      
+      // Clean empty specs within each specification
+      cleaned.specifications = cleaned.specifications.map(spec => ({
         ...spec,
         specs: (spec.specs || []).filter(s => s.key?.trim() && s.value?.trim())
-      })).filter(spec => spec.specs.length > 0 || spec.sectionTitle?.trim())
-    }));
-  }
-  
-  // 🆕 Clean empty arrays
-  if (cleaned.tags && cleaned.tags.length === 0) delete cleaned.tags;
-  if (cleaned.linkedProducts && cleaned.linkedProducts.length === 0) delete cleaned.linkedProducts;
-  if (cleaned.manufacturerImages && cleaned.manufacturerImages.length === 0) delete cleaned.manufacturerImages;
-  
-  // 🆕 Clean empty strings and zero values for optional fields
-  if (cleaned.hsn === '') delete cleaned.hsn;
-  if (cleaned.mrp === 0) delete cleaned.mrp;
-  if (cleaned.canonicalUrl === '') delete cleaned.canonicalUrl;
-  if (cleaned.notes === '') delete cleaned.notes;
-  if (cleaned.label === '') delete cleaned.label;
-  if (cleaned.definition === '') delete cleaned.definition;
-  
-  return cleaned;
-};
+      })).filter(spec => spec.specs.length > 0 || spec.sectionTitle?.trim());
+    }
+    
+    // Clean empty features
+    if (cleaned.features) {
+      cleaned.features = cleaned.features.filter(feature => 
+        feature.title?.trim() && feature.description?.trim()
+      );
+    }
+    
+    // Clean empty variant specifications
+    if (cleaned.variants) {
+      cleaned.variants = cleaned.variants.map(variant => ({
+        ...variant,
+        specifications: (variant.specifications || []).filter(spec => 
+          spec.sectionTitle?.trim() || (spec.specs && spec.specs.length > 0)
+        ).map(spec => ({
+          ...spec,
+          specs: (spec.specs || []).filter(s => s.key?.trim() && s.value?.trim())
+        })).filter(spec => spec.specs.length > 0 || spec.sectionTitle?.trim())
+      }));
+    }
+    
+    // Clean empty arrays
+    if (cleaned.tags && cleaned.tags.length === 0) delete cleaned.tags;
+    if (cleaned.linkedProducts && cleaned.linkedProducts.length === 0) delete cleaned.linkedProducts;
+    if (cleaned.manufacturerImages && cleaned.manufacturerImages.length === 0) delete cleaned.manufacturerImages;
+    
+    // Clean empty strings and zero values for optional fields
+    if (cleaned.hsn === '') delete cleaned.hsn;
+    if (cleaned.mrp === 0) delete cleaned.mrp;
+    if (cleaned.canonicalUrl === '') delete cleaned.canonicalUrl;
+    if (cleaned.notes === '') delete cleaned.notes;
+    if (cleaned.label === '') delete cleaned.label;
+    if (cleaned.definition === '') delete cleaned.definition;
+    
+    return cleaned;
+  };
 
   const handleSectionChange = (sectionId: string) => {
     setActiveSection(sectionId);
   };
-const handleCancel = () => {
-  // 🆕 Show appropriate cancellation message based on context
-  if (initialData) {
-    toast.info('Product update cancelled');
-  } else {
-    toast.info('Product creation cancelled');
-  }
-  
-  setIsInitialized(false);
-  setFormData(initialProductData);
-  if (onCancel) onCancel();
-};
 
-const sections = [
+  const handleCancel = () => {
+    if (initialData) {
+      toast.info('Product update cancelled');
+    } else {
+      toast.info('Product creation cancelled');
+    }
+    
+    setIsInitialized(false);
+    setFormData(initialProductData);
+    // 🆕 Reset uploaded files on cancel
+    setUploadedFiles({
+      gallery: [],
+      manufacturer: []
+    });
+    if (onCancel) onCancel();
+  };
+
+  const sections = [
     { id: 'basic', label: 'Basic Info', component: BasicInfoSection },
     { id: 'pricing', label: 'Pricing & Inventory', component: PricingInventorySection },
     { id: 'images', label: 'Images', component: ImagesSection },
@@ -427,7 +455,7 @@ const sections = [
     { id: 'specs', label: 'Specifications', component: SpecificationsSection },
     { id: 'features', label: 'Features', component: FeaturesSection },
     { id: 'dimensions', label: 'Dimensions & Weight', component: DimensionsWeightSection },
-    { id: 'linked', label: 'Linked Products', component: LinkedProductsSection }, // 🆕 Add this section
+    { id: 'linked', label: 'Linked Products', component: LinkedProductsSection },
     { id: 'seo', label: 'SEO & Meta', component: SeoSection },
   ];
 
@@ -453,10 +481,37 @@ const sections = [
       </div>
     );
   }
+
   return (
     <div className="max-w-7xl mx-auto">
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200">
-        {/* ... (your existing form header) */}
+        {/* Form Header */}
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {initialData ? 'Edit Product' : 'Create New Product'}
+              </h1>
+              <p className="text-gray-600 mt-1">
+                {initialData 
+                  ? 'Update your product information and settings' 
+                  : 'Add a new product to your catalog'
+                }
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                formData.status === 'Published' 
+                  ? 'bg-green-100 text-green-800' 
+                  : formData.status === 'Draft'
+                  ? 'bg-yellow-100 text-yellow-800'
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                {formData.status}
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="flex">
           {/* Sidebar Navigation */}
@@ -488,7 +543,12 @@ const sections = [
                 brands={brands}
                 categories={categories}
                 isEditMode={!!initialData}
-                currentProductId={currentProductId} // 🆕 Pass current product ID
+                currentProductId={currentProductId}
+                // 🆕 PASS FILE UPLOAD PROPS TO IMAGES SECTION
+                {...(ActiveComponent === ImagesSection && {
+                  onFilesChange: setUploadedFiles,
+                  uploadedFiles: uploadedFiles
+                })}
               />
             )}
           </div>

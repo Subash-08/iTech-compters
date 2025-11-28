@@ -1,11 +1,12 @@
+// redux/types/cartTypes.ts - UPDATED
 export interface CartItem {
   _id: string;
   product: {
     _id: string;
     name: string;
     price: number;    
-  basePrice: number;
-  offerPrice?: number;
+    basePrice: number;
+    offerPrice?: number;
     discountPrice?: number;
     images: Array<{
       url: string;
@@ -23,16 +24,25 @@ export interface CartItem {
     };
   };
   variant?: {
-    _id: string;
+    variantId: string; // ✅ This is the main ID from your backend logs
+    _id?: string; // ✅ Optional for backward compatibility
     name: string;
     price: number;    
-  basePrice: number;
-  offerPrice?: number;
+    basePrice?: number;
+    offerPrice?: number;
     stock: number;
+    attributes?: Array<{
+      key: string;
+      label: string;
+      value: string;
+      displayValue?: string;
+    }>;
+    sku?: string;
   };
   quantity: number;
   price: number;
   addedAt: string;
+  productType?: 'product' | 'prebuilt-pc'; // ✅ Add this if missing
 }
 
 export interface CartState {

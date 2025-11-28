@@ -152,6 +152,7 @@ export interface ImageData {
   url: string;
   altText: string;
   sectionTitle?: string;
+  file?: File;
 }
 
 export interface VariantConfiguration {

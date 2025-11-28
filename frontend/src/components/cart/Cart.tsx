@@ -1,4 +1,4 @@
-// components/cart/Cart.tsx - UPDATE IMPORTS
+// components/cart/Cart.tsx - WITH DEBUGGING
 import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
@@ -9,9 +9,10 @@ import {
   selectCartTotal, 
   selectCartItemsCount,
   selectIsGuestCart,
-  selectPreBuiltPCItems, // Now from cartSelectors
-  selectProductItems      // Now from cartSelectors
-} from '../../redux/selectors/cartSelectors'; // Import from cartSelectors
+  selectPreBuiltPCItems,
+  selectProductItems,
+  selectEnhancedCartSummary
+} from '../../redux/selectors/cartSelectors';
 import { selectIsAuthenticated, selectUser } from '../../redux/selectors';
 import LoadingSpinner from '../admin/common/LoadingSpinner';
 import CartItem from './CartItem';
@@ -25,8 +26,8 @@ const Cart: React.FC = () => {
   const navigate = useNavigate();
   
   const cartItems = useAppSelector(selectCartItems);
-  const preBuiltPCItems = useAppSelector(selectPreBuiltPCItems); // NEW
-  const productItems = useAppSelector(selectProductItems); // NEW
+  const preBuiltPCItems = useAppSelector(selectPreBuiltPCItems);
+  const productItems = useAppSelector(selectProductItems);
   const loading = useAppSelector(selectCartLoading);
   const error = useAppSelector(selectCartError);
   const cartTotal = useAppSelector(selectCartTotal);
@@ -34,28 +35,74 @@ const Cart: React.FC = () => {
   const isGuestCart = useAppSelector(selectIsGuestCart);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
+  const cartSummary = useAppSelector(selectEnhancedCartSummary);
 
   // State for sync modal
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [hasCheckedSync, setHasCheckedSync] = useState(false);
+  const [debugMode, setDebugMode] = useState(true);
 
   useEffect(() => {
     dispatch(cartActions.fetchCart());
   }, [dispatch]);
 
+  // Debug effect to log cart details
+  useEffect(() => {
+    if (debugMode && cartItems.length > 0) {
+      console.group('🛒 CART DEBUG INFORMATION');
+      
+      console.log('📦 Cart Items Breakdown:');
+      cartItems.forEach((item, index) => {
+        const itemTotal = (item.price || 0) * (item.quantity || 1);
+        console.log(`  Item ${index + 1}: "${item.product?.name || item.preBuiltPC?.name || 'Unknown'}"`, {
+          'Type': item.productType || 'product',
+          'Price': `₹${item.price}`,
+          'Quantity': item.quantity,
+          'Total': `₹${itemTotal}`,
+          'Product ID': item.product?._id || item.preBuiltPC?._id,
+          'Variant': item.variant?.variantId || 'None'
+        });
+      });
+
+      console.log('💰 Cart Totals Calculation:');
+      const calculatedTotal = cartItems.reduce((total, item) => {
+        return total + ((item.price || 0) * (item.quantity || 1));
+      }, 0);
+      
+      console.table({
+        'Cart Items Count': cartItems.length,
+        'Total Quantity': itemsCount,
+        'Calculated Total': `₹${calculatedTotal.toFixed(2)}`,
+        'Redux Cart Total': `₹${cartTotal.toFixed(2)}`,
+        'Match': calculatedTotal === cartTotal ? '✅' : '❌',
+        'Difference': `₹${(calculatedTotal - cartTotal).toFixed(2)}`
+      });
+
+      console.log('📊 Product Type Breakdown:');
+      console.table({
+        'Regular Products': {
+          'Count': productItems.length,
+          'Quantity': productItems.reduce((sum, item) => sum + (item.quantity || 0), 0),
+          'Total': `₹${productItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0).toFixed(2)}`
+        },
+        'Pre-built PCs': {
+          'Count': preBuiltPCItems.length,
+          'Quantity': preBuiltPCItems.reduce((sum, item) => sum + (item.quantity || 0), 0),
+          'Total': `₹${preBuiltPCItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0).toFixed(2)}`
+        }
+      });
+
+      console.groupEnd();
+    }
+  }, [cartItems, cartTotal, itemsCount, productItems, preBuiltPCItems, debugMode]);
+
   useEffect(() => {
     if (!loading && isAuthenticated && user && !hasCheckedSync) {
       const guestCart = localStorageUtils.getGuestCart();
-      const lastSyncedUser = localStorageUtils.getLastSyncedUser();
-      const currentUserId = user._id;
-
-      // Show modal if there are guest items
       const shouldShowModal = guestCart.length > 0;
-
 
       if (shouldShowModal) {
         setShowSyncModal(true);
-      } else {
       }
       
       setHasCheckedSync(true);
@@ -66,7 +113,6 @@ const Cart: React.FC = () => {
     try {
       setShowSyncModal(false);
       await dispatch(cartActions.syncGuestCart());
-      // Refresh cart after sync
       await dispatch(cartActions.fetchCart());
     } catch (error) {
       console.error('Failed to sync cart:', error);
@@ -80,22 +126,30 @@ const Cart: React.FC = () => {
 
   // Enhanced handlers for both product types
   const handleUpdateQuantity = (productId: string, variantId: string | undefined, quantity: number) => {
+    console.log('🔄 Updating quantity:', { productId, variantId, quantity });
     dispatch(cartActions.updateCartQuantity({ productId, variantId, quantity }));
   };
 
   const handleUpdatePreBuiltPCQuantity = (pcId: string, quantity: number) => {
+    console.log('🔄 Updating PC quantity:', { pcId, quantity });
     dispatch(cartActions.updatePreBuiltPCQuantity(pcId, quantity));
   };
 
-  const handleRemoveItem = (productId: string, variantId: string | undefined) => {
-    dispatch(cartActions.removeFromCart({ productId, variantId }));
+  const handleRemoveItem = (productId: string, variantId?: string) => {
+    console.log('🗑️ Removing from cart:', { productId, variantId });
+    dispatch(cartActions.removeFromCart({ 
+      productId,
+      variantId
+    }));
   };
 
   const handleRemovePreBuiltPC = (pcId: string) => {
+    console.log('🗑️ Removing PC from cart:', { pcId });
     dispatch(cartActions.removePreBuiltPCFromCart(pcId));
   };
 
   const handleClearCart = () => {
+    console.log('🧹 Clearing entire cart');
     dispatch(cartActions.clearCart());
   };
 
@@ -105,6 +159,7 @@ const Cart: React.FC = () => {
       return;
     }
     
+    console.log('➡️ Proceeding to checkout with cart total:', cartTotal);
     navigate('/checkout');
   };
 
@@ -117,6 +172,11 @@ const Cart: React.FC = () => {
     }
   };
 
+  const toggleDebugMode = () => {
+    setDebugMode(!debugMode);
+    console.log(`🔧 Debug mode ${!debugMode ? 'enabled' : 'disabled'}`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -125,7 +185,6 @@ const Cart: React.FC = () => {
     );
   }
 
-  // Get guest cart count for modal
   const guestCartCount = localStorageUtils.getGuestCart().length;
 
   return (
@@ -137,10 +196,31 @@ const Cart: React.FC = () => {
         guestCartCount={guestCartCount}
       />
 
+      {/* Debug Toggle Button */}
+      <button
+        onClick={toggleDebugMode}
+        className={`fixed top-4 right-4 z-50 px-3 py-2 rounded-lg text-sm font-medium ${
+          debugMode 
+            ? 'bg-blue-600 text-white' 
+            : 'bg-gray-200 text-gray-700'
+        }`}
+      >
+        {debugMode ? '🔧 Debug ON' : '🔧 Debug OFF'}
+      </button>
+
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
+            
+            {/* Debug Summary */}
+            {debugMode && cartItems.length > 0 && (
+              <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="text-sm text-green-800">
+                  <strong>Debug Summary:</strong> {cartItems.length} items, {itemsCount} total quantity, ₹{cartTotal.toFixed(2)} total
+                </div>
+              </div>
+            )}
             
             {/* Cart type breakdown */}
             {(preBuiltPCItems.length > 0 || productItems.length > 0) && (
@@ -248,27 +328,27 @@ const Cart: React.FC = () => {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between">
                   <span>Items ({itemsCount})</span>
-                  <span>${cartTotal.toFixed(2)}</span>
+                  <span>₹{cartTotal.toFixed(2)}</span>
                 </div>
                 
                 {/* Item type breakdown */}
                 {productItems.length > 0 && (
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>Products ({productItems.reduce((sum, item) => sum + item.quantity, 0)})</span>
-                    <span>${productItems.reduce((sum, item) => sum + (item.quantity * item.price), 0).toFixed(2)}</span>
+                    <span>₹{productItems.reduce((sum, item) => sum + (item.quantity * item.price), 0).toFixed(2)}</span>
                   </div>
                 )}
                 
                 {preBuiltPCItems.length > 0 && (
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>Pre-built PCs ({preBuiltPCItems.reduce((sum, item) => sum + item.quantity, 0)})</span>
-                    <span>${preBuiltPCItems.reduce((sum, item) => sum + (item.quantity * item.price), 0).toFixed(2)}</span>
+                    <span>₹{preBuiltPCItems.reduce((sum, item) => sum + (item.quantity * item.price), 0).toFixed(2)}</span>
                   </div>
                 )}
                 
                 <div className="flex justify-between">
                   <span>Shipping</span>
-                  <span className="text-green-600">Free</span>
+                  <span className="text-green-600">Calculated at checkout</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tax</span>
@@ -276,9 +356,22 @@ const Cart: React.FC = () => {
                 </div>
                 <hr />
                 <div className="flex justify-between text-lg font-semibold">
-                  <span>Total</span>
-                  <span>${cartTotal.toFixed(2)}</span>
+                  <span>Cart Total</span>
+                  <span>₹{cartTotal.toFixed(2)}</span>
                 </div>
+
+                {/* Debug Info */}
+                {debugMode && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-800 font-semibold mb-2">🔍 Cart Debug Info</p>
+                    <div className="text-xs text-blue-700 space-y-1">
+                      <div>Items: {cartItems.length}</div>
+                      <div>Total Quantity: {itemsCount}</div>
+                      <div>Product Items: {productItems.length}</div>
+                      <div>PC Items: {preBuiltPCItems.length}</div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button 

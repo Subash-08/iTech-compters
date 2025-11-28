@@ -1,5 +1,5 @@
-// Enhanced OrderSummary component
-import React from 'react';
+// Enhanced OrderSummary component with debugging
+import React, { useEffect } from 'react';
 import { CheckoutCoupon } from '../../redux/types/checkout';
 
 interface OrderSummaryProps {
@@ -13,6 +13,7 @@ interface OrderSummaryProps {
   currency: string;
   onApplyCoupon?: (code: string) => void;
   onRemoveCoupon?: () => void;
+  debugMode?: boolean; // Add debug mode prop
 }
 
 const OrderSummary: React.FC<OrderSummaryProps> = ({
@@ -25,7 +26,8 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   itemCount,
   currency,
   onApplyCoupon,
-  onRemoveCoupon
+  onRemoveCoupon,
+  debugMode = true // Enable debug by default
 }) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -34,9 +36,76 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
     }).format(amount);
   };
 
+  // Debug effect to log pricing details
+  useEffect(() => {
+    if (debugMode) {
+      console.group('💰 ORDER SUMMARY DEBUG');
+      console.log('📊 Pricing Breakdown:', {
+        subtotal,
+        shipping,
+        tax,
+        discount,
+        total,
+        itemCount
+      });
+      
+      // Tax calculation verification
+      const expectedTax = Math.round(subtotal * 0.18);
+      const taxCalculationCorrect = Math.abs(tax - expectedTax) <= 1; // Allow 1 rupee difference for rounding
+      
+      console.log('🧾 Tax Calculation Check:', {
+        'Subtotal for Tax': subtotal,
+        'Expected Tax (18%)': expectedTax,
+        'Actual Tax': tax,
+        'Tax Calculation': taxCalculationCorrect ? '✅ Correct' : '❌ Incorrect',
+        'Difference': tax - expectedTax
+      });
+
+      // Total calculation verification
+      const expectedTotal = subtotal + shipping + tax - discount;
+      const totalCalculationCorrect = Math.abs(total - expectedTotal) <= 1;
+      
+      console.log('🧮 Total Calculation Check:', {
+        'Subtotal': subtotal,
+        '+ Shipping': shipping,
+        '+ Tax': tax,
+        '- Discount': discount,
+        'Expected Total': expectedTotal,
+        'Actual Total': total,
+        'Total Calculation': totalCalculationCorrect ? '✅ Correct' : '❌ Incorrect',
+        'Difference': total - expectedTotal
+      });
+
+      console.groupEnd();
+    }
+  }, [subtotal, shipping, tax, discount, total, itemCount, debugMode]);
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
       <h3 className="text-xl font-bold mb-4">Order Summary</h3>
+      
+      {/* Debug Info - Only show in debug mode */}
+      {debugMode && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-sm font-semibold text-blue-800">🔍 Debug Info</h4>
+            <span className={`text-xs px-2 py-1 rounded ${
+              Math.abs(total - (subtotal + shipping + tax - discount)) <= 1 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {Math.abs(total - (subtotal + shipping + tax - discount)) <= 1 ? '✅ Valid' : '❌ Invalid'}
+            </span>
+          </div>
+          <div className="text-xs text-blue-700 space-y-1">
+            <div>Subtotal: ₹{subtotal.toFixed(2)}</div>
+            <div>Shipping: ₹{shipping.toFixed(2)}</div>
+            <div>Tax: ₹{tax.toFixed(2)}</div>
+            <div>Discount: -₹{discount.toFixed(2)}</div>
+            <div className="font-semibold">Calculated: ₹{(subtotal + shipping + tax - discount).toFixed(2)}</div>
+          </div>
+        </div>
+      )}
       
       {/* Coupon Section */}
       {onApplyCoupon && onRemoveCoupon && (

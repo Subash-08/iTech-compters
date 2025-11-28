@@ -157,6 +157,12 @@ const preBuiltPCSchema = new mongoose.Schema({
         enum: ['Gaming', 'Office', 'Editing', 'Budget', 'Workstation', 'Streaming'],
         trim: true
     },
+    taxRate: {
+        type: Number,
+        default: 0.18,
+        min: 0,
+        max: 1
+    },
     description: {
         type: String,
         required: [true, 'Description is required'],

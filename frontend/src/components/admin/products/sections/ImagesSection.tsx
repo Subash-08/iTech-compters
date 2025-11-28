@@ -1,21 +1,42 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ProductFormData, ImageData } from '../../types/product';
 
 interface ImagesSectionProps {
   formData: ProductFormData;
   updateFormData: (updates: Partial<ProductFormData>) => void;
   isEditing?: boolean;
+  // 🆕 File upload props
+  onFilesChange?: (files: {
+    thumbnail?: File;
+    hoverImage?: File;
+    gallery: File[];
+    manufacturer: File[];
+  }) => void;
+  uploadedFiles?: {
+    thumbnail?: File;
+    hoverImage?: File;
+    gallery: File[];
+    manufacturer: File[];
+  };
 }
 
 const ImagesSection: React.FC<ImagesSectionProps> = ({
   formData,
   updateFormData,
-  isEditing = false
+  isEditing = false,
+  onFilesChange,
+  uploadedFiles = { gallery: [], manufacturer: [] }
 }) => {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activeUploadType, setActiveUploadType] = useState<'thumbnail' | 'gallery' | 'manufacturer' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 🆕 Update files in parent component
+  const updateFiles = (newFiles: Partial<typeof uploadedFiles>) => {
+    const updatedFiles = { ...uploadedFiles, ...newFiles };
+    onFilesChange?.(updatedFiles);
+  };
 
   const handleImageChange = (imageType: 'thumbnail' | 'hoverImage', field: string, value: string) => {
     const updatedImages = { ...formData.images };
@@ -26,18 +47,17 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
     updateFormData({ images: updatedImages });
   };
 
-const handleGalleryImageChange = (index: number, field: string, value: string) => {
-  // 🆕 Don't update if the value is empty and it's a required field
-  if ((field === 'url' || field === 'altText') && !value.trim()) {
-    return; // Skip empty required fields
-  }
-  
-  const updatedGallery = [...formData.images.gallery];
-  updatedGallery[index] = { ...updatedGallery[index], [field]: value };
-  updateFormData({ 
-    images: { ...formData.images, gallery: updatedGallery }
-  });
-};
+  const handleGalleryImageChange = (index: number, field: string, value: string) => {
+    if ((field === 'url' || field === 'altText') && !value.trim()) {
+      return;
+    }
+    
+    const updatedGallery = [...formData.images.gallery];
+    updatedGallery[index] = { ...updatedGallery[index], [field]: value };
+    updateFormData({ 
+      images: { ...formData.images, gallery: updatedGallery }
+    });
+  };
 
   const handleManufacturerImageChange = (index: number, field: string, value: string) => {
     const updatedManufacturerImages = [...(formData.manufacturerImages || [])];
@@ -45,20 +65,19 @@ const handleGalleryImageChange = (index: number, field: string, value: string) =
     updateFormData({ manufacturerImages: updatedManufacturerImages });
   };
 
-const addGalleryImage = () => {
-  // 🆕 Only add if we have content to add
-  const newImage: ImageData = { 
-    url: '', 
-    altText: '',
-    sectionTitle: '' // 🆕 Add if your schema requires it
+  const addGalleryImage = () => {
+    const newImage: ImageData = { 
+      url: '', 
+      altText: '',
+      sectionTitle: ''
+    };
+    updateFormData({
+      images: {
+        ...formData.images,
+        gallery: [...formData.images.gallery, newImage]
+      }
+    });
   };
-  updateFormData({
-    images: {
-      ...formData.images,
-      gallery: [...formData.images.gallery, newImage]
-    }
-  });
-};
 
   const addManufacturerImage = () => {
     const newImage: ImageData = { url: '', altText: '', sectionTitle: '' };
@@ -95,31 +114,54 @@ const addGalleryImage = () => {
     updateFormData({ manufacturerImages: updatedManufacturerImages });
   };
 
-  // Simulate file upload to server
-  const uploadImageToServer = async (file: File): Promise<ImageData> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // In real implementation, this would be your actual upload logic
-        const objectUrl = URL.createObjectURL(file);
-        const altText = file.name.split('.')[0];
-        resolve({ 
-          url: objectUrl, 
-          altText,
-          sectionTitle: '' // 🆕 Initialize sectionTitle for manufacturer images
-        });
-      }, 1000);
-    });
+  // 🆕 Get image preview URL - handles both uploaded files and existing URLs
+  const getImagePreviewUrl = (imageType: 'thumbnail' | 'hoverImage', imageData: ImageData | undefined) => {
+    // If we have uploaded files and the current URL is a blob URL (temporary preview)
+    // or if we have uploaded files but no URL in formData yet
+    if (imageType === 'thumbnail' && uploadedFiles.thumbnail) {
+      // If form data doesn't have a URL or it's not a blob URL, create one
+      if (!imageData?.url || !imageData.url.startsWith('blob:')) {
+        return URL.createObjectURL(uploadedFiles.thumbnail);
+      }
+    } else if (imageType === 'hoverImage' && uploadedFiles.hoverImage) {
+      if (!imageData?.url || !imageData.url.startsWith('blob:')) {
+        return URL.createObjectURL(uploadedFiles.hoverImage);
+      }
+    }
+    
+    // Otherwise return the URL from form data
+    return imageData?.url || '';
   };
 
+  // 🆕 Simplified file upload function
   const handleFileUpload = async (files: FileList, imageType: 'thumbnail' | 'hoverImage' | 'gallery' | 'manufacturer') => {
     setUploading(true);
     setActiveUploadType(imageType);
     try {
-      for (const file of Array.from(files)) {
-        const uploadedImage = await uploadImageToServer(file);
+      const fileArray = Array.from(files);
+      
+      // 🆕 Update files state in parent
+      if (imageType === 'thumbnail') {
+        updateFiles({ thumbnail: fileArray[0] });
+      } else if (imageType === 'hoverImage') {
+        updateFiles({ hoverImage: fileArray[0] });
+      } else if (imageType === 'gallery') {
+        updateFiles({ gallery: [...uploadedFiles.gallery, ...fileArray] });
+      } else if (imageType === 'manufacturer') {
+        updateFiles({ manufacturer: [...uploadedFiles.manufacturer, ...fileArray] });
+      }
+
+      // 🆕 Create temporary preview URLs for immediate display
+      for (const file of fileArray) {
+        const tempUrl = URL.createObjectURL(file);
+        const altText = file.name.split('.')[0];
         
         if (imageType === 'gallery') {
-          const newImage: ImageData = uploadedImage;
+          const newImage: ImageData = {
+            url: tempUrl,
+            altText,
+            sectionTitle: ''
+          };
           updateFormData({
             images: {
               ...formData.images,
@@ -127,15 +169,36 @@ const addGalleryImage = () => {
             }
           });
         } else if (imageType === 'manufacturer') {
-          const newImage: ImageData = uploadedImage;
+          const newImage: ImageData = {
+            url: tempUrl,
+            altText,
+            sectionTitle: ''
+          };
           updateFormData({
             manufacturerImages: [...(formData.manufacturerImages || []), newImage]
           });
         } else {
-          handleImageChange(imageType, 'url', uploadedImage.url);
-          handleImageChange(imageType, 'altText', uploadedImage.altText);
+          // 🆕 FIX: For thumbnail and hoverImage, create proper preview
+          const updatedImages = { ...formData.images };
+          
+          if (imageType === 'thumbnail') {
+            updatedImages.thumbnail = {
+              url: tempUrl,
+              altText,
+              sectionTitle: ''
+            };
+          } else if (imageType === 'hoverImage') {
+            updatedImages.hoverImage = {
+              url: tempUrl,
+              altText,
+              sectionTitle: ''
+            };
+          }
+          
+          updateFormData({ images: updatedImages });
         }
       }
+      
     } catch (error) {
       console.error('Error uploading image:', error);
       alert('Error uploading image. Please try again.');
@@ -143,6 +206,51 @@ const addGalleryImage = () => {
       setUploading(false);
       setActiveUploadType(null);
     }
+  };
+
+  // 🆕 Add function to remove files
+  const removeUploadedFile = (imageType: 'thumbnail' | 'hoverImage' | 'gallery' | 'manufacturer', index?: number) => {
+    if (imageType === 'thumbnail') {
+      updateFiles({ thumbnail: undefined });
+    } else if (imageType === 'hoverImage') {
+      updateFiles({ hoverImage: undefined });
+    } else if (imageType === 'gallery' && index !== undefined) {
+      const newGallery = [...uploadedFiles.gallery];
+      newGallery.splice(index, 1);
+      updateFiles({ gallery: newGallery });
+    } else if (imageType === 'manufacturer' && index !== undefined) {
+      const newManufacturer = [...uploadedFiles.manufacturer];
+      newManufacturer.splice(index, 1);
+      updateFiles({ manufacturer: newManufacturer });
+    }
+  };
+
+  // 🆕 Enhanced remove functions that also remove uploaded files
+  const enhancedRemoveGalleryImage = (index: number) => {
+    removeGalleryImage(index);
+    removeUploadedFile('gallery', index);
+  };
+
+  const enhancedRemoveManufacturerImage = (index: number) => {
+    removeManufacturerImage(index);
+    removeUploadedFile('manufacturer', index);
+  };
+
+  const enhancedClearImage = (imageType: 'thumbnail' | 'hoverImage') => {
+    if (imageType === 'thumbnail') {
+      updateFormData({
+        images: {
+          ...formData.images,
+          thumbnail: { url: '', altText: '' }
+        }
+      });
+    } else {
+      const { hoverImage, ...restImages } = formData.images;
+      updateFormData({
+        images: restImages
+      });
+    }
+    removeUploadedFile(imageType);
   };
 
   const handleDrop = (e: React.DragEvent, imageType: 'thumbnail' | 'hoverImage' | 'gallery' | 'manufacturer') => {
@@ -183,23 +291,30 @@ const addGalleryImage = () => {
     handleImageChange('hoverImage', 'altText', altText);
   };
 
-  const clearImage = (imageType: 'thumbnail' | 'hoverImage') => {
-    if (imageType === 'thumbnail') {
-      updateFormData({
-        images: {
-          ...formData.images,
-          thumbnail: { url: '', altText: '' }
+  // Clean up blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up any blob URLs
+      if (formData.images.thumbnail?.url?.startsWith('blob:')) {
+        URL.revokeObjectURL(formData.images.thumbnail.url);
+      }
+      if (formData.images.hoverImage?.url?.startsWith('blob:')) {
+        URL.revokeObjectURL(formData.images.hoverImage.url);
+      }
+      formData.images.gallery.forEach(image => {
+        if (image.url?.startsWith('blob:')) {
+          URL.revokeObjectURL(image.url);
         }
       });
-    } else {
-      const { hoverImage, ...restImages } = formData.images;
-      updateFormData({
-        images: restImages
+      (formData.manufacturerImages || []).forEach(image => {
+        if (image.url?.startsWith('blob:')) {
+          URL.revokeObjectURL(image.url);
+        }
       });
-    }
-  };
+    };
+  }, []);
 
-  // File upload component to avoid duplication
+  // File upload component
   const FileUploadArea = ({ 
     type, 
     label 
@@ -223,6 +338,7 @@ const addGalleryImage = () => {
         accept="image/*"
         onChange={(e) => e.target.files && handleFileUpload(e.target.files, type)}
         disabled={uploading}
+        multiple={type === 'gallery' || type === 'manufacturer'}
       />
       <label htmlFor={`${type}-upload`} className={`cursor-pointer ${uploading ? 'pointer-events-none' : ''}`}>
         {uploading && activeUploadType === type ? (
@@ -242,13 +358,16 @@ const addGalleryImage = () => {
               <span className="text-blue-600 hover:text-blue-500">Upload a file</span> or drag and drop
             </p>
             <p className="text-xs text-gray-500">{label}</p>
+            <p className="text-xs text-blue-600 mt-1">
+              {type === 'gallery' || type === 'manufacturer' ? 'Multiple files supported' : 'Single file only'}
+            </p>
           </>
         )}
       </label>
     </div>
   );
 
-  // Image list component to avoid duplication
+  // Image list component
   const ImageList = ({
     images,
     type,
@@ -297,6 +416,10 @@ const addGalleryImage = () => {
                     src={image.url}
                     alt="Image preview"
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCA0MEM0Mi4yMDkxIDQwIDQ0IDQxLjc5MDkgNDQgNDRDNDQgNDYuMjA5MSA0Mi4yMDkxIDQ4IDQwIDQ4QzM3Ljc5MDkgNDggMzYgNDYuMjA5MSAzNiA0NEMzNiA0MS43OTA5IDM3Ljc5MDkgNDAgNDAgNDBaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik01MiAzNkM1MiAzNC44OTU0IDUxLjEwNDYgMzQgNTAgMzRMMzAgMzRDMjguODk1NCAzNCAyOCAzNC44OTU0IDI4IDM2TDI4IDUyQzI4IDUzLjEwNDYgMjguODk1NCA1NCAzMCA1NEw1MCA1NEM1MS4xMDQ2IDU0IDUyIDUzLjEwNDYgNTIgNTJMNjIgNDJMNjIgNTJDNjIgNTMuMTA0NiA2Mi44OTU0IDU0IDY0IDU0QzY1LjEwNDYgNTQgNjYgNTMuMTA0NiA2NiA1Mkw2NiAzNkM2NiAzNC44OTU0IDY1LjEwNDYgMzQgNjQgMzRMNTIgMzRaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
+                    }}
                   />
                 </div>
               ) : (
@@ -331,20 +454,20 @@ const addGalleryImage = () => {
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Image URL
+                Image URL <span className="text-gray-400 text-xs">(Optional if uploading file)</span>
               </label>
               <input
                 type="url"
                 value={image.url}
                 onChange={(e) => onImageChange(index, 'url', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="https://example.com/image.jpg"
+                placeholder="https://example.com/image.jpg or upload file above"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Alt Text
+                Alt Text <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -352,10 +475,10 @@ const addGalleryImage = () => {
                 onChange={(e) => onImageChange(index, 'altText', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Description of the image"
+                required
               />
             </div>
 
-            {/* 🆕 Section Title - Only for manufacturer images */}
             {type === 'manufacturer' && (
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -404,6 +527,9 @@ const addGalleryImage = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <p className="text-sm text-gray-600">No {type} images added yet</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Add images by uploading files or providing URLs
+          </p>
         </div>
       )}
     </div>
@@ -423,7 +549,7 @@ const addGalleryImage = () => {
             <div>
               <span className="text-sm font-medium text-blue-800">Edit Mode</span>
               <p className="text-sm text-blue-700 mt-1">
-                You can update existing images or add new ones. Drag to reorder gallery and manufacturer images.
+                You can update existing images or add new ones. Use either file upload OR provide URL - both are not required.
               </p>
             </div>
           </div>
@@ -437,25 +563,35 @@ const addGalleryImage = () => {
             Thumbnail Image <span className="text-red-500">*</span>
           </label>
           <p className="text-sm text-gray-500 mb-3">
-            This will be the main image displayed in product listings.
+            This will be the main image displayed in product listings. Use either file upload OR provide URL.
           </p>
           
           <div className="flex items-start space-x-6">
-            {/* Image Preview */}
+            {/* Image Preview - UPDATED */}
             <div className="flex-shrink-0">
-              {formData.images.thumbnail.url ? (
+              {getImagePreviewUrl('thumbnail', formData.images.thumbnail) ? (
                 <div className="relative">
                   <div className="w-32 h-32 border border-gray-300 rounded-lg overflow-hidden">
                     <img
-                      src={formData.images.thumbnail.url}
+                      src={getImagePreviewUrl('thumbnail', formData.images.thumbnail)}
                       alt="Thumbnail preview"
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik02NCA2NEM2Ni4yMDkxIDY0IDY4IDY1Ljc5MDkgNjggNjhDNjggNzAuMjA5MSA2Ni4yMDkxIDcyIDY0IDcyQzYxLjc5MDkgNzIgNjAgNzAuMjA5MSA2MCA2OEM2MCA2NS43OTA5IDYxLjc5MDkgNjQgNjQgNjRaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik04NCA1NkM4NCA1NC44OTU0IDgzLjEwNDYgNTQgODIgNTRMNjYgNTRDNjQuODk1NCA1NCA2NCA1NC44OTU0IDY0IDU2TDY0IDgyQzY0IDgzLjEwNDYgNjQuODk1NCA4NCA2NiA4NEw4MiA4NEM4My4xMDQ2IDg0IDg0IDgzLjEwNDYgODQgODJMODQgNTZaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
+                      }}
                     />
                   </div>
+                  {/* Show uploaded file info */}
+                  {uploadedFiles.thumbnail && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs p-1">
+                      Uploaded: {uploadedFiles.thumbnail.name}
+                    </div>
+                  )}
                   {isEditing && (
                     <button
                       type="button"
-                      onClick={() => clearImage('thumbnail')}
+                      onClick={() => enhancedClearImage('thumbnail')}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -475,15 +611,14 @@ const addGalleryImage = () => {
             <div className="flex-1 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Image URL <span className="text-red-500">*</span>
+                  Image URL <span className="text-gray-400 text-xs">(Optional if uploading file)</span>
                 </label>
                 <input
                   type="url"
                   value={formData.images.thumbnail.url}
                   onChange={(e) => handleImageChange('thumbnail', 'url', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="https://example.com/image.jpg"
-                  required
+                  placeholder="https://example.com/image.jpg or upload file below"
                 />
               </div>
 
@@ -501,7 +636,12 @@ const addGalleryImage = () => {
                 />
               </div>
 
-              <FileUploadArea type="thumbnail" label="PNG, JPG, GIF up to 10MB" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Or Upload File
+                </label>
+                <FileUploadArea type="thumbnail" label="PNG, JPG, GIF up to 10MB" />
+              </div>
             </div>
           </div>
         </div>
@@ -516,20 +656,31 @@ const addGalleryImage = () => {
           </p>
           
           <div className="flex items-start space-x-6">
+            {/* Image Preview - UPDATED */}
             <div className="flex-shrink-0">
-              {formData.images.hoverImage?.url ? (
+              {getImagePreviewUrl('hoverImage', formData.images.hoverImage) ? (
                 <div className="relative">
                   <div className="w-32 h-32 border border-gray-300 rounded-lg overflow-hidden">
                     <img
-                      src={formData.images.hoverImage.url}
+                      src={getImagePreviewUrl('hoverImage', formData.images.hoverImage)}
                       alt="Hover image preview"
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik02NCA2NEM2Ni4yMDkxIDY0IDY4IDY1Ljc5MDkgNjggNjhDNjggNzAuMjA5MSA2Ni4yMDkxIDcyIDY0IDcyQzYxLjc5MDkgNzIgNjAgNzAuMjA5MSA2MCA2OEM2MCA2NS43OTA5IDYxLjc5MDkgNjQgNjQgNjRaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik04NCA1NkM4NCA1NC44OTU0IDgzLjEwNDYgNTQgODIgNTRMNjYgNTRDNjQuODk1NCA1NCA2NCA1NC44OTU0IDY0IDU2TDY0IDgyQzY0IDgzLjEwNDYgNjQuODk1NCA4NCA2NiA4NEw4MiA4NEM4My4xMDQ2IDg0IDg0IDgzLjEwNDYgODQgODJMODQgNTZaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
+                      }}
                     />
                   </div>
+                  {/* Show uploaded file info */}
+                  {uploadedFiles.hoverImage && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs p-1">
+                      Uploaded: {uploadedFiles.hoverImage.name}
+                    </div>
+                  )}
                   {isEditing && (
                     <button
                       type="button"
-                      onClick={() => clearImage('hoverImage')}
+                      onClick={() => enhancedClearImage('hoverImage')}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -548,14 +699,14 @@ const addGalleryImage = () => {
             <div className="flex-1 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Image URL
+                  Image URL <span className="text-gray-400 text-xs">(Optional if uploading file)</span>
                 </label>
                 <input
                   type="url"
                   value={formData.images.hoverImage?.url || ''}
                   onChange={(e) => handleImageChange('hoverImage', 'url', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="https://example.com/hover-image.jpg"
+                  placeholder="https://example.com/hover-image.jpg or upload file below"
                 />
               </div>
 
@@ -570,6 +721,13 @@ const addGalleryImage = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Description of the hover image"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Or Upload File
+                </label>
+                <FileUploadArea type="hoverImage" label="PNG, JPG, GIF up to 10MB" />
               </div>
 
               {isEditing && formData.images.gallery.length > 0 && (
@@ -607,7 +765,7 @@ const addGalleryImage = () => {
                 Gallery Images {!isEditing && '(Optional)'}
               </label>
               <p className="text-sm text-gray-500">
-                Additional images that will be displayed in the product gallery.
+                Additional images that will be displayed in the product gallery. Use file upload OR provide URLs.
               </p>
             </div>
             <div className="flex space-x-2">
@@ -617,7 +775,7 @@ const addGalleryImage = () => {
                 className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
                 disabled={uploading}
               >
-                Add Image
+                Add Image Row
               </button>
             </div>
           </div>
@@ -626,13 +784,16 @@ const addGalleryImage = () => {
             images={formData.images.gallery}
             type="gallery"
             onImageChange={handleGalleryImageChange}
-            onRemove={removeGalleryImage}
+            onRemove={enhancedRemoveGalleryImage}
             onReorder={(index, direction) => handleImageReorder(index, direction, 'gallery')}
             onSetAsThumbnail={setAsThumbnail}
           />
 
           {/* Gallery File Upload */}
           <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Or Upload Multiple Files
+            </label>
             <FileUploadArea type="gallery" label="PNG, JPG, GIF up to 10MB - Will be added to gallery" />
           </div>
 
@@ -656,7 +817,7 @@ const addGalleryImage = () => {
               </label>
               <p className="text-sm text-gray-500">
                 High-quality images and content provided by the manufacturer for enhanced product displays.
-                Each image can have a section title for better organization.
+                Use file upload OR provide URLs.
               </p>
             </div>
             <div className="flex space-x-2">
@@ -666,7 +827,7 @@ const addGalleryImage = () => {
                 className="px-4 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100"
                 disabled={uploading}
               >
-                Add Manufacturer Image
+                Add Image Row
               </button>
             </div>
           </div>
@@ -675,12 +836,15 @@ const addGalleryImage = () => {
             images={formData.manufacturerImages || []}
             type="manufacturer"
             onImageChange={handleManufacturerImageChange}
-            onRemove={removeManufacturerImage}
+            onRemove={enhancedRemoveManufacturerImage}
             onReorder={(index, direction) => handleImageReorder(index, direction, 'manufacturer')}
           />
 
           {/* Manufacturer Images File Upload */}
           <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Or Upload Multiple Files
+            </label>
             <FileUploadArea type="manufacturer" label="PNG, JPG, GIF up to 10MB - For A+ content images" />
           </div>
 

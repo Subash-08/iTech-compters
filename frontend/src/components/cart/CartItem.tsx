@@ -1,4 +1,4 @@
-// components/cart/CartItem.tsx - FIXED IMAGE HANDLING
+// components/cart/CartItem.tsx - FIXED IMAGE HANDLING FOR PRE-BUILT PCS
 import React from 'react';
 import { Link } from 'react-router-dom';
 
@@ -18,106 +18,209 @@ const CartItem: React.FC<CartItemProps> = ({
   onRemovePreBuiltPC 
 }) => {
 
-  // Determine if this is a pre-built PC or regular product
-  const isPreBuiltPC = item.productType === 'prebuilt-pc' || item.preBuiltPC || item.pcId;
-
+  const isPreBuiltPC = item.productType === 'prebuilt-pc' || !!item.preBuiltPC || !!item.pcId;
   const product = item.product || {};
   const preBuiltPC = item.preBuiltPC || {};
   
-  const getItemId = () => {
+  // FIXED: Enhanced image handling that handles both populated objects and string IDs
+  const getItemImage = (): string => {
+    console.log('🖼️ CartItem debug - item:', item);
+    console.log('🖼️ preBuiltPC:', preBuiltPC);
+    console.log('🖼️ typeof preBuiltPC:', typeof preBuiltPC);
+    
     if (isPreBuiltPC) {
-      // Check all possible locations for PC ID
-      return preBuiltPC._id || item.pcId || item.preBuiltPC || item._id;
+      // Handle pre-built PC images - check if preBuiltPC is populated or just an ID
+      if (typeof preBuiltPC === 'string') {
+        // preBuiltPC is just an ID string - check if item has direct images
+        console.log('🖼️ preBuiltPC is string ID, checking item.images');
+        const directImages = item.images || [];
+        return extractImageUrl(directImages, 'Pre-built PC (Direct)');
+      } else {
+        // preBuiltPC is a populated object
+        const pcImages = preBuiltPC.images || item.images || [];
+        console.log('🖼️ preBuiltPC is object, images:', pcImages);
+        return extractImageUrl(pcImages, 'Pre-built PC (Object)');
+      }
     } else {
-      // For regular products
-      return product._id || item.productId || item.product || item._id;
+      // Handle product images
+      const productImages = product.images || item.images || [];
+      
+      // If product has variant, try to get variant image first
+      if (item.variant && item.variant.images) {
+        const variantImage = extractImageUrl(item.variant.images, 'Variant');
+        if (variantImage !== '/images/placeholder-image.jpg') {
+          return variantImage;
+        }
+      }
+      
+      // Fall back to product images
+      return extractImageUrl(productImages, 'Product');
     }
   };
 
-  // FIXED: Enhanced image handling with proper URL formatting
-  const getItemImage = () => {
-    let images = [];
+  // Helper function to extract image URL from various formats
+  const extractImageUrl = (images: any, type: string): string => {
+    console.log(`🖼️ ${type} images:`, images);
     
-    if (isPreBuiltPC) {
-      images = preBuiltPC.images || item.images || [];
-    } else {
-      images = product.images || item.images || [];
+    if (!images) {
+      console.log(`🖼️ No ${type} images provided`);
+      return '/images/placeholder-image.jpg';
     }
     
-    // Handle different image formats
+    // Case 1: Array of images
     if (Array.isArray(images) && images.length > 0) {
       const firstImage = images[0];
       
-      // If array of image objects with url property
-      if (firstImage?.url) {
-        return formatImageUrl(firstImage.url);
+      // Array of objects with url property
+      if (firstImage && firstImage.url) {
+        const url = formatImageUrl(firstImage.url);
+        console.log(`🖼️ Using array object URL: ${url}`);
+        return url;
       }
       
-      // If array of strings (URLs)
+      // Array of strings (direct URLs)
       if (typeof firstImage === 'string') {
-        return formatImageUrl(firstImage);
+        const url = formatImageUrl(firstImage);
+        console.log(`🖼️ Using array string URL: ${url}`);
+        return url;
       }
       
-      // If array of objects with public_id and url (Cloudinary)
-      if (firstImage?.public_id && firstImage?.url) {
-        return formatImageUrl(firstImage.url);
+      // Array of Cloudinary objects
+      if (firstImage && firstImage.public_id) {
+        const url = `https://res.cloudinary.com/${process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'demo'}/image/upload/w_150,h_150/${firstImage.public_id}`;
+        console.log(`🖼️ Using Cloudinary URL: ${url}`);
+        return url;
       }
     }
     
-    // Handle single image object
-    if (images?.url) {
-      return formatImageUrl(images.url);
+    // Case 2: Single image object
+    if (images && typeof images === 'object' && !Array.isArray(images)) {
+      // Direct url property
+      if (images.url) {
+        const url = formatImageUrl(images.url);
+        console.log(`🖼️ Using object URL: ${url}`);
+        return url;
+      }
+      
+      // Thumbnail
+      if (images.thumbnail && images.thumbnail.url) {
+        const url = formatImageUrl(images.thumbnail.url);
+        console.log(`🖼️ Using thumbnail URL: ${url}`);
+        return url;
+      }
+      
+      // Main image
+      if (images.main && images.main.url) {
+        const url = formatImageUrl(images.main.url);
+        console.log(`🖼️ Using main image URL: ${url}`);
+        return url;
+      }
+      
+      // Gallery array inside object
+      if (images.gallery && Array.isArray(images.gallery) && images.gallery.length > 0) {
+        console.log(`🖼️ Using gallery from object`);
+        return extractImageUrl(images.gallery, `${type} Gallery`);
+      }
     }
     
-    // Handle thumbnail
-    if (images?.thumbnail?.url) {
-      return formatImageUrl(images.thumbnail.url);
-    }
-    
-    // Handle main image for pre-built PCs
-    if (images?.main?.url) {
-      return formatImageUrl(images.main.url);
-    }
-    return '/images/placeholder-image.jpg'; // Make sure this path exists
-  };
-
-  // Helper function to format image URLs
-  const formatImageUrl = (url: string): string => {
-    if (!url) return '/images/placeholder-image.jpg';
-    
-    // If it's already a full URL (http/https)
-    if (url.startsWith('http')) {
+    // Case 3: Direct string URL
+    if (typeof images === 'string' && images.trim() !== '') {
+      const url = formatImageUrl(images);
+      console.log(`🖼️ Using direct string URL: ${url}`);
       return url;
     }
     
-    // If it's a data URL (base64)
+    console.log(`🖼️ No ${type} image found, using placeholder`);
+    return '/images/placeholder-image.jpg';
+  };
+
+  const formatImageUrl = (url: string): string => {
+    if (!url || url === 'undefined' || url === 'null') {
+      return '/images/placeholder-image.jpg';
+    }
+    
+    // Already full URL
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // Data URL
     if (url.startsWith('data:')) {
       return url;
     }
     
-    // If it's a relative path starting with /uploads or similar
+    // Relative path starting with /
     if (url.startsWith('/')) {
-      // For development - adjust base URL as needed
       const baseURL = process.env.NODE_ENV === 'production' 
         ? 'https://itech-compters.onrender.com' 
         : 'http://localhost:5000';
       return `${baseURL}${url}`;
     }
     
-    // If it's a relative path without leading slash
+    // Relative path without /
     return `/${url}`;
   };
 
-  // Get item link based on type
-  const getItemLink = () => {
+  // FIXED: Get item name with better handling
+  const getItemName = (): string => {
+    if (isPreBuiltPC) {
+      // Handle both string ID and populated object cases
+      if (typeof preBuiltPC === 'string') {
+        return item.name || 'Pre-built PC';
+      } else {
+        return preBuiltPC.name || item.name || 'Pre-built PC';
+      }
+    }
+    
+    // For products with variants, show variant name if available
+    if (item.variant && item.variant.name && item.variant.name !== 'Default') {
+      return `${product.name || item.name || 'Product'} - ${item.variant.name}`;
+    }
+    
+    // Show base product name
+    return product.name || item.name || 'Product';
+  };
+
+  // Safe item ID extraction
+  const getItemId = (): string => {
+    if (isPreBuiltPC) {
+      // Handle both string ID and populated object cases
+      if (typeof preBuiltPC === 'string') {
+        return preBuiltPC || item.pcId || item._id || 'unknown-pc-id';
+      } else {
+        return preBuiltPC._id || item.pcId || item._id || 'unknown-pc-id';
+      }
+    } else {
+      return product._id || item.productId || item._id || 'unknown-product-id';
+    }
+  };
+
+  // Safe variant ID extraction
+  const getVariantId = (): string | undefined => {
+    if (isPreBuiltPC) return undefined;
+    
+    if (item.variant) {
+      return item.variant.variantId || item.variant._id || item.variant.id;
+    }
+    return item.variantId;
+  };
+
+  // Safe item link generation
+  const getItemLink = (): string => {
     const itemId = getItemId();
     
     if (isPreBuiltPC) {
-      const pcSlug = preBuiltPC.slug || preBuiltPC._id || itemId;
+      // Handle both string ID and populated object cases
+      let pcSlug;
+      if (typeof preBuiltPC === 'string') {
+        pcSlug = itemId; // Use the ID as slug
+      } else {
+        pcSlug = preBuiltPC.slug || preBuiltPC._id || itemId;
+      }
       return `/prebuilt-pcs/${pcSlug}`;
     } else {
       const baseLink = `/product/${product.slug || product._id || itemId}`;
-      const variantId = item.variant?._id || item.variantId || item.variant?.variantId;
+      const variantId = getVariantId();
       if (variantId) {
         return `${baseLink}?variant=${variantId}`;
       }
@@ -125,45 +228,50 @@ const CartItem: React.FC<CartItemProps> = ({
     }
   };
 
-  // Get item name
-  const getItemName = () => {
-    if (isPreBuiltPC) {
-      return preBuiltPC.name || item.name || 'Pre-built PC';
+  // Safe price extraction
+  const getItemPrice = (): number => {
+    // Use variant price if available
+    if (item.variant && item.variant.price) {
+      return item.variant.price;
     }
-    return product.name || item.name || 'Product';
-  };
-
-  // Get item price
-  const getItemPrice = () => {
-    // Use item price first, then fall back to product/PC price
-    if (item.price > 0) {
+    
+    // Use item price
+    if (item.price && item.price > 0) {
       return item.price;
     }
     
     if (isPreBuiltPC) {
-      return preBuiltPC.discountPrice || preBuiltPC.totalPrice || preBuiltPC.offerPrice || preBuiltPC.basePrice || 0;
+      // Handle both string ID and populated object cases
+      if (typeof preBuiltPC === 'string') {
+        return item.price || 0;
+      } else {
+        return preBuiltPC.discountPrice || preBuiltPC.totalPrice || preBuiltPC.offerPrice || preBuiltPC.basePrice || 0;
+      }
     }
+    
     return product.offerPrice || product.basePrice || 0;
   };
 
-  // Handle quantity update
+  // Safe quantity update
   const handleUpdateQuantity = (newQuantity: number) => {
     const itemId = getItemId();    
     if (isPreBuiltPC && onUpdatePreBuiltPCQuantity) {
       onUpdatePreBuiltPCQuantity(itemId, newQuantity);
     } else {
-      onUpdateQuantity(itemId, item.variantId, newQuantity);
+      const variantId = getVariantId();
+      onUpdateQuantity(itemId, variantId, newQuantity);
     }
   };
 
-  // Handle remove
+  // Safe remove function
   const handleRemove = () => {
     const itemId = getItemId();
+    const variantId = getVariantId();
     
     if (isPreBuiltPC && onRemovePreBuiltPC) {
       onRemovePreBuiltPC(itemId);
     } else {
-      onRemove(itemId, item.variantId);
+      onRemove(itemId, variantId);
     }
   };
 
@@ -172,27 +280,12 @@ const CartItem: React.FC<CartItemProps> = ({
   const itemPrice = getItemPrice();
   const itemId = getItemId();
   const itemLink = getItemLink();
+  const variantId = getVariantId();
 
-  // Handle image error with better fallback
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const target = e.target as HTMLImageElement;
-    
-    // If the current src is already the placeholder, don't try to set it again
-    if (target.src.includes('placeholder-image.jpg')) {
-      return;
-    }
-    
-    // Try different placeholder paths
-    const placeholderPaths = [
-      'https://via.placeholder.com/150?text=No+Image'
-    ];
-    
-    for (const path of placeholderPaths) {
-      target.src = path;
-      // If this loads successfully, break the loop
-      target.onload = () => console.log('🖼️ Placeholder loaded successfully:', path);
-      break;
-    }
+    const target = e.target as HTMLImageElement;    
+    // Use a reliable placeholder that doesn't require internet
+    target.src = '/images/placeholder-image.jpg';
   };
 
   return (
@@ -224,40 +317,45 @@ const CartItem: React.FC<CartItemProps> = ({
         {/* Pre-built PC specifications */}
         {isPreBuiltPC && (
           <div className="text-sm text-gray-600 mt-1">
-            {/* Check various locations for specifications */}
-            {(preBuiltPC.specifications?.processor || preBuiltPC.processor) && (
+            {/* Handle both string ID and populated object cases */}
+            {(typeof preBuiltPC !== 'string' && (preBuiltPC.specifications?.processor || preBuiltPC.processor)) && (
               <div>CPU: {preBuiltPC.specifications?.processor || preBuiltPC.processor}</div>
             )}
-            {(preBuiltPC.specifications?.graphicsCard || preBuiltPC.graphicsCard) && (
+            {(typeof preBuiltPC !== 'string' && (preBuiltPC.specifications?.graphicsCard || preBuiltPC.graphicsCard)) && (
               <div>GPU: {preBuiltPC.specifications?.graphicsCard || preBuiltPC.graphicsCard}</div>
             )}
-            {(preBuiltPC.performanceRating || item.performanceRating) && (
-              <div className="flex items-center mt-1">
-                <span className="text-yellow-500 mr-1">⭐</span>
-                <span>Performance: {(preBuiltPC.performanceRating || item.performanceRating || 0)}/10</span>
+          </div>
+        )}
+        
+        {/* Enhanced variant information for products */}
+        {!isPreBuiltPC && item.variant && (
+          <div className="text-sm text-gray-600 mt-1">
+            {item.variant.color && <span>Color: {item.variant.color}</span>}
+            {item.variant.size && <span className="ml-2">Size: {item.variant.size}</span>}
+            {item.variant.ram && <span className="ml-2">RAM: {item.variant.ram}</span>}
+            {item.variant.storage && <span className="ml-2">Storage: {item.variant.storage}</span>}
+            {/* Show variant attributes if available */}
+            {item.variant.attributes && Object.keys(item.variant.attributes).length > 0 && (
+              <div className="mt-1">
+                {Object.entries(item.variant.attributes).map(([key, value]) => (
+                  <span key={key} className="mr-2">
+                    {key}: {String(value)}
+                  </span>
+                ))}
               </div>
             )}
           </div>
         )}
         
-        {/* Variant information for products */}
-        {!isPreBuiltPC && item.variant && (
-          <div className="text-sm text-gray-600 mt-1">
-            {item.variant.color && <span>Color: {item.variant.color}</span>}
-            {item.variant.size && <span className="ml-2">Size: {item.variant.size}</span>}
-            {item.variant.name && <span className="ml-2">Variant: {item.variant.name}</span>}
-          </div>
-        )}
-        
         <p className="text-gray-600 text-xl font-bold mt-1">Rs {itemPrice.toFixed(2)}</p>
         
-        {/* Enhanced debug info */}
+        {/* Debug info - shows if preBuiltPC is string or object */}
         <div className="text-xs text-gray-400 mt-1">
           Type: {isPreBuiltPC ? 'Pre-built PC' : 'Product'} | 
+          PC Type: {isPreBuiltPC ? (typeof preBuiltPC === 'string' ? 'String ID' : 'Populated Object') : 'N/A'} |
           ID: {itemId} | 
-          Price: Rs {itemPrice} | 
           Qty: {item.quantity}
-          {!isPreBuiltPC && item.variantId && ` | Variant: ${item.variantId}`}
+          {variantId && ` | Variant: ${variantId}`}
         </div>
         
         {/* Quantity controls */}
