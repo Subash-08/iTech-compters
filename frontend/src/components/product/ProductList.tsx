@@ -24,6 +24,53 @@ import ProductCard from './ProductCard';
 import ProductDetailFilters from './ProductDetailFilters';
 import ProductPagination from './ProductPagination';
 import { useAuthErrorHandler } from '../hooks/useAuthErrorHandler';
+import ProductCardShimmer from './ProductCardShimmer';
+
+// Shimmer Components
+const ProductCardShimmerGrid: React.FC<{ count?: number }> = ({ count = 12 }) => {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {Array.from({ length: count }).map((_, index) => (
+        <ProductCardShimmer key={index} />
+      ))}
+    </div>
+  );
+};
+
+const FilterShimmer: React.FC = () => {
+  return (
+    <div className="space-y-6 animate-pulse">
+      {/* Filter Section Shimmers */}
+      {[1, 2, 3, 4].map((section) => (
+        <div key={section} className="border-b border-gray-200 pb-4">
+          <div className="h-4 bg-gray-300 rounded w-3/4 mb-3"></div>
+          <div className="space-y-2">
+            {[1, 2, 3, 4].map((item) => (
+              <div key={item} className="flex items-center">
+                <div className="h-4 w-4 bg-gray-300 rounded mr-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-full"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const HeaderShimmer: React.FC = () => {
+  return (
+    <div className="animate-pulse">
+      <div className="h-8 bg-gray-300 rounded w-1/3 mb-2"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+      <div className="flex flex-wrap gap-2">
+        {[1, 2, 3].map((item) => (
+          <div key={item} className="h-6 bg-gray-200 rounded-full w-20"></div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const ProductList: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -51,7 +98,7 @@ const ProductList: React.FC = () => {
     return (key === 'category' && categoryName) || (key === 'brand' && brandName);
   }, [categoryName, brandName]);
 
-  // Parse URL parameters and update Redux state
+  // In ProductList.tsx - UPDATE URL parameter parsing
   useEffect(() => {
     const urlFilters: any = {};
     
@@ -61,11 +108,21 @@ const ProductList: React.FC = () => {
         return;
       }
       
-      if (key === 'inStock') {
-        urlFilters[key] = value === 'true';
-      } else if (key === 'minPrice' || key === 'maxPrice' || key === 'rating' || key === 'page' || key === 'limit') {
+      // 🎯 FIX: Handle price parameters correctly
+      if (key === 'minPrice' || key === 'maxPrice' || key === 'rating' || key === 'page' || key === 'limit') {
         const numValue = Number(value);
         urlFilters[key] = value === '' ? null : (isNaN(numValue) ? null : numValue);
+      } else if (key === 'inStock') {
+        urlFilters[key] = value === 'true';
+      } else if (key === 'sort') {
+        const sortMap: Record<string, string> = {
+          'newest': 'newest',
+          'price-low': 'price-low', 
+          'price-high': 'price-high',
+          'rating': 'rating',
+          'popular': 'popular'
+        };
+        urlFilters.sortBy = sortMap[value] || 'newest';
       } else if (key === 'sortBy') {
         urlFilters[key] = value;
       } else {
@@ -73,6 +130,7 @@ const ProductList: React.FC = () => {
       }
     });
 
+    console.log('🔗 URL Parameters Parsed:', { urlFilters, searchParams: Object.fromEntries(searchParams) });
     dispatch(productActions.updateFilters(urlFilters));
   }, [searchParams, dispatch, brandName, categoryName]);
 
@@ -121,8 +179,17 @@ const ProductList: React.FC = () => {
     setSearchParams(newParams);
   }, [searchParams, setSearchParams, isRouteFilter]);
 
-  // Handle sort change
   const handleSortChange = useCallback((sortBy: string) => {
+    const urlSortMap: Record<string, string> = {
+      'featured': 'newest',
+      'newest': 'newest',
+      'price-low': 'price-low', 
+      'price-high': 'price-high',
+      'rating': 'rating',
+      'popular': 'popular'
+    };
+    
+    const urlSortValue = urlSortMap[sortBy] || sortBy;
     updateFilter('sortBy', sortBy);
   }, [updateFilter]);
 
@@ -203,12 +270,30 @@ const ProductList: React.FC = () => {
     updateFilter('search', null);
   }, [dispatch, updateFilter]);
 
-  // Loading state
+  // Full page loading state (initial load)
   if (loading && products.length === 0) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        <span className="ml-3 text-gray-600">Loading products...</span>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Shimmer */}
+        <HeaderShimmer />
+        
+        <div className="flex flex-col lg:flex-row gap-8 mt-6">
+          {/* Filters Shimmer */}
+          <div className="w-full lg:w-80">
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <FilterShimmer />
+            </div>
+          </div>
+          
+          {/* Products Grid Shimmer */}
+          <div className="flex-1">
+            <div className="flex justify-between items-center mb-6">
+              <div className="h-6 bg-gray-300 rounded w-48 animate-pulse"></div>
+              <div className="h-10 bg-gray-300 rounded w-32 animate-pulse"></div>
+            </div>
+            <ProductCardShimmerGrid count={12} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -258,7 +343,12 @@ const ProductList: React.FC = () => {
           </h1>
           <p className="text-gray-600 mt-1">
             Showing {products.length} of {totalProducts} products
-            {loading && products.length > 0 && ' (Updating...)'}
+            {loading && products.length > 0 && (
+              <span className="inline-flex items-center ml-2 text-blue-600">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                Updating...
+              </span>
+            )}
           </p>
           
           {/* Search results info */}
@@ -320,17 +410,29 @@ const ProductList: React.FC = () => {
 
         {/* Sort and Filter Controls */}
         <div className="flex items-center space-x-4 mt-4 lg:mt-0">
+          {/* Show filters button - visible on all screens */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="lg:hidden bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="lg:hidden bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
           >
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
+            {showFilters ? (
+              <>
+                <span className="mr-2">✕</span>
+                Hide Filters
+              </>
+            ) : (
+              <>
+                <span className="mr-2">☰</span>
+                Show Filters
+              </>
+            )}
           </button>
 
           <select
             value={filters.sortBy || 'featured'}
             onChange={(e) => handleSortChange(e.target.value)}
             className="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loading}
           >
             <option value="featured">Featured</option>
             <option value="newest">Newest</option>
@@ -342,16 +444,24 @@ const ProductList: React.FC = () => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Filters Sidebar */}
-        <ProductDetailFilters
-          showFilters={showFilters}
-          availableFilters={availableFilters}
-          currentFilters={filters}
-          onUpdateFilter={updateFilter}
-          onClearFilters={clearFilters}
-          shouldShowFilter={shouldShowFilter}
-          products={products}
-        />
+        {/* Filters Sidebar - Always visible on desktop, toggleable on mobile */}
+        <div className={`${showFilters ? 'block' : 'hidden'} lg:block w-full lg:w-80`}>
+          {loading ? (
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <FilterShimmer />
+            </div>
+          ) : (
+            <ProductDetailFilters
+              showFilters={true}
+              availableFilters={availableFilters}
+              currentFilters={filters}
+              onUpdateFilter={updateFilter}
+              onClearFilters={clearFilters}
+              shouldShowFilter={shouldShowFilter}
+              products={products}
+            />
+          )}
+        </div>
 
         {/* Products Grid */}
         <div className="flex-1">
@@ -396,18 +506,40 @@ const ProductList: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map(product => (
-                  <ProductCard key={product._id} product={product} />
-                ))}
-              </div>
+              {loading && products.length > 0 ? (
+                // Loading state when we have existing products but are updating
+                <div className="relative">
+                  <div className="opacity-50 pointer-events-none">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {products.map(product => (
+                        <ProductCard key={product._id} product={product} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                      <p className="text-gray-600">Updating products...</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Normal state with products
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {products.map(product => (
+                      <ProductCard key={product._id} product={product} />
+                    ))}
+                  </div>
 
-              {totalPages > 1 && (
-                <ProductPagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                />
+                  {totalPages > 1 && (
+                    <ProductPagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  )}
+                </>
               )}
             </>
           )}

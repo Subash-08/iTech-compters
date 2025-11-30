@@ -39,9 +39,8 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId, onReviewDelete }) 
   // Safe destructuring with defaults
   const { reviews = [], averageRating = 0, totalReviews = 0 } = reviewsData;
 
-  useEffect(() => {
-    dispatch(reviewActions.getProductReviews(productId));
-  }, [dispatch, productId]);
+  // 🎯 REMOVED: The useEffect that was causing duplicate API calls
+  // Reviews are now fetched by the parent ProductReviewsSection only
 
   const handleEdit = (review: Review) => {
     setEditingReview(review);
@@ -49,7 +48,7 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId, onReviewDelete }) 
   };
 
   const handleReviewDelete = () => {
-    dispatch(reviewActions.getProductReviews(productId));
+    // Refresh reviews by calling parent's handler
     if (onReviewDelete) {
       onReviewDelete();
     }
@@ -58,9 +57,11 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId, onReviewDelete }) 
   const handleReviewSuccess = () => {
     setShowEditForm(false);
     setEditingReview(null);
-    dispatch(reviewActions.getProductReviews(productId));
+    // Parent will handle refresh via onReviewDelete
+    if (onReviewDelete) {
+      onReviewDelete();
+    }
   };
-
   // ✅ FIXED: Proper rating distribution calculation
   const ratingDistribution = React.useMemo(() => {
     const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };

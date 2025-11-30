@@ -1,9 +1,10 @@
+// redux/selectors/productSelectors.ts - MINIMAL UPDATES
 import { createSelector } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 
 const selectProductState = (state: RootState) => state.productState;
 
-// Base selectors
+// 🎯 KEEP ALL BASE SELECTORS - NO CHANGES NEEDED
 export const selectProducts = createSelector(
   [selectProductState],
   (productState) => productState.products
@@ -44,19 +45,6 @@ export const selectCurrentPage = createSelector(
   (productState) => productState.currentPage
 );
 
-// Derived selectors
-export const selectHasActiveFilters = createSelector(
-  [selectProductFilters],
-  (filters) => {
-    return Object.entries(filters).some(([key, value]) => {
-      if (key === 'page' || key === 'limit' || key === 'sortBy') return false;
-      if (key === 'minPrice' && value === 0) return false;
-      if (key === 'maxPrice' && value === 5000) return false;
-      return !!value;
-    });
-  }
-);
-
 export const selectSearchResults = createSelector(
   [selectProductState],
   (productState) => productState.searchResults
@@ -82,6 +70,7 @@ export const selectSearchQuery = createSelector(
   (filters) => filters.search || ''
 );
 
+// 🎯 UPDATED: Active filters selector to handle new price parameters
 export const selectActiveFilters = createSelector(
   [selectProductFilters],
   (filters) => {
@@ -102,13 +91,30 @@ export const selectActiveFilters = createSelector(
     if (filters.rating > 0) {
       active.push({ key: 'rating', value: filters.rating, label: `${filters.rating}+ Stars` });
     }
-    if (filters.minPrice > 0) {
-      active.push({ key: 'minPrice', value: filters.minPrice, label: `Min: $${filters.minPrice}` });
+    // 🎯 UPDATED: Handle both legacy and new price parameters
+    const minPrice = filters.minPrice || 0;
+    const maxPrice = filters.maxPrice || 5000;
+    
+    if (minPrice > 0) {
+      active.push({ key: 'minPrice', value: minPrice, label: `Min: ₹${minPrice}` });
     }
-    if (filters.maxPrice < 5000) {
-      active.push({ key: 'maxPrice', value: filters.maxPrice, label: `Max: $${filters.maxPrice}` });
+    if (maxPrice < 5000) {
+      active.push({ key: 'maxPrice', value: maxPrice, label: `Max: ₹${maxPrice}` });
     }
 
     return active;
+  }
+);
+
+// 🎯 KEEP: Has active filters selector
+export const selectHasActiveFilters = createSelector(
+  [selectProductFilters],
+  (filters) => {
+    return Object.entries(filters).some(([key, value]) => {
+      if (key === 'page' || key === 'limit' || key === 'sortBy') return false;
+      if (key === 'minPrice' && value === 0) return false;
+      if (key === 'maxPrice' && value === 5000) return false;
+      return !!value;
+    });
   }
 );

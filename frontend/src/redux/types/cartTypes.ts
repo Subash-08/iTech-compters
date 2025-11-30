@@ -66,6 +66,8 @@ export interface AddToCartData {
     sku?: string;
   };
   quantity?: number;
+   product?: any; // ADD THIS
+  variant?: any; // ADD THIS
 }
 
 export interface UpdateCartQuantityData {
@@ -104,6 +106,7 @@ export interface PreBuiltPCCartItem {
 export interface AddPreBuiltPCToCartData {
   pcId: string;
   quantity?: number;
+   preBuiltPC?: any;
 }
 
 export interface UpdatePreBuiltPCQuantityData {

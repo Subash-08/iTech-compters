@@ -10,6 +10,7 @@ import BlogSection from './BlogSection';
 import HomePage from './FetchBrandsAndCategories';
 import HeroSection from '../heroSection/HeroSection';
 import ProductShowcaseContainer from '../showcase/ProductShowcaseContainer';
+import InstagramReels from './InstagramReels';
 
 const App: React.FC = () => {
   return (
@@ -21,6 +22,15 @@ const App: React.FC = () => {
       <HomePage />
       <DealsSection />
       <PcBuilderPromo />
+       <section className="py-12">
+        <div className="container mx-auto px-4">
+          <InstagramReels 
+            autoPlay={true}
+            showThumbnails={true}
+            className="rounded-xl shadow-2xl"
+          />
+        </div>
+      </section>
       <Testimonials />
       <BlogSection />
     </div>

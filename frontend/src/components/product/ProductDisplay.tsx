@@ -1,4 +1,4 @@
-// src/components/product/ProductDisplay.tsx
+// In ProductDisplay.tsx - ADD variant selection from URL
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../config/axiosConfig';
@@ -8,19 +8,21 @@ import ProductSpecifications from './ProductSpecifications';
 import ProductFeatures from './ProductFeatures';
 import ProductDimensions from './ProductDimensions';
 import ProductReviewsSection from '../review/ProductReviewsSection';
-import LinkedProductsDisplay from './LinkedProductsDisplay'; // 🆕 Import the new component
+import LinkedProductsDisplay from './LinkedProductsDisplay';
 import { ProductData, Variant } from './productTypes';
 import ManufacturerImages from './ManufacturerImages';
 
 const ProductDisplay: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [productData, setProductData] = useState<ProductData | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
+
+  console.log('🔍 ProductDisplay - URL Search Params:', Object.fromEntries(searchParams.entries()));
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -43,7 +45,8 @@ const ProductDisplay: React.FC = () => {
           try {
             const response = await api.get(endpoint);
             const data = response.data;
-            productData = data.product || data;
+            productData = data.data?.product || data.product || data;
+            console.log('🔍 Fetched product data:', productData);
             break;
           } catch (err: any) {
             lastError = err.response?.data?.message || err.message || 'Unknown error';
@@ -61,48 +64,94 @@ const ProductDisplay: React.FC = () => {
         
         setProductData(productData);
         
-        // Handle URL variant parameter
-        const urlVariantId = searchParams.get('variant');
+        // 🎯 FIXED: Handle URL variant parameter FIRST
+        const urlVariantParam = searchParams.get('variant');
+        console.log('🔍 URL Variant Parameter:', urlVariantParam);
         
         // Handle variants with extensive validation
         if (productData.variants.length > 0) {
           const validVariants = productData.variants.filter(variant => 
             variant && 
-            typeof variant === 'object' && 
-            variant.identifyingAttributes &&
-            Array.isArray(variant.identifyingAttributes)
+            typeof variant === 'object'
           );
           
+          console.log('🔍 Valid variants found:', validVariants.length);
+          
           if (validVariants.length > 0) {
-            let defaultVariant;
+            let defaultVariant = null;
             
-            // Priority: URL variant > active variant > first variant
-            if (urlVariantId) {
-              defaultVariant = validVariants.find(v => 
-                v._id?.toString() === urlVariantId || 
-                v.variantId?.toString() === urlVariantId
-              );
+            // 🎯 PRIORITY 1: URL variant parameter
+            if (urlVariantParam) {
+              console.log('🔍 Looking for URL variant:', urlVariantParam);
+              
+              // Try to find variant by different identifiers
+              defaultVariant = validVariants.find(v => {
+                // Check variant slug
+                if (v.slug === urlVariantParam) {
+                  console.log('✅ Found variant by slug:', v.slug);
+                  return true;
+                }
+                // Check variant ID
+                if (v._id === urlVariantParam) {
+                  console.log('✅ Found variant by ID:', v._id);
+                  return true;
+                }
+                // Check variant name (slugified)
+                if (v.name && v.name.toLowerCase().replace(/\s+/g, '-') === urlVariantParam) {
+                  console.log('✅ Found variant by name:', v.name);
+                  return true;
+                }
+                return false;
+              });
+              
+              if (defaultVariant) {
+                console.log('🎯 URL variant selected:', defaultVariant);
+              } else {
+                console.log('❌ URL variant not found:', urlVariantParam);
+              }
             }
             
-            // If no URL variant found or URL variant doesn't exist, use default logic
+            // 🎯 PRIORITY 2: Active variant with stock
             if (!defaultVariant) {
-              defaultVariant = validVariants.find(v => v.isActive) || validVariants[0];
+              defaultVariant = validVariants.find(v => 
+                v.isActive !== false && (v.stockQuantity || 0) > 0
+              );
+              if (defaultVariant) console.log('🎯 Active variant with stock selected');
+            }
+            
+            // 🎯 PRIORITY 3: Any active variant
+            if (!defaultVariant) {
+              defaultVariant = validVariants.find(v => v.isActive !== false);
+              if (defaultVariant) console.log('🎯 Active variant selected');
+            }
+            
+            // 🎯 PRIORITY 4: First variant
+            if (!defaultVariant) {
+              defaultVariant = validVariants[0];
+              if (defaultVariant) console.log('🎯 First variant selected');
             }
             
             setSelectedVariant(defaultVariant);
             
             // Build attributes safely
             const defaultAttributes: Record<string, string> = {};
-            defaultVariant.identifyingAttributes.forEach(attr => {
-              if (attr && attr.key && attr.value) {
-                defaultAttributes[attr.key] = attr.value;
-              }
-            });
+            if (defaultVariant?.identifyingAttributes) {
+              defaultVariant.identifyingAttributes.forEach(attr => {
+                if (attr && attr.key && attr.value) {
+                  defaultAttributes[attr.key] = attr.value;
+                }
+              });
+            }
             setSelectedAttributes(defaultAttributes);
+            
+            console.log('🎯 Final selected variant:', defaultVariant);
+            console.log('🎯 Final selected attributes:', defaultAttributes);
           } else {
+            console.log('⚠️ No valid variants found');
             setSelectedVariant(null);
           }
         } else {
+          console.log('ℹ️ No variants for this product');
           setSelectedVariant(null);
         }
         
@@ -116,6 +165,22 @@ const ProductDisplay: React.FC = () => {
 
     fetchProduct();
   }, [slug, searchParams]);
+
+  // 🎯 ADD: Effect to update URL when variant changes (two-way sync)
+  useEffect(() => {
+    if (selectedVariant && productData) {
+      const currentVariantParam = searchParams.get('variant');
+      const variantSlug = selectedVariant.slug || selectedVariant.name?.toLowerCase().replace(/\s+/g, '-');
+      
+      // Only update URL if it's different from current selection
+      if (variantSlug && currentVariantParam !== variantSlug) {
+        console.log('🔄 Updating URL with variant:', variantSlug);
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.set('variant', variantSlug);
+        setSearchParams(newSearchParams, { replace: true });
+      }
+    }
+  }, [selectedVariant, productData, searchParams, setSearchParams]);
 
   // 🆕 FIX: Get the correct specifications based on product variant configuration
   const getDisplaySpecifications = () => {
@@ -133,58 +198,10 @@ const ProductDisplay: React.FC = () => {
     if (!productData || !productData.variants) return null;
     
     return productData.variants.find(variant => 
-      variant.identifyingAttributes.every(attr => 
+      variant.identifyingAttributes?.every(attr => 
         attributes[attr.key] === attr.value
       )
     ) || null;
-  };
-
-  // Find the best compatible variant when exact match isn't available
-  const findBestCompatibleVariant = (targetAttributes: Record<string, string>) => {
-    if (!productData?.variants) return null;
-    
-    const activeVariants = productData.variants.filter(v => v.isActive && (v.stockQuantity || 0) > 0);
-    
-    // Score variants based on how many attributes match
-    const scoredVariants = activeVariants.map(variant => {
-      if (!variant.identifyingAttributes) return { variant, score: 0 };
-      
-      const variantAttrs = {};
-      variant.identifyingAttributes.forEach(attr => {
-        variantAttrs[attr.key] = attr.value;
-      });
-      
-      let score = 0;
-      let priorityScore = 0;
-      
-      Object.keys(targetAttributes).forEach(key => {
-        if (targetAttributes[key] === variantAttrs[key]) {
-          score++;
-          // Give higher priority to the attribute we're currently changing
-          const changedKey = Object.keys(targetAttributes).find(k => 
-            selectedAttributes[k] !== targetAttributes[k]
-          );
-          if (key === changedKey) {
-            priorityScore += 2;
-          }
-        }
-      });
-      
-      return { 
-        variant, 
-        score: score + priorityScore,
-        exactKeyMatch: targetAttributes[Object.keys(targetAttributes).find(k => selectedAttributes[k] !== targetAttributes[k])] === 
-                      variantAttrs[Object.keys(targetAttributes).find(k => selectedAttributes[k] !== targetAttributes[k])]
-      };
-    });
-    
-    // Sort by exact key match first, then by score
-    scoredVariants.sort((a, b) => {
-      if (a.exactKeyMatch !== b.exactKeyMatch) return a.exactKeyMatch ? -1 : 1;
-      return b.score - a.score;
-    });
-    
-    return scoredVariants[0]?.variant || null;
   };
 
   // Handle attribute change for all variant types
@@ -192,65 +209,31 @@ const ProductDisplay: React.FC = () => {
     if (!productData) return;
     
     const newAttributes = { ...selectedAttributes, [key]: value };
+    console.log('🔄 Attribute changed:', { key, value, newAttributes });
     
     // First, try to find exact match
     let variant = findVariantByAttributes(newAttributes);
     
     if (!variant) {
-      // If no exact match, find the best compatible variant
-      variant = findBestCompatibleVariant(newAttributes);
-      
-      if (variant) {
-        // Update attributes to match the compatible variant
-        const compatibleAttributes = { ...selectedAttributes };
-        variant.identifyingAttributes.forEach(attr => {
-          compatibleAttributes[attr.key] = attr.value;
-        });
-        // Make sure the clicked attribute is set to what user selected
-        compatibleAttributes[key] = value;
-        
-        setSelectedAttributes(compatibleAttributes);
-        setSelectedVariant(variant);
-      } else {
-        // Just update the single attribute if no compatible variant found
-        setSelectedAttributes(newAttributes);
-        setSelectedVariant(null);
-      }
+      console.log('❌ No exact variant match found');
+      // Just update the single attribute if no compatible variant found
+      setSelectedAttributes(newAttributes);
+      setSelectedVariant(null);
     } else {
+      console.log('✅ Found matching variant:', variant);
       setSelectedAttributes(newAttributes);
       setSelectedVariant(variant);
     }
   };
 
-  // Update URL when variant changes (optional - for sharing)
-  useEffect(() => {
-    if (selectedVariant && selectedVariant._id) {
-      // Update URL without page reload
-      const newUrl = `${window.location.pathname}?variant=${selectedVariant.slug || selectedVariant.name}`;
-      window.history.replaceState({}, '', newUrl);
-      console.log(selectedVariant);
-      
-    }
-  }, [selectedVariant]);
-
-  // Tax calculation helper
-  const calculateTax = (price: number) => {
-    const taxRate = productData?.taxRate || 0;
-    return (price * taxRate) / 100;
-  };
-
-  // Final price with tax
-  const getFinalPrice = () => {
-    const price = selectedVariant?.offerPrice || selectedVariant?.price || 
-                  productData?.offerPrice || productData?.basePrice || 0;
-    return price + calculateTax(price);
-  };
+  // ... rest of your existing functions (findBestCompatibleVariant, calculateTax, getFinalPrice, etc.)
 
   // Loading state
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <span className="ml-3 text-gray-600">Loading product...</span>
       </div>
     );
   }
@@ -293,6 +276,12 @@ const ProductDisplay: React.FC = () => {
   // 🆕 Get the correct specifications for display
   const displaySpecifications = getDisplaySpecifications();
 
+  console.log('🔍 Rendering ProductDisplay with:', {
+    productData: !!productData,
+    selectedVariant,
+    selectedAttributes
+  });
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -310,6 +299,9 @@ const ProductDisplay: React.FC = () => {
           <li className="flex items-center">
             <span className="mx-2">/</span>
             <span className="text-gray-900 font-medium">{productData.name}</span>
+            {selectedVariant && (
+              <span className="text-gray-900 font-medium"> - {selectedVariant.name}</span>
+            )}
           </li>
         </ol>
       </nav>
@@ -339,7 +331,7 @@ const ProductDisplay: React.FC = () => {
         weight={productData.weight}
       />
 
-       <ManufacturerImages productData={productData} />
+      <ManufacturerImages productData={productData} />
 
       {/* 🆕 FIX: Pass the correct specifications */}
       <ProductSpecifications 

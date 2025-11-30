@@ -5,36 +5,41 @@ import { CreateReviewData } from '../types/reviewTypes';
 
 // Action creators
 export const reviewActions = {
-  // Get product reviews (PUBLIC)
   getProductReviews: (productId: string) => async (dispatch: any) => {
+    if (!productId || productId === 'undefined' || productId === 'null') {
+      console.error('❌ Invalid productId for reviews:', productId);
+      dispatch({ type: 'reviews/getReviewsFailure', payload: 'Invalid product ID' });
+      return;
+    }
+
     try {
-      dispatch({ type: 'review/getProductReviewsStart' });
-            
-      // ✅ FIXED: Add /api/v1 base path
+      dispatch({ type: 'reviews/getReviewsStart' });
+      
+      console.log('🔄 Fetching reviews for product:', productId);
+      
+      // 🎯 FIXED: Use the correct endpoint - /product/:id/reviews
       const response = await api.get(`/product/${productId}/reviews`);
       
-      dispatch({
-        type: 'review/getProductReviewsSuccess',
-        payload: {
-          productId,
-          reviews: response.data.reviews || [],
-          averageRating: response.data.averageRating || 0,
-          totalReviews: response.data.totalReviews || 0,
-        },
-      });
+      console.log('✅ Reviews API response:', response.data);
       
-      return { success: true, data: response.data };
+      dispatch({
+        type: 'reviews/getReviewsSuccess',
+        payload: {
+          reviews: response.data.data?.reviews || response.data.reviews || [],
+          averageRating: response.data.data?.averageRating || response.data.averageRating || 0,
+          totalReviews: response.data.data?.totalReviews || response.data.totalReviews || 0
+        }
+      });
     } catch (error: any) {
       console.error('❌ Get reviews error:', error);
-      
-      const errorMessage = error.response?.data?.message || 'Failed to fetch reviews';
-      dispatch({
-        type: 'review/getProductReviewsFailure',
-        payload: errorMessage,
+      console.error('❌ Error details:', {
+        url: error.config?.url,
+        status: error.response?.status,
+        message: error.response?.data?.message
       });
       
-      console.warn('Failed to fetch reviews:', errorMessage);
-      return { success: false, error: errorMessage };
+      const errorMessage = error.response?.data?.message || 'Failed to fetch reviews';
+      dispatch({ type: 'reviews/getReviewsFailure', payload: errorMessage });
     }
   },
 

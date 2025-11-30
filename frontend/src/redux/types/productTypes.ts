@@ -6,131 +6,114 @@ export interface Product {
   brand: {
     _id: string;
     name: string;
+    slug: string;
   };
   categories: Array<{
     _id: string;
     name: string;
+    slug: string;
   }>;
+  // 🎯 NEW: Unified price fields from backend
+  effectivePrice: number;
+  mrp: number;
   basePrice: number;
-  mrp?: number; // 🆕 NEW: Added MRP field
-  offerPrice: number;
-  discountPercentage: number;
-  stockQuantity: number;
+  
   images: {
     thumbnail: {
       url: string;
       altText: string;
     };
-    gallery?: Array<{
-      url: string;
-      altText: string;
-    }>;
     hoverImage?: {
       url: string;
       altText: string;
     };
   };
+  
   averageRating: number;
   totalReviews: number;
   condition: string;
-  isActive: boolean;
+  hasStock: boolean;
+  createdAt: string;
   
-  // 🆕 NEW VIRTUAL FIELDS (from backend)
+  // 🎯 VIRTUALS (computed by backend)
+  totalStock?: number;
   sellingPrice?: number;
   displayMrp?: number;
-  calculatedDiscount?: number;
-  priceRange?: {
-    min: number;
-    max: number;
-    hasRange: boolean;
-  };
-  hasActiveVariants?: boolean;
-  availableColors?: Array<{
-    value: string;
-    displayValue: string;
-    hexCode: string;
-    stock: number;
-  }>;
-  
-  // 🆕 Variant fields
-  variantConfiguration?: {
-    hasVariants: boolean;
-    variantType: string;
-    variantAttributes: Array<{
-      key: string;
-      label: string;
-      values: string[];
-    }>;
-  };
-  variants?: Array<{
-    _id: string;
-    name: string;
-    price: number;
-    mrp?: number;
-    stockQuantity: number;
-    isActive: boolean;
-    identifyingAttributes: Array<{
-      key: string;
-      label: string;
-      value: string;
-      isColor?: boolean;
-      hexCode?: string;
-    }>;
-    images: {
-      thumbnail: {
-        url: string;
-        altText: string;
-      };
-      gallery: Array<{
-        url: string;
-        altText: string;
-      }>;
-    };
-  }>;
-  
-  // 🆕 NEW FIELDS
-  hsn?: string;
-  manufacturerImages?: Array<{
-    url: string;
-    altText: string;
-    sectionTitle?: string;
-  }>;
+  discountPercentage?: number;
+  stockStatus?: 'in-stock' | 'low-stock' | 'out-of-stock';
+  isOnSale?: boolean;
+  primaryImage?: string;
 }
 
+// 🆕 NEW: Unified API Response
 export interface ProductsResponse {
-  products: Product[];
-  totalProducts: number;
-  totalPages: number;
-  currentPage: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
-
-export interface AvailableFilters {
-  brands: string[];
-  categories: string[];
-  conditions: string[];
-  priceRange?: {
-    min: number;
-    max: number;
+  success: boolean;
+  message: string;
+  data: {
+    products: Product[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalProducts: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+      limit: number;
+    };
+    filters: {
+      minPrice: number;
+      maxPrice: number;
+      availableBrands: string[];
+      availableCategories: string[];
+      conditions: string[];
+      ratingOptions: number[];
+      inStockCount: number;
+      totalProducts: number;
+    };
+    appliedFilters: {
+      search?: string;
+      brand?: string | string[];
+      category?: string | string[];
+      minPrice?: number;
+      maxPrice?: number;
+      rating?: number;
+      condition?: string | string[];
+      inStock?: boolean;
+      sort?: string;
+    };
   };
-  baseMinPrice?: number;
-  baseMaxPrice?: number;
 }
 
+// 🆕 UPDATED: Filter types for new parameter names
 export interface ProductFilters {
-  category?: string;
-  brand?: string;
-  condition?: string;
+  // 🎯 NEW: Standardized parameter names
+  search?: string;
+  brand?: string | string[];
+  category?: string | string[];
+  'price[gte]'?: number;
+  'price[lte]'?: number;
+  'rating[gte]'?: number;
+  condition?: string | string[];
   inStock?: boolean;
+  sort?: string;
+  page?: number;
+  limit?: number;
+  
+  // 🎯 LEGACY: Backward compatibility (will be mapped)
   minPrice?: number;
   maxPrice?: number;
   rating?: number;
-  brandId?: string;
   sortBy?: string;
-  page?: number;
-  limit?: number;
-  search?: string;
+}
+
+export interface AvailableFilters {
+  minPrice: number;
+  maxPrice: number;
+  availableBrands: string[];
+  availableCategories: string[];
+  conditions: string[];
+  ratingOptions: number[];
+  inStockCount: number;
+  totalProducts: number;
 }
 
 export interface ProductState {
@@ -142,4 +125,8 @@ export interface ProductState {
   totalPages: number;
   totalProducts: number;
   currentPage: number;
+  searchResults: Product[];
+  searchLoading: boolean;
+  searchError: string | null;
+  lastSearchQuery: string;
 }

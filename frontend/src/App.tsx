@@ -29,6 +29,7 @@ import OrderConfirmation from "./components/checkout/OrderConfirmation";
 import OrderList from "./components/order/OrderList";
 import OrderDetails from "./components/order/OrderDetails";
 import OrderTracking from "./components/order/OrderTracking";
+import SupportPage from "./components/support/SupportPage";
 
 // ✅ UPDATED: Root Layout - AuthInitializer at the top level
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -283,6 +284,14 @@ const App: React.FC = () => {
             element={
               <PublicLayout>
                 <ProductList />
+              </PublicLayout>
+            } 
+          />
+          <Route 
+            path="/support" 
+            element={
+              <PublicLayout>
+                <SupportPage />
               </PublicLayout>
             } 
           />

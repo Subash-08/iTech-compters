@@ -1,14 +1,8 @@
-// src/components/reviews/ProductReviewsSection.tsx
+// In ProductReviewsSection.tsx - COMPLETE REWORK with proper data flow
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { reviewActions } from '../../redux/actions/reviewActions';
-import { 
-  selectReviewsByProductId, 
-  selectHasUserReviewed,
-  useSelectReviewsByProductId,
-  useSelectHasUserReviewed 
-} from '../../redux/selectors/reviewSelectors';
 import ReviewsList from './ReviewsList';
 import ReviewForm from './ReviewForm';
 import { Star, MessageSquare, Plus } from 'lucide-react';
@@ -23,60 +17,44 @@ interface ProductReviewsSectionProps {
   };
 }
 
-// Helper function to format user names
-const formatUserName = (user: any) => {
-  if (!user) return 'Anonymous';
-  
-  if (user.fullName && user.fullName !== 'undefined undefined') {
-    return user.fullName;
-  }
-  
-  if (user.firstName) {
-    return `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`.trim();
-  }
-  
-  return user.email?.split('@')[0] || 'User';
-};
-
 const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({ 
   productId, 
   product 
 }) => {
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.authState);
-
   const navigate = useNavigate();
   
-  // ✅ FIXED: Use stable selectors with useMemo to prevent recreation
-  const selectReviewsData = React.useMemo(() => 
-    selectReviewsByProductId(productId), [productId]);
+  // 🎯 FIXED: Get reviews from Redux state directly (simpler approach)
+  const { reviews, loading, error, averageRating: reviewsRating, totalReviews: reviewsCount } = 
+    useSelector((state: RootState) => state.reviewState);
   
-  const selectUserHasReviewed = React.useMemo(() => 
-    selectHasUserReviewed(productId, user?._id), [productId, user?._id]);
-  
-  const reviewsData = useSelector(selectReviewsData);
-  const userHasReviewed = useSelector(selectUserHasReviewed);
-
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Use product data as fallback if reviews data is not loaded yet
-  const averageRating = reviewsData.averageRating || product?.averageRating || 0;
-  const totalReviews = reviewsData.totalReviews || product?.totalReviews || 0;
+  // 🎯 FIXED: Use product data as primary source, reviews data as fallback
+  const averageRating = product?.averageRating || reviewsRating || 0;
+  const totalReviews = product?.totalReviews || reviewsCount || 0;
 
-  useEffect(() => {
-    // Load reviews when component mounts
-    dispatch(reviewActions.getProductReviews(productId));
+  // 🎯 FIXED: Only fetch when we have a valid productId
+  useEffect(() => {    
+    if (productId && productId !== 'undefined' && productId !== 'null') {
+      setIsInitialized(true);
+      dispatch(reviewActions.getProductReviews(productId));
+    }
   }, [dispatch, productId]);
 
   const handleReviewSuccess = () => {
     setShowReviewForm(false);
-    // Refresh reviews data - this will trigger a re-render
-    dispatch(reviewActions.getProductReviews(productId));
+    if (productId) {
+      dispatch(reviewActions.getProductReviews(productId));
+    }
   };
 
   const handleReviewDelete = () => {
-    // Refresh reviews data after delete
-    dispatch(reviewActions.getProductReviews(productId));
+    if (productId) {
+      dispatch(reviewActions.getProductReviews(productId));
+    }
   };
 
   const renderRatingStars = (rating: number, size: number = 20) => {
@@ -98,10 +76,24 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
     return 'Very Poor';
   };
 
+  // 🎯 FIXED: Show loading state until initialized
+  if (!isInitialized) {
+    return (
+      <section className="border-t border-gray-200 mt-12">
+        <div className="max-w-7xl mx-auto py-8 px-4">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="border-t border-gray-200 mt-12">
       <div className="max-w-7xl mx-auto">
-        {/* Header - Always visible */}
+        {/* Header */}
         <div className="w-full py-6 px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
@@ -123,7 +115,7 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
                   </div>
                 </div>
                 
-                {user && !userHasReviewed && (
+                {user && (
                   <div className="hidden sm:block">
                     <button
                       onClick={() => setShowReviewForm(true)}
@@ -138,7 +130,7 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
             </div>
             
             <div className="mt-4 sm:mt-0">
-              {user && !userHasReviewed && (
+              {user && (
                 <button
                   onClick={() => setShowReviewForm(true)}
                   className="sm:hidden flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium w-full justify-center"
@@ -151,7 +143,7 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
           </div>
         </div>
 
-        {/* Reviews List - Always visible */}
+        {/* Reviews List */}
         <div className="pb-8 px-4 sm:px-6 lg:px-8">
           <ReviewsList 
             productId={productId} 
@@ -169,7 +161,7 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
                 Help other customers make informed decisions by sharing your thoughts about {product?.name || 'this product'}.
               </p>
               <button
-                onClick={() => navigate.location.href = '/login'}
+                onClick={() => navigate('/login')} // 🎯 FIXED: Use navigate function properly
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 Sign In to Write a Review
@@ -191,5 +183,4 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
   );
 };
 
-export { formatUserName };
 export default ProductReviewsSection;

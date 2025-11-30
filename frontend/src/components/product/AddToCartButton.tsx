@@ -1,4 +1,3 @@
-// components/product/AddToCartButton.tsx - ENHANCED DEBUG
 import React, { useState } from 'react';
 import { useAppDispatch } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
@@ -15,6 +14,7 @@ interface VariantData {
 
 interface AddToCartButtonProps {
   productId: string;
+  product?: any; // ✅ ADDED: Accept full product object
   variant?: VariantData | null;
   productType?: 'product' | 'prebuilt-pc';
   className?: string;
@@ -27,10 +27,11 @@ interface AddToCartButtonProps {
 
 const AddToCartButton: React.FC<AddToCartButtonProps> = ({ 
   productId, 
-  variant,
-  productType = 'product',
-  className = '',
-  quantity = 1,
+  product, // ✅ Destructure product
+  variant, 
+  productType = 'product', 
+  className = '', 
+  quantity = 1, 
   disabled = false,
   showIcon = true,
   iconSize = "w-4 h-4",
@@ -39,35 +40,30 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent parent link clicks
+    e.stopPropagation();
+
     if (loading || disabled) return;
     
-    console.log('🛒 AddToCartButton clicked with:', {
-      productId,
-      variant,
-      productType,
-      quantity,
-      hasVariant: !!variant,
-      variantId: variant?.variantId
-    });
+    console.log('🛒 AddToCart Clicked:', { productId, hasProductData: !!product });
     
     setLoading(true);
     try {
       if (productType === 'prebuilt-pc') {
         await dispatch(cartActions.addPreBuiltPCToCart({ 
           pcId: productId, 
-          quantity 
+          quantity,
+          preBuiltPC: product // Pass PC data for guest cart
         }));
       } else {
-        // ✅ FIXED: Send both productId and variant data
         const cartPayload = {
           productId, 
-          variantId: variant?.variantId, // Extract variantId from variant object
-          variantData: variant, // Send full variant data
-          quantity 
+          variantId: variant?.variantId, 
+          variantData: variant, 
+          quantity,
+          product: product // ✅ CRITICAL: Pass full product data for Guest Cart
         };
-        
-        console.log('🛒 Dispatching cart payload:', cartPayload);
         
         await dispatch(cartActions.addToCart(cartPayload));
       }
@@ -94,7 +90,16 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           <span>Adding...</span>
         </div>
       ) : (
-        children || 'Add to Cart'
+        children || (
+          <div className="flex items-center justify-center gap-2">
+             {showIcon && (
+               <svg className={iconSize} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+               </svg>
+             )}
+             <span>Add to Cart</span>
+          </div>
+        )
       )}
     </button>
   );

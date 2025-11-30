@@ -50,6 +50,19 @@ interface Brand {
   };
   productCount?: number;
 }
+// Mock brand data for UI only - matches the image exactly
+const mockBrands = [
+  "Acer", "Corsair", "Gamdias", "Lian Li", "Rapoo", "Toshiba",
+  "Adata", "Crucial", "Gigabyte", "Logitech", "Razer", "TP-Link",
+  "AMD", "Deepcool", "Glorious", "Mad Catz", "Rode", "ViewSonic",
+  "Ant Esports", "Dell", "HP", "MSI", "Samsung", "Western Digital",
+  "Antec", "D-Link", "Hyperx", "Nevel Level", "Sapphire", "Zebronics",
+  "Racing", "AOC", "Elgato", "Inno3D", "Seagate", "Zotac",
+  "Noctua", "Arctic", "EVM", "Intel", "Sony", "Fractal Design",
+  "Kingston", "Nvidia", "Asus", "Super Flower", "BenQ", "GSkill",
+  "Nzxt", "Lenovo", "TeamGroup", "Patriot", "Cooler Master", "Galax",
+  "LG", "Thermal Grizzly", "Phanteks"
+];
 
 // Updated navItems structure - will be populated dynamically
 let navItems: NavItem[] = [
@@ -83,6 +96,20 @@ const AuthenticatedUserSection: React.FC<{ closeMobileMenu: () => void }> = ({ c
   useEffect(() => {
     setImageError(false);
   }, [avatarUrl]);
+
+  // Mock brand data for UI only - matches the image exactly
+const mockBrands = [
+  "Acer", "Corsair", "Gamdias", "Lian Li", "Rapoo", "Toshiba",
+  "Adata", "Crucial", "Gigabyte", "Logitech", "Razer", "TP-Link",
+  "AMD", "Deepcool", "Glorious", "Mad Catz", "Rode", "ViewSonic",
+  "Ant Esports", "Dell", "HP", "MSI", "Samsung", "Western Digital",
+  "Antec", "D-Link", "Hyperx", "Nevel Level", "Sapphire", "Zebronics",
+  "Racing", "AOC", "Elgato", "Inno3D", "Seagate", "Zotac",
+  "Noctua", "Arctic", "EVM", "Intel", "Sony", "Fractal Design",
+  "Kingston", "Nvidia", "Asus", "Super Flower", "BenQ", "GSkill",
+  "Nzxt", "Lenovo", "TeamGroup", "Patriot", "Cooler Master", "Galax",
+  "LG", "Thermal Grizzly", "Phanteks"
+];
 
   const userInitials = `${displayUser?.firstName?.charAt(0) || 'U'}${displayUser?.lastName?.charAt(0) || ''}`;
 
@@ -630,12 +657,7 @@ const Navbar: React.FC = () => {
         children: brandItems
       },
       { label: 'Pre-Built PC', href: '/prebuilt-pcs' },
-
-
-
-
-
-      {
+     {
     label: 'Services',
     href: '/services',
     children: [

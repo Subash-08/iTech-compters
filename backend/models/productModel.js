@@ -250,7 +250,68 @@ productSchema.virtual('priceRange').get(function () {
         hasRange: prices.length > 1
     };
 });
+// ✅ KEEP THESE - Essential for product listings
+productSchema.virtual('totalStock').get(function () {
+    if (this.variantConfiguration.hasVariants && this.variants.length > 0) {
+        return this.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+    }
+    return this.stockQuantity || 0;
+});
 
+// ✅ KEEP - For displaying price in listings
+productSchema.virtual('sellingPrice').get(function () {
+    if (this.variantConfiguration.hasVariants && this.variants.length > 0) {
+        const activeVariants = this.variants.filter(v => v.isActive);
+        if (activeVariants.length === 0) return this.basePrice || 0;
+
+        const prices = activeVariants.map(v => v.price || Infinity);
+        return Math.min(...prices);
+    }
+    return this.basePrice || 0;
+});
+
+// ✅ KEEP - For showing MRP in listings
+productSchema.virtual('displayMrp').get(function () {
+    if (this.variantConfiguration.hasVariants && this.variants.length > 0) {
+        const activeVariants = this.variants.filter(v => v.isActive);
+        if (activeVariants.length === 0) return this.mrp || this.basePrice || 0;
+
+        const mrps = activeVariants.map(v => v.mrp || v.price || 0);
+        return Math.max(...mrps);
+    }
+    return this.mrp || this.basePrice || 0;
+});
+
+// ✅ KEEP - For showing discount badge
+productSchema.virtual('discountPercentage').get(function () {
+    const mrp = this.displayMrp;
+    const sellingPrice = this.sellingPrice;
+
+    if (mrp > sellingPrice && mrp > 0) {
+        return Math.round(((mrp - sellingPrice) / mrp) * 100);
+    }
+    return 0;
+});
+
+// Quick stock status for UI badges
+productSchema.virtual('stockStatus').get(function () {
+    const totalStock = this.totalStock;
+    if (totalStock === 0) return 'out-of-stock';
+    if (totalStock <= 10) return 'low-stock';
+    return 'in-stock';
+});
+
+// Primary image with fallbacks (for listings)
+productSchema.virtual('primaryImage').get(function () {
+    return this.images?.thumbnail ||
+        this.images?.hoverImage ||
+        (this.images?.gallery?.length > 0 ? this.images.gallery[0] : null);
+});
+
+// Quick sale check (for sale badges)
+productSchema.virtual('isOnSale').get(function () {
+    return this.discountPercentage > 0;
+});
 // 🆕 Get available colors
 productSchema.virtual('availableColors').get(function () {
     if (!this.variantConfiguration.hasVariants || !this.variants.length) return [];

@@ -1,12 +1,34 @@
 const express = require("express");
 const {
-    getProducts, getProductBySlug, getProductsByCategory,
-    getProductsByBrand, searchProducts, filterProducts, getProductVariants,
+    // 🎯 UNIFIED ENDPOINTS
+    getProducts,                    // Unified search/filter/sort/pagination
+    getProductBySlug,              // Single product view
+
+    // 🎯 SPECIALIZED ENDPOINTS  
+    getRelatedProducts,            // Related products
+    getFeaturedProducts,           // Featured products
+    getNewArrivals,                // New arrivals
+
+    // 🎯 LEGACY REDIRECTS (internal use)
+    getAllProducts,                // → getProducts
+    advancedSearch,                // → getProducts  
+    searchProducts,                // → getProducts
+    filterProducts,                // → getProducts
+    getProductsByCategory,         // → getProducts
+    getProductsByBrand,            // → getProducts
+
+    // 🎯 PRODUCT VARIANTS
+    getProductVariants,
+
+    // 🎯 ADMIN ENDPOINTS
     createProduct,
-    getAdminProducts, getAdminProductById, deleteProduct,
-    addVariant, updateVariant, deleteVariant, addMultipleProducts,
-    getAllProducts,
-    advancedSearch,
+    getAdminProducts,
+    getAdminProductById,
+    deleteProduct,
+    addVariant,
+    updateVariant,
+    deleteVariant,
+    addMultipleProducts,
     getProductsForSelection,
     getProductsByIds,
     getProductAnalytics,
@@ -17,26 +39,44 @@ const { productUpload, handleMulterError } = require("../config/multerConfig");
 
 const router = express.Router();
 
-// Public / Not Logged In
+// =============================================
+// 🎯 PUBLIC ROUTES - UNIFIED PRODUCT SYSTEM
+// =============================================
 
-router.get('/products/search', advancedSearch); // /api/products/search?q=laptop
-router.get('/products/quick-search', searchProducts); // Simple search
-router.get('/products', getAllProducts);
-router.get("/products", getProducts);  // Get all products with advanced filtering
-router.get("/products/slug/:slug", getProductBySlug);  // Get product by slug
-router.get("/products/category/:categoryName", getProductsByCategory);  // Products of a category by name/slug
-router.get("/products/brand/:brandName", getProductsByBrand);  // Products of a brand by name/slug
-router.get("/products/by-ids", getProductsByIds);
+// 🎯 UNIFIED PRODUCT ENDPOINT (Handles everything)
+// GET /api/products?search=laptop&brand=apple&category=mobiles&price[gte]=1000&rating=4&sort=price-low&page=1
+router.get("/products", getProducts);
 
-router.get("/products/filters", filterProducts);  // Filter products: price, rating, availability, condition
-router.get("/products/:id/variants", getProductVariants);  // Get all variants of a product
+// 🎯 SINGLE PRODUCT & RELATED
+router.get("/products/slug/:slug", getProductBySlug);                    // Single product detail
+router.get("/products/related/:slug", getRelatedProducts);               // Related products
+router.get("/products/featured", getFeaturedProducts);                   // Featured products
+router.get("/products/new-arrivals", getNewArrivals);                    // New arrivals
 
+// 🎯 PRODUCT VARIANTS
+router.get("/products/:id/variants", getProductVariants);                // Get product variants
+router.get("/products/by-ids", getProductsByIds);                        // Get products by IDs
 
-// Admin Routes
-// Admin products route
+// =============================================
+// 🔄 LEGACY ENDPOINTS (Keep for backward compatibility)
+// =============================================
+
+router.get('/products/search', advancedSearch);                          // → /products?search=
+router.get('/products/quick-search', searchProducts);                    // → /products?search=
+router.get("/products/filters", filterProducts);                         // → /products?filters
+router.get("/products/category/:categoryName", getProductsByCategory);   // → /products?category=
+router.get("/products/brand/:brandName", getProductsByBrand);            // → /products?brand=
+
+// =============================================
+// 🔐 ADMIN ROUTES
+// =============================================
+
+// Admin products management
 router.get('/admin/products', isAuthenticatedUser, authorizeRoles("admin"), getAdminProducts);
+router.get("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), getAdminProductById);
+router.delete("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), deleteProduct);
 
-// Update product status
+// Product creation
 router.post("/admin/product/new",
     isAuthenticatedUser,
     authorizeRoles("admin"),
@@ -49,16 +89,17 @@ router.post("/admin/product/new",
     handleMulterError,
     createProduct
 );
-router.get("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), getAdminProductById);  // Get product by ID (admin)
-router.delete("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), deleteProduct);  // Delete product
+
+// Bulk operations
 router.post("/admin/products/bulk", isAuthenticatedUser, authorizeRoles("admin"), addMultipleProducts);
 
+// Variant management
+router.post("/admin/product/:id/variant", isAuthenticatedUser, authorizeRoles("admin"), addVariant);
+router.put("/admin/product/:id/variant/:variantId", isAuthenticatedUser, authorizeRoles("admin"), updateVariant);
+router.delete("/admin/product/:id/variant/:variantId", isAuthenticatedUser, authorizeRoles("admin"), deleteVariant);
+
+// Admin utilities
+router.get("/admin/products/selection", isAuthenticatedUser, authorizeRoles("admin"), getProductsForSelection);
 router.get('/admin/analytics/products', isAuthenticatedUser, authorizeRoles('admin'), getProductAnalytics);
 
-// Admin routes for variants
-router.post("/admin/product/:id/variant", isAuthenticatedUser, authorizeRoles("admin"), addVariant);  // Add variant
-router.put("/admin/product/:id/variant/:variantId", isAuthenticatedUser, authorizeRoles("admin"), updateVariant);  // Update variant
-router.delete("/admin/product/:id/variant/:variantId", isAuthenticatedUser, authorizeRoles("admin"), deleteVariant);  // Delete variant
-// Add to your product routes
-router.get("/admin/products/selection", isAuthenticatedUser, authorizeRoles("admin"), getProductsForSelection);
-module.exports = router; 
+module.exports = router;

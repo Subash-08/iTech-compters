@@ -1,218 +1,105 @@
-// redux/actions/productActions.ts - FIXED VERSION
+// redux/actions/productActions.ts - UPDATED FOR UNIFIED BACKEND
 import { toast } from 'react-toastify';
 import api from '../../components/config/axiosConfig';
 import { Product, ProductsResponse, ProductFilters, AvailableFilters } from '../types/productTypes';
 
-// Enhanced API Service with Proper Parameter Formatting
 export const productAPI = {
   getProducts: async (filters: ProductFilters): Promise<ProductsResponse> => {
     try {
-      // 🛑 FIX: Use proper parameter names that backend expects
       const params: Record<string, any> = {
         page: filters.page || 1,
         limit: filters.limit || 12,
-        status: 'Published',
       };
 
-      // 🛑 CRITICAL FIX: Use array format for brands and categories
-      if (filters.brand) params.brands = Array.isArray(filters.brand) ? filters.brand : [filters.brand];
-      if (filters.category) params.categories = Array.isArray(filters.category) ? filters.category : [filters.category];
-      
+      // Direct mapping
+      if (filters.search) params.search = filters.search;
+      if (filters.brand) params.brand = filters.brand;
+      if (filters.category) params.category = filters.category;
       if (filters.condition) params.condition = filters.condition;
       if (filters.inStock) params.inStock = 'true';
-      if (filters.minPrice) params.minPrice = filters.minPrice;
       
-      // Only send maxPrice if it's greater than 0
-      if (filters.maxPrice && filters.maxPrice > 0) {
-        params.maxPrice = filters.maxPrice;
+      // 🎯 FIX: Send BOTH minPrice and maxPrice
+      if (filters.minPrice !== undefined && filters.minPrice > 0) {
+        params['minPrice'] = filters.minPrice; // Send as minPrice
+        params['price[gte]'] = filters.minPrice; // Also send as price[gte] for backend
+      }
+      if (filters.maxPrice !== undefined && filters.maxPrice > 0) {
+        params['maxPrice'] = filters.maxPrice; // Send as maxPrice  
+        params['price[lte]'] = filters.maxPrice; // Also send as price[lte] for backend
       }
       
-      if (filters.rating) params.rating = filters.rating;
-      if (filters.search) params.search = filters.search;
-
-      // 🛑 FIX: Use 'sort' parameter (not 'sortBy')
+      if (filters.rating) params['rating[gte]'] = filters.rating;
+      
       const sortMap: Record<string, string> = {
-        'featured': '-createdAt',
-        'newest': '-createdAt', 
-        'price-low': 'basePrice',
-        'price-high': '-basePrice',
-        'rating': '-averageRating'
+        'featured': 'newest',
+        'newest': 'newest', 
+        'price-low': 'price-low',
+        'price-high': 'price-high',
+        'rating': 'rating',
+        'popular': 'popular'
       };
       
-      params.sort = sortMap[filters.sortBy || 'featured'] || '-createdAt';
+      params.sort = sortMap[filters.sortBy || 'featured'] || 'newest';
 
-      console.log('🔄 Sending API request with params:', params);
+      console.log('🔄 Unified API Request:', params);
 
       const response = await api.get<ProductsResponse>('/products', { params });
       
-      return {
-        ...response.data,
-        hasNext: response.data.currentPage < response.data.totalPages,
-        hasPrev: response.data.currentPage > 1
-      };
+      return response.data;
+      
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to fetch products';
       throw new Error(errorMessage);
     }
   },
 
+  // 🎯 UPDATED: Quick search uses unified endpoint
   searchProducts: async (query: string, limit: number = 5): Promise<Product[]> => {
     try {
-      const params: Record<string, any> = {
+      const params = {
         search: query,
         limit: limit,
-        status: 'Published',
       };
 
       const response = await api.get<ProductsResponse>('/products', { params });
-      return response.data.products;
+      return response.data.data.products; // 🎯 NEW: Access products from data property
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Search failed';
       throw new Error(errorMessage);
     }
   },
 
-  // Advanced search with filters
-  advancedSearch: async (query: string, filters: Partial<ProductFilters> = {}): Promise<ProductsResponse> => {
-    try {
-      const params: Record<string, any> = {
-        search: query,
-        page: filters.page || 1,
-        limit: filters.limit || 12,
-        status: 'Published',
-      };
-
-      // 🛑 FIX: Use array format
-      if (filters.brand) params.brands = Array.isArray(filters.brand) ? filters.brand : [filters.brand];
-      if (filters.category) params.categories = Array.isArray(filters.category) ? filters.category : [filters.category];
-      
-      if (filters.minPrice) params.minPrice = filters.minPrice;
-      if (filters.maxPrice && filters.maxPrice > 0) params.maxPrice = filters.maxPrice;
-      if (filters.rating) params.rating = filters.rating;
-      if (filters.inStock) params.inStock = 'true';
-      if (filters.condition) params.condition = filters.condition;
-
-      // 🛑 FIX: Use 'sort' parameter
-      const sortMap: Record<string, string> = {
-        'featured': '-createdAt',
-        'newest': '-createdAt', 
-        'price-low': 'basePrice',
-        'price-high': '-basePrice',
-        'rating': '-averageRating'
-      };
-      
-      if (filters.sortBy) {
-        params.sort = sortMap[filters.sortBy] || '-createdAt';
-      }
-
-      const response = await api.get<ProductsResponse>('/products', { params });
-      
-      return {
-        ...response.data,
-        hasNext: response.data.currentPage < response.data.totalPages,
-        hasPrev: response.data.currentPage > 1
-      };
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Advanced search failed';
-      throw new Error(errorMessage);
-    }
-  },
-
+  // 🎯 UPDATED: Category products redirect to unified endpoint
   getProductsByCategory: async (categoryName: string, filters: ProductFilters): Promise<ProductsResponse> => {
     try {
-      const params: Record<string, any> = {
-        page: filters.page || 1,
-        limit: filters.limit || 12,
+      // Just add category to filters and use unified endpoint
+      const unifiedFilters = {
+        ...filters,
+        category: categoryName
       };
-
-      // 🛑 FIX: Use array format for brands
-      if (filters.brand) params.brands = Array.isArray(filters.brand) ? filters.brand : [filters.brand];
-      
-      if (filters.condition) params.condition = filters.condition;
-      if (filters.inStock) params.inStock = 'true';
-      if (filters.minPrice) params.minPrice = filters.minPrice;
-      
-      if (filters.maxPrice && filters.maxPrice > 0) {
-        params.maxPrice = filters.maxPrice;
-      }
-      
-      if (filters.rating) params.rating = filters.rating;
-      if (filters.search) params.search = filters.search;
-
-      // 🛑 FIX: Use 'sort' parameter
-      const sortMap: Record<string, string> = {
-        'featured': '-createdAt',
-        'newest': '-createdAt', 
-        'price-low': 'basePrice',
-        'price-high': '-basePrice',
-        'rating': '-averageRating'
-      };
-      
-      if (filters.sortBy) {
-        params.sort = sortMap[filters.sortBy] || '-createdAt';
-      } else {
-        params.sort = '-createdAt';
-      }      
-      
-      console.log('🔄 Sending category request with params:', params);
-      
-      const response = await api.get<ProductsResponse>(`/products/category/${categoryName}`, { params });
-      
-      return response.data;
+      return await productAPI.getProducts(unifiedFilters);
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || `Failed to fetch products for category ${categoryName}`;
       throw new Error(errorMessage);
     }
   },
 
+  // 🎯 UPDATED: Brand products redirect to unified endpoint
   getProductsByBrand: async (brandName: string, filters: ProductFilters): Promise<ProductsResponse> => {
     try {
-      const params: Record<string, any> = {
-        page: filters.page || 1,
-        limit: filters.limit || 12,
+      // Just add brand to filters and use unified endpoint
+      const unifiedFilters = {
+        ...filters,
+        brand: brandName
       };
-
-      // 🛑 FIX: Use array format for categories
-      if (filters.category) params.categories = Array.isArray(filters.category) ? filters.category : [filters.category];
-      
-      if (filters.condition) params.condition = filters.condition;
-      if (filters.inStock) params.inStock = 'true';
-      if (filters.minPrice) params.minPrice = filters.minPrice;
-      
-      if (filters.maxPrice && filters.maxPrice > 0) {
-        params.maxPrice = filters.maxPrice;
-      }
-      
-      if (filters.rating) params.rating = filters.rating;
-      if (filters.search) params.search = filters.search;
-
-      // 🛑 FIX: Use 'sort' parameter
-      const sortMap: Record<string, string> = {
-        'featured': '-createdAt',
-        'newest': '-createdAt', 
-        'price-low': 'basePrice',
-        'price-high': '-basePrice',
-        'rating': '-averageRating'
-      };
-      
-      if (filters.sortBy) {
-        params.sort = sortMap[filters.sortBy] || '-createdAt';
-      } else {
-        params.sort = '-createdAt';
-      }      
-      
-      console.log('🔄 Sending brand request with params:', params);
-      
-      const response = await api.get<ProductsResponse>(`/products/brand/${brandName}`, { params });
-      
-      return response.data;
+      return await productAPI.getProducts(unifiedFilters);
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || `Failed to fetch products for brand ${brandName}`;
       throw new Error(errorMessage);
     }
   },
 
-  // Get accurate price range for current filters
+  // 🎯 KEEP: Price range function (updated internally)
   getPriceRange: async (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }): Promise<{ minPrice: number; maxPrice: number }> => {
     try {
       const rangeFilters = { ...filters };
@@ -236,8 +123,9 @@ export const productAPI = {
         response = await productAPI.getProducts(priceRangeParams);
       }
       
-      if (response.products.length > 0) {
-        const prices = response.products.map(product => product.basePrice);
+      // 🎯 UPDATED: Use effectivePrice instead of basePrice
+      if (response.data.products.length > 0) {
+        const prices = response.data.products.map(product => product.effectivePrice || product.basePrice);
         
         const minPrice = Math.floor(Math.min(...prices));
         const maxPrice = Math.ceil(Math.max(...prices));        
@@ -253,7 +141,7 @@ export const productAPI = {
     }
   },
 
-  // Get max price only (for backward compatibility)
+  // 🎯 KEEP: Get max price (updated internally)
   getMaxPrice: async (filters: Partial<ProductFilters>): Promise<number> => {
     try {
       const priceRange = await productAPI.getPriceRange(filters);
@@ -265,9 +153,21 @@ export const productAPI = {
   },
 };
 
-// Enhanced Action Creators with Proper Parameter Handling
+// 🎯 NEW: Parameter mapper for URL compatibility
+const mapToNewResponseFormat = (response: ProductsResponse) => {
+  return {
+    products: response.data.products,
+    totalPages: response.data.pagination.totalPages,
+    totalProducts: response.data.pagination.totalProducts,
+    currentPage: response.data.pagination.currentPage,
+    hasNext: response.data.pagination.hasNextPage,
+    hasPrev: response.data.pagination.hasPrevPage
+  };
+};
+
+// 🎯 UPDATED: Enhanced Action Creators
 export const productActions = {
-  // 🛑 FIXED: Fetch products with proper parameter formatting
+  // 🎯 UPDATED: Main fetch products action
   fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
       dispatch({ type: 'products/fetchProductsStart' });
@@ -283,32 +183,34 @@ export const productActions = {
         response = await productAPI.getProducts(filters);
       }
       
+      // 🎯 NEW: Extract data from unified response
+      const responseData = mapToNewResponseFormat(response);
+      
       dispatch({
         type: 'products/fetchProductsSuccess',
         payload: {
-          products: response.products,
-          totalPages: response.totalPages,
-          totalProducts: response.totalProducts,
-          currentPage: response.currentPage,
-          // 🛑 FIX: Include search query in response
+          products: responseData.products,
+          totalPages: responseData.totalPages,
+          totalProducts: responseData.totalProducts,
+          currentPage: responseData.currentPage,
           searchQuery: filters.search || null,
         },
       });
 
-      // Extract available filters from products
-      dispatch(productActions.extractAvailableFilters(response.products, routeParams));
-      
-      // Fetch base price range WITHOUT current price filters
-      const baseFilters = { 
-        ...filters,
-        minPrice: undefined,
-        maxPrice: undefined,
-        limit: 1000, 
-        page: 1, 
-        sortBy: 'price-low' 
-      };
-      
-      dispatch(productActions.fetchBasePriceRange(baseFilters, routeParams));
+      // 🎯 NEW: Update available filters from backend metadata
+      dispatch({
+        type: 'products/updateAvailableFilters',
+        payload: {
+          minPrice: response.data.filters.minPrice,
+          maxPrice: response.data.filters.maxPrice,
+          availableBrands: response.data.filters.availableBrands,
+          availableCategories: response.data.filters.availableCategories,
+          conditions: response.data.filters.conditions,
+          ratingOptions: response.data.filters.ratingOptions,
+          inStockCount: response.data.filters.inStockCount,
+          totalProducts: response.data.filters.totalProducts,
+        },
+      });
       
     } catch (error: any) {
       dispatch({
@@ -319,7 +221,7 @@ export const productActions = {
     }
   },
 
-  // Fetch base price range with explicit filters
+  // 🎯 KEEP ALL OTHER ACTIONS (they work with the mapped response)
   fetchBasePriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
       const baseRangeFilters = {
@@ -356,12 +258,10 @@ export const productActions = {
     }
   },
 
-  // Extract available filters with ALL options for current route
   extractAvailableFilters: (products: Product[], routeParams?: { brandName?: string; categoryName?: string }) => (dispatch: any) => {
     const brands = new Set<string>();
     const categories = new Set<string>();
 
-    // Collect ALL brands and categories from the current route's products
     products.forEach(product => {
       if (product.brand?.name) {
         brands.add(product.brand.name);
@@ -386,7 +286,6 @@ export const productActions = {
     });
   },
 
-  // Fetch price range - both min and max
   fetchPriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
       const priceRange = await productAPI.getPriceRange(filters, routeParams);
@@ -414,31 +313,27 @@ export const productActions = {
     }
   },
 
-  // Update filters
+  // 🎯 KEEP ALL THESE ACTIONS - NO CHANGES NEEDED
   updateFilters: (filters: Partial<ProductFilters>) => ({
     type: 'products/updateFilters',
     payload: filters,
   }),
 
-  // Clear filters (preserve route-based filters)
   clearFilters: (routeParams?: { brandName?: string; categoryName?: string }) => ({
     type: 'products/clearFilters',
     payload: routeParams,
   }),
 
-  // Set current page
   setCurrentPage: (page: number) => ({
     type: 'products/setCurrentPage',
     payload: page,
   }),
 
-  // Set sort by
   setSortBy: (sortBy: string) => ({
     type: 'products/setSortBy',
     payload: sortBy,
   }),
 
-  // Update available filters
   updateAvailableFilters: (filters: Partial<AvailableFilters>) => ({
     type: 'products/updateAvailableFilters',
     payload: filters,
@@ -462,25 +357,24 @@ export const productActions = {
     }
   },
 
-  // Clear search results
   clearSearchResults: () => ({
     type: 'products/clearSearchResults',
   }),
 
-  // Advanced search with filters
   advancedSearch: (query: string, filters: ProductFilters) => async (dispatch: any) => {
     try {
       dispatch({ type: 'products/fetchProductsStart' });
       
-      const response = await productAPI.advancedSearch(query, filters);
+      const response = await productAPI.getProducts({ ...filters, search: query });
+      const responseData = mapToNewResponseFormat(response);
       
       dispatch({
         type: 'products/fetchProductsSuccess',
         payload: {
-          products: response.products,
-          totalPages: response.totalPages,
-          totalProducts: response.totalProducts,
-          currentPage: response.currentPage,
+          products: responseData.products,
+          totalPages: responseData.totalPages,
+          totalProducts: responseData.totalProducts,
+          currentPage: responseData.currentPage,
           searchQuery: query,
         },
       });
@@ -493,7 +387,6 @@ export const productActions = {
     }
   },
 
-  // Clear error
   clearError: () => ({
     type: 'products/clearError',
   }),

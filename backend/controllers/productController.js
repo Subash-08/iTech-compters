@@ -7,764 +7,332 @@ const brandModel = require("../models/brandModel");
 const APIFeatures = require("../utils/apiFeatures");
 const catchAsyncErrors = require("../middlewares/catchAsyncError");
 const mongoose = require("mongoose");
+const AdvancedFilterBuilder = require('../utils/advancedFilterBuilder');
 
 
-exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
+exports.getProducts = catchAsyncErrors(async (req, res, next) => {
     try {
-        const {
-            page = 1,
-            limit = 12,
-            sort = 'createdAt',
-            order = 'desc',
-            minPrice,
-            maxPrice,
-            inStock,
-            search,
-            categories,
-            brands,
-            status = 'Published'
-        } = req.query;
+        const filterBuilder = new AdvancedFilterBuilder(Product, req.query);
+        const { main, count, metadata, pagination } = await filterBuilder.buildCompletePipeline();
 
-        // Build filter for public products only
-        const filter = {
-            isActive: true,
-            status: status
-        };
+        // Execute all pipelines in parallel
+        const [products, countResult, metadataResult] = await Promise.all([
+            Product.aggregate(main),
+            Product.aggregate(count),
+            Product.aggregate(metadata)
+        ]);
 
-        // Search filter
-        if (search && search.trim() !== '') {
-            const searchRegex = new RegExp(search.trim(), 'i');
-            filter.$or = [
-                { name: searchRegex },
-                { description: searchRegex },
-                { tags: searchRegex },
-                { 'variants.name': searchRegex }
-            ];
-        }
+        const totalProducts = countResult[0]?.totalCount || 0;
+        const totalPages = Math.ceil(totalProducts / pagination.limit);
 
-        // 🆕 UPDATED: Price filter - use basePrice for filtering
-        if (minPrice || maxPrice) {
-            filter.basePrice = {};
-            if (minPrice) {
-                const min = Number(minPrice);
-                if (isNaN(min)) {
-                    return next(new ErrorHandler('Invalid minPrice parameter', 400));
-                }
-                filter.basePrice.$gte = min;
-            }
-            if (maxPrice) {
-                const max = Number(maxPrice);
-                if (isNaN(max)) {
-                    return next(new ErrorHandler('Invalid maxPrice parameter', 400));
-                }
-                filter.basePrice.$lte = max;
-            }
-        }
-
-        // Stock filter
-        if (inStock === 'true') {
-            filter.$or = [
-                { stockQuantity: { $gt: 0 } },
-                {
-                    'variantConfiguration.hasVariants': true,
-                    'variants': {
-                        $elemMatch: {
-                            isActive: true,
-                            stockQuantity: { $gt: 0 }
-                        }
-                    }
-                }
-            ];
-        }
-
-        // Categories filter
-        if (categories) {
-            const categoryArray = Array.isArray(categories) ? categories : [categories];
-            filter.categories = { $in: categoryArray };
-        }
-
-        // Brands filter
-        if (brands) {
-            const brandArray = Array.isArray(brands) ? brands : [brands];
-            filter.brand = { $in: brandArray };
-        }
-
-        // ✅ FIX: Define sortConfig properly
-        const sortConfig = {};
-        let sortField = sort;
-
-        // Handle negative sort fields (descending)
-        if (sort.startsWith('-')) {
-            sortField = sort.substring(1);
-            sortConfig[sortField] = -1;
-        } else {
-            sortConfig[sortField] = order === 'desc' ? -1 : 1;
-        }
-
-        // ADD VALIDATION FOR PAGE AND LIMIT
-        const pageNum = Math.max(1, parseInt(page));
-        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
-        const skip = (pageNum - 1) * limitNum;
-
-        // Execute query
-        const products = await Product.find(filter)
-            .select('name slug brand categories images basePrice mrp offerPrice discountPercentage stockQuantity variantConfiguration variants averageRating totalReviews hsn manufacturerImages')
-            .populate("categories", "name slug")
-            .populate("brand", "name slug")
-            .sort(sortConfig)
-            .skip(skip)
-            .limit(limitNum)
-            .lean();
-
-        const totalProducts = await Product.countDocuments(filter);
+        // Process metadata
+        const filterMetadata = filterBuilder.processMetadataResults(metadataResult);
 
         res.status(200).json({
             success: true,
-            results: products.length,
-            totalProducts,
-            totalPages: Math.ceil(totalProducts / limitNum),
-            currentPage: pageNum,
-            products
+            message: 'Products fetched successfully',
+            data: {
+                products,
+                pagination: {
+                    currentPage: pagination.page,
+                    totalPages,
+                    totalProducts,
+                    hasNextPage: pagination.page < totalPages,
+                    hasPrevPage: pagination.page > 1,
+                    limit: pagination.limit
+                },
+                filters: filterMetadata,
+                appliedFilters: {
+                    search: req.query.search || req.query.keyword,
+                    brand: req.query.brand,
+                    category: req.query.category,
+                    minPrice: req.query['price[gte]'] || req.query.minPrice,
+                    maxPrice: req.query['price[lte]'] || req.query.maxPrice,
+                    rating: req.query.rating || req.query['rating[gte]'],
+                    condition: req.query.condition,
+                    inStock: req.query.inStock,
+                    sort: req.query.sort
+                }
+            }
         });
 
     } catch (error) {
-        console.error('❌ Backend error in getAllProducts:', error);
+        console.error('Error in unified product search:', error);
         return next(new ErrorHandler('Internal server error while fetching products', 500));
     }
 });
 
+/**
+ * 🎯 LEGACY ENDPOINTS - Redirect to unified endpoint
+ */
 
-exports.getProducts = catchAsyncErrors(async (req, res, next) => {
-    const resPerPage = Number(req.query.limit) || 12;
-    const page = Number(req.query.page) || 1;
+// Redirect getAllProducts to unified endpoint
+exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
+    // Transform legacy parameters to new format
+    if (req.query.minPrice) req.query['price[gte]'] = req.query.minPrice;
+    if (req.query.maxPrice) req.query['price[lte]'] = req.query.maxPrice;
+    if (req.query.brands) req.query.brand = req.query.brands;
+    if (req.query.categories) req.query.category = req.query.categories;
 
-    // Build base query - public sees only active products
-    let baseQuery = Product.find({ isActive: true });
-
-    // Use APIFeatures for complex queries
-    const apiFeatures = new APIFeatures(baseQuery, req.query);
-    apiFeatures.search();
-    await apiFeatures.filter();
-
-    // Count before pagination
-    const countQuery = apiFeatures.query.model.find(apiFeatures.query._conditions);
-    const filteredProductsCount = await countQuery.countDocuments();
-
-    // Apply pagination and sorting
-    apiFeatures.paginate(resPerPage).sort();
-
-    // Field selection
-    apiFeatures.query.select(
-        'name slug brand categories images basePrice offerPrice discountPercentage ' +
-        'stockQuantity hasVariants variants variantConfiguration ' +
-        'averageRating totalReviews tags isActive createdAt'
-    );
-
-    // Variant filtering
-    if (req.query.variantAttributes) {
-        try {
-            const variantFilters = JSON.parse(req.query.variantAttributes);
-            apiFeatures.query.where({
-                'variants.identifyingAttributes': {
-                    $elemMatch: variantFilters
-                }
-            });
-        } catch (error) {
-            return next(new ErrorHandler('Invalid variant attributes filter', 400));
-        }
-    }
-
-    // Execute query
-    const products = await apiFeatures.query.populate([
-        { path: "categories", select: "name slug" },
-        { path: "brand", select: "name slug" }
-    ]);
-
-    // Total count of active products
-    const totalProductsCount = await Product.countDocuments({ isActive: true });
-
-    res.status(200).json({
-        success: true,
-        totalProducts: totalProductsCount,
-        filteredProducts: filteredProductsCount,
-        totalPages: Math.ceil(filteredProductsCount / resPerPage),
-        currentPage: page,
-        products,
-    });
+    return exports.getProducts(req, res, next);
 });
 
+// Redirect advancedSearch to unified endpoint
 exports.advancedSearch = catchAsyncErrors(async (req, res, next) => {
-    try {
-        const {
-            q,
-            page = 1,
-            limit = 12,
-            minPrice,
-            maxPrice,
-            categories,
-            brands,
-            inStock,
-            condition,
-            rating
-        } = req.query;
-
-        if (!q || q.trim() === '') {
-            return next(new ErrorHandler("Search query is required", 400));
-        }
-
-        // Build base filter with text search
-        const filter = {
-            isActive: true,
-            status: 'Published',
-            $text: { $search: q.trim() }
-        };
-
-        // Add price filter
-        if (minPrice || maxPrice) {
-            filter.basePrice = {};
-            if (minPrice) {
-                const min = Number(minPrice);
-                if (isNaN(min)) {
-                    return next(new ErrorHandler('Invalid minPrice parameter', 400));
-                }
-                filter.basePrice.$gte = min;
-            }
-            if (maxPrice) {
-                const max = Number(maxPrice);
-                if (isNaN(max)) {
-                    return next(new ErrorHandler('Invalid maxPrice parameter', 400));
-                }
-                filter.basePrice.$lte = max;
-            }
-        }
-
-        // Add category filter
-        if (categories) {
-            const categoryIds = Array.isArray(categories) ? categories : [categories];
-            // Validate if categories exist
-            const validCategories = await Category.find({
-                _id: { $in: categoryIds }
-            });
-            if (validCategories.length > 0) {
-                filter.categories = { $in: validCategories.map(cat => cat._id) };
-            }
-        }
-
-        // Add brand filter
-        if (brands) {
-            const brandIds = Array.isArray(brands) ? brands : [brands];
-            // Validate if brands exist
-            const validBrands = await Brand.find({
-                _id: { $in: brandIds }
-            });
-            if (validBrands.length > 0) {
-                filter.brand = { $in: validBrands.map(brand => brand._id) };
-            }
-        }
-
-        // Stock filter
-        if (inStock === 'true') {
-            filter.$or = [
-                { stockQuantity: { $gt: 0 } },
-                {
-                    hasVariants: true,
-                    'variants': {
-                        $elemMatch: {
-                            isActive: true,
-                            stockQuantity: { $gt: 0 }
-                        }
-                    }
-                }
-            ];
-        }
-
-        // Condition filter
-        if (condition) {
-            filter.condition = condition;
-        }
-
-        // Rating filter
-        if (rating) {
-            const minRating = Number(rating);
-            if (!isNaN(minRating)) {
-                filter.averageRating = { $gte: minRating };
-            }
-        }
-
-        // Pagination
-        const pageNum = Math.max(1, parseInt(page));
-        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
-        const skip = (pageNum - 1) * limitNum;
-
-        // Execute search with text score
-        const products = await Product.find(filter)
-            .select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews tags')
-            .populate("categories", "name slug")
-            .populate("brand", "name slug")
-            .sort({ score: { $meta: "textScore" } }) // Sort by relevance score
-            .skip(skip)
-            .limit(limitNum);
-
-        // Get total count for pagination
-        const totalProducts = await Product.countDocuments(filter);
-
-        res.status(200).json({
-            success: true,
-            results: products.length,
-            totalProducts,
-            totalPages: Math.ceil(totalProducts / limitNum),
-            currentPage: pageNum,
-            searchQuery: q,
-            searchType: 'advanced',
-            products
-        });
-
-    } catch (error) {
-        console.error('❌ Backend error in advancedSearch:', error);
-        return next(new ErrorHandler('Internal server error during search', 500));
-    }
+    req.query.search = req.query.q;
+    return exports.getProducts(req, res, next);
 });
 
-exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
-    try {
-        const { categoryName } = req.params;
-        const {
-            page = 1,
-            limit = 12,
-            sort = 'createdAt',
-            order = 'desc',
-            minPrice,
-            maxPrice,
-            inStock,
-            brand,
-            search,
-            condition,
-            rating
-        } = req.query;
+// Redirect searchProducts to unified endpoint  
+exports.searchProducts = catchAsyncErrors(async (req, res, next) => {
+    req.query.search = req.query.q || req.query.keyword;
+    return exports.getProducts(req, res, next);
+});
 
-        // ✅ FIX: Decode URL encoded category name
-        const decodedCategoryName = decodeURIComponent(categoryName);
-        const formattedCategoryName = decodedCategoryName.replace(/-/g, ' ');
-        const category = await Category.findOne({
-            $or: [
-                { name: { $regex: new RegExp(`^${formattedCategoryName}$`, 'i') } },
-                { slug: decodedCategoryName.toLowerCase() }
-            ]
-        });
-
-        if (!category) {
-            return res.status(200).json({
-                success: true,
-                results: 0,
-                totalProducts: 0,
-                totalPages: 0,
-                currentPage: Number(page),
-                category: {
-                    name: formattedCategoryName,
-                    slug: decodedCategoryName
-                },
-                products: []
-            });
-        }
-
-        const filter = {
-            isActive: true,
-            status: 'Published',
-            categories: category._id
-        };
-
-        if (search) {
-            const searchRegex = new RegExp(search, 'i');
-            filter.$or = [
-                { name: searchRegex },
-                { description: searchRegex },
-                { tags: searchRegex }
-            ];
-        }
-
-        if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
-            return next(new ErrorHandler('minPrice cannot be greater than maxPrice', 400));
-        }
-
-        // ✅ FIX: Price filter - handle both min and max properly
-        if (minPrice || maxPrice) {
-            filter.basePrice = {};
-            if (minPrice) {
-                const min = Number(minPrice);
-                if (isNaN(min)) {
-                    return next(new ErrorHandler('Invalid minPrice parameter', 400));
-                }
-                filter.basePrice.$gte = min;
-            }
-            if (maxPrice) {
-                const max = Number(maxPrice);
-                if (isNaN(max)) {
-                    return next(new ErrorHandler('Invalid maxPrice parameter', 400));
-                }
-                filter.basePrice.$lte = max;
-            }
-        }
-
-        if (inStock === 'true') {
-            filter.$or = [
-                { stockQuantity: { $gt: 0 } },
-                {
-                    'variantConfiguration.hasVariants': true,
-                    'variants': {
-                        $elemMatch: {
-                            isActive: true,
-                            stockQuantity: { $gt: 0 }
-                        }
-                    }
-                }
-            ];
-        }
-
-        if (brand) {
-            const decodedBrand = decodeURIComponent(brand).replace(/\+/g, ' ');
-            const brandDoc = await Brand.findOne({
-                name: { $regex: new RegExp(`^${decodedBrand}$`, 'i') }
-            });
-
-            if (brandDoc) {
-                filter.brand = brandDoc._id;
-            } else {
-                filter.brand = { $in: [] };
-            }
-        }
-
-        if (condition) {
-            filter.condition = condition;
-        }
-
-        if (rating) {
-            const minRating = Number(rating);
-            if (!isNaN(minRating)) {
-                filter.averageRating = { $gte: minRating };
-            }
-        }
-
-        const pageNum = Math.max(1, parseInt(page));
-        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
-        const skip = (pageNum - 1) * limitNum;
-
-        // ✅ FIX: Sort configuration
-        const sortConfig = { basePrice: 1 };
-        let sortField = sort;
-
-        // Handle negative sort fields (descending)
-        if (sort.startsWith('-')) {
-            sortField = sort.substring(1);
-            sortConfig[sortField] = -1;
-        } else {
-            sortConfig[sortField] = order === 'desc' ? -1 : 1;
-        }
-
-        const products = await Product.find(filter)
-            .select('name slug brand categories images basePrice mrp offerPrice discountPercentage stockQuantity variantConfiguration variants averageRating totalReviews condition tags hsn manufacturerImages')
-            .populate("categories", "name slug")
-            .populate("brand", "name slug")
-            .sort(sortConfig)
-            .skip(skip)
-            .limit(limitNum);
-
-        const totalProducts = await Product.countDocuments(filter);
-
-        res.status(200).json({
-            success: true,
-            results: products.length,
-            totalProducts,
-            totalPages: Math.ceil(totalProducts / limitNum),
-            currentPage: pageNum,
-            category: {
-                name: category.name,
-                slug: category.slug
-            },
-            products
-        });
-
-    } catch (error) {
-        console.error('❌ Backend error in getProductsByCategory:', error);
-        console.error('🔍 Error stack:', error.stack);
-        return next(new ErrorHandler('Internal server error while fetching category products', 500));
-    }
+// Redirect filterProducts to unified endpoint
+exports.filterProducts = catchAsyncErrors(async (req, res, next) => {
+    // All filter parameters are already in req.query
+    return exports.getProducts(req, res, next);
 });
 
 
 exports.getProductsByBrand = catchAsyncErrors(async (req, res, next) => {
     try {
         const { brandName } = req.params;
-        const {
-            page = 1,
-            limit = 12,
-            sort = 'createdAt',
-            order = 'desc',
-            minPrice,
-            maxPrice,
-            inStock,
-            category,
-            search,
-            condition,
-            rating
-        } = req.query;
 
-        const decodedBrandName = decodeURIComponent(brandName);
-        const formattedBrandName = decodedBrandName.replace(/-/g, ' ');
+        // Find brand by slug or name
         const brand = await Brand.findOne({
             $or: [
-                { name: { $regex: new RegExp(`^${formattedBrandName}$`, 'i') } },
-                { slug: decodedBrandName.toLowerCase() }
+                { slug: brandName.toLowerCase() },
+                { name: new RegExp(`^${brandName}$`, 'i') }
             ]
         });
 
         if (!brand) {
             return res.status(200).json({
                 success: true,
-                results: 0,
-                totalProducts: 0,
-                totalPages: 0,
-                currentPage: Number(page),
-                brand: {
-                    name: formattedBrandName,
-                    slug: decodedBrandName
-                },
-                products: []
-            });
-        }
-
-        const filter = {
-            isActive: true,
-            status: 'Published',
-            brand: brand._id
-        };
-
-        if (search) {
-            const searchRegex = new RegExp(search, 'i');
-            filter.$or = [
-                { name: searchRegex },
-                { description: searchRegex },
-                { tags: searchRegex }
-            ];
-        }
-
-        // ✅ ADDED: Price validation
-        if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
-            return next(new ErrorHandler('minPrice cannot be greater than maxPrice', 400));
-        }
-
-        if (minPrice || maxPrice) {
-            filter.basePrice = {};
-            if (minPrice) {
-                const min = Number(minPrice);
-                if (isNaN(min)) {
-                    return next(new ErrorHandler('Invalid minPrice parameter', 400));
-                }
-                filter.basePrice.$gte = min;
-            }
-            if (maxPrice) {
-                const max = Number(maxPrice);
-                if (isNaN(max)) {
-                    return next(new ErrorHandler('Invalid maxPrice parameter', 400));
-                }
-                filter.basePrice.$lte = max;
-            }
-        }
-
-        // ✅ FIX: Enhanced stock filter
-        if (inStock === 'true') {
-            filter.$or = [
-                { stockQuantity: { $gt: 0 } },
-                {
-                    'variantConfiguration.hasVariants': true,
-                    'variants': {
-                        $elemMatch: {
-                            isActive: true,
-                            stockQuantity: { $gt: 0 }
-                        }
+                message: 'Brand not found',
+                data: {
+                    products: [],
+                    pagination: {
+                        currentPage: 1,
+                        totalPages: 0,
+                        totalProducts: 0,
+                        hasNextPage: false,
+                        hasPrevPage: false,
+                        limit: 12
+                    },
+                    filters: {
+                        minPrice: 0,
+                        maxPrice: 0,
+                        availableBrands: [],
+                        availableCategories: [],
+                        conditions: [],
+                        ratingOptions: [],
+                        inStockCount: 0,
+                        totalProducts: 0
+                    },
+                    brand: {
+                        name: brandName,
+                        slug: brandName
                     }
                 }
-            ];
-        }
-
-        // ✅ FIX: Category filter
-        if (category) {
-            const decodedCategory = decodeURIComponent(category).replace(/\+/g, ' ');
-            const categoryDoc = await Category.findOne({
-                name: { $regex: new RegExp(`^${decodedCategory}$`, 'i') }
             });
-
-            if (categoryDoc) {
-                filter.categories = categoryDoc._id;
-            } else {
-                filter.categories = { $in: [] };
-            }
         }
 
-        if (condition) {
-            filter.condition = condition;
-        }
-
-        if (rating) {
-            const minRating = Number(rating);
-            if (!isNaN(minRating)) {
-                filter.averageRating = { $gte: minRating };
-            }
-        }
-
-        const pageNum = Math.max(1, parseInt(page));
-        const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
-        const skip = (pageNum - 1) * limitNum;
-
-        // ✅ FIX: Consistent sort configuration
-        const sortConfig = { basePrice: 1 };
-        let sortField = sort;
-
-        // Handle negative sort fields (descending)
-        if (sort.startsWith('-')) {
-            sortField = sort.substring(1);
-            sortConfig[sortField] = -1;
-        } else {
-            sortConfig[sortField] = order === 'desc' ? -1 : 1;
-        }
-
-        const products = await Product.find(filter)
-            .select('name slug brand categories images basePrice mrp offerPrice discountPercentage stockQuantity variantConfiguration variants averageRating totalReviews condition tags hsn manufacturerImages')
-            .populate("categories", "name slug")
-            .populate("brand", "name slug")
-            .sort(sortConfig)
-            .skip(skip)
-            .limit(limitNum);
-
-        const totalProducts = await Product.countDocuments(filter);
-
-        res.status(200).json({
-            success: true,
-            results: products.length,
-            totalProducts,
-            totalPages: Math.ceil(totalProducts / limitNum),
-            currentPage: pageNum,
-            brand: {
-                name: brand.name,
-                slug: brand.slug
-            },
-            products
-        });
+        // Add brand to query and use unified endpoint
+        req.query.brand = brand.name;
+        return exports.getProducts(req, res, next);
 
     } catch (error) {
-        console.error('❌ Backend error in getProductsByBrand:', error);
-        console.error('🔍 Error stack:', error.stack);
+        console.error('Error in getProductsByBrand:', error);
         return next(new ErrorHandler('Internal server error while fetching brand products', 500));
     }
 });
-// GET PRODUCT BY SLUG
-exports.getProductBySlug = catchAsyncErrors(async (req, res, next) => {
-    const { slug } = req.params;
 
-    const product = await Product.findOne({ slug })
-        .populate('brand', 'name slug logo')
-        .populate('categories', 'name slug')
-        .select('-__v -notes');
+/**
+ * 🎯 CATEGORY PRODUCTS - Enhanced with unified filtering
+ */
+exports.getProductsByCategory = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const { categoryName } = req.params;
 
-    if (!product) {
-        return next(new ErrorHandler('Product not found', 404));
+        // Find category by slug or name
+        const category = await Category.findOne({
+            $or: [
+                { slug: categoryName.toLowerCase() },
+                { name: new RegExp(`^${categoryName}$`, 'i') }
+            ]
+        });
+
+        if (!category) {
+            return res.status(200).json({
+                success: true,
+                message: 'Category not found',
+                data: {
+                    products: [],
+                    pagination: {
+                        currentPage: 1,
+                        totalPages: 0,
+                        totalProducts: 0,
+                        hasNextPage: false,
+                        hasPrevPage: false,
+                        limit: 12
+                    },
+                    filters: {
+                        minPrice: 0,
+                        maxPrice: 0,
+                        availableBrands: [],
+                        availableCategories: [],
+                        conditions: [],
+                        ratingOptions: [],
+                        inStockCount: 0,
+                        totalProducts: 0
+                    },
+                    category: {
+                        name: categoryName,
+                        slug: categoryName
+                    }
+                }
+            });
+        }
+
+        // Add category to query and use unified endpoint
+        req.query.category = category.name;
+        return exports.getProducts(req, res, next);
+
+    } catch (error) {
+        console.error('Error in getProductsByCategory:', error);
+        return next(new ErrorHandler('Internal server error while fetching category products', 500));
     }
-
-    res.status(200).json({
-        success: true,
-        product
-    });
 });
 
-exports.searchProducts = catchAsyncErrors(async (req, res, next) => {
-    const { q, page = 1, limit = 12 } = req.query;
+/**
+ * 🎯 GET PRODUCT BY SLUG - Keep this separate (single product view)
+ */
+exports.getProductBySlug = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const { slug } = req.params;
 
-    if (!q || typeof q !== "string" || q.trim() === '') {
-        return next(new ErrorHandler("Search query 'q' is required", 400));
+        const product = await Product.findOne({
+            slug,
+            isActive: true,
+            status: 'Published'
+        })
+            .populate('brand', 'name slug logo description')
+            .populate('categories', 'name slug description')
+            .select('-__v -notes');
+
+        if (!product) {
+            return next(new ErrorHandler('Product not found', 404));
+        }
+
+        // Add virtuals to response
+        const productWithVirtuals = product.toObject();
+
+        res.status(200).json({
+            success: true,
+            message: 'Product fetched successfully',
+            data: {
+                product: productWithVirtuals
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in getProductBySlug:', error);
+        return next(new ErrorHandler('Internal server error while fetching product', 500));
     }
+});
 
-    const searchTerm = q.trim();
+/**
+ * 🎯 GET RELATED PRODUCTS (Keep this separate)
+ */
+exports.getRelatedProducts = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const { slug } = req.params;
+        const { limit = 8 } = req.query;
 
-    // Try text search first, fallback to regex if no results
-    let filter = {
-        isActive: true,
-        status: 'Published',
-        $text: { $search: searchTerm }
-    };
+        // Find current product
+        const currentProduct = await Product.findOne({ slug })
+            .select('categories brand tags');
 
-    let products = await Product.find(filter)
-        .select('name slug brand categories images basePrice offerPrice')
-        .populate("categories", "name slug")
-        .populate("brand", "name slug")
-        .sort({ score: { $meta: "textScore" } })
-        .limit(parseInt(limit))
-        .skip((parseInt(page) - 1) * parseInt(limit));
+        if (!currentProduct) {
+            return next(new ErrorHandler('Product not found', 404));
+        }
 
-    // Fallback to regex search if no text search results
-    if (products.length === 0) {
-        const regex = new RegExp(searchTerm, "i");
-        filter = {
+        // Build related products query
+        const relatedQuery = {
+            _id: { $ne: currentProduct._id },
             isActive: true,
             status: 'Published',
             $or: [
-                { name: regex },
-                { description: regex },
-                { tags: regex },
-                { 'variants.name': regex }
+                { categories: { $in: currentProduct.categories } },
+                { brand: currentProduct.brand },
+                { tags: { $in: currentProduct.tags } }
             ]
         };
 
-        products = await Product.find(filter)
-            .select('name slug brand categories images basePrice offerPrice')
-            .populate("categories", "name slug")
-            .populate("brand", "name slug")
-            .sort({ createdAt: -1 })
+        const relatedProducts = await Product.find(relatedQuery)
+            .select('name slug brand categories images basePrice mrp averageRating totalReviews condition')
+            .populate('brand', 'name slug')
+            .populate('categories', 'name slug')
             .limit(parseInt(limit))
-            .skip((parseInt(page) - 1) * parseInt(limit));
+            .sort({ averageRating: -1, totalReviews: -1 });
+
+        res.status(200).json({
+            success: true,
+            message: 'Related products fetched successfully',
+            data: {
+                relatedProducts,
+                total: relatedProducts.length
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in getRelatedProducts:', error);
+        return next(new ErrorHandler('Internal server error while fetching related products', 500));
     }
-
-    const totalProducts = await Product.countDocuments(filter);
-
-    res.status(200).json({
-        success: true,
-        results: products.length,
-        totalProducts,
-        totalPages: Math.ceil(totalProducts / parseInt(limit)),
-        currentPage: parseInt(page),
-        searchQuery: searchTerm,
-        searchType: products.length > 0 ? 'text' : 'regex',
-        products
-    });
 });
 
-exports.filterProducts = catchAsyncErrors(async (req, res, next) => {
-    const resPerPage = Number(req.query.limit) || 10;
+/**
+ * 🎯 GET FEATURED PRODUCTS (Keep this separate)
+ */
+exports.getFeaturedProducts = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const { limit = 12 } = req.query;
 
-    // Prevent invalid filter params
-    const { minPrice, maxPrice, minRating, inStock, condition } = req.query;
+        // Use unified endpoint with featured criteria
+        req.query.sort = 'popular';
+        req.query.limit = limit;
 
-    if ((minPrice && isNaN(minPrice)) || (maxPrice && isNaN(maxPrice))) {
-        return next(new ErrorHandler("Price filters must be numeric", 400));
+        return exports.getProducts(req, res, next);
+
+    } catch (error) {
+        console.error('Error in getFeaturedProducts:', error);
+        return next(new ErrorHandler('Internal server error while fetching featured products', 500));
     }
-
-    if (minRating && isNaN(minRating)) {
-        return next(new ErrorHandler("Rating filter must be numeric", 400));
-    }
-
-    const apiFeatures = new APIFeatures(Product.find(), req.query)
-        .filter()
-        .paginate(resPerPage);
-
-    const products = await apiFeatures.query.populate("category brand");
-
-    if (!products || products.length === 0) return next(new ErrorHandler("No products match the filter criteria", 404));
-
-    res.status(200).json({
-        success: true,
-        results: products.length,
-        resPerPage,
-        products,
-    });
 });
+
+/**
+ * 🎯 GET NEW ARRIVALS (Keep this separate)
+ */
+exports.getNewArrivals = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const { limit = 12 } = req.query;
+
+        // Use unified endpoint with new arrivals criteria
+        req.query.sort = 'newest';
+        req.query.limit = limit;
+
+        return exports.getProducts(req, res, next);
+
+    } catch (error) {
+        console.error('Error in getNewArrivals:', error);
+        return next(new ErrorHandler('Internal server error while fetching new arrivals', 500));
+    }
+});
+
+
 
 exports.getProductVariants = catchAsyncErrors(async (req, res, next) => {
     const { id } = req.params;

@@ -74,7 +74,6 @@ const wishlistAPI = {
         variant: wishlistData.variant
       };
       
-      console.log('❤️ Wishlist API Payload:', payload);
       
       const response = await api.post('/wishlist/add', payload);
       toast.success(wishlistData.variant ? 'Product variant added to wishlist successfully' : 'Product added to wishlist successfully');
@@ -700,9 +699,6 @@ const addToWishlist = (wishlistData: AddToWishlistData) => async (dispatch: any,
         
         // FIXED: Use productId directly, not combined ID for API calls
         const productId = wishlistData.productId;
-
-        console.log('❤️ Adding to wishlist - Product ID:', productId, 'Variant:', wishlistData.variant);
-
         if (wishlistData.productType === 'prebuilt-pc') {
             // Pre-built PC logic (unchanged)
             if (isGuest) {
@@ -787,14 +783,10 @@ const addToWishlist = (wishlistData: AddToWishlistData) => async (dispatch: any,
                     productId: wishlistData.productId, // Send original productId
                     variant: wishlistData.variant
                 };
-                
-                console.log('❤️ Sending to wishlist API:', apiPayload);
-                
+                                
                 const response = await wishlistAPI.addToWishlist(apiPayload);
                 const { items, isGuest: isGuestMode } = extractItemsFromResponse(response);
-                
-                console.log('❤️ Wishlist API response items:', items);
-                
+                                
                 dispatch(updateWishlistSuccess({ items, isGuest: isGuestMode }));
                 toast.success(wishlistData.variant ? 'Product variant added to wishlist' : 'Product added to wishlist');
             } catch (apiError: any) {
@@ -969,8 +961,6 @@ const removeFromWishlist = (removeData: RemoveFromWishlistData) => async (dispat
         
         const state = getState();
         const isGuest = !state.authState.isAuthenticated;
-        
-        console.log('🗑️ Removing product from wishlist:', removeData.productId, 'Type:', removeData.productType);
 
         // ✅ FIXED: Remove from Redux state using productId
         dispatch(removeItemFromWishlist({ productId: removeData.productId }));

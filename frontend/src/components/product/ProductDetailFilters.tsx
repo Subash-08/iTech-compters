@@ -1,614 +1,504 @@
-import React, { useState, useEffect } from 'react';
-import Slider from 'rc-slider';
-import 'rc-slider/assets/index.css';
-import { AvailableFilters, ProductFilters, Product } from '../../redux/types/productTypes';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 
-interface ProductFiltersProps {
-  showFilters: boolean;
-  availableFilters: AvailableFilters;
-  currentFilters: ProductFilters;
-  onUpdateFilter: (key: string, value: string | number | boolean | null) => void;
-  onClearFilters: () => void;
-  shouldShowFilter: (filterType: 'brand' | 'category') => boolean;
-  products: Product[];
+// --- TYPE DEFINITIONS ---
+interface FilterRange { min: number; max: number; }
+
+interface CurrentFilters { 
+    page?: number | string; 
+    limit?: number | string;
+    minPrice?: number | string; 
+    maxPrice?: number | string; 
+    brand?: string | string[]; 
+    category?: string | string[];
+    rating?: number;
+    condition?: string | string[];
+    inStock?: boolean;
 }
 
-const ProductDetailFilters: React.FC<ProductFiltersProps> = ({
-  showFilters,
-  availableFilters,
-  currentFilters,
-  onUpdateFilter,
-  onClearFilters,
-  shouldShowFilter,
-  products,
+interface AvailableFilters {
+    maxPrice: number;
+    minPrice: number;
+    availableBrands: string[];
+    availableCategories: string[];
+    conditions: string[];
+    inStockCount: number;
+    totalProducts: number;
+}
+
+interface ProductDetailFiltersProps {
+    showFilters: boolean;
+    availableFilters: AvailableFilters;
+    currentFilters: CurrentFilters;
+    onUpdateFilter: (key: keyof CurrentFilters | 'minPrice' | 'maxPrice', value: any) => void;
+    onClearFilters: () => void;
+    shouldShowFilter: (key: string) => boolean;
+    products: any[];
+}
+
+const ProductDetailFilters: React.FC<ProductDetailFiltersProps> = ({
+    showFilters,
+    availableFilters,
+    currentFilters,
+    onUpdateFilter,
+    onClearFilters,
+    shouldShowFilter,
+    products
 }) => {
-  // 🐛 DEBUG: Log all data to understand what's happening
-  useEffect(() => {
-    console.log('🔍 === FILTER DEBUG START ===');
-    console.log('📊 AVAILABLE FILTERS:', availableFilters);
-    console.log('🎯 CURRENT FILTERS:', currentFilters);
-    console.log('📦 TOTAL PRODUCTS:', products.length);
-    
-    // Debug price data specifically
-    if (products.length > 0) {
-      const priceData = products.slice(0, 5).map(p => ({
-        name: p.name,
-        basePrice: p.basePrice,
-        mrp: p.mrp,
-        sellingPrice: p.sellingPrice,
-        displayMrp: p.displayMrp,
-        hasVariants: p.variantConfiguration?.hasVariants,
-        variantCount: p.variants?.length,
-        variantPrices: p.variants?.map(v => v.price)
-      }));
-      console.log('💰 SAMPLE PRODUCT PRICE DATA:', priceData);
-      
-      // Calculate actual price range from products
-      const allPrices = products
-        .map(p => p.sellingPrice || p.basePrice || 0)
-        .filter(price => price > 0);
-      
-      if (allPrices.length > 0) {
-        const actualMin = Math.min(...allPrices);
-        const actualMax = Math.max(...allPrices);
-        console.log('🧮 ACTUAL PRICE RANGE FROM PRODUCTS:', {
-          min: actualMin,
-          max: actualMax,
-          productCount: products.length
-        });
-      }
-    }
-    console.log('🔍 === FILTER DEBUG END ===');
-  }, [availableFilters, currentFilters, products]);
+    const { brandName, categoryName } = useParams();
+    const [isApplying, setIsApplying] = useState(false);
 
-  // ✅ FIXED: Get price range with ALWAYS min=0 and dynamic max
-  const getPriceRange = () => {
-    // ALWAYS set min to 0 for better UX
-    const baseMin = 0;
-
-    // Strategy 1: Calculate max from actual products
-    if (products.length > 0) {
-      const sellingPrices = products
-        .map(p => p.sellingPrice || p.basePrice || 0)
-        .filter(price => price > 0);
-      
-      if (sellingPrices.length > 0) {
-        const calculatedMax = Math.ceil(Math.max(...sellingPrices));
-        
-        // Ensure reasonable max (at least 100 more than min)
-        const finalMax = Math.max(calculatedMax, 100);
-        
-        console.log('🧮 Calculated range from products:', { baseMin, finalMax });
-        return { 
-          baseMin, 
-          baseMax: finalMax,
-          isLoading: false 
-        };
-      }
-    }
-
-    // Strategy 2: Use available filters if they have valid data
-    if (availableFilters.baseMaxPrice && availableFilters.baseMaxPrice > 0) {
-      console.log('🎯 Using available filters max price');
-      return {
-        baseMin,
-        baseMax: availableFilters.baseMaxPrice,
-        isLoading: false
-      };
-    }
-
-    // Strategy 3: Use priceRange object if available
-    if (availableFilters.priceRange?.max && availableFilters.priceRange.max > 0) {
-      console.log('🎯 Using priceRange max');
-      return {
-        baseMin,
-        baseMax: availableFilters.priceRange.max,
-        isLoading: false
-      };
-    }
-
-    // Strategy 4: Default fallback
-    console.log('🔄 Using default price range');
-    return { 
-      baseMin, 
-      baseMax: 5000, 
-      isLoading: true 
-    };
-  };
-
-  const { baseMin, baseMax, isLoading } = getPriceRange();
-
-  // ✅ FIXED: Initialize slider with proper values
-  const [sliderValues, setSliderValues] = useState([baseMin, baseMax]);
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  // 🐛 DEBUG: Log slider state
-  useEffect(() => {
-    console.log('🎚️ SLIDER STATE:', {
-      sliderValues,
-      baseMin,
-      baseMax,
-      currentMinPrice: currentFilters.minPrice,
-      currentMaxPrice: currentFilters.maxPrice,
-      isInitialized
+    // Initial state set to 0, will be immediately updated by useEffect based on availableFilters
+    const [localPriceInputs, setLocalPriceInputs] = useState<FilterRange>({
+        min: 0,
+        max: 0
     });
-  }, [sliderValues, baseMin, baseMax, currentFilters.minPrice, currentFilters.maxPrice, isInitialized]);
 
-  // ✅ FIXED: Update slider when filters OR base range changes
-  useEffect(() => {
-    // Don't update until we have valid base range
-    if (isLoading && !isInitialized) {
-      console.log('⏳ Waiting for valid price range...');
-      return;
+    // --- Price Range Logic ---
+
+    const getAvailablePriceRange = useCallback((): FilterRange => {
+        const availableMax = availableFilters?.maxPrice || 0;
+        const availableMin = availableFilters?.minPrice || 0;
+        return { min: availableMin, max: availableMax };
+    }, [availableFilters]);
+
+    useEffect(() => {
+        const availableRange = getAvailablePriceRange();
+        
+        // If backend returns 0 (loading or no products), don't reset inputs yet
+        if (availableRange.max === 0) return;
+
+        const currentMin = Number(currentFilters.minPrice) || availableRange.min;
+        const currentMax = Number(currentFilters.maxPrice) || availableRange.max;
+
+        const newMin = Math.max(availableRange.min, currentMin);
+        const newMax = Math.min(availableRange.max, currentMax);
+
+        const finalMin = Math.min(newMin, newMax - 1);
+        const finalMax = Math.max(newMin + 1, newMax); 
+
+        if (!isNaN(finalMin) && !isNaN(finalMax)) {
+            setLocalPriceInputs({
+                min: finalMin,
+                max: finalMax
+            });
+        }
+    }, [getAvailablePriceRange, currentFilters.minPrice, currentFilters.maxPrice, availableFilters.maxPrice]);
+
+    const handleMinPriceChange = useCallback((value: number) => {
+        const availableRange = getAvailablePriceRange();
+        const boundedValue = Math.max(availableRange.min, Math.min(value, localPriceInputs.max - 1));
+        setLocalPriceInputs(prev => ({ ...prev, min: boundedValue }));
+    }, [getAvailablePriceRange, localPriceInputs.max]);
+
+    const handleMaxPriceChange = useCallback((value: number) => {
+        const availableRange = getAvailablePriceRange();
+        const boundedValue = Math.min(availableRange.max, Math.max(value, localPriceInputs.min + 1));
+        setLocalPriceInputs(prev => ({ ...prev, max: boundedValue }));
+    }, [getAvailablePriceRange, localPriceInputs.min]);
+    
+    const handleMinSliderChange = handleMinPriceChange;
+    const handleMaxSliderChange = handleMaxPriceChange;
+
+    const applyPriceFilter = useCallback(() => {
+        if (isApplying) return;
+        
+        if (isNaN(localPriceInputs.min) || isNaN(localPriceInputs.max)) {
+            return;
+        }
+
+        const availableRange = getAvailablePriceRange();
+        const currentMin = Number(currentFilters.minPrice) || availableRange.min;
+        const currentMax = Number(currentFilters.maxPrice) || availableRange.max;
+
+        const hasChanged = localPriceInputs.min !== currentMin || localPriceInputs.max !== currentMax;
+
+        if (hasChanged) {
+            setIsApplying(true);
+            onUpdateFilter('page', 1); // Reset page always
+            onUpdateFilter('minPrice', localPriceInputs.min);
+            onUpdateFilter('maxPrice', localPriceInputs.max);
+
+            setTimeout(() => {
+                setIsApplying(false);
+            }, 500);
+        }
+    }, [localPriceInputs, getAvailablePriceRange, currentFilters.minPrice, currentFilters.maxPrice, onUpdateFilter, isApplying]);
+
+
+    const handleSliderRelease = useCallback(() => {
+        applyPriceFilter();
+    }, [applyPriceFilter]);
+
+    const handleInputKeyPress = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            (e.target as HTMLInputElement).blur();
+        }
+    }, []);
+
+    const handleInputBlur = useCallback(() => {
+        applyPriceFilter();
+    }, [applyPriceFilter]);
+
+    // --- Other Filter Logic (Brand, Category, etc.) ---
+
+    // ✅ FIXED: Robust toggle logic that splits strings (e.g. "Apple,Samsung") into arrays
+    const toggleFilterItem = useCallback((currentValue: string | string[] | undefined, newItem: string) => {
+        let arr: string[] = [];
+        
+        if (Array.isArray(currentValue)) {
+            arr = [...currentValue];
+        } else if (typeof currentValue === 'string') {
+            // This is the critical fix: Split by comma
+            arr = currentValue.split(',').filter(item => item.trim() !== '');
+        }
+
+        if (arr.includes(newItem)) {
+            return arr.filter(i => i !== newItem); // Unselect
+        }
+        return [...arr, newItem]; // Select
+    }, []);
+
+    const getAvailableBrands = useMemo(() => {
+        return availableFilters.availableBrands || [];
+    }, [availableFilters.availableBrands]);
+
+    const getAvailableCategories = useMemo(() => {
+        return availableFilters.availableCategories || [];
+    }, [availableFilters.availableCategories]);
+    
+    const handleBrandChange = useCallback((brand: string) => {
+        const newBrands = toggleFilterItem(currentFilters.brand, brand);
+        // Pass array directly. Parent MUST handle page reset or we risk overwriting params.
+        onUpdateFilter('brand', newBrands.length > 0 ? newBrands : null);
+    }, [currentFilters.brand, onUpdateFilter, toggleFilterItem]);
+
+    const handleCategoryChange = useCallback((category: string) => {
+        const newCategories = toggleFilterItem(currentFilters.category, category);
+        onUpdateFilter('category', newCategories.length > 0 ? newCategories : null);
+    }, [currentFilters.category, onUpdateFilter, toggleFilterItem]);
+
+    // ✅ FIXED: Checkers now handle comma-separated URL strings
+    const isBrandSelected = useCallback((brand: string) => {
+        if (!currentFilters.brand) return false;
+        
+        const selectedBrands = Array.isArray(currentFilters.brand) 
+            ? currentFilters.brand 
+            : typeof currentFilters.brand === 'string' 
+                ? (currentFilters.brand as string).split(',') 
+                : [currentFilters.brand];
+                
+        return selectedBrands.includes(brand);
+    }, [currentFilters.brand]);
+    
+    const isCategorySelected = useCallback((category: string) => {
+        if (!currentFilters.category) return false;
+        
+        const selectedCategories = Array.isArray(currentFilters.category) 
+            ? currentFilters.category 
+            : typeof currentFilters.category === 'string' 
+                ? (currentFilters.category as string).split(',') 
+                : [currentFilters.category];
+
+        return selectedCategories.includes(category);
+    }, [currentFilters.category]);
+
+    const handleRatingChange = useCallback((rating: number) => {
+        onUpdateFilter('rating', currentFilters.rating === rating ? null : rating);
+    }, [currentFilters.rating, onUpdateFilter]);
+
+    const handleConditionChange = useCallback((condition: string) => {
+        const newConditions = toggleFilterItem(currentFilters.condition, condition);
+        onUpdateFilter('condition', newConditions.length > 0 ? newConditions : null);
+    }, [currentFilters.condition, onUpdateFilter, toggleFilterItem]);
+
+    const isConditionSelected = useCallback((condition: string) => {
+        if (!currentFilters.condition) return false;
+        
+        const selectedConditions = Array.isArray(currentFilters.condition) 
+            ? currentFilters.condition 
+            : typeof currentFilters.condition === 'string' 
+                ? (currentFilters.condition as string).split(',') 
+                : [currentFilters.condition];
+                
+        return selectedConditions.includes(condition);
+    }, [currentFilters.condition]);
+
+    const handleStockChange = useCallback((inStock: boolean) => {
+        onUpdateFilter('inStock', currentFilters.inStock === inStock ? null : inStock);
+    }, [currentFilters.inStock, onUpdateFilter]);
+
+    const handleClearAll = useCallback(() => {
+        onClearFilters();
+        const availableRange = getAvailablePriceRange();
+        setLocalPriceInputs({ min: availableRange.min, max: availableRange.max });
+    }, [onClearFilters, getAvailablePriceRange]);
+
+    const hasActiveFilters = useMemo(() => {
+        const availableRange = getAvailablePriceRange();
+        const isDefaultPrice = (Number(currentFilters.minPrice || availableRange.min) === availableRange.min) && 
+                               (Number(currentFilters.maxPrice || availableRange.max) === availableRange.max);
+        
+        const hasBrand = (Array.isArray(currentFilters.brand) && currentFilters.brand.length > 0) || (!!currentFilters.brand);
+        const hasCategory = (Array.isArray(currentFilters.category) && currentFilters.category.length > 0) || (!!currentFilters.category);
+        
+        return !isDefaultPrice || hasBrand || hasCategory || !!currentFilters.rating || !!currentFilters.condition || !!currentFilters.inStock;
+    }, [currentFilters, getAvailablePriceRange]);
+
+
+    if (!showFilters) {
+        return null;
     }
 
-    // Use current filters if set, otherwise use base range
-    const currentMin = (currentFilters.minPrice !== undefined && currentFilters.minPrice !== null) 
-      ? currentFilters.minPrice 
-      : baseMin;
+    const availableRange = getAvailablePriceRange();
+    const rangeDiff = availableRange.max - availableRange.min;
+    const safeRangeDiff = rangeDiff > 0 ? rangeDiff : 1; 
+
+    const minPosition = ((localPriceInputs.min - availableRange.min) / safeRangeDiff) * 100;
+    const maxPosition = ((localPriceInputs.max - availableRange.min) / safeRangeDiff) * 100;
     
-    const currentMax = (currentFilters.maxPrice !== undefined && currentFilters.maxPrice !== null) 
-      ? currentFilters.maxPrice 
-      : baseMax;
+    const effectiveMinPosition = Math.max(0, Math.min(100, isNaN(minPosition) ? 0 : minPosition));
+    const effectiveMaxPosition = Math.max(0, Math.min(100, isNaN(maxPosition) ? 100 : maxPosition));
 
-    console.log('🔄 Updating slider values:', { currentMin, currentMax, baseMin, baseMax });
-
-    setSliderValues([currentMin, currentMax]);
-    
-    if (!isInitialized) {
-      console.log('✅ Slider initialized');
-      setIsInitialized(true);
-    }
-  }, [currentFilters.minPrice, currentFilters.maxPrice, baseMin, baseMax, isLoading, isInitialized]);
-
-  // ✅ FIXED: Handle slider change (real-time updates)
-  const handleSliderChange = (value: number | number[]) => {
-    if (Array.isArray(value)) {
-      console.log('📈 Slider changing:', value);
-      setSliderValues(value);
-    }
-  };
-
-  // ✅ FIXED: Handle slider completion - update URL params
-  const handleSliderComplete = (value: number | number[]) => {
-    if (Array.isArray(value)) {
-      const [min, max] = value;
-      
-      // Only update if values are different from base range
-      const newMin = min <= baseMin ? null : min;
-      const newMax = max >= baseMax ? null : max;
-      
-      console.log('🎯 Slider completed - updating filters:', { newMin, newMax, baseMin, baseMax });
-      
-      // Update both filters
-      onUpdateFilter('minPrice', newMin);
-      onUpdateFilter('maxPrice', newMax);
-    }
-  };
-
-  // ✅ FIXED: Handle direct input changes
-  const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const newMin = value === '' ? null : Number(value);
-    
-    console.log('⌨️ Min price input:', { value, newMin });
-    
-    if (newMin === null || (!isNaN(newMin) && newMin >= baseMin && newMin <= (currentFilters.maxPrice || baseMax))) {
-      onUpdateFilter('minPrice', newMin);
-    } else {
-      console.warn('❌ Invalid min price:', newMin);
-    }
-  };
-
-  const handleMaxPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const newMax = value === '' ? null : Number(value);
-    
-    console.log('⌨️ Max price input:', { value, newMax });
-    
-    if (newMax === null || (!isNaN(newMax) && newMax >= (currentFilters.minPrice || baseMin) && newMax <= baseMax)) {
-      onUpdateFilter('maxPrice', newMax);
-    } else {
-      console.warn('❌ Invalid max price:', newMax);
-    }
-  };
-
-  // ✅ FIXED: Get available options
-  const getAvailableOptions = (type: 'brands' | 'categories') => {
-    return availableFilters[type] || [];
-  };
-
-  // ✅ FIXED: Check if custom price filter is active
-  const hasCustomPriceFilter = 
-    (currentFilters.minPrice !== undefined && currentFilters.minPrice !== null) || 
-    (currentFilters.maxPrice !== undefined && currentFilters.maxPrice !== null);
-
-  // ✅ FIXED: Reset price range to base values
-  const resetPriceRange = () => {
-    console.log('🔄 Resetting price range to base values');
-    onUpdateFilter('minPrice', null);
-    onUpdateFilter('maxPrice', null);
-  };
-
-  // ✅ FIXED: Format price for display
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
-
-  // ✅ FIXED: Get current display values
-  const displayMinPrice = currentFilters.minPrice !== undefined && currentFilters.minPrice !== null 
-    ? currentFilters.minPrice 
-    : baseMin;
-  
-  const displayMaxPrice = currentFilters.maxPrice !== undefined && currentFilters.maxPrice !== null 
-    ? currentFilters.maxPrice 
-    : baseMax;
-
-  // ✅ FIXED: Handle brand selection as toggle (select/unselect)
-  const handleBrandToggle = (brand: string) => {
-    console.log('🔘 Brand toggle:', { brand, current: currentFilters.brand });
-    
-    // If already selected, unselect it. Otherwise select it.
-    if (currentFilters.brand === brand) {
-      onUpdateFilter('brand', null);
-    } else {
-      onUpdateFilter('brand', brand);
-    }
-  };
-
-  // ✅ FIXED: Handle category selection as toggle
-  const handleCategoryToggle = (category: string) => {
-    console.log('🔘 Category toggle:', { category, current: currentFilters.category });
-    
-    if (currentFilters.category === category) {
-      onUpdateFilter('category', null);
-    } else {
-      onUpdateFilter('category', category);
-    }
-  };
-
-  // ✅ FIXED: Handle other filter removal for radio buttons
-  const handleRadioFilter = (key: 'condition' | 'rating', value: string | number | null) => {
-    console.log('🔘 Radio filter:', { key, value, current: currentFilters[key] });
-    
-    if (currentFilters[key] === value) {
-      onUpdateFilter(key, null);
-    } else {
-      onUpdateFilter(key, value);
-    }
-  };
-
-  // ✅ FIXED: Handle checkbox filter for inStock
-  const handleInStockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('☑️ In stock filter:', e.target.checked);
-    onUpdateFilter('inStock', e.target.checked || null);
-  };
-
-  // Show loading state while waiting for price range
-  if (isLoading && !isInitialized) {
     return (
-      <div className={`lg:w-64 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-        <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-4">
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Loading filters...</p>
-            <p className="text-xs text-gray-500 mt-1">Calculating price range</p>
-          </div>
+        <div className="w-full lg:w-80 bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-fit lg:sticky lg:top-4">
+            <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+                {hasActiveFilters && (
+                    <button
+                        onClick={handleClearAll}
+                        className="text-sm text-red-600 hover:text-red-800 font-medium"
+                    >
+                        Clear All
+                    </button>
+                )}
+            </div>
+            
+            <div className="space-y-6">
+                {/* 💰 Price Range Filter */}
+                <div className="border-b border-gray-200 pb-6">
+                    <h3 className="text-sm font-medium text-gray-900 mb-4">Price Range</h3>
+                    <div className="facets__price--slider">
+                        <div className="facets__price--slide relative h-8 mb-4">
+                            <div className="absolute top-3 h-2 w-full bg-gray-200 rounded-lg"></div>
+                            <div 
+                                className="absolute top-3 h-2 bg-blue-500 rounded-lg"
+                                style={{
+                                    left: `${effectiveMinPosition}%`,
+                                    width: `${effectiveMaxPosition - effectiveMinPosition}%`
+                                }}
+                            ></div>
+                            <input
+                                type="range"
+                                min={availableRange.min}
+                                max={availableRange.max}
+                                step="1"
+                                value={localPriceInputs.min}
+                                onChange={(e) => handleMinSliderChange(Number(e.target.value))}
+                                onMouseUp={handleSliderRelease}
+                                onTouchEnd={handleSliderRelease}
+                                className="absolute top-0 w-full h-8 opacity-0 cursor-pointer z-10"
+                                aria-label="Min"
+                            />
+                            <input
+                                type="range"
+                                min={availableRange.min}
+                                max={availableRange.max}
+                                step="1"
+                                value={localPriceInputs.max}
+                                onChange={(e) => handleMaxSliderChange(Number(e.target.value))}
+                                onMouseUp={handleSliderRelease}
+                                onTouchEnd={handleSliderRelease}
+                                className="absolute top-0 w-full h-8 opacity-0 cursor-pointer z-10"
+                                aria-label="Max"
+                            />
+                            <div 
+                                className="absolute top-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg transform -translate-x-1/2 z-20 cursor-pointer pointer-events-none"
+                                style={{ left: `${effectiveMinPosition}%` }}
+                            ></div>
+                            <div 
+                                className="absolute top-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg transform -translate-x-1/2 z-20 cursor-pointer pointer-events-none"
+                                style={{ left: `${effectiveMaxPosition}%` }}
+                            ></div>
+                        </div>
+
+                        <div className="facets__price--box price-slider clearfix flex items-center space-x-2 mb-4">
+                            <div className="form-field flex-1">
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
+                                    <input
+                                        className="form-input field__input filter__price filter__price--min w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        type="number"
+                                        value={localPriceInputs.min}
+                                        onChange={(e) => handleMinPriceChange(Number(e.target.value))}
+                                        onKeyPress={handleInputKeyPress}
+                                        onBlur={handleInputBlur}
+                                        min={availableRange.min}
+                                        max={localPriceInputs.max - 1}
+                                        placeholder={availableRange.min.toString()}
+                                    />
+                                </div>
+                            </div>
+                            <span className="price-to-price text-gray-500">to</span>
+                            <div className="form-field flex-1">
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
+                                    <input
+                                        className="form-input field__input filter__price filter__price--max w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        type="number"
+                                        value={localPriceInputs.max}
+                                        onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
+                                        onKeyPress={handleInputKeyPress}
+                                        onBlur={handleInputBlur}
+                                        min={localPriceInputs.min + 1}
+                                        max={availableRange.max}
+                                        placeholder={availableRange.max.toString()}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="form-actions">
+                            <button
+                                className="button button--primary filter__price--apply w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                onClick={applyPriceFilter}
+                                disabled={isApplying}
+                            >
+                                {isApplying ? 'Applying...' : 'Apply Price Filter'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 🏷️ Brand Filter */}
+                {shouldShowFilter('brand') && getAvailableBrands.length > 0 && (
+                    <div className="border-b border-gray-200 pb-6">
+                        <h3 className="text-sm font-medium text-gray-900 mb-4">
+                            Brand ({getAvailableBrands.length} available)
+                        </h3>
+                        <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                            {getAvailableBrands.map((brand) => (
+                                <label key={brand} className="flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={isBrandSelected(brand)}
+                                        onChange={() => handleBrandChange(brand)}
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+                                    <span className="ml-3 text-sm text-gray-700 capitalize">
+                                        {brand}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 📁 Category Filter */}
+                {shouldShowFilter('category') && getAvailableCategories.length > 0 && (
+                    <div className="border-b border-gray-200 pb-6">
+                        <h3 className="text-sm font-medium text-gray-900 mb-4">
+                            Category ({getAvailableCategories.length} available)
+                        </h3>
+                        <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                            {getAvailableCategories.map((category) => (
+                                <label key={category} className="flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={isCategorySelected(category)}
+                                        onChange={() => handleCategoryChange(category)}
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+                                    <span className="ml-3 text-sm text-gray-700 capitalize">
+                                        {category}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ⭐ Customer Rating Filter */}
+                <div className="border-b border-gray-200 pb-6">
+                    <h3 className="text-sm font-medium text-gray-900 mb-4">Customer Rating</h3>
+                    <div className="space-y-2">
+                        {[4, 3, 2, 1].map((rating) => (
+                            <label key={rating} className="flex items-center cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="rating"
+                                    checked={currentFilters.rating === rating}
+                                    onChange={() => handleRatingChange(rating)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                />
+                                <span className="ml-3 text-sm text-gray-700 flex items-center">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                        <span
+                                            key={i}
+                                            className={`text-lg ${i < rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                                        >
+                                            ★
+                                        </span>
+                                    ))}
+                                    <span className="ml-1">& above</span>
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 🔧 Condition Filter */}
+                {availableFilters.conditions && availableFilters.conditions.length > 0 && (
+                    <div className="border-b border-gray-200 pb-6">
+                        <h3 className="text-sm font-medium text-gray-900 mb-4">Condition</h3>
+                        <div className="space-y-2">
+                            {availableFilters.conditions.map((condition) => (
+                                <label key={condition} className="flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={isConditionSelected(condition)}
+                                        onChange={() => handleConditionChange(condition)}
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+                                    <span className="ml-3 text-sm text-gray-700 capitalize">
+                                        {condition}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 📦 In Stock Filter */}
+                <div className="border-b border-gray-200 pb-6">
+                    <h3 className="text-sm font-medium text-gray-900 mb-4">Availability</h3>
+                    <label className="flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={currentFilters.inStock === true}
+                            onChange={() => handleStockChange(true)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-3 text-sm text-gray-700">
+                            In Stock Only ({availableFilters.inStockCount || 0} available)
+                        </span>
+                    </label>
+                </div>
+
+                {/* Results Summary */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-gray-600">
+                        Showing <span className="font-semibold">{products.length}</span> of{' '}
+                        <span className="font-semibold">{availableFilters.totalProducts || 0}</span> products
+                    </p>
+                    <div className="mt-2 text-xs text-gray-500">
+                        <div>Available Price Range: ₹{availableRange.min.toLocaleString()} - ₹{availableRange.max.toLocaleString()}</div>
+                        <div>Selected Price Range: ₹{localPriceInputs.min.toLocaleString()} - ₹{localPriceInputs.max.toLocaleString()}</div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     );
-  }
-
-  return (
-    <div className={`lg:w-64 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-      <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-4">
-        {/* Debug Info - Remove in production */}
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div className="text-xs font-mono">
-            <div>💰 Range: {formatPrice(baseMin)} - {formatPrice(baseMax)}</div>
-            <div>🎯 Current: {formatPrice(displayMinPrice)} - {formatPrice(displayMaxPrice)}</div>
-            <div>📦 Products: {products.length}</div>
-            <div>🏷️ Selected Brand: {currentFilters.brand || 'None'}</div>
-            <div>📁 Selected Category: {currentFilters.category || 'None'}</div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
-          <button
-            onClick={onClearFilters}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
-          >
-            Clear All
-          </button>
-        </div>
-
-        {/* Price Range Filter */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-gray-900">Price Range</h3>
-            {hasCustomPriceFilter && (
-              <button
-                onClick={resetPriceRange}
-                className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-          
-          <div className="space-y-4">
-            {/* Slider */}
-            <div className="px-2">
-              <Slider
-                range
-                min={baseMin}
-                max={baseMax}
-                value={sliderValues}
-                onChange={handleSliderChange}
-                onChangeComplete={handleSliderComplete}
-                trackStyle={[{ backgroundColor: '#3b82f6', height: 6 }]}
-                handleStyle={[
-                  {
-                    backgroundColor: '#ffffff',
-                    borderColor: '#3b82f6',
-                    borderWidth: 2,
-                    height: 18,
-                    width: 18,
-                    opacity: 1,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  },
-                  {
-                    backgroundColor: '#ffffff',
-                    borderColor: '#3b82f6',
-                    borderWidth: 2,
-                    height: 18,
-                    width: 18,
-                    opacity: 1,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  },
-                ]}
-                railStyle={{ backgroundColor: '#e5e7eb', height: 6 }}
-                activeDotStyle={{ borderColor: '#3b82f6' }}
-              />
-            </div>
-
-            {/* Price Display and Inputs */}
-            <div className="flex flex-col space-y-3">
-              <div className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-2 rounded border text-center">
-                {formatPrice(sliderValues[0])} - {formatPrice(sliderValues[1])}
-              </div>
-
-              <div className="flex items-center justify-between space-x-2">
-                <div className="flex items-center space-x-1">
-                  <span className="text-xs text-gray-500">Min:</span>
-                  <input
-                    type="number"
-                    value={displayMinPrice}
-                    onChange={handleMinPriceChange}
-                    min={baseMin}
-                    max={displayMaxPrice}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span className="text-xs text-gray-500">Max:</span>
-                  <input
-                    type="number"
-                    value={displayMaxPrice}
-                    onChange={handleMaxPriceChange}
-                    min={displayMinPrice}
-                    max={baseMax}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Base Range Info */}
-            <div className="text-xs text-gray-500 text-center bg-blue-50 py-1 rounded border border-blue-100">
-              Available range: {formatPrice(baseMin)} - {formatPrice(baseMax)}
-            </div>
-
-            {/* Quick Price Buttons */}
-            <div className="flex flex-wrap gap-2 justify-center">
-              {[100, 250, 500, 1000].map((price) => (
-                <button
-                  key={price}
-                  onClick={() => {
-                    console.log('🚀 Quick filter: Under', price);
-                    if (price >= baseMax) {
-                      onUpdateFilter('maxPrice', null);
-                    } else {
-                      onUpdateFilter('maxPrice', price);
-                    }
-                    onUpdateFilter('minPrice', null);
-                  }}
-                  className={`px-2 py-1 text-xs rounded border transition-colors ${
-                    currentFilters.maxPrice === price && !currentFilters.minPrice
-                      ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                  }`}
-                >
-                  Under {formatPrice(price)}
-                </button>
-              ))}
-              <button
-                onClick={resetPriceRange}
-                className={`px-2 py-1 text-xs rounded border transition-colors ${
-                  !currentFilters.minPrice && !currentFilters.maxPrice
-                    ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                }`}
-              >
-                All Prices
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Category Filter - Now toggleable */}
-        {shouldShowFilter('category') && getAvailableOptions('categories').length > 0 && (
-          <div className="mb-6">
-            <h3 className="font-medium text-gray-900 mb-3">
-              Category {currentFilters.brand && `(for ${currentFilters.brand})`}
-            </h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {getAvailableOptions('categories').map(category => (
-                <label key={category} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                  <input
-                    type="checkbox" // Changed from radio to checkbox for toggle behavior
-                    name="category"
-                    checked={currentFilters.category === category}
-                    onChange={() => handleCategoryToggle(category)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
-                  />
-                  <span className="ml-3 text-sm text-gray-700 truncate">{category}</span>
-                </label>
-              ))}
-              {/* Show "Any Category" when a category is selected */}
-              {currentFilters.category && (
-                <label className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    name="category"
-                    checked={!currentFilters.category}
-                    onChange={() => handleCategoryToggle(null)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
-                  />
-                  <span className="ml-3 text-sm text-gray-700">Any Category</span>
-                </label>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Brand Filter - Now toggleable */}
-        {shouldShowFilter('brand') && getAvailableOptions('brands').length > 0 && (
-          <div className="mb-6">
-            <h3 className="font-medium text-gray-900 mb-3">
-              Brand {currentFilters.category && `(in ${currentFilters.category})`}
-            </h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {getAvailableOptions('brands').map(brand => (
-                <label key={brand} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                  <input
-                    type="checkbox" // Changed from radio to checkbox for toggle behavior
-                    name="brand"
-                    checked={currentFilters.brand === brand}
-                    onChange={() => handleBrandToggle(brand)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
-                  />
-                  <span className="ml-3 text-sm text-gray-700 truncate">{brand}</span>
-                </label>
-              ))}
-              {/* Show "Any Brand" when a brand is selected */}
-              {currentFilters.brand && (
-                <label className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    name="brand"
-                    checked={!currentFilters.brand}
-                    onChange={() => handleBrandToggle(null)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
-                  />
-                  <span className="ml-3 text-sm text-gray-700">Any Brand</span>
-                </label>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* In Stock Filter */}
-        <div className="mb-6">
-          <label className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-            <input
-              type="checkbox"
-              checked={currentFilters.inStock || false}
-              onChange={handleInStockChange}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
-            />
-            <span className="ml-3 text-sm text-gray-700">In Stock Only</span>
-          </label>
-        </div>
-
-        {/* Rating Filter */}
-        <div className="mb-6">
-          <h3 className="font-medium text-gray-900 mb-3">Customer Rating</h3>
-          <div className="space-y-2">
-            {[4, 3, 2, 1].map(rating => (
-              <label key={rating} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                <input
-                  type="radio"
-                  name="rating"
-                  checked={currentFilters.rating === rating}
-                  onChange={() => handleRadioFilter('rating', rating)}
-                  className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
-                />
-                <span className="ml-3 text-sm text-gray-700 flex items-center">
-                  {rating}+ Stars
-                  <span className="ml-1 text-yellow-400">{"★".repeat(rating)}</span>
-                  <span className="text-gray-400 ml-1">{"★".repeat(5 - rating)}</span>
-                </span>
-              </label>
-            ))}
-            <label className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-              <input
-                type="radio"
-                name="rating"
-                checked={!currentFilters.rating}
-                onChange={() => handleRadioFilter('rating', null)}
-                className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
-              />
-              <span className="ml-3 text-sm text-gray-700">Any Rating</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Condition Filter */}
-        <div className="mb-6">
-          <h3 className="font-medium text-gray-900 mb-3">Condition</h3>
-          <div className="space-y-2">
-            {availableFilters.conditions?.map(condition => (
-              <label key={condition} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                <input
-                  type="radio"
-                  name="condition"
-                  checked={currentFilters.condition === condition}
-                  onChange={() => handleRadioFilter('condition', condition)}
-                  className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
-                />
-                <span className="ml-3 text-sm text-gray-700">{condition}</span>
-              </label>
-            ))}
-            <label className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-              <input
-                type="radio"
-                name="condition"
-                checked={!currentFilters.condition}
-                onChange={() => handleRadioFilter('condition', null)}
-                className="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
-              />
-              <span className="ml-3 text-sm text-gray-700">Any Condition</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Products Count Info */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="text-xs text-gray-500 text-center">
-            Showing {products.length} product{products.length !== 1 ? 's' : ''}
-            {hasCustomPriceFilter && ' with price filter'}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 export default ProductDetailFilters;
