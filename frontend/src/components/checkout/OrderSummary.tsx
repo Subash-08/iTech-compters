@@ -53,13 +53,11 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
       const expectedTax = Math.round(subtotal * 0.18);
       const taxCalculationCorrect = Math.abs(tax - expectedTax) <= 1; // Allow 1 rupee difference for rounding
       
-      console.log('🧾 Tax Calculation Check:', {
-        'Subtotal for Tax': subtotal,
-        'Expected Tax (18%)': expectedTax,
-        'Actual Tax': tax,
-        'Tax Calculation': taxCalculationCorrect ? '✅ Correct' : '❌ Incorrect',
-        'Difference': tax - expectedTax
-      });
+console.log('🧾 Tax Calculation:', {
+  'Subtotal': subtotal,
+  'Actual Tax from Backend': tax,
+  'Actual Tax Rate': ((tax / subtotal) * 100).toFixed(2) + '%'
+});
 
       // Total calculation verification
       const expectedTotal = subtotal + shipping + tax - discount;

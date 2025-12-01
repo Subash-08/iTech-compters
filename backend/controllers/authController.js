@@ -617,7 +617,7 @@ exports.getCompleteUserProfile = catchAsyncError(async (req, res, next) => {
             populate: {
                 path: 'items.product',
                 model: 'Product',
-                select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews'
+                select: 'name basePrice mrp discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews'
             }
         });
 
@@ -630,12 +630,12 @@ exports.getCompleteUserProfile = catchAsyncError(async (req, res, next) => {
         .populate({
             path: 'items.product',
             model: 'Product',
-            select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications'
+            select: 'name basePrice mrp discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications'
         })
         .populate({
             path: 'items.preBuiltPC', // ✅ ADD PreBuiltPC population
             model: 'PreBuiltPC',
-            select: 'name images totalPrice basePrice offerPrice discountPercentage stockQuantity averageRating totalReviews condition slug category performanceRating warranty components'
+            select: 'name images totalPrice basePrice discountPercentage stockQuantity averageRating totalReviews condition slug category performanceRating warranty components'
         });
 
     // Create wishlist if it doesn't exist
@@ -650,12 +650,12 @@ exports.getCompleteUserProfile = catchAsyncError(async (req, res, next) => {
             .populate({
                 path: 'items.product',
                 model: 'Product',
-                select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications'
+                select: 'name basePrice mrp discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications'
             })
             .populate({
                 path: 'items.preBuiltPC', // ✅ ADD PreBuiltPC population
                 model: 'PreBuiltPC',
-                select: 'name images totalPrice basePrice offerPrice discountPercentage stockQuantity averageRating totalReviews condition slug category performanceRating warranty components'
+                select: 'name images totalPrice basePrice discountPercentage stockQuantity averageRating totalReviews condition slug category performanceRating warranty components'
             });
     }
 
@@ -672,7 +672,7 @@ exports.getCompleteUserProfile = catchAsyncError(async (req, res, next) => {
                         name: item.preBuiltPC.name,
                         slug: item.preBuiltPC.slug,
                         basePrice: item.preBuiltPC.basePrice || item.preBuiltPC.totalPrice,
-                        offerPrice: item.preBuiltPC.offerPrice || item.preBuiltPC.discountPrice || item.preBuiltPC.totalPrice,
+                        mrp: item.preBuiltPC.totalPrice, // Use totalPrice as MRP for PreBuiltPC
                         discountPercentage: item.preBuiltPC.discountPercentage,
                         stockQuantity: item.preBuiltPC.stockQuantity,
                         images: item.preBuiltPC.images,

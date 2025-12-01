@@ -256,7 +256,7 @@ class APIFeatures {
             this.query = this.query.select(fields);
         } else {
             // Default field selection for better performance
-            this.query = this.query.select('name slug brand categories images basePrice offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews');
+            this.query = this.query.select('name slug brand categories images basePrice mrp offerPrice discountPercentage stockQuantity hasVariants averageRating totalReviews');
         }
         return this;
     }

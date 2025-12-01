@@ -1311,5 +1311,5 @@ module.exports = {
     deleteAdminInvoice,
     downloadInvoice,
     getSalesChartData,
-    getQuickStats
+    getQuickStats,
 };

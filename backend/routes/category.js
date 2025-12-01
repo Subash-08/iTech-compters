@@ -10,7 +10,10 @@ const {
     partialUpdateCategory,
     getCategory,
     getCategoryTree,
-    getCategoriesDropdown
+    getCategoriesDropdown,
+    deleteAllBrands,
+    deleteAllCategories,
+    createMultipleCategories
 } = require("../controllers/categoryController");
 const { categoryUpload, handleMulterError } = require("../config/multerConfig");
 
@@ -33,6 +36,12 @@ router.get(
     isAuthenticatedUser,
     authorizeRoles('admin'),
     getAllCategories
+);
+router.post(
+    "/admin/categories/bulk",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    createMultipleCategories
 );
 
 router.get(

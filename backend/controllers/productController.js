@@ -362,10 +362,8 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
         status,
         description,
         definition,
-        basePrice,
-        offerPrice, // Keep for backward compatibility
-        mrp, // 🆕 New MRP field
-        discountPercentage,
+        basePrice, // Selling price (required)
+        mrp,        // Maximum Retail Price
         taxRate,
         sku,
         barcode,
@@ -383,9 +381,12 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
         canonicalUrl,
         linkedProducts,
         notes,
-        hsn, // 🆕 New HSN field
-        manufacturerImages // 🆕 New manufacturer images
+        hsn,
+        manufacturerImages
     } = req.body;
+
+    // Remove offerPrice from incoming data
+    delete req.body.offerPrice;
 
     // --- 1. ESSENTIAL FIELD VALIDATION ---
     if (!name || !description || !brand || !categories || categories.length === 0) {
@@ -477,9 +478,14 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
         const seenBarcodes = new Set();
 
         for (const [index, variant] of variants.entries()) {
+            // Remove offerPrice from variant data
+            if (variant.offerPrice) {
+                delete variant.offerPrice;
+            }
+
             // Basic validation
-            if (!variant.name || !variant.price || !variant.identifyingAttributes) {
-                return next(new ErrorHandler(`Variant at index ${index} must have name, price, and identifyingAttributes.`, 400));
+            if (!variant.name || !variant.price) {
+                return next(new ErrorHandler(`Variant at index ${index} must have name and price.`, 400));
             }
 
             // 🆕 FIX: ENHANCED VARIANT IMAGE HANDLING WITH GALLERY SUPPORT
@@ -570,15 +576,16 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
                 return next(new ErrorHandler(`Variant "${variant.name}" must have a valid stockQuantity (number >= 0).`, 400));
             }
 
-            // 🆕 UPDATED: Create enhanced variant with MRP support
+            // 🆕 UPDATED: Create enhanced variant with NEW pricing structure
             enhancedVariants.push({
                 name: variant.name.trim(),
+                slug: `${name.toLowerCase().replace(/\s+/g, '-')}-${variant.name.toLowerCase().replace(/\s+/g, '-')}`,
                 sku: variant.sku,
                 barcode: variant.barcode,
-                price: variant.price,
-                // 🆕 Handle MRP - use new mrp field or fallback to offerPrice for backward compatibility
-                mrp: variant.mrp !== undefined ? variant.mrp : (variant.offerPrice || variant.price),
-                hsn: variant.hsn || hsn, // 🆕 Inherit product HSN if variant doesn't have one
+                // 💰 NEW PRICING STRUCTURE
+                price: variant.price, // Selling price
+                mrp: variant.mrp !== undefined ? variant.mrp : variant.price, // MRP defaults to price if not provided
+                hsn: variant.hsn || hsn,
                 stockQuantity: variant.stockQuantity || 0,
                 identifyingAttributes: enhancedAttributes,
                 images: variantImages,
@@ -652,9 +659,16 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
         totalStockQuantity = stockQuantity || 0;
     }
 
-    // --- 8. CREATE PRODUCT ---
+    // --- 8. CALCULATE DISCOUNT PERCENTAGE DYNAMICALLY ---
+    let discountPercentage = 0;
+    if (mrp && basePrice && mrp > basePrice) {
+        discountPercentage = Math.round(((mrp - basePrice) / mrp) * 100);
+    }
+
+    // --- 9. CREATE PRODUCT ---
     const product = await Product.create({
         name: name.trim(),
+        slug: name.toLowerCase().replace(/\s+/g, '-'),
         brand: brandId,
         categories: categoryIds,
         tags: tags || [],
@@ -665,26 +679,29 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
         description,
         definition: definition || '',
 
-        // 🆕 NEW FIELDS
-        hsn: hsn || '',
+        // 🖼️ IMAGES
+        images: productImages,
         manufacturerImages: manufacturerImages || [],
 
-        // 🆕 UPDATED PRICING: Handle both MRP and offerPrice for backward compatibility
+        // 💰 NEW PRICING STRUCTURE
         basePrice: basePrice || 0,
-        mrp: mrp !== undefined ? mrp : (offerPrice || basePrice || 0),
-        offerPrice: offerPrice || 0,
-        discountPercentage: discountPercentage || 0,
+        mrp: mrp || basePrice || 0,
         taxRate: taxRate || 0,
+        discountPercentage: discountPercentage,
+
+        // 🏷️ PRODUCT IDENTIFICATION
+        hsn: hsn || '',
         sku: finalSku,
         barcode: barcode || '',
         stockQuantity: totalStockQuantity,
 
-        // Variant Configuration
+        // 🔧 VARIANT CONFIGURATION
         variantConfiguration: finalVariantConfig,
 
-        // 🆕 UPDATED: Enhanced variants with MRP support
+        // 📦 VARIANTS
         variants: enhancedVariants,
 
+        // 📋 PRODUCT DETAILS
         specifications: specifications || [],
         features: features || [],
 

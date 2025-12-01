@@ -6,7 +6,8 @@ const {
     getBrand,
     updateBrand,
     updateBrandStatus,
-    deleteBrand
+    deleteBrand,
+    createMultipleBrands
 } = require("../controllers/brandController");
 const { brandUpload } = require("../config/multerConfig");
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
@@ -22,6 +23,13 @@ router.post(
     authorizeRoles('admin'),
     brandUpload.single('logo'),
     createBrand
+);
+
+router.post(
+    "/admin/brands/bulk",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    createMultipleBrands
 );
 
 router.get(

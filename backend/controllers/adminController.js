@@ -271,6 +271,7 @@ const mergeManufacturerImagesWithUploads = (existingManufacturerImages, uploaded
     return result;
 };
 
+
 // 🆕 UPDATED UPDATE PRODUCT with file upload support
 exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
     try {
@@ -333,7 +334,7 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             const allowedFields = [
                 'name', 'description', 'brand', 'categories', 'status', 'condition',
                 'isActive', 'definition', 'tags', 'label', 'specifications', 'features',
-                'basePrice', 'offerPrice', 'mrp', 'discountPercentage', 'stockQuantity',
+                'basePrice', 'mrp', 'discountPercentage', 'stockQuantity',
                 'barcode', 'sku', 'weight', 'dimensions', 'warranty', 'taxRate', 'notes',
                 'linkedProducts', 'hsn', 'manufacturerImages'
             ];
@@ -375,10 +376,8 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             }
         }
 
-        // 🆕 UPDATED: Handle MRP backward compatibility
-        if (productData.offerPrice !== undefined && productData.mrp === undefined) {
-            // If offerPrice is provided but mrp is not, use offerPrice as MRP for backward compatibility
-            updateData.mrp = productData.offerPrice;
+        if (productData.mrp === undefined && productData.basePrice !== undefined) {
+            updateData.mrp = productData.basePrice;
         }
 
         // 🆕 LINKED PRODUCTS VALIDATION
@@ -499,7 +498,7 @@ exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {
             // 🆕 UPDATED: List of allowed fields with new MRP, HSN, and manufacturerImages fields
             const allowedFields = [
                 'name', 'description', 'definition', 'brand', 'categories', 'tags',
-                'condition', 'label', 'isActive', 'status', 'basePrice', 'offerPrice', 'mrp',
+                'condition', 'label', 'isActive', 'status', 'basePrice', 'mrp',
                 'discountPercentage', 'taxRate', 'sku', 'barcode', 'stockQuantity',
                 'warranty', 'canonicalUrl', 'notes', 'linkedProducts', 'hsn', 'manufacturerImages'
             ];
@@ -530,10 +529,8 @@ exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {
                 updateData.meta = { ...product.meta, ...req.body.meta };
             }
         }
-
-        // 🆕 UPDATED: Handle MRP backward compatibility
-        if (updateData.offerPrice !== undefined && updateData.mrp === undefined) {
-            updateData.mrp = updateData.offerPrice;
+        if (updateData.mrp === undefined && updateData.basePrice !== undefined) {
+            updateData.mrp = updateData.basePrice;
         }
 
         // 🆕 LINKED PRODUCTS VALIDATION FOR PARTIAL UPDATE

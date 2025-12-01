@@ -15,11 +15,22 @@ const generateOrderNumber = () => {
     return `ORD-${dateStr}-${random}`;
 };
 
-// In your checkout controller - FIX TAX CALCULATION
 const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
     try {
         const userId = req.user._id;
-        const cart = await Cart.findOne({ userId }).populate(/* your population */);
+        const cart = await Cart.findOne({ userId }).populate([
+            {
+                path: 'items.product',
+                model: 'Product',
+                select: 'name basePrice mrp taxRate variants images slug'
+            },
+            {
+                path: 'items.preBuiltPC',
+                model: 'PreBuiltPC',
+                select: 'name totalPrice discountPrice images slug'
+            }
+        ]);
+
         const user = await User.findById(userId).select('addresses defaultAddressId');
 
         if (!cart || cart.items.length === 0) {
@@ -29,16 +40,21 @@ const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
         const validatedItems = [];
         let subtotal = 0;
         let totalTax = 0;
+        let totalSavings = 0; // ✅ ADD savings calculation
 
         for (const item of cart.items) {
-            let productData, currentPrice, taxRate;
+            let productData, currentPrice, originalPrice, taxRate;
 
             if (item.productType === 'product') {
                 productData = item.product;
                 if (!productData) continue;
 
-                // ✅ FIXED: Consistent tax rate handling
-                let rawTaxRate = productData.taxRate || 18; // Default to 18%
+                // ✅ FIXED: Use actual tax rate from product
+                let rawTaxRate = productData.taxRate;
+                if (!rawTaxRate || rawTaxRate <= 0) {
+                    console.warn('⚠️ No tax rate found for product, using 18%:', productData.name);
+                    rawTaxRate = 18;
+                }
 
                 // Convert to decimal if it's a percentage
                 if (rawTaxRate > 1) {
@@ -47,13 +63,18 @@ const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
                     taxRate = rawTaxRate;
                 }
 
-                currentPrice = productData.offerPrice > 0 ? productData.offerPrice : productData.basePrice;
+                // ✅ UPDATED: Use basePrice as selling price, mrp as original price
+                currentPrice = productData.basePrice; // Selling price
+                originalPrice = productData.mrp || productData.basePrice; // Original price for savings calculation
 
                 // Handle variants
                 if (item.variant?.variantId && productData.variants) {
                     const variant = productData.variants.id(item.variant.variantId);
                     if (variant) {
-                        currentPrice = variant.offerPrice > 0 ? variant.offerPrice : variant.price;
+                        // ✅ UPDATED: Use variant price as selling price, variant mrp as original
+                        currentPrice = variant.price; // Selling price
+                        originalPrice = variant.mrp || variant.price; // Original price
+
                         // Use variant tax rate if available
                         let variantTaxRate = variant.taxRate || taxRate;
                         if (variantTaxRate > 1) variantTaxRate = variantTaxRate / 100;
@@ -65,43 +86,33 @@ const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
                 productData = item.preBuiltPC;
                 if (!productData) continue;
 
-                // ✅ FIXED: Pre-built PCs use 18% tax consistently
                 taxRate = 0.18;
                 currentPrice = productData.discountPrice > 0 ? productData.discountPrice : productData.totalPrice;
+                originalPrice = productData.totalPrice;
             }
 
-            // Fallback to stored price
+            // Fallback to stored price from cart
             if (!currentPrice || currentPrice <= 0) {
                 currentPrice = item.price;
+                originalPrice = item.price;
             }
 
             const itemTotal = currentPrice * item.quantity;
-
-            // ✅ FIXED: Proper tax calculation with validation
             const itemTax = itemTotal * taxRate;
-
-            // Validate tax calculation
-            if (itemTax > itemTotal * 0.5) { // Tax shouldn't exceed 50% of item value
-                console.error('❌ Invalid tax calculation:', {
-                    item: productData.name,
-                    price: currentPrice,
-                    taxRate: taxRate,
-                    calculatedTax: itemTax,
-                    expectedMax: itemTotal * 0.5
-                });
-                // Use reasonable fallback
-                const itemTax = itemTotal * 0.18;
-            }
+            const itemSavings = (originalPrice - currentPrice) * item.quantity;
 
             subtotal += itemTotal;
             totalTax += itemTax;
+            totalSavings += itemSavings;
 
-            console.log(`✅ Fixed tax for ${productData.name}:`, {
-                price: currentPrice,
+            console.log(`✅ Updated pricing for ${productData.name}:`, {
+                originalPrice: originalPrice,
+                sellingPrice: currentPrice,
                 quantity: item.quantity,
                 taxRate: (taxRate * 100).toFixed(2) + '%',
                 itemTax: itemTax,
-                itemTotal: itemTotal
+                itemTotal: itemTotal,
+                itemSavings: itemSavings
             });
 
             validatedItems.push({
@@ -113,7 +124,8 @@ const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
                 slug: productData.slug,
                 image: productData.images?.thumbnail?.url || productData.images?.gallery?.[0]?.url || productData.images?.main?.url,
                 quantity: item.quantity,
-                price: currentPrice,
+                price: currentPrice, // Selling price
+                originalPrice: originalPrice, // MRP/Original price
                 total: itemTotal,
                 taxRate: taxRate,
                 taxAmount: itemTax,
@@ -124,11 +136,12 @@ const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
         const shipping = subtotal >= 1000 ? 0 : 100;
         const total = subtotal + shipping + totalTax;
 
-        console.log('💰 CORRECTED FINAL PRICING:', {
+        console.log('💰 UPDATED FINAL PRICING:', {
             subtotal: subtotal,
             totalTax: totalTax,
             shipping: shipping,
             total: total,
+            totalSavings: totalSavings,
             averageTaxRate: ((totalTax / subtotal) * 100).toFixed(2) + '%'
         });
 
@@ -143,7 +156,8 @@ const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
                     shipping: shipping,
                     tax: Math.round(totalTax * 100) / 100,
                     discount: 0,
-                    total: Math.round(total * 100) / 100
+                    total: Math.round(total * 100) / 100,
+                    totalSavings: Math.round(totalSavings * 100) / 100 // ✅ ADD savings
                 },
                 summary: {
                     totalItems: cart.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -246,8 +260,6 @@ const calculateCheckout = catchAsyncErrors(async (req, res, next) => {
         next(error);
     }
 });
-
-// FIXED: Enhanced order creation with proper price calculation
 const createOrder = catchAsyncErrors(async (req, res, next) => {
     try {
         console.log('🟡 Starting order creation...');
@@ -315,9 +327,8 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Cart is empty', 400));
         }
 
-        // FIXED: Prepare order items with proper price calculation
         const orderItems = await Promise.all(cartItems.map(async (item) => {
-            // Get product details to determine MRP and selling price
+            // Get product details to determine MRP and base price
             let productDetails = null;
             try {
                 if (item.productType === 'product') {
@@ -328,7 +339,7 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
                 console.warn('⚠️ Could not fetch product details for:', item.product);
             }
 
-            let originalPrice = item.price;
+            let originalPrice = item.originalPrice || item.price;
             let discountedPrice = item.price;
 
             // Calculate proper prices based on product data
@@ -337,13 +348,13 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
                 if (item.variant && item.variant.variantId && productDetails.variants) {
                     const variant = productDetails.variants.id(item.variant.variantId);
                     if (variant) {
-                        originalPrice = variant.mrp || variant.price; // MRP is the original price
-                        discountedPrice = variant.price; // Current selling price
+                        originalPrice = variant.mrp || originalPrice;
+                        discountedPrice = variant.price || discountedPrice;
                     }
                 } else {
                     // Use product-level pricing
-                    originalPrice = productDetails.mrp || productDetails.basePrice;
-                    discountedPrice = productDetails.basePrice;
+                    originalPrice = productDetails.mrp || originalPrice;
+                    discountedPrice = productDetails.basePrice || discountedPrice;
                 }
             }
 
@@ -352,14 +363,19 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
             discountedPrice = Number(discountedPrice) || item.price;
 
             const itemTotal = discountedPrice * item.quantity;
-            const taxAmount = itemTotal * (item.taxRate || 0.18);
+
+            // 🚨 CRITICAL FIX: Convert tax rate from percentage to decimal
+            const taxRate = item.taxRate || 18;
+            const taxAmount = itemTotal * (taxRate / 100); // ✅ FIXED: Divide by 100
 
             console.log(`🟡 Item ${item.name}:`, {
                 originalPrice,
                 discountedPrice,
                 quantity: item.quantity,
                 total: itemTotal,
-                taxAmount
+                taxRate: taxRate + '%',
+                taxAmount,
+                savings: (originalPrice - discountedPrice) * item.quantity
             });
 
             return {
@@ -373,8 +389,8 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
                 originalPrice: originalPrice,
                 discountedPrice: discountedPrice,
                 total: itemTotal,
-                taxRate: item.taxRate || 0.18,
-                taxAmount: taxAmount,
+                taxRate: taxRate, // Keep as percentage for display
+                taxAmount: taxAmount, // Now correctly calculated
                 returnable: true,
                 returnWindow: 7
             };
@@ -384,7 +400,7 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
         const orderNumber = generateOrderNumber();
         console.log('✅ Generated order number:', orderNumber);
 
-        // FIXED: Create order data with validated pricing
+        // Create order data with validated pricing
         const orderData = {
             user: userId,
             orderNumber: orderNumber,
@@ -455,7 +471,8 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
             name: item.name,
             originalPrice: item.originalPrice,
             discountedPrice: item.discountedPrice,
-            total: item.total
+            total: item.total,
+            taxAmount: item.taxAmount
         })));
 
         // Create order
@@ -513,7 +530,6 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
         next(error);
     }
 });
-
 // @desc    Save user address
 // @route   POST /api/checkout/address
 // @access  Private
@@ -666,7 +682,6 @@ const updateAddress = catchAsyncErrors(async (req, res, next) => {
         next(error);
     }
 });
-
 const getCheckoutDataInternal = async (userId) => {
     try {
         console.log('🟡 getCheckoutDataInternal started for user:', userId);
@@ -674,10 +689,9 @@ const getCheckoutDataInternal = async (userId) => {
         const cart = await Cart.findOne({ userId })
             .populate({
                 path: 'items.product',
-                select: 'name slug images basePrice mrp offerPrice stockQuantity taxRate variants',
-                // Remove the nested populate for now as it might be causing issues
+                select: 'name slug images basePrice mrp stockQuantity taxRate variants',
             })
-            .populate('items.preBuiltPC', 'name slug images basePrice offerPrice totalPrice specifications');
+            .populate('items.preBuiltPC', 'name slug images basePrice totalPrice specifications');
 
         if (!cart || cart.items.length === 0) {
             console.log('❌ Cart is empty');
@@ -700,12 +714,11 @@ const getCheckoutDataInternal = async (userId) => {
 
             let currentPrice = 0;
             let originalPrice = 0;
-            let taxRate = 0.18;
+            let taxRate = 18; // ✅ CHANGED: Default to 18 (percentage), not 0.18
             let name = 'Product';
             let image = '';
             let sku = 'UNKNOWN';
 
-            // FIXED: Direct price access with multiple fallbacks
             if (item.productType === 'product') {
                 name = item.product?.name || 'Product';
                 image = item.product?.images?.thumbnail?.url ||
@@ -715,7 +728,7 @@ const getCheckoutDataInternal = async (userId) => {
                 // METHOD 1: Use variant price from cart if available
                 if (item.variant?.price) {
                     currentPrice = item.variant.price;
-                    originalPrice = item.variant.price; // Use same for now
+                    originalPrice = item.variant.mrp || item.variant.price;
                     console.log('✅ Using variant price from cart:', currentPrice);
                 }
                 // METHOD 2: Use product basePrice
@@ -724,35 +737,31 @@ const getCheckoutDataInternal = async (userId) => {
                     originalPrice = item.product.mrp || item.product.basePrice;
                     console.log('✅ Using product basePrice:', currentPrice);
                 }
-                // METHOD 3: Use product offerPrice
-                else if (item.product?.offerPrice) {
-                    currentPrice = item.product.offerPrice;
-                    originalPrice = item.product.price || item.product.offerPrice;
-                    console.log('✅ Using product offerPrice:', currentPrice);
-                }
-                // METHOD 4: Use product price
-                else if (item.product?.price) {
-                    currentPrice = item.product.price;
-                    originalPrice = item.product.mrp || item.product.price;
-                    console.log('✅ Using product price:', currentPrice);
-                }
-                // METHOD 5: Last resort - use a default price
+                // METHOD 3: Last resort - use a default price
                 else {
-                    currentPrice = 100; // Default minimum price
+                    currentPrice = 100;
                     originalPrice = 100;
                     console.warn('⚠️ Using default price for product');
                 }
 
-                taxRate = item.product?.taxRate || 0.18;
+                // ✅ FIXED: Get tax rate and ensure it's a percentage
+                taxRate = item.product?.taxRate || 18;
+                // If taxRate is less than 1, it's already decimal - convert to percentage
+                if (taxRate < 1) {
+                    taxRate = taxRate * 100;
+                    console.log(`🔄 Converted tax rate from decimal to percentage: ${taxRate}%`);
+                }
+
                 sku = item.product?.sku || 'UNKNOWN';
 
             } else if (item.productType === 'prebuilt-pc' && item.preBuiltPC) {
                 name = item.preBuiltPC.name;
-                currentPrice = item.preBuiltPC.offerPrice > 0 ? item.preBuiltPC.offerPrice : item.preBuiltPC.totalPrice;
+                currentPrice = item.preBuiltPC.basePrice || item.preBuiltPC.totalPrice;
                 originalPrice = item.preBuiltPC.totalPrice;
                 image = item.preBuiltPC.images?.thumbnail?.url ||
                     item.preBuiltPC.images?.gallery?.[0]?.url || '';
                 sku = item.preBuiltPC.sku || 'PREBUILT-PC';
+                taxRate = 18; // Pre-built PCs use 18%
             } else {
                 console.warn('⚠️ Skipping invalid cart item');
                 continue;
@@ -763,6 +772,8 @@ const getCheckoutDataInternal = async (userId) => {
             originalPrice = Number(originalPrice) || currentPrice;
 
             const itemTotal = currentPrice * item.quantity;
+
+            // ✅ FIXED: Calculate tax correctly - taxRate is now in percentage
             const itemTax = itemTotal * (taxRate / 100);
 
             subtotal += itemTotal;
@@ -781,7 +792,7 @@ const getCheckoutDataInternal = async (userId) => {
                 originalPrice: originalPrice,
                 discountedPrice: currentPrice,
                 total: itemTotal,
-                taxRate: taxRate,
+                taxRate: taxRate, // Store as percentage
                 taxAmount: itemTax,
                 available: true,
                 sku: sku
@@ -791,6 +802,7 @@ const getCheckoutDataInternal = async (userId) => {
                 price: currentPrice,
                 quantity: item.quantity,
                 total: itemTotal,
+                taxRate: taxRate + '%',
                 taxAmount: itemTax
             });
         }
@@ -830,6 +842,7 @@ const getCheckoutDataInternal = async (userId) => {
         return { success: false, error: error.message };
     }
 };
+
 const calculateCheckoutInternal = async (userId, couponCode) => {
     try {
         console.log('🟡 Starting calculateCheckoutInternal for user:', userId);

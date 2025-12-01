@@ -1,4 +1,5 @@
 const Category = require("../models/categoryModel");
+const Brand = require("../models/brandModel");
 const ErrorHandler = require('../utils/errorHandler');
 const APIFeatures = require("../utils/apiFeatures");
 const catchAsyncErrors = require("../middlewares/catchAsyncError");
@@ -610,6 +611,134 @@ exports.getCategoriesDropdown = catchAsyncErrors(async (req, res, next) => {
         });
     } catch (error) {
         console.error("Error in getCategoriesDropdown:", error);
+        return next(new ErrorHandler(error.message, 500));
+    }
+});
+
+exports.createMultipleCategories = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const { categories } = req.body;
+
+        // Validate input
+        if (!categories || !Array.isArray(categories) || categories.length === 0) {
+            return next(new ErrorHandler("Please provide an array of categories", 400));
+        }
+
+        // Limit batch size for safety
+        if (categories.length > 50) {
+            return next(new ErrorHandler("Maximum 50 categories per batch allowed", 400));
+        }
+
+        const results = {
+            success: [],
+            failed: [],
+            total: categories.length
+        };
+
+        // Process each category
+        for (const categoryData of categories) {
+            try {
+                const {
+                    name,
+                    slug,
+                    description = '',
+                    parentCategory = null,
+                    metaTitle = '',
+                    metaDescription = '',
+                    metaKeywords = [],
+                    status = 'active'
+                } = categoryData;
+
+                // Validate required fields
+                if (!name) {
+                    results.failed.push({
+                        name: name || 'Unnamed',
+                        error: 'Category name is required'
+                    });
+                    continue;
+                }
+
+                // Check if category already exists
+                const existingCategory = await Category.findOne({
+                    $or: [
+                        { name },
+                        { slug: slug || name.toLowerCase().replace(/ /g, '-') }
+                    ]
+                });
+
+                if (existingCategory) {
+                    results.failed.push({
+                        name,
+                        error: 'Category with this name or slug already exists'
+                    });
+                    continue;
+                }
+
+                // Validate parent category if provided
+                if (parentCategory && parentCategory !== 'null' && parentCategory !== '') {
+                    const parent = await Category.findById(parentCategory);
+                    if (!parent) {
+                        results.failed.push({
+                            name,
+                            error: 'Parent category not found'
+                        });
+                        continue;
+                    }
+                    if (parent.status === 'inactive') {
+                        results.failed.push({
+                            name,
+                            error: 'Cannot assign to an inactive parent category'
+                        });
+                        continue;
+                    }
+                }
+
+                // Prepare category object
+                const categoryToCreate = {
+                    name,
+                    slug: slug || name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-'),
+                    description,
+                    parentCategory: parentCategory || null,
+                    metaTitle: metaTitle || `${name} | iTech Computers`,
+                    metaDescription: metaDescription || `Shop ${name} at iTech Computers. Best quality with warranty.`,
+                    metaKeywords: Array.isArray(metaKeywords) ? metaKeywords : [],
+                    status,
+                    createdBy: req.user?.id || null
+                };
+
+                // Create category
+                const category = await Category.create(categoryToCreate);
+
+                results.success.push({
+                    _id: category._id,
+                    name: category.name,
+                    slug: category.slug,
+                    message: 'Created successfully'
+                });
+
+            } catch (error) {
+                results.failed.push({
+                    name: categoryData.name || 'Unknown',
+                    error: error.message
+                });
+            }
+        }
+
+        // Return summary
+        res.status(201).json({
+            success: true,
+            message: `Bulk category creation completed`,
+            summary: {
+                total: results.total,
+                successCount: results.success.length,
+                failedCount: results.failed.length,
+                success: results.success,
+                failed: results.failed
+            }
+        });
+
+    } catch (error) {
+        console.error("Error in createMultipleCategories:", error);
         return next(new ErrorHandler(error.message, 500));
     }
 });

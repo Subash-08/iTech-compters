@@ -497,11 +497,6 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-// ==================== STOCK REDUCTION HELPER FUNCTIONS ====================
-
-/**
- * Reduce stock for all items in an order
- */
 const reduceStockForOrder = async (order) => {
     const stockReductionResults = {
         successful: [],

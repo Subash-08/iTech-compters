@@ -8,11 +8,10 @@ const PreBuiltPC = require('../models/preBuiltPCModel');
 
 // ==================== HELPER FUNCTIONS ====================
 
-// FIXED: Common population configuration
 const cartPopulation = [
     {
         path: 'items.product',
-        select: 'name images basePrice offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews',
+        select: 'name images basePrice mrp slug stockQuantity brand categories condition discountPercentage averageRating totalReviews',
         populate: [
             { path: 'brand', select: 'name' },
             { path: 'categories', select: 'name' }
@@ -357,60 +356,7 @@ exports.addPreBuiltPCToCart = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-// controllers/cartController.js - COMPLETE FIX
-exports.removeFromCart = catchAsyncErrors(async (req, res, next) => {
-    const { productId, variantId } = req.body;
-    const userId = req.user._id;
-    if (!productId) {
-        return next(new ErrorHandler('Product ID is required', 400));
-    }
 
-    const cart = await Cart.findOne({ userId });
-
-    if (!cart) {
-        return next(new ErrorHandler('Cart not found', 404));
-    }
-
-    try {
-        const searchProductId = productId.toString();
-
-        // ✅ COMPLETE FIX: Handle both cases (with and without variantId)
-        const initialLength = cart.items.length;
-
-        if (variantId) {
-            // Remove specific variant
-            const searchVariantId = variantId.toString();
-            cart.items = cart.items.filter(item =>
-                !(item.productType === 'product' &&
-                    item.product?.toString() === searchProductId &&
-                    item.variant?.variantId?.toString() === searchVariantId)
-            );
-        } else {
-            // Remove ANY item with this productId (regardless of variant)
-            cart.items = cart.items.filter(item =>
-                !(item.productType === 'product' &&
-                    item.product?.toString() === searchProductId)
-            );
-        }
-        if (cart.items.length === initialLength) {
-            throw new Error('Item not found in cart');
-        }
-
-        await cart.save();
-
-        // Populate and return updated cart
-        const updatedCart = await Cart.findById(cart._id).populate(cartPopulation);
-
-        res.status(200).json({
-            success: true,
-            message: 'Product removed from cart successfully',
-            data: updatedCart
-        });
-    } catch (error) {
-        console.error('❌ Remove from cart error:', error);
-        return next(new ErrorHandler(error.message, 404));
-    }
-});
 
 // @desc    Remove Pre-built PC from cart
 // @route   DELETE /api/v1/cart/prebuilt-pc/remove/:pcId
@@ -778,10 +724,6 @@ exports.getAllCarts = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-// @desc    Remove item from cart
-// @route   DELETE /api/v1/cart
-// @access  Private
-// In cartController.js - update removeFromCart
 exports.removeFromCart = catchAsyncErrors(async (req, res, next) => {
     const { productId, variantId } = req.body;
     const userId = req.user._id;
@@ -807,7 +749,7 @@ exports.removeFromCart = catchAsyncErrors(async (req, res, next) => {
         const updatedCart = await Cart.findById(cart._id)
             .populate({
                 path: 'items.product',
-                select: 'name images price slug stock discountPrice brand category variants basePrice offerPrice',
+                select: 'name images price slug stock brand category variants basePrice mrp',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'category', select: 'name' }
@@ -824,7 +766,6 @@ exports.removeFromCart = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler(error.message, 404));
     }
 });
-
 
 
 // @desc    Update cart item quantity
@@ -850,13 +791,13 @@ exports.updateCartQuantity = catchAsyncErrors(async (req, res, next) => {
         const updatedCart = await Cart.findById(cart._id)
             .populate({
                 path: 'items.product',
-                select: 'name images price slug stock discountPrice brand category variants basePrice offerPrice', // ADD basePrice and offerPrice here
+                select: 'name images price slug stock brand category variants basePrice mrp',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'category', select: 'name' }
                 ]
             })
-            .populate('items.variant', 'name price stock basePrice offerPrice');
+            .populate('items.variant', 'name price stock basePrice mrp');
 
         res.status(200).json({
             success: true,

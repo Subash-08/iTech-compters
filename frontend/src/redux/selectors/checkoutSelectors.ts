@@ -148,20 +148,16 @@ export const selectTaxAmount = createSelector(
   [selectCurrentPricing, selectSubtotal],
   (pricing, subtotal) => {
     const backendTax = pricing?.tax || 0;
-    const expectedTax = Math.round(subtotal * 0.18);
     
-    // Debug tax calculation
-    if (subtotal > 0 && Math.abs(backendTax - expectedTax) > 1) {
-      console.warn('⚠️ Tax calculation issue:', {
+    if (subtotal > 0) {
+      console.log('📊 Actual Tax Rate:', {
         subtotal,
         backendTax,
-        expectedTaxAt18Percent: expectedTax,
-        difference: backendTax - expectedTax,
         actualTaxRate: ((backendTax / subtotal) * 100).toFixed(2) + '%'
       });
     }
     
-    return backendTax >= 0 ? backendTax : expectedTax;
+    return backendTax >= 0 ? backendTax : 0;
   }
 );
 

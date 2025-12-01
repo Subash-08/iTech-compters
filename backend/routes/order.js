@@ -32,6 +32,7 @@ const { uploadInvoice } = require("../config/multer");
 // ==================== PUBLIC ROUTES ====================
 router.get("/orders/track/:orderNumber", trackOrder);
 
+
 // ==================== USER ROUTES ====================
 router.use(isAuthenticatedUser);
 
@@ -73,5 +74,6 @@ router.get("/admin/orders/export", authorizeRoles('admin'), exportOrders);
 router.get("/admin/orders/:orderId", authorizeRoles('admin'), getAdminOrderDetails);
 router.put("/admin/orders/:orderId/status", authorizeRoles('admin'), updateOrderStatus);
 router.post("/admin/orders/:orderId/notes", authorizeRoles('admin'), addAdminNote);
+
 
 module.exports = router;

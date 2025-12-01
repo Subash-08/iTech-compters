@@ -46,6 +46,7 @@ exports.getPCBuilderConfig = catchAsyncErrors(async (req, res, next) => {
 });
 
 // Get products by category with advanced filtering
+
 exports.getComponentsByCategory = catchAsyncErrors(async (req, res, next) => {
     const { category } = req.params;
     const {
@@ -171,7 +172,7 @@ exports.getComponentsByCategory = catchAsyncErrors(async (req, res, next) => {
     try {
         [products, totalProducts] = await Promise.all([
             Product.find(filter)
-                .select('name slug images basePrice offerPrice discountPercentage stockQuantity hasVariants variants averageRating totalReviews condition brand specifications')
+                .select('name slug images basePrice mrp discountPercentage stockQuantity hasVariants variants averageRating totalReviews condition brand specifications')
                 .populate('brand', 'name slug')
                 .sort(sortConfig)
                 .skip(skip)
@@ -189,8 +190,8 @@ exports.getComponentsByCategory = catchAsyncErrors(async (req, res, next) => {
         _id: product._id,
         name: product.name,
         slug: product.slug,
-        price: product.offerPrice || product.basePrice,
-        originalPrice: product.basePrice,
+        price: product.basePrice,
+        originalPrice: product.mrp || product.basePrice,
         discountPercentage: product.discountPercentage,
         image: product.images?.thumbnail?.url || '',
         inStock: product.stockQuantity > 0 || (product.hasVariants && product.variants.some(v => v.stockQuantity > 0)),
@@ -228,6 +229,7 @@ exports.getComponentsByCategory = catchAsyncErrors(async (req, res, next) => {
 });
 
 // Create PC quote with comprehensive validation
+
 exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
     const { customer, components, metadata = {} } = req.body;
 
@@ -290,7 +292,7 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
 
             try {
                 const product = await Product.findById(component.productId)
-                    .select('name basePrice offerPrice images slug')
+                    .select('name basePrice mrp images slug')
                     .lean();
 
                 if (!product) {
@@ -302,7 +304,7 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
                 }
 
                 enrichedComponent.productName = product.name;
-                enrichedComponent.productPrice = product.offerPrice || product.basePrice;
+                enrichedComponent.productPrice = product.basePrice;
                 enrichedComponent.productImage = product.images?.thumbnail?.url || '';
                 enrichedComponent.productSlug = product.slug;
 
@@ -344,6 +346,7 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         expiresIn: pcQuote.daysUntilExpiry
     });
 });
+
 
 // Get all PC quotes with advanced filtering (Admin)
 exports.getPCQuotes = catchAsyncErrors(async (req, res, next) => {
@@ -488,7 +491,7 @@ exports.getPCQuote = catchAsyncErrors(async (req, res, next) => {
             if (component.productId) {
                 try {
                     const product = await Product.findById(component.productId)
-                        .select('name slug images basePrice offerPrice specifications brand stockQuantity')
+                        .select('name slug images basePrice mrp specifications brand stockQuantity')
                         .populate('brand', 'name')
                         .lean();
 
@@ -514,6 +517,7 @@ exports.getPCQuote = catchAsyncErrors(async (req, res, next) => {
         }
     });
 });
+
 // Add to customPCController.js
 exports.getPCAnalytics = catchAsyncErrors(async (req, res, next) => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);

@@ -484,11 +484,130 @@ const deleteBrand = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
+const createMultipleBrands = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const { brands } = req.body;
+
+        // Validate input
+        if (!brands || !Array.isArray(brands) || brands.length === 0) {
+            return next(new ErrorHandler("Please provide an array of brands", 400));
+        }
+
+        // Limit batch size for safety
+        if (brands.length > 30) {
+            return next(new ErrorHandler("Maximum 30 brands per batch allowed", 400));
+        }
+
+        const results = {
+            success: [],
+            failed: [],
+            total: brands.length
+        };
+
+        // Process each brand
+        for (const brandData of brands) {
+            try {
+                const {
+                    name,
+                    description = '',
+                    metaTitle = '',
+                    metaDescription = '',
+                    metaKeywords = [],
+                    status = 'active'
+                } = brandData;
+
+                // Validate required fields
+                if (!name) {
+                    results.failed.push({
+                        name: 'Unnamed',
+                        error: 'Brand name is required'
+                    });
+                    continue;
+                }
+
+                // Generate slug from name
+                const slug = brandData.slug || name.toLowerCase()
+                    .replace(/[^a-zA-Z0-9]/g, '-')
+                    .replace(/-+/g, '-')
+                    .replace(/^-|-$/g, '');
+
+                // Check if brand already exists
+                const existingBrand = await Brand.findOne({
+                    $or: [
+                        { name },
+                        { slug }
+                    ]
+                });
+
+                if (existingBrand) {
+                    results.failed.push({
+                        name,
+                        error: 'Brand with this name or slug already exists'
+                    });
+                    continue;
+                }
+
+                // Prepare brand object
+                const brandToCreate = {
+                    name,
+                    slug,
+                    description,
+                    metaTitle: metaTitle || `${name} Products | iTech Computers`,
+                    metaDescription: metaDescription || `Shop ${name} products at iTech Computers. Best prices with warranty and support.`,
+                    metaKeywords: Array.isArray(metaKeywords) ? metaKeywords : [],
+                    status,
+                    createdBy: req.user?.id || null
+                };
+
+                // Add logo if provided in data (for bulk create without file upload)
+                if (brandData.logo && typeof brandData.logo === 'object') {
+                    brandToCreate.logo = brandData.logo;
+                }
+
+                // Create brand
+                const brand = await Brand.create(brandToCreate);
+
+                results.success.push({
+                    _id: brand._id,
+                    name: brand.name,
+                    slug: brand.slug,
+                    message: 'Created successfully'
+                });
+
+            } catch (error) {
+                results.failed.push({
+                    name: brandData.name || 'Unknown',
+                    error: error.message
+                });
+            }
+        }
+
+        // Return summary
+        res.status(201).json({
+            success: true,
+            message: `Bulk brand creation completed`,
+            summary: {
+                total: results.total,
+                successCount: results.success.length,
+                failedCount: results.failed.length,
+                success: results.success,
+                failed: results.failed
+            }
+        });
+
+    } catch (error) {
+        console.error("Error in createMultipleBrands:", error);
+        return next(new ErrorHandler(error.message, 500));
+    }
+});
+
+
 module.exports = {
     createBrand,
     getAllBrands,
     getBrand,
     updateBrand,
     updateBrandStatus,
-    deleteBrand
+    deleteBrand,
+    createMultipleBrands
 };

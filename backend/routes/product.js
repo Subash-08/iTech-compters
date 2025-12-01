@@ -102,4 +102,6 @@ router.delete("/admin/product/:id/variant/:variantId", isAuthenticatedUser, auth
 router.get("/admin/products/selection", isAuthenticatedUser, authorizeRoles("admin"), getProductsForSelection);
 router.get('/admin/analytics/products', isAuthenticatedUser, authorizeRoles('admin'), getProductAnalytics);
 
+
+
 module.exports = router;
