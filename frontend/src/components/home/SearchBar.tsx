@@ -57,7 +57,7 @@ const SearchBar: React.FC = () => {
       
       // Navigate to products page with search
       navigate({
-        pathname: '/products',
+        pathname: '/product',
         search: `?${createSearchParams({ search: searchTerm.trim() })}`
       });
       
@@ -67,7 +67,7 @@ const SearchBar: React.FC = () => {
   };
 
   const handleSuggestionClick = (product: any) => {
-    navigate(`/products/${product.slug}`);
+    navigate(`/product/${product.slug}`);
     setShowSuggestions(false);
     setSearchTerm('');
     dispatch(clearSearchResults());
@@ -85,7 +85,7 @@ const SearchBar: React.FC = () => {
     if (searchTerm.trim()) {
       dispatch(updateSearchQuery(searchTerm.trim()));
       navigate({
-        pathname: '/products',
+        pathname: '/product',
         search: `?${createSearchParams({ search: searchTerm.trim() })}`
       });
       setShowSuggestions(false);
@@ -157,7 +157,7 @@ const SearchBar: React.FC = () => {
                         {product.name}
                       </p>
                       <p className="text-sm text-gray-500">
-                        ${product.offerPrice || product.basePrice}
+                        ₹{product.offerPrice || product.basePrice}
                       </p>
                     </div>
                   </button>

@@ -185,10 +185,10 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
             {currentPriceInfo.hasDiscount && currentPriceInfo.price > currentPriceInfo.sellingPrice && (
               <>
                 <span className="text-xl text-gray-500 line-through">
-                  ${currentPriceInfo.price.toFixed(2)}
+                  ₹{currentPriceInfo.price.toFixed(2)}
                 </span>
                 <span className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1 rounded">
-                  Save ${(currentPriceInfo.price - currentPriceInfo.sellingPrice).toFixed(2)}
+                  Save ₹{(currentPriceInfo.price - currentPriceInfo.sellingPrice).toFixed(2)}
                 </span>
               </>
             )}

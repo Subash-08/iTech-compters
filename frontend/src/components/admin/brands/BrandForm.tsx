@@ -4,7 +4,17 @@ import { Brand, BrandFormData } from '../types/brand';
 import { brandService } from '../services/brandService';
 import { Icons } from '../Icon';
 import { toast } from 'react-toastify';
-import { baseURL } from '../../config/config';
+import {
+  getBaseURL,
+  getImageUrl,
+  getPlaceholderImage,
+  getImageAltText,
+  getImagePathForStorage,
+  validateImageFile,
+  uploadImage,
+  createPreviewUrl,
+  revokePreviewUrl
+} from '../../utils/imageUtils';
 
 const BrandForm: React.FC = () => {
   const navigate = useNavigate();
@@ -14,6 +24,7 @@ const BrandForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [previewImage, setPreviewImage] = useState<string>('');
+  const [originalLogoUrl, setOriginalLogoUrl] = useState<string>('');
 
   const [formData, setFormData] = useState<BrandFormData>({
     name: '',
@@ -39,49 +50,49 @@ const BrandForm: React.FC = () => {
     setShowDeactivationReason(formData.status === 'inactive');
   }, [formData.status]);
 
-const fetchBrand = async () => {
-  try {
-    setLoading(true);
-    const response = await brandService.getBrand(slug!);
-    const brand: Brand = response.brand;
-    
-    setFormData({
-      name: brand.name,
-      description: brand.description || '',
-      status: brand.status,
-      deactivationReason: brand.deactivationReason || null,
-      metaTitle: brand.metaTitle || '',
-      metaDescription: brand.metaDescription || '',
-      metaKeywords: brand.metaKeywords?.join(', ') || '',
-      logoAltText: brand.logo?.altText || ''
-    });
+  const fetchBrand = async () => {
+    try {
+      setLoading(true);
+      const response = await brandService.getBrand(slug!);
+      const brand: Brand = response.brand;
+      
+      setFormData({
+        name: brand.name,
+        description: brand.description || '',
+        status: brand.status,
+        deactivationReason: brand.deactivationReason || null,
+        metaTitle: brand.metaTitle || '',
+        metaDescription: brand.metaDescription || '',
+        metaKeywords: brand.metaKeywords?.join(', ') || '',
+        logoAltText: brand.logo?.altText || ''
+      });
 
-    if (brand.logo?.url) {
-      
-      // Construct full URL for the preview image
-      const baseUrl = process.env.REACT_APP_API_URL || baseURL;
-      const fullImageUrl = brand.logo.url.startsWith('http') 
-        ? brand.logo.url 
-        : `${baseUrl}${brand.logo.url}`;
-      
-      setPreviewImage(fullImageUrl);
-      
-      // Test if the image loads
-      const testImage = new Image();
-      testImage.onload = () => console.log('');
-      testImage.onerror = () => console.error('Preview image failed to load');
-      testImage.src = fullImageUrl;
-    } else {
-      
+      if (brand.logo) {
+        // Use getImageUrl to handle both local and live environments
+        const imageUrl = getImageUrl(brand.logo);
+        setPreviewImage(imageUrl);
+        setOriginalLogoUrl(imageUrl);
+        
+        // Test if the image loads
+        const testImage = new Image();
+        testImage.onload = () => console.log('Preview image loaded successfully');
+        testImage.onerror = () => {
+          console.error('Preview image failed to load');
+          // Fallback to placeholder if image fails to load
+          setPreviewImage(getPlaceholderImage('Brand Logo'));
+        };
+        testImage.src = imageUrl;
+      } else {
+        setPreviewImage(getPlaceholderImage('Brand Logo'));
+      }
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Failed to fetch brand';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    const errorMessage = err.response?.data?.message || 'Failed to fetch brand';
-    setError(errorMessage);
-    toast.error(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -91,100 +102,124 @@ const fetchBrand = async () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-      if (!validTypes.includes(file.type)) {
-        const errorMsg = 'Please select a valid image file (JPEG, PNG, WebP)';
-        setError(errorMsg);
-        toast.error(errorMsg);
-        return;
-      }
-
-      // Validate file size (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        const errorMsg = 'Image size should be less than 5MB';
-        setError(errorMsg);
-        toast.error(errorMsg);
+      // Use validateImageFile for consistent validation
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        setError(validation.error || 'Invalid image file');
+        toast.error(validation.error || 'Invalid image file');
         return;
       }
 
       setFormData(prev => ({ ...prev, logo: file }));
       setError('');
       
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      // Create preview using createPreviewUrl
+      const previewUrl = createPreviewUrl(file);
+      setPreviewImage(previewUrl);
     }
   };
 
   const handleRemoveImage = () => {
+    // Revoke preview URL if it's a blob
+    if (previewImage.startsWith('blob:')) {
+      revokePreviewUrl(previewImage);
+    }
+    
     setFormData(prev => ({ ...prev, logo: null, removeLogo: true }));
-    setPreviewImage('');
+    setPreviewImage(getPlaceholderImage('Brand Logo'));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+// BrandForm.tsx - Update the handleSubmit function
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Validate required fields
+  if (!formData.name.trim()) {
+    const errorMsg = 'Brand name is required';
+    setError(errorMsg);
+    toast.error(errorMsg);
+    return;
+  }
+
+  try {
+    setLoading(true);
+    setError('');
+
+    const submitData = new FormData();
     
-    // Validate required fields
-    if (!formData.name.trim()) {
-      const errorMsg = 'Brand name is required';
-      setError(errorMsg);
-      toast.error(errorMsg);
-      return;
-    }
+    // Append all fields - make sure field names match backend expectations
+    submitData.append('name', formData.name.trim());
+    submitData.append('description', formData.description || '');
+    submitData.append('status', formData.status);
+    
+    // SEO fields
+    submitData.append('metaTitle', formData.metaTitle || '');
+    submitData.append('metaDescription', formData.metaDescription || '');
+    submitData.append('metaKeywords', formData.metaKeywords || '');
+    submitData.append('logoAltText', formData.logoAltText || '');
 
-    try {
-      setLoading(true);
-      setError('');
-
-      const submitData = new FormData();
+    // Handle logo upload or removal
+    if (formData.logo) {
+      // Try to upload to brands endpoint, if fails try products as fallback
+      let uploadResult = await uploadImage(formData.logo, 'brands');
       
-      // Append all fields - make sure field names match backend expectations
-      submitData.append('name', formData.name.trim());
-      submitData.append('description', formData.description || '');
-      submitData.append('status', formData.status);
+      // If brands upload fails, try products as fallback
+      if (!uploadResult.success) {
+        console.warn('Brands upload failed, trying products endpoint:', uploadResult.error);
+        uploadResult = await uploadImage(formData.logo, 'products');
+      }
       
-      // SEO fields
-      submitData.append('metaTitle', formData.metaTitle || '');
-      submitData.append('metaDescription', formData.metaDescription || '');
-      submitData.append('metaKeywords', formData.metaKeywords || '');
-      submitData.append('logoAltText', formData.logoAltText || '');
-
-      // Logo handling
-      if (formData.logo) {
+      if (uploadResult.success && uploadResult.url) {
+        submitData.append('logoUrl', uploadResult.url);
+        submitData.append('logoAltText', formData.logoAltText || '');
+      } else {
+        // If still fails, just append the file directly and let backend handle it
+        console.warn('Upload failed, attaching file directly:', uploadResult.error);
         submitData.append('logo', formData.logo);
       }
-
-      if (formData.removeLogo) {
-        submitData.append('removeLogo', 'true');
-      }
-
-      // Deactivation reason (only when deactivating)
-      if (formData.status === 'inactive' && formData.deactivationReason) {
-        submitData.append('deactivationReason', formData.deactivationReason);
-      }
-
-      let result;
-      if (isEdit) {
-        result = await brandService.updateBrand(slug!, submitData);
-        toast.success('Brand updated successfully!');
-      } else {
-        result = await brandService.createBrand(submitData);
-        toast.success('Brand created successfully!');
-      }
-
-      navigate('/admin/brands');
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || `Failed to ${isEdit ? 'update' : 'create'} brand`;
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    if (formData.removeLogo) {
+      submitData.append('removeLogo', 'true');
+    }
+
+    // Deactivation reason (only when deactivating)
+    if (formData.status === 'inactive' && formData.deactivationReason) {
+      submitData.append('deactivationReason', formData.deactivationReason);
+    }
+
+    let result;
+    if (isEdit) {
+      result = await brandService.updateBrand(slug!, submitData);
+      toast.success('Brand updated successfully!');
+    } else {
+      result = await brandService.createBrand(submitData);
+      toast.success('Brand created successfully!');
+    }
+
+    // Clean up blob URLs if any
+    if (previewImage.startsWith('blob:')) {
+      revokePreviewUrl(previewImage);
+    }
+    
+    navigate('/admin/brands');
+  } catch (err: any) {
+    const errorMessage = err.response?.data?.message || err.message || `Failed to ${isEdit ? 'update' : 'create'} brand`;
+    setError(errorMessage);
+    toast.error(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Clean up blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (previewImage.startsWith('blob:')) {
+        revokePreviewUrl(previewImage);
+      }
+    };
+  }, [previewImage]);
 
   if (loading && isEdit) {
     return (
@@ -226,8 +261,12 @@ const fetchBrand = async () => {
                       <div className="relative">
                         <img
                           src={previewImage}
-                          alt="Brand logo preview"
+                          alt={formData.logoAltText || "Brand logo preview"}
                           className="w-24 h-24 rounded-lg object-cover border border-gray-200"
+                          onError={(e) => {
+                            // Fallback to placeholder if image fails to load
+                            e.currentTarget.src = getPlaceholderImage('Brand Logo');
+                          }}
                         />
                         <button
                           type="button"
@@ -246,12 +285,12 @@ const fetchBrand = async () => {
                   <div className="flex-1">
                     <input
                       type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
                       onChange={handleImageChange}
                       className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
                     <p className="text-xs text-gray-500 mt-2">
-                      PNG, JPG, JPEG, WebP up to 5MB. Recommended: 200x200px
+                      JPEG, PNG, WebP, GIF up to 10MB. Recommended: 200x200px
                     </p>
                     
                     {/* Logo Alt Text */}
