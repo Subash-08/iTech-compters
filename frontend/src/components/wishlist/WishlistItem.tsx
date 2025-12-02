@@ -7,23 +7,73 @@ import { wishlistActions } from '../../redux/actions/wishlistActions';
 import { cartActions } from '../../redux/actions/cartActions';
 
 interface WishlistItemProps {
-  item: WishlistItem;
-  onRemove: (itemId: string, productType: 'product' | 'prebuilt-pc') => void; // ✅ Add productType
+  item: WishlistItemType;
+  onRemove: (itemId: string, productType: 'product' | 'prebuilt-pc') => void;
 }
+
+// Helper function to get full image URL
+const getFullImageUrl = (url: string): string => {
+  if (!url) return 'https://via.placeholder.com/300x300/e5e7eb/374151?text=Product';
+  
+  // If it's already a full URL, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // If it's a data URL, return as is
+  if (url.startsWith('data:')) {
+    return url;
+  }
+  
+  // Add your API base URL - adjust as needed
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  
+  // Remove trailing slash from base URL if present
+  const cleanBaseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+  
+  // Handle different URL formats
+  if (url.startsWith('/uploads/')) {
+    return `${cleanBaseUrl}${url}`;
+  }
+  
+  if (url.startsWith('/')) {
+    return `${cleanBaseUrl}${url}`;
+  }
+  
+  // If it's just a filename, assume it's in the products folder
+  if (!url.includes('/')) {
+    return `${cleanBaseUrl}/uploads/products/${url}`;
+  }
+  
+  // Default fallback
+  return `${cleanBaseUrl}/${url}`;
+};
 
 const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
   const dispatch = useAppDispatch();
 
-const handleRemove = () => {
+  // Debug log to see the data structure
+  React.useEffect(() => {
+    console.log('🔍 Wishlist Item Data:', {
+      itemId: item._id,
+      productType: item.productType,
+      productName: item.product?.name,
+      variant: item.variant,
+      productData: item.product,
+      hasPriceInProduct: (item.product as any)?.price !== undefined,
+      productKeys: Object.keys(item.product || {})
+    });
+  }, [item]);
+
+  const handleRemove = () => {
     console.log('🗑️ Removing wishlist item:', {
-        wishlistItemId: item._id,
-        productId: item.product._id, // This is what backend needs
-        productType: item.productType
+      wishlistItemId: item._id,
+      productId: item.product._id,
+      productType: item.productType
     });
     
-    // ✅ FIXED: Send PRODUCT ID, not wishlist item ID
     onRemove(item.product._id, item.productType || 'product');
-};
+  };
 
   const handleMoveToCart = async () => {
     try {
@@ -58,87 +108,124 @@ const handleRemove = () => {
     }
   };
 
-  // ✅ FIXED: Better data extraction with type safety
+  // FIXED: Better data extraction with comprehensive price checking
   const getDisplayData = () => {
-    // Use backend-enhanced data if available
-    if (item.displayPrice !== undefined) {
-      return {
-        price: item.displayPrice || 0,
-        mrp: item.displayMrp || 0,
-        discountPercentage: item.discountPercentage || 0,
-        name: item.displayName || item.product.name,
-        image: item.image || getProductImage()
-      };
-    }
-
-    // Fallback: Calculate locally
+    console.log('💰 Price calculation for:', item.product?.name);
+    
     let price = 0;
     let mrp = 0;
-    let name = item.product.name;
+    let name = item.product?.name || 'Product';
+    let imageUrl = '';
 
-    // Use variant data if available
-    if (item.variant) {
+    // 1. First check if we have variant data
+    if (item.variant && item.variant.price !== undefined) {
       price = item.variant.price || 0;
       mrp = item.variant.mrp || price;
       if (item.variant.name) {
-        name = `${item.product.name} - ${item.variant.name}`;
+        name = `${item.product?.name || ''} - ${item.variant.name}`;
       }
-    } else {
-      // Use product pricing
+      console.log('✅ Using variant price:', { price, mrp });
+    } 
+    // 2. Check if product has direct pricing data
+    else {
       const product = item.product as any;
-      price = product.offerPrice > 0 ? product.offerPrice : 
-             product.basePrice > 0 ? product.basePrice : 
-             product.price > 0 ? product.price : 0;
-      mrp = product.mrp > 0 ? product.mrp : price;
+      
+      // Log all price-related fields for debugging
+      console.log('🔍 Product price fields:', {
+        effectivePrice: product.effectivePrice,
+        sellingPrice: product.sellingPrice,
+        basePrice: product.basePrice,
+        price: product.price,
+        lowestPrice: product.lowestPrice,
+        displayPrice: product.displayPrice,
+        mrp: product.mrp,
+        displayMrp: product.displayMrp
+      });
+      
+      // Try multiple price fields in priority order
+      const possiblePriceFields = [
+        product.effectivePrice,
+        product.sellingPrice,
+        product.displayPrice,
+        product.basePrice,
+        product.price,
+        product.lowestPrice
+      ];
+      
+      const possibleMrpFields = [
+        product.mrp,
+        product.displayMrp,
+        product.basePrice
+      ];
+      
+      // Find first valid price
+      for (const field of possiblePriceFields) {
+        if (field !== undefined && field !== null && !isNaN(field) && field > 0) {
+          price = Number(field);
+          break;
+        }
+      }
+      
+      // Find first valid MRP
+      for (const field of possibleMrpFields) {
+        if (field !== undefined && field !== null && !isNaN(field) && field > 0) {
+          mrp = Number(field);
+          break;
+        }
+      }
+      
+      // If MRP is still 0, use price
+      if (mrp === 0 && price > 0) {
+        mrp = price;
+      }
+      
+      console.log('✅ Using product price:', { price, mrp });
     }
 
+    // Get image URL
+    const product = item.product as any;
+    imageUrl = product.images?.thumbnail?.url || 
+               product.primaryImage?.url ||
+               product.images?.gallery?.[0]?.url ||
+               product.image ||
+               '';
+
     const discountPercentage = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+
+    console.log('🎯 Final display data:', { 
+      name, 
+      price, 
+      mrp, 
+      discountPercentage,
+      imageUrl 
+    });
 
     return { 
       price, 
       mrp, 
       discountPercentage, 
       name, 
-      image: getProductImage() 
+      image: getFullImageUrl(imageUrl) 
     };
-  };
-
-  // ✅ FIXED: Better image handling
-  const getProductImage = (): string => {
-    if (item.productType === 'prebuilt-pc') {
-      const pc = item.product as any;
-      return pc.images?.[0]?.url;
-    } else {
-      const product = item.product as any;
-      return product.images?.thumbnail?.url || 
-             product.images?.hoverImage?.url ||
-             product.images?.gallery?.[0]?.url 
-             ;
-    }
-  };
-
-  // ✅ FIXED: Better slug handling
-  const getProductSlug = (): string => {
-    if (item.productType === 'prebuilt-pc') {
-      return `/prebuilt-pc/${item.product.slug}`;
-    }
-    return `/product/${item.product.slug}`;
   };
 
   const { price, mrp, discountPercentage, name, image } = getDisplayData();
   const hasDiscount = discountPercentage > 0;
-  const productSlug = getProductSlug();
+  const productSlug = item.productType === 'prebuilt-pc' 
+    ? `/prebuilt-pc/${item.product.slug}`
+    : `/product/${item.product.slug}`;
 
   // Currency formatter
-  const formatPrice = (price: number) => {
+  const formatPrice = (amount: number) => {
+    if (!amount || isNaN(amount)) return '₹0';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
       maximumFractionDigits: 0,
-    }).format(price);
+    }).format(amount);
   };
 
-  // ✅ FIXED: Better stock status handling
+  // Stock status
   const getStockStatus = () => {
     let stock = 0;
     
@@ -148,6 +235,8 @@ const handleRemove = () => {
       stock = item.product.stockQuantity;
     } else if ((item.product as any).stock !== undefined) {
       stock = (item.product as any).stock;
+    } else if ((item.product as any).totalStock !== undefined) {
+      stock = (item.product as any).totalStock;
     }
     
     const isInStock = stock > 0;
@@ -163,15 +252,6 @@ const handleRemove = () => {
 
   const stockStatus = getStockStatus();
 
-  console.log('🖼️ WishlistItem data:', {
-    itemId: item._id,
-    productType: item.productType,
-    productName: item.product.name,
-    variantName: item.variant?.name,
-    price,
-    image
-  });
-
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300 group">
       
@@ -184,7 +264,8 @@ const handleRemove = () => {
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={(e) => { 
               console.error('🖼️ Image failed to load:', image);
-              e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Product+1'; 
+              e.currentTarget.src = `https://via.placeholder.com/300x300/e5e7eb/374151?text=${encodeURIComponent(name.substring(0, 10))}`;
+              e.currentTarget.classList.add('bg-gray-200');
             }}
           />
         </Link>
@@ -208,16 +289,9 @@ const handleRemove = () => {
         )}
 
         {/* Variant Badge */}
-        {item.variant && (
+        {item.variant && item.variant.name && (
           <div className="absolute bottom-2 left-2 bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded">
             Variant
-          </div>
-        )}
-
-        {/* Pre-built PC Badge */}
-        {item.productType === 'prebuilt-pc' && (
-          <div className="absolute bottom-2 right-2 bg-purple-600 text-white text-xs font-medium px-2 py-1 rounded">
-            Pre-built PC
           </div>
         )}
       </div>
@@ -225,13 +299,6 @@ const handleRemove = () => {
       {/* Product Details */}
       <div className="p-4">
         
-        {/* Brand/Category */}
-        <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-          {item.productType === 'prebuilt-pc' 
-            ? (item.product as any).category 
-            : item.product.brand?.name}
-        </div>
-
         {/* Product Name */}
         <Link to={productSlug} className="block mb-2">
           <h3 className="font-semibold text-gray-900 line-clamp-2 hover:text-blue-600 transition-colors duration-200">
@@ -246,12 +313,6 @@ const handleRemove = () => {
               <div key={index} className="text-xs text-gray-600 flex items-center">
                 <span className="font-medium min-w-[60px]">{attr.label}:</span> 
                 <span className="ml-1">{attr.displayValue || attr.value}</span>
-                {attr.hexCode && (
-                  <span 
-                    className="w-3 h-3 rounded-full ml-2 border border-gray-300"
-                    style={{ backgroundColor: attr.hexCode }}
-                  />
-                )}
               </div>
             ))}
           </div>
@@ -295,17 +356,6 @@ const handleRemove = () => {
           >
             {stockStatus.isInStock ? 'Add to Cart' : 'Out of Stock'}
           </button>
-          
-          <Link
-            to={productSlug}
-            className="flex items-center justify-center w-10 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-            title="Quick View"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </Link>
         </div>
       </div>
     </div>

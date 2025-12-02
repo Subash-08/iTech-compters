@@ -84,11 +84,33 @@ const categoryUpload = multer({
     }
 });
 
+// In multerConfig.js - Update productUpload to use correct directory
 const productUpload = multer({
-    storage: createStorage('products'),
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            try {
+                // 🎯 FIXED: Save to public/uploads/products/
+                const uploadPath = path.join(__dirname, '../public/uploads/products');
+                ensureUploadDir(uploadPath);
+                cb(null, uploadPath);
+            } catch (error) {
+                cb(new Error(`Failed to create upload directory: ${error.message}`), null);
+            }
+        },
+        filename: function (req, file, cb) {
+            try {
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const fileExtension = path.extname(file.originalname);
+                const filename = `products-${uniqueSuffix}${fileExtension}`;
+                cb(null, filename);
+            } catch (error) {
+                cb(new Error(`Failed to generate filename: ${error.message}`), null);
+            }
+        }
+    }),
     fileFilter: fileFilter,
     limits: {
-        fileSize: 10 * 1024 * 1024,
+        fileSize: 10 * 1024 * 1024, // 10MB
         files: 10
     }
 });
@@ -240,11 +262,6 @@ const handleSimplePreBuiltPCUpload = () => {
 
 // NEW: Debug middleware to see what Multer is processing
 const debugMulterUpload = (req, res, next) => {
-    console.log('🔍 === MULTER DEBUG START ===');
-    console.log('📝 Method:', req.method);
-    console.log('📋 Content-Type:', req.headers['content-type']);
-    console.log('📦 Request body keys:', Object.keys(req.body));
-    console.log('🖼️ Request files:', req.files);
 
     // Log specific form fields
     const importantFields = ['name', 'category', 'description', 'components', 'tags', 'totalPrice'];

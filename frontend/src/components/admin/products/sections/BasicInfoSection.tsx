@@ -17,11 +17,30 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   categories,
   isEditMode = false
 }) => {
+  // 🆕 ADD: Debug logging
+  useEffect(() => {
+    console.log('=== DEBUG: BasicInfoSection ===');
+    console.log('formData received:', {
+      name: formData.name,
+      brand: formData.brand,
+      brandType: typeof formData.brand,
+      categories: formData.categories,
+      categoriesType: typeof formData.categories,
+      status: formData.status,
+      hsn: formData.hsn,
+      description: formData.description ? `${formData.description.substring(0, 50)}...` : 'Empty'
+    });
+    console.log('brands available:', brands?.length || 0);
+    console.log('categories available:', categories?.length || 0);
+  }, [formData, brands, categories]);
+
   const handleInputChange = (field: string, value: any) => {
+    console.log(`DEBUG: Changing ${field} to:`, value);
     updateFormData({ [field]: value });
   };
 
   const handleArrayChange = (field: string, value: string[]) => {
+    console.log(`DEBUG: Changing ${field} array to:`, value);
     updateFormData({ [field]: value });
   };
 
@@ -32,21 +51,65 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   const safeBrands = Array.isArray(brands) ? brands : [];
   const safeCategories = Array.isArray(categories) ? categories : [];
 
-  // Get display names for selected items in edit mode
+  // 🆕 FIX: Get brand display name - handle both string ID and object
   const getSelectedBrandName = () => {
     if (!formData.brand) return '';
-    const brand = safeBrands.find(b => b._id === formData.brand);
+    
+    // If brand is already an object with name property
+    if (typeof formData.brand === 'object' && formData.brand.name) {
+      return formData.brand.name;
+    }
+    
+    // If brand is a string ID, find the brand object
+    const brand = safeBrands.find(b => b._id === formData.brand || b.id === formData.brand);
     return brand ? brand.name : 'Loading...';
   };
 
+  // 🆕 FIX: Get selected brand value for select
+  const getSelectedBrandValue = () => {
+    if (!formData.brand) return '';
+    
+    // If brand is an object, get its ID
+    if (typeof formData.brand === 'object' && (formData.brand._id || formData.brand.id)) {
+      return formData.brand._id || formData.brand.id;
+    }
+    
+    // If brand is already a string ID
+    return formData.brand;
+  };
+
   useEffect(() => {
-  }, [formData, formData.status]); // Specifically track status changes
+    console.log('DEBUG: BasicInfoSection status changed:', formData.status);
+  }, [formData.status]);
 
   const getSelectedCategoryNames = () => {
-    if (!formData.categories.length) return [];
+    if (!formData.categories || !formData.categories.length) return [];
+    
     return formData.categories.map(catId => {
-      const category = safeCategories.find(c => c._id === catId);
+      // Handle if catId is an object
+      if (typeof catId === 'object' && (catId._id || catId.id)) {
+        const category = safeCategories.find(c => c._id === catId._id || c.id === catId.id);
+        return category ? category.name : 'Loading...';
+      }
+      
+      // Handle if catId is a string
+      const category = safeCategories.find(c => c._id === catId || c.id === catId);
       return category ? category.name : 'Loading...';
+    });
+  };
+
+  // 🆕 FIX: Get selected category values for multi-select
+  const getSelectedCategoryValues = () => {
+    if (!formData.categories || !formData.categories.length) return [];
+    
+    return formData.categories.map(catId => {
+      // If catId is an object, return its ID
+      if (typeof catId === 'object' && (catId._id || catId.id)) {
+        return catId._id || catId.id;
+      }
+      
+      // If catId is already a string, return it
+      return catId;
     });
   };
 
@@ -60,6 +123,40 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           </span>
         )}
       </div>
+
+      {/* 🆕 ADD: Debug Info Bar */}
+      {isEditMode && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium text-blue-800">Debug Info</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                console.log('=== DEBUG: BasicInfoSection State ===');
+                console.log('formData:', formData);
+                console.log('Selected brand:', {
+                  value: formData.brand,
+                  display: getSelectedBrandName(),
+                  type: typeof formData.brand
+                });
+                console.log('Selected categories:', {
+                  values: formData.categories,
+                  display: getSelectedCategoryNames(),
+                  type: typeof formData.categories
+                });
+              }}
+              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded border border-blue-300 hover:bg-blue-200"
+            >
+              Log State
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Variant Warning */}
       {hasVariants && (
@@ -86,16 +183,21 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           </label>
           <input
             type="text"
-            value={formData.name}
+            value={formData.name || ''}
             onChange={(e) => handleInputChange('name', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Enter product name"
             required
           />
-          {isEditMode && formData.name && (
-            <p className="text-xs text-green-600 mt-1">
-              Current: {formData.name}
-            </p>
+          {isEditMode && (
+            <div className="flex justify-between items-center mt-1">
+              <p className="text-xs text-green-600">
+                Current: {formData.name || 'Not set'}
+              </p>
+              <span className="text-xs text-gray-500">
+                {formData.name?.length || 0}/255 chars
+              </span>
+            </div>
           )}
         </div>
 
@@ -119,7 +221,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           ) : (
             <div className="space-y-2">
               <select
-                value={formData.brand}
+                value={getSelectedBrandValue()}
                 onChange={(e) => handleInputChange('brand', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -131,10 +233,15 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                   </option>
                 ))}
               </select>
-              {isEditMode && formData.brand && (
-                <p className="text-xs text-blue-600">
-                  Current: {getSelectedBrandName()}
-                </p>
+              {isEditMode && (
+                <div className="flex justify-between items-center mt-1">
+                  <p className="text-xs text-blue-600">
+                    Current: {getSelectedBrandName()}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Brand ID: {formData.brand || 'Not selected'}
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -162,9 +269,10 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             <div className="space-y-2">
               <select
                 multiple
-                value={formData.categories}
+                value={getSelectedCategoryValues()}
                 onChange={(e) => {
                   const selected = Array.from(e.target.selectedOptions, option => option.value);
+                  console.log('DEBUG: Selected categories:', selected);
                   handleInputChange('categories', selected);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-32"
@@ -180,13 +288,13 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                 <p className="text-xs text-gray-500">
                   Hold Ctrl/Cmd to select multiple categories
                 </p>
-                {isEditMode && formData.categories.length > 0 && (
+                {isEditMode && (
                   <p className="text-xs text-blue-600">
-                    {formData.categories.length} categories selected
+                    {getSelectedCategoryValues().length} categories selected
                   </p>
                 )}
               </div>
-              {isEditMode && formData.categories.length > 0 && (
+              {isEditMode && getSelectedCategoryValues().length > 0 && (
                 <div className="mt-2">
                   <p className="text-xs font-medium text-gray-700 mb-1">Current Categories:</p>
                   <div className="flex flex-wrap gap-1">
@@ -217,9 +325,9 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           <p className="text-xs text-gray-500 mt-1">
             Harmonized System Nomenclature code for tax calculation
           </p>
-          {isEditMode && formData.hsn && (
+          {isEditMode && (
             <p className="text-xs text-green-600 mt-1">
-              Current: {formData.hsn}
+              Current: {formData.hsn || 'Not set'}
             </p>
           )}
         </div>
@@ -230,17 +338,22 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             Description <span className="text-red-500">*</span>
           </label>
           <textarea
-            value={formData.description}
+            value={formData.description || ''}
             onChange={(e) => handleInputChange('description', e.target.value)}
             rows={4}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Enter product description"
             required
           />
-          {isEditMode && formData.description && (
-            <p className="text-xs text-gray-500 mt-1">
-              {formData.description.length} characters
-            </p>
+          {isEditMode && (
+            <div className="flex justify-between items-center mt-1">
+              <p className="text-xs text-gray-500">
+                Current length: {formData.description?.length || 0} characters
+              </p>
+              <span className="text-xs text-gray-400">
+                Minimum 50 characters recommended
+              </span>
+            </div>
           )}
         </div>
 
@@ -256,9 +369,9 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Brief product definition (appears in search results)"
           />
-          {isEditMode && formData.definition && (
+          {isEditMode && (
             <p className="text-xs text-green-600 mt-1">
-              Current: {formData.definition}
+              Current: {formData.definition || 'Not set'}
             </p>
           )}
         </div>
@@ -296,7 +409,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               Condition
             </label>
             <select
-              value={formData.condition}
+              value={formData.condition || 'New'}
               onChange={(e) => handleInputChange('condition', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
@@ -306,7 +419,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             </select>
             {isEditMode && (
               <p className="text-xs text-gray-500 mt-1">
-                Current: {formData.condition}
+                Current: {formData.condition || 'New'}
               </p>
             )}
           </div>
@@ -317,9 +430,10 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               Status
             </label>
             <select
-              value={formData.status}
+              value={formData.status || 'Draft'}
               onChange={(e) => {
                 const newStatus = e.target.value;
+                console.log('DEBUG: Changing status to:', newStatus);
                 handleInputChange('status', newStatus);
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -334,27 +448,25 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             {isEditMode && (
               <div className="mt-2 space-y-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
                 <div className="flex justify-between items-center">
-                  <p className="text-xs font-medium text-yellow-800">Debug Info:</p>
-                  <span className="text-xs text-yellow-600">Status Field</span>
+                  <p className="text-xs font-medium text-yellow-800">Status Info:</p>
+                  <span className={`text-xs font-medium ${
+                    formData.status === 'Published' ? 'text-green-600' : 
+                    formData.status === 'Draft' ? 'text-yellow-600' : 
+                    'text-gray-600'
+                  }`}>
+                    {formData.status || 'Draft'}
+                  </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1 text-xs">
                   <div>
-                    <span className="font-medium">Current Value:</span> 
-                    <span className={`ml-1 ${formData.status === 'Published' ? 'text-green-600' : 'text-blue-600'}`}>
-                      {formData.status}
-                    </span>
+                    <span className="font-medium">Value:</span> 
+                    <span className="ml-1 text-gray-700">{formData.status || 'Draft'}</span>
                   </div>
                   <div>
-                    <span className="font-medium">Select Value:</span> 
-                    <span className="ml-1 text-gray-600">{formData.status}</span>
+                    <span className="font-medium">Type:</span> 
+                    <span className="ml-1 text-gray-700">{typeof formData.status}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded border border-yellow-300"
-                >
-                  Check Current Status
-                </button>
               </div>
             )}
           </div>
@@ -373,9 +485,9 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="e.g., Best Seller, New Arrival, Limited Edition"
             />
-            {isEditMode && formData.label && (
+            {isEditMode && (
               <p className="text-xs text-green-600 mt-1">
-                Current: {formData.label}
+                Current: {formData.label || 'Not set'}
               </p>
             )}
           </div>
@@ -386,7 +498,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               <input
                 type="checkbox"
                 id="isActive"
-                checked={formData.isActive}
+                checked={formData.isActive !== undefined ? formData.isActive : true}
                 onChange={(e) => handleInputChange('isActive', e.target.checked)}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
@@ -409,7 +521,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
         {/* Edit Mode Summary */}
         {isEditMode && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-blue-800 mb-2">Editing Product</h3>
+            <h3 className="text-sm font-medium text-blue-800 mb-2">Editing Product Summary</h3>
             <div className="grid grid-cols-2 gap-2 text-xs text-blue-700">
               <div>
                 <span className="font-medium">Name:</span> {formData.name || 'Not set'}
@@ -418,16 +530,22 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                 <span className="font-medium">Brand:</span> {getSelectedBrandName() || 'Not set'}
               </div>
               <div>
-                <span className="font-medium">Categories:</span> {formData.categories.length}
+                <span className="font-medium">Categories:</span> {getSelectedCategoryValues().length}
               </div>
               <div>
-                <span className="font-medium">Status:</span> {formData.status}
+                <span className="font-medium">Status:</span> {formData.status || 'Draft'}
               </div>
               <div>
                 <span className="font-medium">HSN:</span> {formData.hsn || 'Not set'}
               </div>
               <div>
                 <span className="font-medium">Variants:</span> {hasVariants ? `${formData.variants.length} active` : 'No variants'}
+              </div>
+              <div>
+                <span className="font-medium">Condition:</span> {formData.condition || 'New'}
+              </div>
+              <div>
+                <span className="font-medium">Active:</span> {formData.isActive ? 'Yes' : 'No'}
               </div>
             </div>
           </div>

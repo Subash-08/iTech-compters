@@ -85,21 +85,26 @@ const productSchema = new Schema({
     // 🖼️ IMAGES
     images: {
         thumbnail: imageSchema,
-        hoverImage: imageSchema,
+        hoverImage: { type: imageSchema, required: false },
         gallery: [imageSchema],
     },
 
     // 🏭 MANUFACTURER IMAGES
     manufacturerImages: [manufacturerImageSchema],
 
-    // 💰 PRODUCT-LEVEL PRICING (Only used when no variants)
-    basePrice: { type: Number, required: true, min: 0 }, // Selling price
+    basePrice: {
+        type: Number,
+        required: function () {
+            return !this.variantConfiguration?.hasVariants;
+        },
+        min: 0
+    },
     mrp: { type: Number, min: 0 }, // Maximum Retail Price
 
     // 🏷️ PRODUCT IDENTIFICATION
     hsn: { type: String, trim: true },
     taxRate: { type: Number, min: 0, default: 0 },
-    sku: { type: String, unique: true, trim: true, sparse: true },
+    sku: { type: String, trim: true, sparse: true, index: { unique: true, sparse: true } },
     barcode: { type: String, unique: true, trim: true, sparse: true },
     stockQuantity: {
         type: Number,
@@ -378,33 +383,82 @@ productSchema.pre('validate', async function (next) {
     next();
 });
 
-// Pre-save: Handle pricing and variant slugs ONLY when needed
 productSchema.pre('save', async function (next) {
-    // Set MRP if not provided (MRP should be >= basePrice)
-    if (!this.mrp || this.mrp < this.basePrice) {
-        this.mrp = this.basePrice;
-    }
+    const hasVariants = this.variantConfiguration?.hasVariants && Array.isArray(this.variants) && this.variants.length > 0;
 
-    // 🆕 FIX: Only generate variant slugs for NEW variants or when name changes
-    if (this.variants && this.variants.length > 0) {
-        for (let variant of this.variants) {
-            // Only generate slug if variant is new or name was modified
-            if (!variant.slug || variant.isModified('name') || variant.isModified('identifyingAttributes')) {
-                await this.generateVariantSlug(variant);
+    // 1️⃣ Variant slug + SKU logic (SIMPLIFIED)
+    if (hasVariants) {
+        const existingSlugs = new Set();
+
+        for (let i = 0; i < this.variants.length; i++) {
+            const v = this.variants[i];
+
+            // Collect used slugs to avoid collisions within this product
+            if (v.slug) existingSlugs.add(v.slug);
+
+            // Newly added variants (slug missing) - SIMPLIFIED
+            if (!v.slug) {
+                // Simple slug generation without static method
+                const cleanVariantName = v.name
+                    .toLowerCase()
+                    .replace(/[^a-z0-9\s-]/g, '')
+                    .replace(/\s+/g, '-')
+                    .replace(/-+/g, '-')
+                    .trim();
+
+                let variantSlug = `${this.slug}-${cleanVariantName}`;
+
+                // Make unique if needed
+                if (existingSlugs.has(variantSlug)) {
+                    variantSlug = `${variantSlug}-${Date.now().toString().slice(-4)}`;
+                }
+
+                v.slug = variantSlug;
+                existingSlugs.add(v.slug);
+            }
+
+            // Auto SKU if missing - SIMPLIFIED
+            if (!v.sku) {
+                const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                v.sku = `VAR-${Date.now().toString().slice(-6)}-${randomNum}`;
+            }
+
+            // Ensure variant MRP >= price
+            if (v.mrp != null && v.mrp < v.price) {
+                v.mrp = v.price;
             }
         }
     }
 
-    // Stock/status logic
-    if (this.isModified('stockQuantity') || this.isModified('variants') || this.isNew) {
-        const totalStock = this.totalStock;
+    // 2️⃣ Ensure product MRP >= basePrice
+    if (this.mrp < this.basePrice) {
+        this.mrp = this.basePrice;
+    }
 
-        if (this.status === 'Published' && totalStock <= 0) {
-            this.status = 'OutOfStock';
-        } else if (this.status === 'OutOfStock' && totalStock > 0) {
-            if (['Archived', 'Discontinued'].includes(this.status) === false) {
-                this.status = 'Published';
-            }
+    // 3️⃣ True single source of truth — derive stock/pricing from variants
+    if (hasVariants) {
+        // Total stock
+        this.stockQuantity = this.variants.reduce(
+            (sum, v) => sum + (v.stockQuantity || 0),
+            0
+        );
+
+        const active = this.variants.filter(v => v.isActive);
+        const src = active.length ? active : this.variants;
+
+        this.basePrice = Math.min(...src.map(v => v.price));
+        this.mrp = Math.max(...src.map(v => v.mrp || v.price));
+    }
+
+    // 4️⃣ 🆕 FIXED: Status auto-update with manual status protection
+    const manuallySetStatuses = ['Draft', 'Archived', 'Discontinued'];
+    const isManualStatus = manuallySetStatuses.includes(this.status);
+
+    if (!isManualStatus) {
+        if (this.stockQuantity <= 0) {
+            this.status = "OutOfStock";
+        } else {
+            this.status = "Published";
         }
     }
 

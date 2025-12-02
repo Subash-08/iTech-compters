@@ -27,18 +27,58 @@ const VariantSelectors: React.FC<VariantSelectorsProps> = ({
     return colorMap[colorName.toLowerCase()] || '#CCCCCC';
   };
 
-  // 🆕 FIX: Detect if product has color variants (regardless of variantAttributes configuration)
+  // 🆕 FIX: Get variant specifications from actual variants when variantCreatingSpecs is empty
+  const getVariantSpecs = () => {
+    // First check if we have variantCreatingSpecs
+    if (productData?.variantConfiguration?.variantCreatingSpecs?.length > 0) {
+      return productData.variantConfiguration.variantCreatingSpecs;
+    }
+    
+    // If not, extract specs from variants' identifyingAttributes
+    if (!productData?.variants) return [];
+    
+    const specMap = new Map();
+    
+    productData.variants.forEach(variant => {
+      variant.identifyingAttributes?.forEach(attr => {
+        if (!specMap.has(attr.key)) {
+          specMap.set(attr.key, {
+            specKey: attr.key,
+            specLabel: attr.label || attr.key.charAt(0).toUpperCase() + attr.key.slice(1),
+            possibleValues: new Set()
+          });
+        }
+        specMap.get(attr.key).possibleValues.add(attr.value);
+      });
+    });
+    
+    // Convert Set to Array and sort if it's a numeric-like value
+    return Array.from(specMap.values()).map(spec => ({
+      ...spec,
+      possibleValues: Array.from(spec.possibleValues).sort((a, b) => {
+        // Sort RAM values numerically (8GB, 16GB, 32GB, etc.)
+        const numA = parseInt(a);
+        const numB = parseInt(b);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return numA - numB;
+        }
+        return a.localeCompare(b);
+      })
+    }));
+  };
+
+  // 🆕 FIX: Detect if product has color variants
   const hasColorVariants = () => {
     if (!productData?.variants) return false;
     
     return productData.variants.some(variant => 
       variant.identifyingAttributes?.some(attr => 
-        attr.isColor || attr.key === 'color'
+        attr.isColor || attr.key === 'color' || attr.key.toLowerCase().includes('color')
       )
     );
   };
 
-  // 🆕 FIX: Get all unique attributes from actual variants (not just configuration)
+  // 🆕 FIX: Get all unique attributes from actual variants
   const getAllVariantAttributes = () => {
     if (!productData?.variants) return [];
     
@@ -50,7 +90,7 @@ const VariantSelectors: React.FC<VariantSelectorsProps> = ({
           attributeMap.set(attr.key, {
             key: attr.key,
             label: attr.label || attr.key,
-            isColor: attr.isColor || attr.key === 'color',
+            isColor: attr.isColor || attr.key === 'color' || attr.key.toLowerCase().includes('color'),
             values: new Set()
           });
         }
@@ -73,16 +113,16 @@ const VariantSelectors: React.FC<VariantSelectorsProps> = ({
     productData.variants.forEach(variant => {
       if (!variant.isActive) return;
       
-      // Look for color attribute - check both key and isColor flag
-      const colorAttr = variant.identifyingAttributes.find(attr => 
-        attr.isColor || attr.key === 'color'
+      // Look for color attribute
+      const colorAttr = variant.identifyingAttributes?.find(attr => 
+        attr.isColor || attr.key === 'color' || attr.key.toLowerCase().includes('color')
       );
       
       if (colorAttr) {
         const existing = colorMap.get(colorAttr.value) || {
           value: colorAttr.value,
-          displayValue: colorAttr.displayValue || colorAttr.value,
-          hexCode: colorAttr.hexCode || getColorHexCode(colorAttr.value),
+          displayValue: attr.displayValue || attr.value,
+          hexCode: attr.hexCode || getColorHexCode(attr.value),
           stock: 0,
           inStock: false,
           variantCount: 0
@@ -103,11 +143,11 @@ const VariantSelectors: React.FC<VariantSelectorsProps> = ({
     if (!productData?.variants) return value;
     
     const variant = productData.variants.find(v => 
-      v.identifyingAttributes.some(attr => attr.key === specKey && attr.value === value)
+      v.identifyingAttributes?.some(attr => attr.key === specKey && attr.value === value)
     );
     
-    const attr = variant?.identifyingAttributes.find(attr => attr.key === specKey);
-    return attr?.displayValue || value;
+    const attr = variant?.identifyingAttributes?.find(attr => attr.key === specKey);
+    return attr?.displayValue || attr?.value || value;
   };
 
   // Find variant based on selected attributes
@@ -115,7 +155,7 @@ const VariantSelectors: React.FC<VariantSelectorsProps> = ({
     if (!productData || !productData.variants) return null;
     
     return productData.variants.find(variant => 
-      variant.identifyingAttributes.every(attr => 
+      variant.identifyingAttributes?.every(attr => 
         attributes[attr.key] === attr.value
       )
     ) || null;
@@ -183,12 +223,12 @@ const VariantSelectors: React.FC<VariantSelectorsProps> = ({
     productData.variants.forEach(variant => {
       if (!variant.isActive) return;
       
-      const attr = variant.identifyingAttributes.find(attr => attr.key === specKey);
+      const attr = variant.identifyingAttributes?.find(attr => attr.key === specKey);
       
       if (attr) {
         const isCompatible = Object.keys(otherSelectedAttributes).every(key => {
           if (!otherSelectedAttributes[key]) return true;
-          const variantAttr = variant.identifyingAttributes.find(a => a.key === key);
+          const variantAttr = variant.identifyingAttributes?.find(a => a.key === key);
           return variantAttr && variantAttr.value === otherSelectedAttributes[key];
         });
         
@@ -216,10 +256,19 @@ const VariantSelectors: React.FC<VariantSelectorsProps> = ({
     return Array.from(optionMap.values());
   };
 
-  if (!productData?.variantConfiguration?.hasVariants) return null;
+  // Early return if no variants
+  if (!productData?.variants || productData.variants.length <= 1) {
+    return null;
+  }
 
-  // 🆕 FIX: Get all actual attributes from variants
+  // 🆕 FIX: Get all variant specs (using fallback when variantCreatingSpecs is empty)
+  const variantSpecs = getVariantSpecs();
   const allAttributes = getAllVariantAttributes();
+
+  // If no variant specs found, don't show selectors
+  if (variantSpecs.length === 0) {
+    return null;
+  }
 
   return (
     <>
@@ -313,8 +362,13 @@ const VariantSelectors: React.FC<VariantSelectorsProps> = ({
         </div>
       )}
 
-      {/* Dynamic Variant Selectors for ALL variantCreatingSpecs */}
-      {productData.variantConfiguration.variantCreatingSpecs?.map((spec) => {
+      {/* Dynamic Variant Selectors for ALL variant specs */}
+      {variantSpecs.map((spec) => {
+        // Skip color if we already showed it
+        if (spec.specKey === 'color' || spec.specKey.toLowerCase().includes('color')) {
+          return null;
+        }
+        
         const availableOptions = getAvailableOptions(spec.specKey);
         
         return (
@@ -381,8 +435,6 @@ const VariantSelectors: React.FC<VariantSelectorsProps> = ({
           </div>
         );
       })}
-
- 
     </>
   );
 };

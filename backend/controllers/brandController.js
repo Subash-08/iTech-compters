@@ -202,7 +202,7 @@ const createBrand = catchAsyncErrors(async (req, res, next) => {
 // @route   GET /api/brands & /api/admin/brands
 // @access  Public
 const getAllBrands = catchAsyncErrors(async (req, res, next) => {
-    const { page = 1, limit = 10, search, status } = req.query;
+    const { page, limit, search, status } = req.query;
     const isAdminRoute = req.originalUrl.includes('/admin/');
 
     // Build filter object

@@ -40,96 +40,11 @@ const Cart: React.FC = () => {
   // State for sync modal
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [hasCheckedSync, setHasCheckedSync] = useState(false);
-  const [debugMode, setDebugMode] = useState(true);
 
   // Enhanced cart fetch with product data
   useEffect(() => {
-    console.log('🛒 Fetching cart with product data...');
     dispatch(cartActions.fetchCart());
   }, [dispatch]);
-
-  // Debug effect to log cart details
-  useEffect(() => {
-    if (debugMode && cartItems.length > 0) {
-      console.group('🛒 CART DEBUG INFORMATION');
-      
-      console.log('📦 Cart Items Breakdown:');
-      cartItems.forEach((item, index) => {
-        const itemTotal = (item.price || 0) * (item.quantity || 1);
-        const productName = item.product?.name || item.preBuiltPC?.name || 'Unknown';
-        const productId = item.product?._id || item.preBuiltPC?._id || item.productId;
-        
-        console.log(`  Item ${index + 1}: "${productName}"`, {
-          'Type': item.productType || 'product',
-          'Price': `₹${item.price}`,
-          'Quantity': item.quantity,
-          'Total': `₹${itemTotal}`,
-          'Product ID': productId,
-          'Variant ID': item.variantId || item.variant?.variantId || 'None',
-          'Has Product Data': !!item.product,
-          'Has Images': item.product?.images ? 'Yes' : 'No',
-          'Product Data Source': item.product ? 'From API' : 'Missing'
-        });
-
-        // Log detailed product info if available
-        if (item.product) {
-          console.log(`  📋 Product Details for "${productName}":`, {
-            'Name': item.product.name,
-            'Brand': item.product.brand?.name,
-            'Images Count': item.product.images ? Object.keys(item.product.images).length : 0,
-            'Variants Count': item.product.variants?.length || 0,
-            'Effective Price': item.product.effectivePrice,
-            'MRP': item.product.mrp
-          });
-        }
-      });
-
-      console.log('💰 Cart Totals Calculation:');
-      const calculatedTotal = cartItems.reduce((total, item) => {
-        return total + ((item.price || 0) * (item.quantity || 1));
-      }, 0);
-      
-      console.table({
-        'Cart Items Count': cartItems.length,
-        'Total Quantity': itemsCount,
-        'Calculated Total': `₹${calculatedTotal.toFixed(2)}`,
-        'Redux Cart Total': `₹${cartTotal.toFixed(2)}`,
-        'Match': calculatedTotal === cartTotal ? '✅' : '❌',
-        'Difference': `₹${(calculatedTotal - cartTotal).toFixed(2)}`
-      });
-
-      console.log('📊 Product Type Breakdown:');
-      console.table({
-        'Regular Products': {
-          'Count': productItems.length,
-          'Quantity': productItems.reduce((sum, item) => sum + (item.quantity || 0), 0),
-          'Total': `₹${productItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0).toFixed(2)}`
-        },
-        'Pre-built PCs': {
-          'Count': preBuiltPCItems.length,
-          'Quantity': preBuiltPCItems.reduce((sum, item) => sum + (item.quantity || 0), 0),
-          'Total': `₹${preBuiltPCItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0).toFixed(2)}`
-        }
-      });
-
-      // Check for data issues
-      const itemsWithMissingData = cartItems.filter(item => !item.product && !item.preBuiltPC);
-      if (itemsWithMissingData.length > 0) {
-        console.warn('❌ Items with missing product data:', itemsWithMissingData.length);
-        itemsWithMissingData.forEach((item, index) => {
-          console.warn(`  Missing data item ${index + 1}:`, {
-            'Cart Item ID': item._id,
-            'Product ID': item.productId,
-            'Variant ID': item.variantId,
-            'Price': item.price,
-            'Quantity': item.quantity
-          });
-        });
-      }
-
-      console.groupEnd();
-    }
-  }, [cartItems, cartTotal, itemsCount, productItems, preBuiltPCItems, debugMode]);
 
   useEffect(() => {
     if (!loading && isAuthenticated && user && !hasCheckedSync) {
@@ -163,9 +78,7 @@ const Cart: React.FC = () => {
 
   // Enhanced handlers for both product types
   const handleUpdateQuantity = (productId: string, variantId: string | undefined, quantity: number) => {
-    console.log('🔄 Updating quantity:', { productId, variantId, quantity });
-    
-    if (quantity === 0) {
+   if (quantity === 0) {
       // Remove item if quantity is 0
       dispatch(cartActions.removeFromCart({ productId, variantId }));
       toast.info('Item removed from cart');
@@ -175,9 +88,7 @@ const Cart: React.FC = () => {
     }
   };
 
-  const handleUpdatePreBuiltPCQuantity = (pcId: string, quantity: number) => {
-    console.log('🔄 Updating PC quantity:', { pcId, quantity });
-    
+  const handleUpdatePreBuiltPCQuantity = (pcId: string, quantity: number) => {    
     if (quantity === 0) {
       dispatch(cartActions.removePreBuiltPCFromCart(pcId));
       toast.info('PC removed from cart');
@@ -188,7 +99,6 @@ const Cart: React.FC = () => {
   };
 
   const handleRemoveItem = (productId: string, variantId?: string) => {
-    console.log('🗑️ Removing from cart:', { productId, variantId });
     dispatch(cartActions.removeFromCart({ 
       productId,
       variantId
@@ -197,13 +107,11 @@ const Cart: React.FC = () => {
   };
 
   const handleRemovePreBuiltPC = (pcId: string) => {
-    console.log('🗑️ Removing PC from cart:', { pcId });
     dispatch(cartActions.removePreBuiltPCFromCart(pcId));
     toast.info('PC removed from cart');
   };
 
   const handleClearCart = () => {
-    console.log('🧹 Clearing entire cart');
     dispatch(cartActions.clearCart());
     toast.info('Cart cleared');
   };
@@ -224,8 +132,6 @@ const Cart: React.FC = () => {
       console.error('Invalid items in cart:', invalidItems);
       return;
     }
-    
-    console.log('➡️ Proceeding to checkout with cart total:', cartTotal);
     navigate('/checkout');
   };
 
@@ -238,13 +144,8 @@ const Cart: React.FC = () => {
     }
   };
 
-  const toggleDebugMode = () => {
-    setDebugMode(!debugMode);
-    console.log(`🔧 Debug mode ${!debugMode ? 'enabled' : 'disabled'}`);
-  };
 
   const handleRefreshCart = () => {
-    console.log('🔄 Manually refreshing cart data...');
     dispatch(cartActions.fetchCart());
     toast.info('Refreshing cart data...');
   };
@@ -269,46 +170,11 @@ const Cart: React.FC = () => {
         guestCartCount={guestCartCount}
       />
 
-      {/* Debug Controls */}
-      <div className="fixed top-4 right-4 z-50 flex space-x-2">
-        <button
-          onClick={toggleDebugMode}
-          className={`px-3 py-2 rounded-lg text-sm font-medium ${
-            debugMode 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-gray-200 text-gray-700'
-          }`}
-        >
-          {debugMode ? '🔧 Debug ON' : '🔧 Debug OFF'}
-        </button>
-        
-        {debugMode && (
-          <button
-            onClick={handleRefreshCart}
-            className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium"
-          >
-            🔄 Refresh
-          </button>
-        )}
-      </div>
 
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
-            
-            {/* Debug Summary */}
-            {debugMode && cartItems.length > 0 && (
-              <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="text-sm text-green-800">
-                  <strong>Debug Summary:</strong> {cartItems.length} items, {itemsCount} total quantity, ₹{cartTotal.toFixed(2)} total
-                </div>
-                <div className="text-xs text-green-700 mt-1">
-                  Products: {productItems.length} | PCs: {preBuiltPCItems.length} | 
-                  Items with data: {cartItems.filter(item => item.product || item.preBuiltPC).length}/{cartItems.length}
-                </div>
-              </div>
-            )}
             
             {/* Cart type breakdown */}
             {(preBuiltPCItems.length > 0 || productItems.length > 0) && (
@@ -343,14 +209,6 @@ const Cart: React.FC = () => {
           </div>
           
           <div className="flex space-x-2">
-            {debugMode && (
-              <button
-                onClick={handleRefreshCart}
-                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
-              >
-                Refresh Data
-              </button>
-            )}
             {cartItems.length > 0 && (
               <button
                 onClick={handleClearCart}
@@ -458,21 +316,6 @@ const Cart: React.FC = () => {
                   <span>Cart Total</span>
                   <span>₹{cartTotal.toFixed(2)}</span>
                 </div>
-
-                {/* Debug Info */}
-                {debugMode && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-xs text-blue-800 font-semibold mb-2">🔍 Cart Debug Info</p>
-                    <div className="text-xs text-blue-700 space-y-1">
-                      <div>Items: {cartItems.length}</div>
-                      <div>Total Quantity: {itemsCount}</div>
-                      <div>Product Items: {productItems.length}</div>
-                      <div>PC Items: {preBuiltPCItems.length}</div>
-                      <div>Items with Data: {cartItems.filter(item => item.product || item.preBuiltPC).length}</div>
-                      <div>Items Missing Data: {cartItems.filter(item => !item.product && !item.preBuiltPC).length}</div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <button 

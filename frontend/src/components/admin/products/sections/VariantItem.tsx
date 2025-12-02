@@ -37,6 +37,53 @@ const VariantItem: React.FC<VariantItemProps> = ({
     });
   };
 
+   // 🆕 ADD THIS FUNCTION
+  const getImageUrl = (imageObj: any) => {
+    if (!imageObj?.url) return '';
+      
+    const url = imageObj.url;
+    
+    // If it's already a full URL or blob URL, return as is
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) {
+      return url;
+    }
+
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    
+    // Handle cases where it is just a filename (no slashes)
+    if (!url.includes('/')) {
+       if (url.startsWith('products-')) {
+          return `${API_BASE_URL}/uploads/products/${url}`;
+       }
+       return `${API_BASE_URL}/uploads/products/${url}`;
+    }
+    
+    // Handle paths that already start with /uploads/
+    if (url.startsWith('/uploads/')) {
+      return `${API_BASE_URL}${url}`;
+    }
+    
+    // Fallback for other relative paths
+    return `${API_BASE_URL}/${url.replace(/^\//, '')}`;
+  };
+
+  // 🆕 Get thumbnail URL for preview
+  const getThumbnailUrl = () => {
+    if (variant.images?.thumbnail?.url) {
+      return getImageUrl(variant.images.thumbnail);
+    }
+    if (baseThumbnail?.url) {
+      return getImageUrl(baseThumbnail);
+    }
+    return '';
+  };
+
+  // 🆕 Get gallery image URL
+  const getGalleryImageUrl = (galleryImage: ImageData) => {
+    return getImageUrl(galleryImage);
+  };
+
+
   const handleGalleryChange = (galleryIndex: number, field: string, value: string) => {
     const updatedGallery = [...(variant.images.gallery || [])];
     updatedGallery[galleryIndex] = {
@@ -365,21 +412,21 @@ const VariantItem: React.FC<VariantItemProps> = ({
           </div>
           
           {/* Thumbnail Preview */}
-          {(variant.images?.thumbnail?.url || baseThumbnail?.url) && (
-            <div className="mt-3">
-              <label className="block text-xs text-gray-600 mb-1">Preview</label>
-              <div className="w-20 h-20 border border-gray-300 rounded-lg overflow-hidden">
-                <img
-                  src={variant.images?.thumbnail?.url || baseThumbnail?.url}
-                  alt={variant.images?.thumbnail?.altText || baseThumbnail?.altText}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
-                  }}
-                />
-              </div>
-            </div>
-          )}
+      {(variant.images?.thumbnail?.url || baseThumbnail?.url) && (
+        <div className="mt-3">
+          <label className="block text-xs text-gray-600 mb-1">Preview</label>
+          <div className="w-20 h-20 border border-gray-300 rounded-lg overflow-hidden">
+            <img
+              src={getThumbnailUrl()}  // 🆕 Use getThumbnailUrl
+              alt={variant.images?.thumbnail?.altText || baseThumbnail?.altText}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCA0MEM0Mi4yMDkxIDQwIDQ0IDQxLjc5MDkgNDQgNDRDNDQgNDYuMjA5MSA0Mi4yMDkxIDQ4IDQwIDQ4QzM3Ljc5MDkgNDggMzYgNDYuMjA5MSAzNiA0NEMzNiA0MS43OTA5IDM3Ljc5MDkgNDAgNDAgNDBaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik01MiAzNkM1MiAzNC44OTU0IDUxLjEwNDYgMzQgNTAgMzRMMzAgMzRDMjguODk1NCAzNCAyOCAzNC44OTU0IDI4IDM2TDI4IDUyQzI4IDUzLjEwNDYgMjguODk1NCA1NCAzMCA1NEw1MCA1NEM1MS4xMDQ2IDU0IDUyIDUzLjEwNDYgNTIgNTJMNjIgNDJMNjIgNTJDNjIgNTMuMTA0NiA2Mi44OTU0IDU0IDY0IDU0QzY1LjEwNDYgNTQgNjYgNTMuMTA0NiA2NiA1Mkw2NiAzNkM2NiAzNC44OTU0IDY1LjEwNDYgMzQgNjQgMzRMNTIgMzRaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
+              }}
+            />
+          </div>
+        </div>
+      )}
         </div>
 
         {/* Gallery Images */}
@@ -434,13 +481,16 @@ const VariantItem: React.FC<VariantItemProps> = ({
                 <div key={galleryIndex} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg bg-white">
                   {/* Image Preview */}
                   <div className="flex-shrink-0">
-                    {galleryImage.url ? (
-                      <div className="w-16 h-16 border border-gray-300 rounded-lg overflow-hidden">
-                        <img
-                          src={galleryImage.url}
-                          alt="Gallery preview"
-                          className="w-full h-full object-cover"
-                        />
+                 {galleryImage.url ? (
+                  <div className="w-16 h-16 border border-gray-300 rounded-lg overflow-hidden">
+                    <img
+                      src={getGalleryImageUrl(galleryImage)}  // 🆕 Use getGalleryImageUrl
+                      alt="Gallery preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zMiAzMkMzMy42NTQ4IDMyIDM1IDMzLjM0NTIgMzUgMzVDMzUgMzYuNjU0OCAzMy42NTQ4IDM4IDMyIDM4QzMwLjM0NTIgMzggMjkgMzYuNjU0OCAyOSAzNUMyOSAzMy4zNDUyIDMwLjM0NTIgMzIgMzIgMzJaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik00MiAyNEM0MiAyMi44OTU0IDQxLjEwNDYgMjIgNDAgMjJMMzIgMjJDMzAuODk1NCAyMiAzMCAyMi44OTU0IDMwIDI0TDMwIDM2QzMwIDM3LjEwNDYgMzAuODk1NCAzOCAzMiAzOEw0MCAzOEM0MS4xMDQ2IDM4IDQyIDM3LjEwNDYgNDIgMzZMNDIgMjRaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
+                      }}
+                    />
                       </div>
                     ) : (
                       <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">

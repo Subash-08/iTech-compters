@@ -76,7 +76,7 @@ const handleStatusChange = async (productId: string, newStatus: string) => {
 
   const handleEdit = (product: Product) => {
     const formReadyProduct = transformProductForForm(product);
-    onEdit(formReadyProduct);
+    onEdit(formReadyProduct);    
   };
 
 const transformProductForForm = (product: Product): any => {
@@ -149,6 +149,47 @@ const transformProductForForm = (product: Product): any => {
   };
 };
 
+const getImageUrl = (imageObj: any) => {
+  if (!imageObj?.url) return '/placeholder-image.jpg';
+    
+  const url = imageObj.url;
+  
+  // 1. If it's already a full URL or blob URL, return as is
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) {
+    return url;
+  }
+
+  // Use environment variable or fallback
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  
+  // 2. Handle cases where it is just a filename (no slashes)
+  if (!url.includes('/')) {
+     if (url.startsWith('products-')) {
+        return `${API_BASE_URL}/uploads/products/${url}`;
+     }
+     if (url.startsWith('brands-')) {
+        return `${API_BASE_URL}/uploads/brands/${url}`;
+     }
+     return `${API_BASE_URL}/uploads/products/${url}`;
+  }
+  
+  // 3. Handle paths that already start with /uploads/
+  if (url.startsWith('/uploads/')) {
+    const filename = url.split('/').pop();
+    
+    if (filename && filename.startsWith('products-') && !url.includes('/products/')) {
+       return `${API_BASE_URL}/uploads/products/${filename}`;
+    }
+    if (filename && filename.startsWith('brands-') && !url.includes('/brands/')) {
+       return `${API_BASE_URL}/uploads/brands/${filename}`;
+    }
+
+    return `${API_BASE_URL}${url}`;
+  }
+  
+  // 4. Fallback for other relative paths
+  return `${API_BASE_URL}/${url.replace(/^\//, '')}`;
+};
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'published': return 'bg-green-100 text-green-800 border-green-200';
@@ -261,9 +302,6 @@ const getStockColor = (stock: number, hasVariants: boolean) => {
                   Price
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -281,14 +319,14 @@ const getStockColor = (stock: number, hasVariants: boolean) => {
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-12 w-12">
-                        <img
-                          className="h-12 w-12 rounded-lg object-cover border border-gray-200"
-                          src={product.images?.thumbnail?.url || '/placeholder-image.jpg'}
-                          alt={product.images?.thumbnail?.altText || product.name}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
-                          }}
-                        />
+ <img
+  className="h-12 w-12 rounded-lg object-cover border border-gray-200"
+  src={getImageUrl(product.images?.thumbnail)}
+  alt={product.images?.thumbnail?.altText || product.name}
+  onError={(e) => {
+    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEMyNS42NTQ4IDI0IDI3IDI1LjM0NTIgMjcgMjdDMjcgMjguNjU0OCAyNS42NTQ4IDMwIDI0IDMwQzIyLjM0NTIgMzAgMjEgMjguNjU0OCAyMSAyN0MyMSAyNS4zNDUyIDIyLjM0NTIgMjQgMjQgMjRaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik0zNiAyM0MzNiAyMS44OTU0IDM1LjEwNDYgMjEgMzQgMjFMMjkgMjFDMjcuODk1NCAyMSAyNyAyMS44OTU0IDI3IDIzTDI3IDM2QzI3IDM3LjEwNDYgMjcuODk1NCAzOCAyOSAzOEwzNCAzOEMzNS4xMDQ2IDM4IDM2IDM3LjEwNDYgMzYgMzZMMzYgMjNaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
+  }}
+/>
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900 line-clamp-2">
@@ -333,12 +371,13 @@ const getStockColor = (stock: number, hasVariants: boolean) => {
     {product.priceRange?.hasRange ? (
       // Show price range for products with variants
       <div className="text-sm font-medium text-gray-900">
-        ${product.priceRange.min.toFixed(2)} - ${product.priceRange.max.toFixed(2)}
+        ₹{product.priceRange.min.toFixed(2)} - ${product.priceRange.max.toFixed(2)}
       </div>
     ) : (
       // Show single price for products without variants
       <div className="text-sm font-medium text-gray-900">
-        ${(product.sellingPrice || product.basePrice).toFixed(2)}
+       ₹{(product.sellingPrice ?? product.basePrice ?? product.offerPrice ?? 0).toFixed(2)}
+
       </div>
     )}
     
@@ -346,7 +385,7 @@ const getStockColor = (stock: number, hasVariants: boolean) => {
     {product.displayMrp && product.displayMrp > (product.sellingPrice || product.basePrice) && (
       <div className="flex items-center space-x-2">
         <span className="text-xs text-gray-500 line-through">
-          ${product.displayMrp.toFixed(2)}
+          ₹{product.displayMrp.toFixed(2)}
         </span>
         {product.calculatedDiscount > 0 && (
           <span className="text-xs text-green-600 font-medium">
@@ -368,47 +407,7 @@ const getStockColor = (stock: number, hasVariants: boolean) => {
   </div>
 </td>
 
-{/* Price */}
-<td className="px-6 py-4">
-  <div className="flex flex-col space-y-1">
-    {/* 🆕 Use virtual fields for pricing display */}
-    {product.priceRange?.hasRange ? (
-      // Show price range for products with variants
-      <div className="text-sm font-medium text-gray-900">
-        ${product.priceRange.min.toFixed(2)} - ${product.priceRange.max.toFixed(2)}
-      </div>
-    ) : (
-      // Show single price for products without variants
-      <div className="text-sm font-medium text-gray-900">
-        ${(product.sellingPrice || product.basePrice).toFixed(2)}
-      </div>
-    )}
-    
-    {/* 🆕 Show MRP and discount if available */}
-    {product.displayMrp && product.displayMrp > (product.sellingPrice || product.basePrice) && (
-      <div className="flex items-center space-x-2">
-        <span className="text-xs text-gray-500 line-through">
-          ${product.displayMrp.toFixed(2)}
-        </span>
-        {product.calculatedDiscount > 0 && (
-          <span className="text-xs text-green-600 font-medium">
-            {product.calculatedDiscount}% OFF
-          </span>
-        )}
-      </div>
-    )}
-    
-    {/* 🆕 Backward compatibility - show old pricing if virtual fields not available */}
-    {!product.displayMrp && product.offerPrice > 0 && product.offerPrice < product.basePrice && (
-      <div className="text-sm text-green-600 font-medium">
-        ${product.offerPrice.toFixed(2)}
-        <span className="text-xs text-red-600 ml-1">
-          (-{Math.round(((product.basePrice - product.offerPrice) / product.basePrice) * 100)}%)
-        </span>
-      </div>
-    )}
-  </div>
-</td>
+
 
                   {/* Status with Dropdown */}
                   <td className="px-6 py-4">

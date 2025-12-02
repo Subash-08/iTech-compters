@@ -104,17 +104,6 @@ const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
             subtotal += itemTotal;
             totalTax += itemTax;
             totalSavings += itemSavings;
-
-            console.log(`✅ Updated pricing for ${productData.name}:`, {
-                originalPrice: originalPrice,
-                sellingPrice: currentPrice,
-                quantity: item.quantity,
-                taxRate: (taxRate * 100).toFixed(2) + '%',
-                itemTax: itemTax,
-                itemTotal: itemTotal,
-                itemSavings: itemSavings
-            });
-
             validatedItems.push({
                 cartItemId: item._id,
                 productType: item.productType,
@@ -135,16 +124,6 @@ const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
 
         const shipping = subtotal >= 1000 ? 0 : 100;
         const total = subtotal + shipping + totalTax;
-
-        console.log('💰 UPDATED FINAL PRICING:', {
-            subtotal: subtotal,
-            totalTax: totalTax,
-            shipping: shipping,
-            total: total,
-            totalSavings: totalSavings,
-            averageTaxRate: ((totalTax / subtotal) * 100).toFixed(2) + '%'
-        });
-
         res.status(200).json({
             success: true,
             data: {
@@ -262,9 +241,6 @@ const calculateCheckout = catchAsyncErrors(async (req, res, next) => {
 });
 const createOrder = catchAsyncErrors(async (req, res, next) => {
     try {
-        console.log('🟡 Starting order creation...');
-        console.log('🟡 Request body:', JSON.stringify(req.body, null, 2));
-
         const {
             shippingAddressId,
             billingAddressId,
@@ -274,9 +250,6 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
         } = req.body;
         const userId = req.user._id;
 
-        console.log('🟡 User ID:', userId);
-        console.log('🟡 Shipping Address ID:', shippingAddressId);
-
         // Get user and addresses
         const user = await User.findById(userId);
         if (!user) {
@@ -284,27 +257,17 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('User not found', 404));
         }
 
-        console.log('🟡 User found:', user.email);
-
         // Find addresses
         const shippingAddress = user.addresses.id(shippingAddressId);
         if (!shippingAddress) {
             console.error('❌ Shipping address not found:', shippingAddressId);
-            console.log('🟡 Available addresses:', user.addresses);
             return next(new ErrorHandler('Shipping address not found', 400));
         }
-
-        console.log('🟡 Shipping address found:', shippingAddress);
-
         const billingAddress = billingAddressId ?
             user.addresses.id(billingAddressId) : shippingAddress;
-
-        // Recalculate totals with better error handling
-        console.log('🟡 Recalculating totals...');
         let calculationResponse;
         try {
             calculationResponse = await calculateCheckoutInternal(userId, couponCode);
-            console.log('🟡 Calculation response:', calculationResponse);
         } catch (calcError) {
             console.error('❌ Calculate checkout error:', calcError);
             return next(new ErrorHandler('Failed to calculate order totals: ' + calcError.message, 400));
@@ -316,10 +279,6 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
         }
 
         const { cartItems, pricing, couponDetails } = calculationResponse.data;
-
-        console.log('🟡 Cart items:', cartItems);
-        console.log('🟡 Pricing:', pricing);
-        console.log('🟡 Coupon details:', couponDetails);
 
         // Check if cart is empty
         if (!cartItems || cartItems.length === 0) {
@@ -367,17 +326,6 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
             // 🚨 CRITICAL FIX: Convert tax rate from percentage to decimal
             const taxRate = item.taxRate || 18;
             const taxAmount = itemTotal * (taxRate / 100); // ✅ FIXED: Divide by 100
-
-            console.log(`🟡 Item ${item.name}:`, {
-                originalPrice,
-                discountedPrice,
-                quantity: item.quantity,
-                total: itemTotal,
-                taxRate: taxRate + '%',
-                taxAmount,
-                savings: (originalPrice - discountedPrice) * item.quantity
-            });
-
             return {
                 productType: item.productType,
                 product: item.product,
@@ -395,10 +343,7 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
                 returnWindow: 7
             };
         }));
-
-        // ✅ Generate order number manually
         const orderNumber = generateOrderNumber();
-        console.log('✅ Generated order number:', orderNumber);
 
         // Create order data with validated pricing
         const orderData = {
@@ -466,21 +411,8 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
             estimatedDelivery: new Date(Date.now() + (pricing.shipping === 0 ? 7 : 5) * 24 * 60 * 60 * 1000)
         };
 
-        console.log('🟡 Creating order with orderNumber:', orderNumber);
-        console.log('🟡 Order items with prices:', orderItems.map(item => ({
-            name: item.name,
-            originalPrice: item.originalPrice,
-            discountedPrice: item.discountedPrice,
-            total: item.total,
-            taxAmount: item.taxAmount
-        })));
 
-        // Create order
         const order = await Order.create(orderData);
-
-        console.log('✅ Order created successfully:', order.orderNumber);
-
-        // Update coupon usage
         if (couponDetails && couponDetails.code) {
             try {
                 await Coupon.findOneAndUpdate(
@@ -490,7 +422,6 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
                         $addToSet: { usedBy: userId }
                     }
                 );
-                console.log('✅ Coupon usage updated:', couponDetails.code);
             } catch (couponError) {
                 console.warn('⚠️ Could not update coupon usage:', couponError.message);
             }
@@ -506,8 +437,6 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
             { userId: userId },
             { $set: { items: [], totalItems: 0, totalPrice: 0 } }
         );
-
-        console.log('✅ Cart cleared for user:', userId);
 
         res.status(201).json({
             success: true,
@@ -684,8 +613,6 @@ const updateAddress = catchAsyncErrors(async (req, res, next) => {
 });
 const getCheckoutDataInternal = async (userId) => {
     try {
-        console.log('🟡 getCheckoutDataInternal started for user:', userId);
-
         const cart = await Cart.findOne({ userId })
             .populate({
                 path: 'items.product',
@@ -694,24 +621,13 @@ const getCheckoutDataInternal = async (userId) => {
             .populate('items.preBuiltPC', 'name slug images basePrice totalPrice specifications');
 
         if (!cart || cart.items.length === 0) {
-            console.log('❌ Cart is empty');
             return { success: false, error: 'Cart is empty' };
         }
-
-        console.log('🟡 Cart found with items:', cart.items.length);
-
         const validatedItems = [];
         let subtotal = 0;
         let totalTax = 0;
 
         for (const item of cart.items) {
-            console.log('🟡 Processing cart item:', {
-                productType: item.productType,
-                productId: item.product?._id,
-                variantId: item.variant?.variantId,
-                quantity: item.quantity
-            });
-
             let currentPrice = 0;
             let originalPrice = 0;
             let taxRate = 18; // ✅ CHANGED: Default to 18 (percentage), not 0.18
@@ -729,13 +645,11 @@ const getCheckoutDataInternal = async (userId) => {
                 if (item.variant?.price) {
                     currentPrice = item.variant.price;
                     originalPrice = item.variant.mrp || item.variant.price;
-                    console.log('✅ Using variant price from cart:', currentPrice);
                 }
                 // METHOD 2: Use product basePrice
                 else if (item.product?.basePrice) {
                     currentPrice = item.product.basePrice;
                     originalPrice = item.product.mrp || item.product.basePrice;
-                    console.log('✅ Using product basePrice:', currentPrice);
                 }
                 // METHOD 3: Last resort - use a default price
                 else {
@@ -749,7 +663,6 @@ const getCheckoutDataInternal = async (userId) => {
                 // If taxRate is less than 1, it's already decimal - convert to percentage
                 if (taxRate < 1) {
                     taxRate = taxRate * 100;
-                    console.log(`🔄 Converted tax rate from decimal to percentage: ${taxRate}%`);
                 }
 
                 sku = item.product?.sku || 'UNKNOWN';
@@ -797,14 +710,6 @@ const getCheckoutDataInternal = async (userId) => {
                 available: true,
                 sku: sku
             });
-
-            console.log(`✅ Cart item "${name}":`, {
-                price: currentPrice,
-                quantity: item.quantity,
-                total: itemTotal,
-                taxRate: taxRate + '%',
-                taxAmount: itemTax
-            });
         }
 
         // Check if we have any valid items
@@ -815,15 +720,6 @@ const getCheckoutDataInternal = async (userId) => {
 
         const shipping = subtotal >= 1000 ? 0 : 100;
         const total = subtotal + shipping + totalTax;
-
-        console.log('🟡 Final pricing calculation:', {
-            subtotal,
-            shipping,
-            totalTax,
-            total,
-            itemCount: validatedItems.length
-        });
-
         return {
             success: true,
             data: {
@@ -845,12 +741,8 @@ const getCheckoutDataInternal = async (userId) => {
 
 const calculateCheckoutInternal = async (userId, couponCode) => {
     try {
-        console.log('🟡 Starting calculateCheckoutInternal for user:', userId);
-        console.log('🟡 Coupon code:', couponCode);
-
-        // Get checkout data
         const checkoutResponse = await getCheckoutDataInternal(userId);
-        console.log('🟡 Checkout response:', checkoutResponse);
+
 
         if (!checkoutResponse.success) {
             console.error('❌ Checkout data failed:', checkoutResponse);
@@ -858,10 +750,6 @@ const calculateCheckoutInternal = async (userId, couponCode) => {
         }
 
         const { cartItems, pricing } = checkoutResponse.data;
-
-        console.log('🟡 Cart items count:', cartItems?.length);
-        console.log('🟡 Initial pricing:', pricing);
-
         // Check if cart is empty
         if (!cartItems || cartItems.length === 0) {
             console.error('❌ Cart is empty');
@@ -877,21 +765,14 @@ const calculateCheckoutInternal = async (userId, couponCode) => {
         // Apply coupon if provided
         if (couponCode) {
             try {
-                console.log('🟡 Applying coupon:', couponCode);
 
                 const couponCartItems = cartItems.map(item => ({
                     product: item.product?.toString?.(),
                     price: item.price,
                     quantity: item.quantity
                 }));
-
-                console.log('🟡 Coupon cart items:', couponCartItems);
-
                 const coupon = await Coupon.validateCoupon(couponCode, userId, couponCartItems, pricing.subtotal);
-                console.log('🟡 Coupon validated:', coupon);
-
                 discount = coupon.calculateDiscount(pricing.subtotal, pricing.subtotal);
-                console.log('🟡 Discount calculated:', discount);
 
                 couponDetails = {
                     couponId: coupon._id,
@@ -900,8 +781,6 @@ const calculateCheckoutInternal = async (userId, couponCode) => {
                     discountAmount: discount,
                     discountType: coupon.discountType
                 };
-
-                console.log('🟡 Coupon details:', couponDetails);
 
             } catch (error) {
                 console.error('❌ Coupon validation error:', error);
@@ -918,9 +797,6 @@ const calculateCheckoutInternal = async (userId, couponCode) => {
             discount: Math.round(discount * 100) / 100,
             total: Math.round((pricing.subtotal + pricing.shipping + pricing.tax - discount) * 100) / 100
         };
-
-        console.log('🟡 Final pricing:', finalPricing);
-
         return {
             success: true,
             data: {
@@ -942,8 +818,6 @@ const calculateCheckoutInternal = async (userId, couponCode) => {
 // Add this as a backup
 const getCheckoutDataFallback = async (userId) => {
     try {
-        console.log('🟡 Using fallback checkout data calculation');
-
         // Get cart directly
         const cart = await Cart.findOne({ userId })
             .populate('items.product', 'name price images sku')

@@ -46,7 +46,6 @@ addToCart: async (cartData: AddToCartData): Promise<{ data: any; message: string
       payload.variantId = variantId;
     }
     
-    console.log('🛒 Final API Payload:', payload);
     
     const response = await api.post('/cart', payload);
     toast.success('Product added to cart successfully');
@@ -117,9 +116,6 @@ removeFromCart: async (removeData: RemoveFromCartData): Promise<{ data: any; mes
       productId: removeData.productId,
       ...(removeData.variantId && { variantId: removeData.variantId })
     };
-    
-    console.log('🛒 Final removal payload:', payload);
-    
     const response = await api.delete('/cart', { 
       data: payload
     });
@@ -258,8 +254,6 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
     
     const state = getState();
     const isGuest = !state.authState.isAuthenticated;
-    
-    console.log('🛒 Adding to cart:', cartData);
 
     if (isGuest) {
       // Guest user handling
@@ -316,9 +310,6 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
         variantId: cartData.variantData?.variantId || cartData.variantId || undefined,
         quantity: cartData.quantity || 1
       };
-      
-      console.log('🛒 Sending to backend:', apiPayload);
-      
       const response = await cartAPI.addToCart(apiPayload);
       
       let items = [];
@@ -440,8 +431,6 @@ const removeFromCart = (removeData: RemoveFromCartData) => async (dispatch: any,
     
     const state = getState();
     const isGuest = !state.authState.isAuthenticated;
-    
-    console.log('🗑️ Removing from cart with variant:', removeData);
 
     if (isGuest) {
       // Guest user handling
@@ -468,8 +457,6 @@ const removeFromCart = (removeData: RemoveFromCartData) => async (dispatch: any,
         productId: removeData.productId,
         ...(removeData.variantId && { variantId: removeData.variantId })
       };
-      
-      console.log('🛒 Sending removal payload:', payload);
       
       const response = await cartAPI.removeFromCart(payload);
       

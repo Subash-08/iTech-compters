@@ -53,6 +53,7 @@ const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+
   // Fetch all homepage data using Axios
   const fetchHomepageData = async () => {
     try {

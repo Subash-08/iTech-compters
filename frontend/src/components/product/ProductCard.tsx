@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAppDispatch } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
-import { wishlistActions } from '../../redux/actions/wishlistActions';
+import AddToWishlistButton from './AddToWishlistButton';
 import { toast } from 'react-toastify';
 
 // --- Types (Inlined for self-containment) ---
@@ -59,103 +59,7 @@ interface VariantData {
   sku?: string;
 }
 
-interface AddToWishlistButtonProps {
-  productId: string;
-  variant?: VariantData | null;
-  productType?: 'product' | 'prebuilt-pc';
-  className?: string;
-  size?: 'sm' | 'md' | 'lg';
-  showTooltip?: boolean;
-}
 
-const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({ 
-  productId, 
-  variant,
-  productType = 'product',
-  className = '',
-  size = 'md',
-  showTooltip = true
-}) => {
-  const dispatch = useAppDispatch();
-  const [loading, setLoading] = React.useState(false);
-
-  const handleWishlistToggle = async () => {
-    if (loading) return;
-    
-    console.log('❤️ AddToWishlistButton clicked with:', {
-      productId,
-      variant,
-      productType,
-      hasVariant: !!variant,
-      variantId: variant?.variantId
-    });
-    
-    setLoading(true);
-    try {
-      // For now, just show a toast since we don't have full wishlist implementation
-      toast.success('Added to wishlist!');
-      
-      // TODO: Uncomment when wishlist actions are properly implemented
-      // await dispatch(wishlistActions.addToWishlist({ 
-      //   productId,
-      //   variant,
-      //   productType
-      // }));
-      
-    } catch (error: any) {
-      console.error('❌ Wishlist error:', error);
-      toast.error('Failed to add to wishlist');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const sizeClasses = {
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-10 h-10'
-  };
-
-  const iconSizes = {
-    sm: 'w-3 h-3',
-    md: 'w-4 h-4',
-    lg: 'w-5 h-5'
-  };
-
-  return (
-    <button
-      onClick={handleWishlistToggle}
-      disabled={loading}
-      className={`
-        ${sizeClasses[size]} 
-        rounded-full transition-all duration-300 
-        flex items-center justify-center
-        bg-white/80 backdrop-blur-sm hover:bg-white
-        text-gray-400 hover:text-red-500 
-        shadow-sm hover:shadow-md
-        border border-gray-200
-        disabled:opacity-50 disabled:cursor-not-allowed
-        focus:outline-none focus:ring-2 focus:ring-red-200
-        ${className}
-      `}
-      title="Add to wishlist"
-    >
-      {loading ? (
-        <div className={`${iconSizes[size]} animate-spin rounded-full border-2 border-current border-t-transparent`}></div>
-      ) : (
-        <svg 
-          className={iconSizes[size]} 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-        </svg>
-      )}
-    </button>
-  );
-};
 
 interface AddToCartButtonProps {
   productId: string;
@@ -186,26 +90,14 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const handleAddToCart = async () => {
     if (loading || disabled) return;
     
-    console.log('🛒 AddToCartButton clicked with:', {
-      productId,
-      variant,
-      productType,
-      quantity,
-      hasVariant: !!variant,
-      variantId: variant?.variantId
-    });
-    
     setLoading(true);
     try {
-      // ✅ FIXED: Send both productId and variant data
       const cartPayload = {
         productId, 
         variantId: variant?.variantId, // Extract variantId from variant object
         variantData: variant, // Send full variant data
         quantity 
       };
-      
-      console.log('🛒 Dispatching cart payload:', cartPayload);
       
       // Dispatch the add to cart action
       await dispatch(cartActions.addToCart(cartPayload));
@@ -279,7 +171,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     return Math.round(((mrp - effectivePrice) / mrp) * 100);
   };
 
-  const discountPercentage = calculateDiscount();
   const hasVariants = variants && variants.length > 0;
 
   // 🔧 FIXED: Get base/default variant logic
@@ -371,7 +262,54 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const displayDiscount = displayMrp && displayMrp > displayPrice ? 
     Math.round(((displayMrp - displayPrice) / displayMrp) * 100) : 0;
 
-  // 🎯 FIXED: Display Image Logic
+  // 🔧 FIXED: Get image URL with Smart Subfolder Support
+  const getImageUrl = (imageObj: any) => {
+    if (!imageObj?.url) return '/placeholder-image.jpg';
+      
+    const url = imageObj.url;
+    
+    // 1. If it's already a full URL or blob URL, return as is
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) {
+      return url;
+    }
+
+    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    
+    // 2. Handle cases where it is just a filename (no slashes)
+    if (!url.includes('/')) {
+       // Heuristic: If filename starts with known prefixes, route to that folder
+       if (url.startsWith('products-')) {
+          return `${API_BASE_URL}/uploads/products/${url}`;
+       }
+       if (url.startsWith('brands-')) {
+          return `${API_BASE_URL}/uploads/brands/${url}`;
+       }
+       // Default fallback to products if unsure
+       return `${API_BASE_URL}/uploads/products/${url}`;
+    }
+    
+    // 3. Handle paths that already start with /uploads/
+    if (url.startsWith('/uploads/')) {
+      // 🔴 SMART FIX: Check if the subfolder is missing based on filename prefix
+      const filename = url.split('/').pop();
+      
+      // If file is "products-xyz.jpg" but path doesn't contain "/products/"
+      if (filename && filename.startsWith('products-') && !url.includes('/products/')) {
+         return `${API_BASE_URL}/uploads/products/${filename}`;
+      }
+      // If file is "brands-xyz.jpg" but path doesn't contain "/brands/"
+      if (filename && filename.startsWith('brands-') && !url.includes('/brands/')) {
+         return `${API_BASE_URL}/uploads/brands/${filename}`;
+      }
+
+      return `${API_BASE_URL}${url}`;
+    }
+    
+    // 4. Fallback for other relative paths
+    return `${API_BASE_URL}/${url.replace(/^\//, '')}`;
+  };
+
+  // Get the display image
   const getDisplayImage = () => {
     if (hasVariants && baseVariant?.images?.thumbnail) {
       return baseVariant.images.thumbnail;
@@ -380,7 +318,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   const displayImage = getDisplayImage();
-
+  const imageUrl = getImageUrl(displayImage);
   // Helper for stars
   const StarRating = ({ rating }: { rating: number }) => (
     <div className="flex items-center space-x-1">
@@ -430,10 +368,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
         <Link to={productUrl} className="block w-full h-full">
           <img
-            src={displayImage?.url || 'https://via.placeholder.com/300x300?text=Product+Image'}
+            src={imageUrl}
             alt={displayImage?.altText || name}
             className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
-            onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Product+Image'; }}
+            onError={(e) => {
+                e.currentTarget.onerror = null; 
+                e.currentTarget.src = ''; 
+            }}
           />
           
           {!inStock && (
@@ -483,10 +424,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               </div>
               
               <div className="flex items-center mt-1">
-                 <span className={`flex w-2 h-2 rounded-full mr-1.5 ${inStock ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                 <span className={`text-xs font-medium ${inStock ? 'text-green-700' : 'text-red-600'}`}>
+                  <span className={`flex w-2 h-2 rounded-full mr-1.5 ${inStock ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                  <span className={`text-xs font-medium ${inStock ? 'text-green-700' : 'text-red-600'}`}>
                     {inStock ? 'In Stock' : 'Unavailable'}
-                 </span>
+                  </span>
               </div>
             </div>
           </div>

@@ -50,19 +50,6 @@ interface Brand {
   };
   productCount?: number;
 }
-// Mock brand data for UI only - matches the image exactly
-const mockBrands = [
-  "Acer", "Corsair", "Gamdias", "Lian Li", "Rapoo", "Toshiba",
-  "Adata", "Crucial", "Gigabyte", "Logitech", "Razer", "TP-Link",
-  "AMD", "Deepcool", "Glorious", "Mad Catz", "Rode", "ViewSonic",
-  "Ant Esports", "Dell", "HP", "MSI", "Samsung", "Western Digital",
-  "Antec", "D-Link", "Hyperx", "Nevel Level", "Sapphire", "Zebronics",
-  "Racing", "AOC", "Elgato", "Inno3D", "Seagate", "Zotac",
-  "Noctua", "Arctic", "EVM", "Intel", "Sony", "Fractal Design",
-  "Kingston", "Nvidia", "Asus", "Super Flower", "BenQ", "GSkill",
-  "Nzxt", "Lenovo", "TeamGroup", "Patriot", "Cooler Master", "Galax",
-  "LG", "Thermal Grizzly", "Phanteks"
-];
 
 // Updated navItems structure - will be populated dynamically
 let navItems: NavItem[] = [
@@ -97,22 +84,7 @@ const AuthenticatedUserSection: React.FC<{ closeMobileMenu: () => void }> = ({ c
     setImageError(false);
   }, [avatarUrl]);
 
-  // Mock brand data for UI only - matches the image exactly
-const mockBrands = [
-  "Acer", "Corsair", "Gamdias", "Lian Li", "Rapoo", "Toshiba",
-  "Adata", "Crucial", "Gigabyte", "Logitech", "Razer", "TP-Link",
-  "AMD", "Deepcool", "Glorious", "Mad Catz", "Rode", "ViewSonic",
-  "Ant Esports", "Dell", "HP", "MSI", "Samsung", "Western Digital",
-  "Antec", "D-Link", "Hyperx", "Nevel Level", "Sapphire", "Zebronics",
-  "Racing", "AOC", "Elgato", "Inno3D", "Seagate", "Zotac",
-  "Noctua", "Arctic", "EVM", "Intel", "Sony", "Fractal Design",
-  "Kingston", "Nvidia", "Asus", "Super Flower", "BenQ", "GSkill",
-  "Nzxt", "Lenovo", "TeamGroup", "Patriot", "Cooler Master", "Galax",
-  "LG", "Thermal Grizzly", "Phanteks"
-];
-
   const userInitials = `${displayUser?.firstName?.charAt(0) || 'U'}${displayUser?.lastName?.charAt(0) || ''}`;
-
   return (
     <div className="p-3">
       <div className="flex items-center justify-between">
@@ -192,30 +164,161 @@ const mockBrands = [
     </div>
   );
 };
-
+// Updated NavLink component with max height for mega dropdown
 const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
   if (item.children && item.children.length > 0) {
+    const isCategories = item.label === 'Categories';
+    const isBrands = item.label === 'Brands';
+    
+    // For categories and brands, show multi-column dropdown
+    if (isCategories || isBrands) {
+      const columns = 4; // Number of columns for the grid
+      const itemsPerColumn = Math.ceil(item.children.length / columns);
+      const groupedItems: NavItem[][] = [];
+      
+      // Group items into columns
+      for (let i = 0; i < columns; i++) {
+        groupedItems.push(
+          item.children.slice(i * itemsPerColumn, (i + 1) * itemsPerColumn)
+        );
+      }
+
+      return (
+        <li className="group relative">
+          <Link
+            to={item.href}
+            className="flex items-center gap-1 text-gray-700 hover:text-blue-600 transition-colors duration-200 px-4 py-3 text-sm font-medium hover:bg-gray-50"
+          >
+            {item.label}
+            <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" />
+          </Link>
+          
+          {/* Mega dropdown for categories/brands with max height */}
+          <div className="absolute top-full left-0 mt-0 w-[800px] bg-white shadow-2xl rounded-lg overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 ring-1 ring-gray-200 border border-gray-100 max-h-[80vh]">
+            {/* Header section */}
+            <div className="bg-gradient-to-r from-blue-50 to-gray-50 px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Browse {isCategories ? 'Categories' : 'Brands'}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Explore all {item.children.length} {isCategories ? 'categories' : 'brands'}
+                  </p>
+                </div>
+                <div className="text-xs text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">
+                  A-Z
+                </div>
+              </div>
+            </div>
+            
+            {/* Scrollable content area with max height */}
+            <div className="flex flex-col" style={{ maxHeight: 'calc(70vh - 120px)' }}>
+              {/* Multi-column grid - Scrollable */}
+              <div className="p-6 overflow-y-auto flex-1">
+                <div className="grid grid-cols-4 gap-6">
+                  {groupedItems.map((columnItems, columnIndex) => (
+                    <div key={columnIndex} className="space-y-2">
+                      {columnItems.map((child) => {
+                        // Check if it's a brand for special styling
+                        const isBrandItem = isBrands;
+                        const isPopularBrand = ['Apple', 'Samsung', 'Asus', 'MSI', 'Dell', 'HP', 'Lenovo', 'Acer', 'Intel', 'AMD', 'Nvidia'].includes(child.label);
+                        
+                        return (
+                          <Link
+                            key={child.label}
+                            to={child.href}
+                            className="group/item flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 transition-all duration-200 hover:shadow-sm border border-transparent hover:border-blue-100"
+                          >
+                            {/* Brand logo placeholder (for brands) */}
+                            {isBrandItem && (
+                              <div className="flex-shrink-0 w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center group-hover/item:bg-white border border-gray-200">
+                                <div className="text-xs font-semibold text-blue-600">
+                                  {child.label.charAt(0)}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Item text */}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-900 group-hover/item:text-blue-600 truncate">
+                                  {child.label}
+                                </span>
+                              </div>
+                              
+                              {/* Optional: Product count */}
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {/* You can add product count here if available */}
+                                <span className="inline-flex items-center text-blue-500 group-hover/item:text-blue-700">
+                                  View products
+                                  <ChevronDownIcon className="w-3 h-3 ml-1 transform rotate-270" />
+                                </span>
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Footer section - Fixed at bottom */}
+              <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 mt-auto">
+                <div className="flex items-center justify-between">
+                  <Link
+                    to={item.href}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-2 group/link"
+                  >
+                    <span>View all {isCategories ? 'categories' : 'brands'}</span>
+                    <svg className="w-4 h-4 transition-transform group-hover/link:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </Link>
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Updated daily
+                    </div>
+                    <div className="text-xs text-gray-500 px-2 py-1 bg-white rounded border border-gray-200">
+                      {item.children.length} items
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+      );
+    }
+
+    // Regular dropdown for other items (also with max height if needed)
     return (
       <li className="group relative">
         <Link
           to={item.href}
-          className="flex items-center gap-1 text-gray-700 hover:text-blue-600 transition-colors duration-200 px-3 py-2 rounded-md hover:bg-gray-50"
+          className="flex items-center gap-1 text-gray-700 hover:text-blue-600 transition-colors duration-200 px-4 py-3 text-sm font-medium hover:bg-gray-50"
         >
           {item.label}
           <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" />
         </Link>
-        <ul className="absolute top-full left-0 mt-1 w-48 bg-white shadow-lg rounded-md overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 ring-1 ring-black ring-opacity-5">
-          {item.children.map((child) => (
-            <li key={child.label}>
+        <div className="absolute top-full left-0 mt-0 w-56 bg-white shadow-xl rounded-lg overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 ring-1 ring-gray-200 max-h-[60vh]">
+          <div className="py-2 overflow-y-auto" style={{ maxHeight: '60vh' }}>
+            {item.children.map((child) => (
               <Link
+                key={child.label}
                 to={child.href}
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200"
+                className="flex items-center justify-between px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200 group/item hover:pl-5"
               >
-                {child.label}
+                <span>{child.label}</span>
+                <ChevronDownIcon className="w-4 h-4 text-gray-400 group-hover/item:text-blue-500 transform rotate-270" />
               </Link>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+        </div>
       </li>
     );
   }
@@ -224,7 +327,7 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
     <li>
       <Link
         to={item.href}
-        className="text-gray-700 hover:text-blue-600 transition-colors duration-200 px-3 py-2 rounded-md hover:bg-gray-50 block"
+        className="text-gray-700 hover:text-blue-600 transition-colors duration-200 px-4 py-3 text-sm font-medium hover:bg-gray-50 block"
       >
         {item.label}
       </Link>

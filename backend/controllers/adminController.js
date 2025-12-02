@@ -147,47 +147,34 @@ const getColorHexCode = (colorName) => {
     return colorMap[colorName.toLowerCase()] || '#6b7280';
 };
 
-// 🆕 NEW: Linked Products Validation Helper
 const validateLinkedProducts = async (linkedProducts, currentProductId) => {
-    if (!Array.isArray(linkedProducts)) {
-        return { error: "Linked products must be an array" };
-    }
-
-    // Remove duplicates
-    const uniqueLinkedProducts = [...new Set(linkedProducts)];
-
-    // Validate each linked product exists and is not the current product
-    const validatedLinkedProducts = [];
-
-    for (const linkedProductId of uniqueLinkedProducts) {
-        if (!mongoose.Types.ObjectId.isValid(linkedProductId)) {
-            return { error: `Invalid linked product ID: ${linkedProductId}` };
+    try {
+        // Ensure it's an array
+        if (!Array.isArray(linkedProducts)) {
+            return { error: "Linked products must be an array" };
         }
 
-        // Prevent self-linking
-        if (linkedProductId === currentProductId) {
-            return { error: 'Cannot link product to itself' };
+        // Handle empty array
+        if (linkedProducts.length === 0) {
+            return { validated: [] };
         }
 
-        // Check if product exists and is active
-        const linkedProduct = await Product.findOne({
-            _id: linkedProductId,
-            isActive: true
-        });
+        // Remove duplicates and current product ID
+        const uniqueIds = [...new Set(linkedProducts)]
+            .filter(id => id && id.toString() !== currentProductId.toString());
 
-        if (!linkedProduct) {
-            return { error: `Linked product with ID ${linkedProductId} not found or inactive` };
-        }
+        // Validate each product exists
+        const existingProducts = await Product.find({
+            _id: { $in: uniqueIds }
+        }).select('_id');
 
-        validatedLinkedProducts.push(linkedProductId);
+        const existingIds = existingProducts.map(p => p._id.toString());
+        const validIds = uniqueIds.filter(id => existingIds.includes(id.toString()));
+        return { validated: validIds };
+    } catch (error) {
+        console.error('❌ Error validating linked products:', error);
+        return { error: "Failed to validate linked products" };
     }
-
-    // Limit the number of linked products to prevent abuse
-    if (validatedLinkedProducts.length > 50) {
-        return { error: 'Cannot link more than 50 products' };
-    }
-
-    return { validated: validatedLinkedProducts };
 };
 
 // 🆕 NEW: Process uploaded files for updates
@@ -272,41 +259,71 @@ const mergeManufacturerImagesWithUploads = (existingManufacturerImages, uploaded
 };
 
 
-// 🆕 UPDATED UPDATE PRODUCT with file upload support
+// 🆕 UPDATED UPDATE PRODUCT with COMPLETE field handling
 exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
     try {
-        console.log('📦 Received product update request');
-        console.log('📁 Uploaded files:', req.files);
-        console.log('📝 Request body:', req.body);
-
         let product = await Product.findById(req.params.id);
 
         if (!product) {
             return next(new ErrorHandler("Product not found", 404));
         }
 
-        // 🆕 FIX: Parse the productData from FormData if files are uploaded
+        // 🆕 FIX: Handle BOTH FormData with files AND regular JSON
         let updateData = {};
         let productData = {};
 
-        if (req.files && Object.keys(req.files).length > 0) {
-            // If files are uploaded, parse productData from FormData
+        // Helper function to parse JSON fields
+        const parseJsonField = (field) => {
+            if (!field || field === 'undefined' || field === 'null') return [];
             try {
-                productData = typeof req.body.productData === 'string'
-                    ? JSON.parse(req.body.productData)
-                    : req.body.productData;
-            } catch (parseError) {
-                console.error('Error parsing productData:', parseError);
-                return next(new ErrorHandler("Invalid product data format", 400));
+                return typeof field === 'string' ? JSON.parse(field) : field;
+            } catch (e) {
+                console.warn(`Failed to parse JSON field:`, e);
+                return [];
+            }
+        };
+
+        if (req.files && Object.keys(req.files).length > 0) {
+
+            // 🆕 NEW: Process individual fields from FormData
+            productData = { ...req.body };
+
+            // 🆕 CRITICAL FIX: Parse ALL JSON fields properly
+            const jsonFields = [
+                'categories',
+                'variantConfiguration',
+                'variants',
+                'tags',
+                'linkedProducts',  // ← THIS WAS MISSING
+                'specifications',
+                'features',
+                'dimensions',
+                'weight',
+                'meta',
+                'images',
+                'manufacturerImages'
+            ];
+
+            jsonFields.forEach(field => {
+                if (productData[field] !== undefined && productData[field] !== '') {
+                    productData[field] = parseJsonField(productData[field]);
+                }
+            });
+
+            // 🆕 Convert numeric fields
+            const numericFields = ['basePrice', 'mrp', 'taxRate', 'discountPercentage', 'stockQuantity'];
+            numericFields.forEach(field => {
+                if (productData[field] !== undefined && productData[field] !== '') {
+                    productData[field] = parseFloat(productData[field]);
+                }
+            });
+
+            // 🆕 Convert boolean fields
+            if (productData.isActive !== undefined) {
+                productData.isActive = productData.isActive === 'true' || productData.isActive === true;
             }
 
-            console.log('📋 Parsed product data for update:', productData);
-
-            // Process uploaded files
             const uploadedFiles = processUploadedFiles(req);
-            console.log('🖼️ Processed uploaded files for update:', uploadedFiles);
-
-            // Merge uploaded files with existing image data
             const finalImages = mergeImagesWithUploads(
                 productData.images || {},
                 uploadedFiles,
@@ -317,26 +334,58 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
                 uploadedFiles,
                 product.manufacturerImages
             );
-
-            console.log('🎯 Final images for update:', finalImages);
-            console.log('🏭 Final manufacturer images for update:', finalManufacturerImages);
-
-            // Use the parsed productData for updates
-            updateData = { ...productData };
-            updateData.images = finalImages;
-            updateData.manufacturerImages = finalManufacturerImages;
-
-        } else {
-            // No files uploaded, use regular request body
-            productData = req.body;
-
-            // 🆕 UPDATED: Define allowed fields with new MRP, HSN, and manufacturerImages fields
             const allowedFields = [
                 'name', 'description', 'brand', 'categories', 'status', 'condition',
                 'isActive', 'definition', 'tags', 'label', 'specifications', 'features',
                 'basePrice', 'mrp', 'discountPercentage', 'stockQuantity',
                 'barcode', 'sku', 'weight', 'dimensions', 'warranty', 'taxRate', 'notes',
-                'linkedProducts', 'hsn', 'manufacturerImages'
+                'linkedProducts', 'hsn', 'manufacturerImages', 'canonicalUrl', 'offerPrice',
+                'variantConfiguration', 'variants', 'images', 'meta'
+            ];
+
+            // Only update allowed fields that are provided
+            updateData = {};
+            allowedFields.forEach(field => {
+                if (productData[field] !== undefined) {
+                    updateData[field] = productData[field];
+                }
+            });
+
+            // Add processed images
+            updateData.images = finalImages;
+            updateData.manufacturerImages = finalManufacturerImages;
+
+        } else {
+            productData = req.body;
+
+            // 🆕 CRITICAL: Parse JSON fields for regular JSON requests too
+            const jsonFields = [
+                'categories',
+                'variantConfiguration',
+                'variants',
+                'tags',
+                'linkedProducts',  // ← THIS WAS MISSING
+                'specifications',
+                'features',
+                'dimensions',
+                'weight',
+                'meta',
+                'images',
+                'manufacturerImages'
+            ];
+
+            jsonFields.forEach(field => {
+                if (productData[field] !== undefined && productData[field] !== '') {
+                    productData[field] = parseJsonField(productData[field]);
+                }
+            });
+            const allowedFields = [
+                'name', 'description', 'brand', 'categories', 'status', 'condition',
+                'isActive', 'definition', 'tags', 'label', 'specifications', 'features',
+                'basePrice', 'mrp', 'discountPercentage', 'stockQuantity',
+                'barcode', 'sku', 'weight', 'dimensions', 'warranty', 'taxRate', 'notes',
+                'linkedProducts', 'hsn', 'manufacturerImages', 'canonicalUrl', 'offerPrice',
+                'variantConfiguration', 'variants', 'images', 'meta'
             ];
 
             // Only update allowed fields that are provided
@@ -346,44 +395,52 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
                 }
             });
 
-            // Handle complex objects separately
-            if (productData.variantConfiguration !== undefined) {
+            // Handle complex objects if not already set
+            if (productData.variantConfiguration !== undefined && !updateData.variantConfiguration) {
                 updateData.variantConfiguration = {
                     hasVariants: productData.variantConfiguration.hasVariants !== undefined
                         ? productData.variantConfiguration.hasVariants
                         : product.variantConfiguration.hasVariants,
                     variantType: productData.variantConfiguration.variantType || product.variantConfiguration.variantType,
                     variantCreatingSpecs: productData.variantConfiguration.variantCreatingSpecs || product.variantConfiguration.variantCreatingSpecs,
-                    variantAttributes: productData.variantConfiguration.variantAttributes || product.variantConfiguration.variantAttributes
+                    variantAttributes: productData.variantConfiguration.variantAttributes || product.variantConfiguration.variantAttributes,
+                    attributes: productData.variantConfiguration.attributes || product.variantConfiguration.attributes
                 };
             }
 
-            // Handle nested objects
-            if (productData.images) {
+            // Handle nested objects if not already set
+            if (productData.images && !updateData.images) {
                 updateData.images = { ...product.images, ...productData.images };
             }
 
-            if (productData.dimensions) {
+            if (productData.dimensions && !updateData.dimensions) {
                 updateData.dimensions = { ...product.dimensions, ...productData.dimensions };
             }
 
-            if (productData.weight) {
+            if (productData.weight && !updateData.weight) {
                 updateData.weight = { ...product.weight, ...productData.weight };
             }
 
-            if (productData.meta) {
+            if (productData.meta && !updateData.meta) {
                 updateData.meta = { ...product.meta, ...productData.meta };
             }
         }
 
-        if (productData.mrp === undefined && productData.basePrice !== undefined) {
-            updateData.mrp = productData.basePrice;
+        // 🆕 Ensure MRP is set
+        if (updateData.mrp === undefined && updateData.basePrice !== undefined) {
+            updateData.mrp = updateData.basePrice;
         }
 
-        // 🆕 LINKED PRODUCTS VALIDATION
-        if (productData.linkedProducts !== undefined) {
+        // 🆕 FIXED: LINKED PRODUCTS VALIDATION
+        if (updateData.linkedProducts !== undefined) {
+            // Ensure linkedProducts is an array
+            if (!Array.isArray(updateData.linkedProducts)) {
+                console.error('❌ linkedProducts is not an array:', updateData.linkedProducts);
+                return next(new ErrorHandler("Linked products must be an array", 400));
+            }
+
             const validatedLinkedProducts = await validateLinkedProducts(
-                productData.linkedProducts,
+                updateData.linkedProducts,
                 req.params.id
             );
 
@@ -396,16 +453,17 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
 
         // Handle variants separately (for both file and non-file uploads)
         if (productData.variants !== undefined && Array.isArray(productData.variants)) {
-            // 🆕 UPDATED: Use the updated processVariantsUpdate with MRP support
             updateData.variants = await processVariantsUpdate(product.variants, productData.variants);
+        }
+        // In your updateProduct function, add this check:
+        if (updateData.barcode === '' || updateData.barcode === undefined) {
+            // If barcode is empty, don't update it or set it to null
+            delete updateData.barcode; // Don't update barcode if empty
+            // OR: updateData.barcode = null; // Set to null instead of empty string
         }
 
         // Add updatedAt timestamp
         updateData.updatedAt = Date.now();
-
-        console.log('📤 Final update data:', updateData);
-
-        // Perform the update
         product = await Product.findByIdAndUpdate(
             req.params.id,
             { $set: updateData },
@@ -432,8 +490,6 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
 // 🆕 UPDATED PARTIAL UPDATE with file upload support
 exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {
     try {
-        console.log('📦 Received product partial update request');
-        console.log('📁 Uploaded files:', req.files);
 
         const product = await Product.findById(req.params.id);
 
@@ -549,9 +605,6 @@ exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {
 
         // Add updatedBy and updatedAt
         updateData.updatedAt = Date.now();
-
-        console.log('📤 Final partial update data:', updateData);
-
         const updatedProduct = await Product.findByIdAndUpdate(
             req.params.id,
             { $set: updateData },
@@ -613,35 +666,52 @@ exports.updateProductVariants = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// **EXISTING: Update product status only** (No changes needed)
+// Make sure your updateProductStatus controller handles PATCH properly
 exports.updateProductStatus = catchAsyncErrors(async (req, res, next) => {
     const { status } = req.body;
-
-    // Validate status
     if (!status) {
         return next(new ErrorHandler('Status is required', 400));
     }
 
+    // Validate status value
+    const validStatuses = ['Draft', 'Published', 'OutOfStock', 'Archived', 'Discontinued'];
+    if (!validStatuses.includes(status)) {
+        return next(new ErrorHandler(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400));
+    }
+
     try {
-        // Use findById + save approach (more reliable)
+
         const product = await Product.findById(req.params.id);
 
         if (!product) {
             return next(new ErrorHandler('Product not found', 404));
         }
-
-        // Update the status
         product.status = status;
+        product.updatedAt = Date.now();
         const updatedProduct = await product.save();
+
         res.status(200).json({
             success: true,
             message: `Product status updated to ${status}`,
-            data: { product: updatedProduct }
+            data: {
+                product: {
+                    _id: updatedProduct._id,
+                    name: updatedProduct.name,
+                    status: updatedProduct.status,
+                    isActive: updatedProduct.isActive
+                }
+            }
         });
 
     } catch (error) {
         console.error('💥 Error updating product status:', error);
-        return next(new ErrorHandler(error.message, 500));
+
+        // Check for specific MongoDB errors
+        if (error.name === 'CastError') {
+            return next(new ErrorHandler('Invalid product ID format', 400));
+        }
+
+        return next(new ErrorHandler(error.message || 'Failed to update product status', 500));
     }
 });
 

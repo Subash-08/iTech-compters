@@ -92,7 +92,6 @@ const ProductList: React.FC = () => {
   const activeFilters = useAppSelector(selectActiveFilters);
   const hasActiveFilters = useAppSelector(selectHasActiveFilters);
   const lastSearchQuery = useAppSelector(selectLastSearchQuery);
-
   // Check if filter is route-based
   const isRouteFilter = useCallback((key: string) => {
     return (key === 'category' && categoryName) || (key === 'brand' && brandName);
@@ -129,8 +128,6 @@ const ProductList: React.FC = () => {
         urlFilters[key] = value;
       }
     });
-
-    console.log('🔗 URL Parameters Parsed:', { urlFilters, searchParams: Object.fromEntries(searchParams) });
     dispatch(productActions.updateFilters(urlFilters));
   }, [searchParams, dispatch, brandName, categoryName]);
 

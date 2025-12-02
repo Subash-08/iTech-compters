@@ -1,6 +1,6 @@
-// components/product/LinkedProductsDisplay.tsx - FIXED VERSION
+// components/product/LinkedProductsDisplay.tsx - UPDATED WITH STOCK FIX
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom'; // 🆕 Add this import
+import { useLocation } from 'react-router-dom';
 import { ProductData } from './productTypes';
 import ProductCard from './ProductCard';
 import api from '../config/axiosConfig';
@@ -12,6 +12,63 @@ interface LinkedProductsDisplayProps {
   maxProducts?: number;
 }
 
+// Enhanced transformation function with stock calculation
+const transformProductData = (apiProduct: any): ProductData => {
+  
+  // Calculate actual stock
+  let actualStockQuantity = 0;
+  
+  if (apiProduct.variants && apiProduct.variants.length > 0) {
+    // Sum stock from all variants
+    actualStockQuantity = apiProduct.variants.reduce((sum: number, variant: any) => {
+      return sum + (variant.stockQuantity || 0);
+    }, 0);
+  } else {
+    // Use main product stock
+    actualStockQuantity = apiProduct.stockQuantity || apiProduct.totalStock || 0;
+  }
+  
+  // Determine if in stock
+  const hasStock = actualStockQuantity > 0;
+  
+  return {
+    _id: apiProduct._id || apiProduct.id || '',
+    name: apiProduct.name || '',
+    slug: apiProduct.slug || '',
+    
+    // Price handling
+    effectivePrice: apiProduct.sellingPrice || apiProduct.lowestPrice || apiProduct.basePrice || apiProduct.price || 0,
+    mrp: apiProduct.mrp || apiProduct.displayMrp || apiProduct.basePrice || 0,
+    
+    // Stock handling - use calculated values
+    stockQuantity: actualStockQuantity,
+    hasStock: hasStock,
+    
+    // Other properties
+    condition: apiProduct.condition || 'New',
+    averageRating: apiProduct.averageRating || apiProduct.rating || 0,
+    totalReviews: apiProduct.totalReviews || 0,
+    
+    // Images
+    images: apiProduct.images || {},
+    
+    // Brand
+    brand: apiProduct.brand || {},
+    
+    // Variants
+    variants: apiProduct.variants || [],
+    variantConfiguration: apiProduct.variantConfiguration || {},
+    
+    // Additional fields
+    basePrice: apiProduct.basePrice || apiProduct.sellingPrice || 0,
+    isOnSale: apiProduct.isOnSale || false,
+    discountPercentage: apiProduct.discountPercentage || 0,
+    
+    // Copy all other properties
+    ...apiProduct
+  };
+};
+
 const LinkedProductsDisplay: React.FC<LinkedProductsDisplayProps> = ({
   productId,
   currentProductSlug,
@@ -21,7 +78,7 @@ const LinkedProductsDisplay: React.FC<LinkedProductsDisplayProps> = ({
   const [linkedProducts, setLinkedProducts] = useState<ProductData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const location = useLocation(); // 🆕 Get current location
+  const location = useLocation();
 
   useEffect(() => {
     const fetchLinkedProducts = async () => {
@@ -33,43 +90,50 @@ const LinkedProductsDisplay: React.FC<LinkedProductsDisplayProps> = ({
       try {
         setLoading(true);
         setError('');
-        const productResponse = await api.get(`/products/slug/${currentProductSlug}`);
-        const productData = productResponse.data.product || productResponse.data;
+           const response = await api.get(`/products/linked/${currentProductSlug}?limit=${maxProducts}`);
         
-        const linkedProductIds = productData.linkedProducts || [];
-
-        if (linkedProductIds.length === 0) {
-          setLinkedProducts([]);
-          setLoading(false);
-          return;
-        }
-
-        const idsToFetch = linkedProductIds.slice(0, maxProducts);
-        const batchResponse = await api.get(`/products/by-ids?ids=${idsToFetch.join(',')}`);
-
-        if (batchResponse.data.success && batchResponse.data.products && batchResponse.data.products.length > 0) {
-          
-          // Filter out current product
-          const filteredProducts = batchResponse.data.products.filter((product: ProductData) => {
-            const isNotCurrent = product.slug !== currentProductSlug;
-            return isNotCurrent;
-          });
-
-          setLinkedProducts(filteredProducts);
+        if (response.data.success && response.data.data?.linkedProducts) {
+          // Transform each product
+          const transformedProducts = response.data.data.linkedProducts.map(transformProductData);
+          setLinkedProducts(transformedProducts);
         } else {
           setLinkedProducts([]);
         }
 
       } catch (error: any) {
-        console.error('❌ Error in fetchLinkedProducts:', error);
-        setError('Failed to load related products');
+        console.error('❌ Error fetching linked products:', error);
+        
+        // 🆕 FALLBACK: Try to fetch products individually if batch API fails
+        try {
+          // First get the current product to get linked product IDs
+          const currentProductRes = await api.get(`/products/slug/${currentProductSlug}`);
+          const linkedProductIds = currentProductRes.data.data?.product?.linkedProducts || [];
+          
+          if (linkedProductIds.length > 0) {
+            // Fetch each linked product individually
+            const productPromises = linkedProductIds.map((id: string) => 
+              api.get(`/products/${id}`).catch(() => null)
+            );
+            
+            const productResponses = await Promise.all(productPromises);
+            const validProducts = productResponses
+              .filter(res => res?.data?.success && res.data.data?.product)
+              .map(res => res.data.data.product);
+            
+            const transformedProducts = validProducts.map(transformProductData);
+            setLinkedProducts(transformedProducts.slice(0, maxProducts));
+          }
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+          setError('Failed to load linked products');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchLinkedProducts();
-  }, [productId, currentProductSlug, maxProducts, location.pathname]); // 🆕 Add location.pathname as dependency
+  }, [currentProductSlug, maxProducts, location.pathname]);
 
   // Loading state
   if (loading) {
@@ -121,7 +185,7 @@ const LinkedProductsDisplay: React.FC<LinkedProductsDisplayProps> = ({
             {linkedProducts.length} product{linkedProducts.length !== 1 ? 's' : ''}
           </span>
         </div>
-        
+              
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {linkedProducts.map((product) => (
             <ProductCard 

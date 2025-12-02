@@ -54,8 +54,6 @@ const createRazorpayOrder = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Invalid order amount', 400));
         }
 
-        console.log('🟡 Creating Razorpay order with amount:', expectedAmount);
-
         // Create Razorpay order
         const razorpayOrder = await razorpay.orders.create({
             amount: Math.round(expectedAmount * 100), // Convert to paise
@@ -69,9 +67,6 @@ const createRazorpayOrder = catchAsyncErrors(async (req, res, next) => {
             payment_capture: 1 // Auto capture payment
         });
 
-        console.log('✅ Razorpay order created:', razorpayOrder.id);
-
-        // ✅ FIXED: Create payment attempt and get the actual _id
         const paymentAttempt = {
             razorpayOrderId: razorpayOrder.id,
             amount: razorpayOrder.amount,
@@ -90,9 +85,6 @@ const createRazorpayOrder = catchAsyncErrors(async (req, res, next) => {
         // ✅ FIXED: Get the actual _id of the newly created attempt
         const newAttempt = order.payment.attempts[order.payment.attempts.length - 1];
         const attemptId = newAttempt._id.toString();
-
-        console.log('🔑 Generated attemptId:', attemptId);
-
         res.status(200).json({
             success: true,
             data: {
@@ -146,15 +138,11 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
 
         // 3. IDEMPOTENCY CHECK - If already paid and stock reduced, return success
         if (order.isPaid || order.status === 'confirmed') {
-            console.log('✅ Order already confirmed, checking stock status...');
-
-            // Check if stock was already reduced by looking for timeline event
             const stockReduced = order.orderTimeline.some(event =>
                 event.event === 'stock_reduced'
             );
 
             if (stockReduced) {
-                console.log('✅ Stock already reduced, returning success');
                 return res.status(200).json({
                     success: true,
                     message: 'Payment already verified and stock processed',
@@ -167,8 +155,6 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                     }
                 });
             } else {
-                console.log('⚠️ Order confirmed but stock not reduced, proceeding with stock reduction...');
-                // Continue with the flow to reduce stock
             }
         }
 
@@ -327,16 +313,8 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             console.error('❌ Critical: Atomic update failed - Order/Attempt not found');
             return next(new ErrorHandler('Failed to update order: Record not found', 500));
         }
-
-        console.log('✅ Atomic update successful - order confirmed');
-
-        // ============================================================
-        // 10. ✅ STOCK REDUCTION - MOVED HERE FROM handlePaymentSuccess
-        // ============================================================
-        console.log('🔄 Starting stock reduction process...');
         try {
             await reduceStockForOrder(order);
-            console.log('✅ Stock reduction completed successfully');
 
             // Add stock reduction timeline event
             await Order.updateOne(
@@ -376,20 +354,14 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             );
         }
 
-        // 11. Clear user's cart
-        console.log('🔵 Clearing cart for user:', userId);
         try {
             const cartCleared = await require('./cartController').clearCartAfterPayment(userId);
-            console.log('✅ Cart cleared:', cartCleared);
+
         } catch (cartError) {
             console.error('❌ Cart clearance failed:', cartError);
             // Don't fail the payment process
         }
 
-        // ============================================================
-        // ✅ AUTOMATIC INVOICE GENERATION - FIXED VERSION
-        // ============================================================
-        console.log('🔄 Starting automatic invoice generation after payment...');
         let invoiceGenerated = false;
         let invoiceData = null;
 
@@ -399,8 +371,6 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                 .populate('user', 'firstName lastName email phone');
 
             if (orderForInvoice) {
-                console.log('📄 Order found for invoice:', orderForInvoice.orderNumber);
-                console.log('📄 Order items:', orderForInvoice.items);
 
                 // Generate invoice automatically after payment verification
                 invoiceData = await InvoiceGenerator.generateAutoInvoice(orderForInvoice, orderForInvoice.user);
@@ -435,9 +405,6 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                 );
 
                 invoiceGenerated = true;
-                console.log('✅ Automatic invoice generated successfully');
-                console.log('📄 Invoice URL:', invoiceData.pdfUrl);
-                console.log('📄 Invoice Number:', invoiceData.invoiceNumber);
 
             } else {
                 console.error('❌ Could not find order for invoice generation');
@@ -709,7 +676,6 @@ const handleRazorpayWebhook = catchAsyncErrors(async (req, res, next) => {
         }
 
         const event = req.body;
-        console.log('Razorpay Webhook Received:', event.event);
 
         switch (event.event) {
             case 'payment.captured':
@@ -721,7 +687,6 @@ const handleRazorpayWebhook = catchAsyncErrors(async (req, res, next) => {
                 break;
 
             default:
-                console.log('Unhandled webhook event:', event.event);
         }
 
         res.status(200).json({ success: true, message: 'Webhook processed' });

@@ -243,9 +243,6 @@ exports.getWishlist = catchAsyncErrors(async (req, res, next) => {
 exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
     const { productId } = req.params;
     const userId = req.user._id;
-
-    console.log('🗑️ Removing item from wishlist:', productId);
-
     const wishlist = await Wishlist.findOne({ userId });
 
     if (!wishlist) {
@@ -296,10 +293,6 @@ exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
     if (!productId) {
         return next(new ErrorHandler('Product ID is required', 400));
     }
-
-    console.log('❤️ Adding to wishlist:', { productId, variant });
-
-    // Find or create wishlist
     let wishlist = await Wishlist.findOne({ userId });
 
     if (!wishlist) {
@@ -322,7 +315,6 @@ exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
         });
 
         if (existingItem) {
-            console.log('❤️ Item already exists in wishlist');
             return next(new ErrorHandler('Product already in wishlist', 400));
         }
 
@@ -344,10 +336,7 @@ exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
                 attributes: variant.attributes,
                 sku: variant.sku
             };
-            console.log('❤️ Storing variant data:', newItem.variant);
         }
-
-        console.log('❤️ Adding new wishlist item:', newItem);
         wishlist.items.push(newItem);
         await wishlist.save();
 

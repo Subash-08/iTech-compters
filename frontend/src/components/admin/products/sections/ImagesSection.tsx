@@ -5,7 +5,6 @@ interface ImagesSectionProps {
   formData: ProductFormData;
   updateFormData: (updates: Partial<ProductFormData>) => void;
   isEditing?: boolean;
-  // 🆕 File upload props
   onFilesChange?: (files: {
     thumbnail?: File;
     hoverImage?: File;
@@ -31,6 +30,73 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
   const [uploading, setUploading] = useState(false);
   const [activeUploadType, setActiveUploadType] = useState<'thumbnail' | 'gallery' | 'manufacturer' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 🆕 Improved image URL resolver
+  const getImageUrl = (imageObj: any) => {
+    if (!imageObj?.url) return '/placeholder-image.jpg';
+      
+    const url = imageObj.url;
+    
+    // 1. If it's already a full URL or blob URL, return as is
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) {
+      return url;
+    }
+
+    // Use environment variable or fallback to localhost
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    
+    // 2. Handle cases where it is just a filename (no slashes)
+    if (!url.includes('/')) {
+       // Heuristic: If filename starts with known prefixes, route to that folder
+       if (url.startsWith('products-')) {
+          return `${API_BASE_URL}/uploads/products/${url}`;
+       }
+       if (url.startsWith('brands-')) {
+          return `${API_BASE_URL}/uploads/brands/${url}`;
+       }
+       // Default fallback to products if unsure
+       return `${API_BASE_URL}/uploads/products/${url}`;
+    }
+    
+    // 3. Handle paths that already start with /uploads/
+    if (url.startsWith('/uploads/')) {
+      // 🔴 SMART FIX: Check if the subfolder is missing based on filename prefix
+      const filename = url.split('/').pop();
+      
+      // If file is "products-xyz.jpg" but path doesn't contain "/products/"
+      if (filename && filename.startsWith('products-') && !url.includes('/products/')) {
+         return `${API_BASE_URL}/uploads/products/${filename}`;
+      }
+      // If file is "brands-xyz.jpg" but path doesn't contain "/brands/"
+      if (filename && filename.startsWith('brands-') && !url.includes('/brands/')) {
+         return `${API_BASE_URL}/uploads/brands/${filename}`;
+      }
+
+      return `${API_BASE_URL}${url}`;
+    }
+    
+    // 4. Fallback for other relative paths
+    return `${API_BASE_URL}/${url.replace(/^\//, '')}`;
+  };
+
+  // 🆕 Get preview URL with uploaded files priority
+  const getImagePreviewUrl = (imageType: 'thumbnail' | 'hoverImage', imageData: ImageData | undefined) => {
+    // Priority 1: Uploaded files (immediate preview)
+    if (imageType === 'thumbnail' && uploadedFiles.thumbnail) {
+      return URL.createObjectURL(uploadedFiles.thumbnail);
+    }
+    if (imageType === 'hoverImage' && uploadedFiles.hoverImage) {
+      return URL.createObjectURL(uploadedFiles.hoverImage);
+    }
+    
+    // Priority 2: Existing image URL (processed through getImageUrl)
+    if (imageData?.url) {
+      return getImageUrl(imageData);
+    }
+    
+    // No image
+    return '';
+  };
 
   // 🆕 Update files in parent component
   const updateFiles = (newFiles: Partial<typeof uploadedFiles>) => {
@@ -112,25 +178,6 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
     const [movedImage] = updatedManufacturerImages.splice(fromIndex, 1);
     updatedManufacturerImages.splice(toIndex, 0, movedImage);
     updateFormData({ manufacturerImages: updatedManufacturerImages });
-  };
-
-  // 🆕 Get image preview URL - handles both uploaded files and existing URLs
-  const getImagePreviewUrl = (imageType: 'thumbnail' | 'hoverImage', imageData: ImageData | undefined) => {
-    // If we have uploaded files and the current URL is a blob URL (temporary preview)
-    // or if we have uploaded files but no URL in formData yet
-    if (imageType === 'thumbnail' && uploadedFiles.thumbnail) {
-      // If form data doesn't have a URL or it's not a blob URL, create one
-      if (!imageData?.url || !imageData.url.startsWith('blob:')) {
-        return URL.createObjectURL(uploadedFiles.thumbnail);
-      }
-    } else if (imageType === 'hoverImage' && uploadedFiles.hoverImage) {
-      if (!imageData?.url || !imageData.url.startsWith('blob:')) {
-        return URL.createObjectURL(uploadedFiles.hoverImage);
-      }
-    }
-    
-    // Otherwise return the URL from form data
-    return imageData?.url || '';
   };
 
   // 🆕 Simplified file upload function
@@ -384,142 +431,146 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
     onSetAsThumbnail?: (url: string, altText: string) => void;
   }) => (
     <div className="space-y-4">
-      {images.map((image, index) => (
-        <div 
-          key={index} 
-          className="flex items-start space-x-4 p-4 border border-gray-200 rounded-lg bg-white"
-          draggable={isEditing}
-          onDragStart={(e) => {
-            e.dataTransfer.setData('text/plain', index.toString());
-            e.dataTransfer.setData('type', type);
-          }}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-            const fromType = e.dataTransfer.getData('type');
-            if (fromType === type) {
-              if (type === 'gallery') {
-                moveGalleryImage(fromIndex, index);
-              } else {
-                moveManufacturerImage(fromIndex, index);
+      {images.map((image, index) => {
+        const previewUrl = getImageUrl(image);
+        
+        return (
+          <div 
+            key={index} 
+            className="flex items-start space-x-4 p-4 border border-gray-200 rounded-lg bg-white"
+            draggable={isEditing}
+            onDragStart={(e) => {
+              e.dataTransfer.setData('text/plain', index.toString());
+              e.dataTransfer.setData('type', type);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+              const fromType = e.dataTransfer.getData('type');
+              if (fromType === type) {
+                if (type === 'gallery') {
+                  moveGalleryImage(fromIndex, index);
+                } else {
+                  moveManufacturerImage(fromIndex, index);
+                }
               }
-            }
-          }}
-        >
-          {/* Image Preview with Reorder Controls */}
-          <div className="flex-shrink-0">
-            <div className="relative">
-              {image.url ? (
-                <div className="w-20 h-20 border border-gray-300 rounded-lg overflow-hidden">
-                  <img
-                    src={image.url}
-                    alt="Image preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCA0MEM0Mi4yMDkxIDQwIDQ0IDQxLjc5MDkgNDQgNDRDNDQgNDYuMjA5MSA0Mi4yMDkxIDQ4IDQwIDQ4QzM3Ljc5MDkgNDggMzYgNDYuMjA5MSAzNiA0NEMzNiA0MS43OTA5IDM3Ljc5MDkgNDAgNDAgNDBaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik01MiAzNkM1MiAzNC44OTU0IDUxLjEwNDYgMzQgNTAgMzRMMzAgMzRDMjguODk1NCAzNCAyOCAzNC44OTU0IDI4IDM2TDI4IDUyQzI4IDUzLjEwNDYgMjguODk1NCA1NCAzMCA1NEw1MCA1NEM1MS4xMDQ2IDU0IDUyIDUzLjEwNDYgNTIgNTJMNjIgNDJMNjIgNTJDNjIgNTMuMTA0NiA2Mi44OTU0IDU0IDY0IDU0QzY1LjEwNDYgNTQgNjYgNTMuMTA0NiA2NiA1Mkw2NiAzNkM2NiAzNC44OTU0IDY1LjEwNDYgMzQgNjQgMzRMNTIgMzRaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-                  <span className="text-xs text-gray-500">No image</span>
-                </div>
-              )}
-              {isEditing && images.length > 1 && (
-                <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => onReorder(index, 'up')}
-                    disabled={index === 0}
-                    className="w-6 h-6 bg-white border border-gray-300 rounded shadow-sm flex items-center justify-center hover:bg-gray-50 disabled:opacity-30"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onReorder(index, 'down')}
-                    disabled={index === images.length - 1}
-                    className="w-6 h-6 bg-white border border-gray-300 rounded shadow-sm flex items-center justify-center hover:bg-gray-50 disabled:opacity-30"
-                  >
-                    ↓
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Image Inputs */}
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Image URL <span className="text-gray-400 text-xs">(Optional if uploading file)</span>
-              </label>
-              <input
-                type="url"
-                value={image.url}
-                onChange={(e) => onImageChange(index, 'url', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="https://example.com/image.jpg or upload file above"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Alt Text <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={image.altText}
-                onChange={(e) => onImageChange(index, 'altText', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Description of the image"
-                required
-              />
-            </div>
-
-            {type === 'manufacturer' && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Section Title
-                </label>
-                <input
-                  type="text"
-                  value={image.sectionTitle || ''}
-                  onChange={(e) => onImageChange(index, 'sectionTitle', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., Product Features, Technical Specifications, Usage Guide"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Title for this section in A+ content (e.g., "Key Features", "Technical Specs")
-                </p>
-              </div>
-            )}
-
-            <div className="md:col-span-2">
-              <div className="flex space-x-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => onRemove(index)}
-                  className="px-3 py-1 text-red-600 hover:text-red-700 text-sm border border-red-300 rounded hover:bg-red-50"
-                >
-                  Remove
-                </button>
-                {isEditing && onSetAsThumbnail && (
-                  <button
-                    type="button"
-                    onClick={() => onSetAsThumbnail(image.url, image.altText)}
-                    className="px-3 py-1 text-blue-600 hover:text-blue-700 text-sm border border-blue-300 rounded hover:bg-blue-50"
-                  >
-                    Set as Thumbnail
-                  </button>
+            }}
+          >
+            {/* Image Preview with Reorder Controls */}
+            <div className="flex-shrink-0">
+              <div className="relative">
+                {previewUrl ? (
+                  <div className="w-20 h-20 border border-gray-300 rounded-lg overflow-hidden">
+                    <img
+                      src={previewUrl}
+                      alt="Image preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCA0MEM0Mi4yMDkxIDQwIDQ0IDQxLjc5MDkgNDQgNDRDNDQgNDYuMjA5MSA0Mi4yMDkxIDQ4IDQwIDQ4QzM3Ljc5MDkgNDggMzYgNDYuMjA5MSAzNiA0NEMzNiA0MS43OTA5IDM3Ljc5MDkgNDAgNDAgNDBaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik01MiAzNkM1MiAzNC44OTU0IDUxLjEwNDYgMzQgNTAgMzRMMzAgMzRDMjguODk1NCAzNCAyOCAzNC44OTU0IDI4IDM2TDI4IDUyQzI4IDUzLjEwNDYgMjguODk1NCA1NCAzMCA1NEw1MCA1NEM1MS4xMDQ2IDU0IDUyIDUzLjEwNDYgNTIgNTJMNjIgNDJMNjIgNTJDNjIgNTMuMTA0NiA2Mi44OTU0IDU0IDY0IDU0QzY1LjEwNDYgNTQgNjYgNTMuMTA0NiA2NiA1Mkw2NiAzNkM2NiAzNC44OTU0IDY1LjEwNDYgMzQgNjQgMzRMNTIgMzRaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
+                    <span className="text-xs text-gray-500">No image</span>
+                  </div>
+                )}
+                {isEditing && images.length > 1 && (
+                  <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => onReorder(index, 'up')}
+                      disabled={index === 0}
+                      className="w-6 h-6 bg-white border border-gray-300 rounded shadow-sm flex items-center justify-center hover:bg-gray-50 disabled:opacity-30"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onReorder(index, 'down')}
+                      disabled={index === images.length - 1}
+                      className="w-6 h-6 bg-white border border-gray-300 rounded shadow-sm flex items-center justify-center hover:bg-gray-50 disabled:opacity-30"
+                    >
+                      ↓
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
+
+            {/* Image Inputs */}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Image URL <span className="text-gray-400 text-xs">(Optional if uploading file)</span>
+                </label>
+                <input
+                  type="text"
+                  value={image.url}
+                  onChange={(e) => onImageChange(index, 'url', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="https://example.com/image.jpg or upload file above"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Alt Text <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={image.altText}
+                  onChange={(e) => onImageChange(index, 'altText', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Description of the image"
+                  required
+                />
+              </div>
+
+              {type === 'manufacturer' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Section Title
+                  </label>
+                  <input
+                    type="text"
+                    value={image.sectionTitle || ''}
+                    onChange={(e) => onImageChange(index, 'sectionTitle', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., Product Features, Technical Specifications, Usage Guide"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Title for this section in A+ content (e.g., "Key Features", "Technical Specs")
+                  </p>
+                </div>
+              )}
+
+              <div className="md:col-span-2">
+                <div className="flex space-x-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onRemove(index)}
+                    className="px-3 py-1 text-red-600 hover:text-red-700 text-sm border border-red-300 rounded hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                  {isEditing && onSetAsThumbnail && (
+                    <button
+                      type="button"
+                      onClick={() => onSetAsThumbnail(image.url, image.altText)}
+                      className="px-3 py-1 text-blue-600 hover:text-blue-700 text-sm border border-blue-300 rounded hover:bg-blue-50"
+                    >
+                      Set as Thumbnail
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {images.length === 0 && (
         <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
@@ -567,7 +618,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
           </p>
           
           <div className="flex items-start space-x-6">
-            {/* Image Preview - UPDATED */}
+            {/* Image Preview */}
             <div className="flex-shrink-0">
               {getImagePreviewUrl('thumbnail', formData.images.thumbnail) ? (
                 <div className="relative">
@@ -614,7 +665,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                   Image URL <span className="text-gray-400 text-xs">(Optional if uploading file)</span>
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={formData.images.thumbnail.url}
                   onChange={(e) => handleImageChange('thumbnail', 'url', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -656,7 +707,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
           </p>
           
           <div className="flex items-start space-x-6">
-            {/* Image Preview - UPDATED */}
+            {/* Image Preview */}
             <div className="flex-shrink-0">
               {getImagePreviewUrl('hoverImage', formData.images.hoverImage) ? (
                 <div className="relative">
@@ -702,7 +753,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
                   Image URL <span className="text-gray-400 text-xs">(Optional if uploading file)</span>
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={formData.images.hoverImage?.url || ''}
                   onChange={(e) => handleImageChange('hoverImage', 'url', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

@@ -21,9 +21,6 @@ const ProductDisplay: React.FC = () => {
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
-
-  console.log('🔍 ProductDisplay - URL Search Params:', Object.fromEntries(searchParams.entries()));
-
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -46,7 +43,6 @@ const ProductDisplay: React.FC = () => {
             const response = await api.get(endpoint);
             const data = response.data;
             productData = data.data?.product || data.product || data;
-            console.log('🔍 Fetched product data:', productData);
             break;
           } catch (err: any) {
             lastError = err.response?.data?.message || err.message || 'Unknown error';
@@ -66,69 +62,50 @@ const ProductDisplay: React.FC = () => {
         
         // 🎯 FIXED: Handle URL variant parameter FIRST
         const urlVariantParam = searchParams.get('variant');
-        console.log('🔍 URL Variant Parameter:', urlVariantParam);
         
         // Handle variants with extensive validation
         if (productData.variants.length > 0) {
           const validVariants = productData.variants.filter(variant => 
             variant && 
             typeof variant === 'object'
-          );
-          
-          console.log('🔍 Valid variants found:', validVariants.length);
-          
+          );          
           if (validVariants.length > 0) {
             let defaultVariant = null;
             
             // 🎯 PRIORITY 1: URL variant parameter
             if (urlVariantParam) {
-              console.log('🔍 Looking for URL variant:', urlVariantParam);
-              
-              // Try to find variant by different identifiers
               defaultVariant = validVariants.find(v => {
                 // Check variant slug
                 if (v.slug === urlVariantParam) {
-                  console.log('✅ Found variant by slug:', v.slug);
                   return true;
                 }
                 // Check variant ID
                 if (v._id === urlVariantParam) {
-                  console.log('✅ Found variant by ID:', v._id);
                   return true;
                 }
                 // Check variant name (slugified)
                 if (v.name && v.name.toLowerCase().replace(/\s+/g, '-') === urlVariantParam) {
-                  console.log('✅ Found variant by name:', v.name);
                   return true;
                 }
                 return false;
               });
-              
-              if (defaultVariant) {
-                console.log('🎯 URL variant selected:', defaultVariant);
-              } else {
-                console.log('❌ URL variant not found:', urlVariantParam);
-              }
-            }
+                      }
             
             // 🎯 PRIORITY 2: Active variant with stock
             if (!defaultVariant) {
               defaultVariant = validVariants.find(v => 
                 v.isActive !== false && (v.stockQuantity || 0) > 0
               );
-              if (defaultVariant) console.log('🎯 Active variant with stock selected');
-            }
+               }
             
             // 🎯 PRIORITY 3: Any active variant
             if (!defaultVariant) {
               defaultVariant = validVariants.find(v => v.isActive !== false);
-              if (defaultVariant) console.log('🎯 Active variant selected');
             }
             
             // 🎯 PRIORITY 4: First variant
             if (!defaultVariant) {
               defaultVariant = validVariants[0];
-              if (defaultVariant) console.log('🎯 First variant selected');
             }
             
             setSelectedVariant(defaultVariant);
@@ -143,15 +120,10 @@ const ProductDisplay: React.FC = () => {
               });
             }
             setSelectedAttributes(defaultAttributes);
-            
-            console.log('🎯 Final selected variant:', defaultVariant);
-            console.log('🎯 Final selected attributes:', defaultAttributes);
           } else {
-            console.log('⚠️ No valid variants found');
             setSelectedVariant(null);
           }
         } else {
-          console.log('ℹ️ No variants for this product');
           setSelectedVariant(null);
         }
         
@@ -174,7 +146,6 @@ const ProductDisplay: React.FC = () => {
       
       // Only update URL if it's different from current selection
       if (variantSlug && currentVariantParam !== variantSlug) {
-        console.log('🔄 Updating URL with variant:', variantSlug);
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.set('variant', variantSlug);
         setSearchParams(newSearchParams, { replace: true });
@@ -209,26 +180,20 @@ const ProductDisplay: React.FC = () => {
     if (!productData) return;
     
     const newAttributes = { ...selectedAttributes, [key]: value };
-    console.log('🔄 Attribute changed:', { key, value, newAttributes });
     
     // First, try to find exact match
     let variant = findVariantByAttributes(newAttributes);
     
     if (!variant) {
-      console.log('❌ No exact variant match found');
       // Just update the single attribute if no compatible variant found
       setSelectedAttributes(newAttributes);
       setSelectedVariant(null);
     } else {
-      console.log('✅ Found matching variant:', variant);
       setSelectedAttributes(newAttributes);
       setSelectedVariant(variant);
     }
   };
 
-  // ... rest of your existing functions (findBestCompatibleVariant, calculateTax, getFinalPrice, etc.)
-
-  // Loading state
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -272,16 +237,7 @@ const ProductDisplay: React.FC = () => {
       </div>
     );
   }
-
-  // 🆕 Get the correct specifications for display
   const displaySpecifications = getDisplaySpecifications();
-
-  console.log('🔍 Rendering ProductDisplay with:', {
-    productData: !!productData,
-    selectedVariant,
-    selectedAttributes
-  });
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}

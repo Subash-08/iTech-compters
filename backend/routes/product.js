@@ -32,6 +32,7 @@ const {
     getProductsForSelection,
     getProductsByIds,
     getProductAnalytics,
+    getLinkedProducts,
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
@@ -52,6 +53,8 @@ router.get("/products/slug/:slug", getProductBySlug);                    // Sing
 router.get("/products/related/:slug", getRelatedProducts);               // Related products
 router.get("/products/featured", getFeaturedProducts);                   // Featured products
 router.get("/products/new-arrivals", getNewArrivals);                    // New arrivals
+// In productRoutes.js
+router.get("/products/linked/:slug", getLinkedProducts);
 
 // 🎯 PRODUCT VARIANTS
 router.get("/products/:id/variants", getProductVariants);                // Get product variants
@@ -74,7 +77,7 @@ router.get("/products/brand/:brandName", getProductsByBrand);            // → 
 // Admin products management
 router.get('/admin/products', isAuthenticatedUser, authorizeRoles("admin"), getAdminProducts);
 router.get("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), getAdminProductById);
-router.delete("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), deleteProduct);
+// router.delete("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), deleteProduct);
 
 // Product creation
 router.post("/admin/product/new",

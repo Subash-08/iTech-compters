@@ -178,7 +178,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
           <div className="flex items-center space-x-3">
             {/* 🆕 Show selling price (what customer pays) */}
             <span className="text-3xl font-bold text-gray-900">
-              ${currentPriceInfo.sellingPrice.toFixed(2)}
+              ₹{currentPriceInfo.sellingPrice.toFixed(2)}
             </span>
             
             {/* 🆕 Show MRP with strikethrough if there's a discount */}
