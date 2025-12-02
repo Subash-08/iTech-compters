@@ -1,6 +1,7 @@
 // VariantItem.tsx
 import React, { useState } from 'react';
 import { ProductVariant, IdentifyingAttribute, ImageData } from '../../types/product';
+import { baseURL } from '../../../config/config';
 
 interface VariantItemProps {
   variant: ProductVariant;
@@ -48,7 +49,7 @@ const VariantItem: React.FC<VariantItemProps> = ({
       return url;
     }
 
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const API_BASE_URL = import.meta.env.VITE_API_URL || baseURL;
     
     // Handle cases where it is just a filename (no slashes)
     if (!url.includes('/')) {

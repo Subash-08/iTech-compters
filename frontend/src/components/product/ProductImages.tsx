@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ProductData, Variant } from './productTypes';
+import { baseURL } from '../config/config';
 
 interface ProductImagesProps {
   productData: ProductData;
@@ -22,7 +23,7 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
       return getPlaceholderImage();
     }
 
-    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.REACT_APP_API_URL || baseURL;
     
     // Extract just the filename from any path
     let filename = url;

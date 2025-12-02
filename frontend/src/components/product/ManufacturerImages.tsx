@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ProductData } from './productTypes';
+import { baseURL } from '../config/config';
 
 interface ManufacturerImagesProps {
   productData: ProductData;
@@ -22,7 +23,7 @@ const ManufacturerImages: React.FC<ManufacturerImagesProps> = ({ productData }) 
       `)}`;
     }
 
-    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.REACT_APP_API_URL || baseURL;
         let filename = '';
     
     if (url.includes('/')) {

@@ -5,6 +5,7 @@ import { WishlistItem as WishlistItemType } from '../../redux/types/wishlistType
 import { useAppDispatch } from '../../redux/hooks';
 import { wishlistActions } from '../../redux/actions/wishlistActions';
 import { cartActions } from '../../redux/actions/cartActions';
+import { baseURL } from '../config/config';
 
 interface WishlistItemProps {
   item: WishlistItemType;
@@ -26,7 +27,7 @@ const getFullImageUrl = (url: string): string => {
   }
   
   // Add your API base URL - adjust as needed
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || baseURL;
   
   // Remove trailing slash from base URL if present
   const cleanBaseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;

@@ -4,6 +4,7 @@ import { useAppDispatch } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
 import AddToWishlistButton from './AddToWishlistButton';
 import { toast } from 'react-toastify';
+import { baseURL } from '../config/config';
 
 // --- Types (Inlined for self-containment) ---
 export interface Variant {
@@ -273,7 +274,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       return url;
     }
 
-    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const API_BASE_URL = process.env.REACT_APP_API_URL || baseURL;
     
     // 2. Handle cases where it is just a filename (no slashes)
     if (!url.includes('/')) {
