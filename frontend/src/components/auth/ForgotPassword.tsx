@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios'; // Add this import
+import { baseURL } from '../config/config';
 
 const ForgotPassword: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -12,7 +13,7 @@ const ForgotPassword: React.FC = () => {
 
     // Create public axios instance
     const publicApi = axios.create({
-        baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+        baseURL: import.meta.env.VITE_API_URL || baseURL,
         timeout: 15000,
         withCredentials: false, // Don't send cookies
         headers: {

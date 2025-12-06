@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Product } from '../types/product';
+import { baseURL } from '../../config/config';
 
 interface Pagination {
   totalProducts: number;
@@ -160,7 +161,7 @@ const getImageUrl = (imageObj: any) => {
   }
 
   // Use environment variable or fallback
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_BASE_URL = import.meta.env.VITE_API_URL || baseURL;
   
   // 2. Handle cases where it is just a filename (no slashes)
   if (!url.includes('/')) {

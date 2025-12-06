@@ -1,6 +1,7 @@
 // components/cart/CartItem.tsx - FIXED IMAGE HANDLING FOR PRE-BUILT PCS
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { baseURL } from '../config/config';
 
 interface CartItemProps {
   item: any;
@@ -151,10 +152,10 @@ const CartItem: React.FC<CartItemProps> = ({
     
     // Relative path starting with /
     if (url.startsWith('/')) {
-      const baseURL = process.env.NODE_ENV === 'production' 
+      const baseURL_fetched = process.env.NODE_ENV === 'production' 
         ? 'https://itech-compters.onrender.com' 
-        : 'http://localhost:5000';
-      return `${baseURL}${url}`;
+        : baseURL;
+      return `${baseURL_fetched}${url}`;
     }
     
     // Relative path without /

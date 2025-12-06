@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ProductFormData, ImageData } from '../../types/product';
+import { baseURL } from '../../../config/config';
 
 interface ImagesSectionProps {
   formData: ProductFormData;
@@ -43,7 +44,7 @@ const ImagesSection: React.FC<ImagesSectionProps> = ({
     }
 
     // Use environment variable or fallback to localhost
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const API_BASE_URL = import.meta.env.VITE_API_URL || baseURL;
     
     // 2. Handle cases where it is just a filename (no slashes)
     if (!url.includes('/')) {

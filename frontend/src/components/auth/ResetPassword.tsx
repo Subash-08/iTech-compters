@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { baseURL } from '../config/config';
 
 const ResetPassword: React.FC = () => {
     const [password, setPassword] = useState('');
@@ -17,7 +18,7 @@ const ResetPassword: React.FC = () => {
 
     // Create public axios instance with NO credentials
     const publicApi = axios.create({
-        baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+        baseURL: import.meta.env.VITE_API_URL || baseURL,
         timeout: 15000,
         withCredentials: false, // ⚠️ CRITICAL: Set to FALSE to not send cookies
         headers: {

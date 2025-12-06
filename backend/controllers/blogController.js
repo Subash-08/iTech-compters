@@ -436,10 +436,7 @@ exports.updateBlog = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Don't allow changing slug directly
-        if (req.body.Slug) {
-            delete req.body.Slug;
-        }
+
         if (req.body.slug || req.body.Slug || req.body.title) {
             const raw = req.body.slug || req.body.Slug || req.body.title;
             req.body.slug = raw
