@@ -46,6 +46,9 @@ import OrderAnalytics from './order/OrderAnalytics';
 import OrderDetails from './order/OrderDetails';
 import UserDetailPage from './user/UserDetailPage';
 import Dashboard from './dashboard/Dashboard';
+import BlogList from './blog/BlogList';
+import BlogEditor from './blog/BlogEditor';
+import BlogStatisticsComponent from './blog/BlogStatistics';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -319,10 +322,10 @@ const AdminLayout: React.FC = () => {
       path: '/admin/reviews'
     },
     {
-      id: 'shipping',
-      label: 'Shipping',
+      id: 'blog',
+      label: 'blogs',
       icon: <Icons.Shipping className="w-5 h-5" />,
-      path: '/admin/shipping'
+      path: '/admin/blogs'
     },
     {
       id: 'payments',
@@ -453,6 +456,12 @@ const AdminLayout: React.FC = () => {
   <Route path="/orders" element={<OrderList />} />
   <Route path="/orders/analytics" element={<OrderAnalytics />} />
   <Route path="/orders/:orderId" element={<OrderDetails />} />
+
+  {/* Blog Routes - UPDATED WITH /admin PREFIX */}
+  <Route path="/blogs" element={<BlogList />} />
+  <Route path="/blogs/new" element={<BlogEditor />} />
+  <Route path="/blogs/edit/:id" element={<BlogEditor isEdit />} />
+  <Route path="/blogs/statistics" element={<BlogStatisticsComponent />} />
             </Routes>
           </div>
         </main>

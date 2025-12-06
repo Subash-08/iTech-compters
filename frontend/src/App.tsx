@@ -30,6 +30,13 @@ import OrderList from "./components/order/OrderList";
 import OrderDetails from "./components/order/OrderDetails";
 import OrderTracking from "./components/order/OrderTracking";
 import SupportPage from "./components/support/SupportPage";
+import ForgotPassword from "./components/auth/ForgotPassword";
+import ResetPassword from "./components/auth/ResetPassword";
+import BlogList from "./components/blog/BlogList";
+import SingleBlog from "./components/blog/SingleBlog";
+import BlogCategory from "./components/blog/BlogCategory";
+import BlogTag from "./components/blog/BlogTag";
+import { HelmetProvider } from "react-helmet-async";
 
 // ✅ UPDATED: Root Layout - AuthInitializer at the top level
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -105,6 +112,7 @@ const ProtectedRoute: React.FC<{
 
 const App: React.FC = () => {
   return (
+     <HelmetProvider>
     <BrowserRouter>
       {/* ✅ WRAP ENTIRE APP WITH ROOT LAYOUT */}
       <RootLayout>
@@ -161,12 +169,7 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute requireAuth={false}>
                 <AuthLayout>
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="bg-white p-8 rounded-lg shadow-md w-96">
-                      <h2 className="text-2xl font-bold mb-4">Forgot Password</h2>
-                      <p className="text-gray-600 mb-4">This feature is coming soon.</p>
-                    </div>
-                  </div>
+                  <ForgotPassword />
                 </AuthLayout>
               </ProtectedRoute>
             } 
@@ -177,12 +180,7 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute requireAuth={false}>
                 <AuthLayout>
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="bg-white p-8 rounded-lg shadow-md w-96">
-                      <h2 className="text-2xl font-bold mb-4">Reset Password</h2>
-                      <p className="text-gray-600 mb-4">This feature is coming soon.</p>
-                    </div>
-                  </div>
+                  <ResetPassword />
                 </AuthLayout>
               </ProtectedRoute>
             } 
@@ -350,6 +348,39 @@ const App: React.FC = () => {
               </PublicLayout>
             } 
           />
+
+                    <Route 
+            path="/blog" 
+            element={
+              <PublicLayout>
+                <BlogList />
+              </PublicLayout>
+            } 
+          />
+                              <Route 
+            path="/blog/tag/:tag" 
+            element={
+              <PublicLayout>
+                <BlogTag />
+              </PublicLayout>
+            } 
+          />
+                              <Route 
+            path="/blog/category/:category" 
+            element={
+              <PublicLayout>
+                <BlogCategory />
+              </PublicLayout>
+            } 
+          />
+                              <Route 
+            path="/blog/:slug" 
+            element={
+              <PublicLayout>
+                <SingleBlog />
+              </PublicLayout>
+            } 
+          />
           
           {/* Search Route */}
           <Route 
@@ -390,6 +421,7 @@ const App: React.FC = () => {
         </Routes>
       </RootLayout>
     </BrowserRouter>
+    </HelmetProvider>
   );
 };
 

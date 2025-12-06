@@ -77,7 +77,9 @@ const Checkout: React.FC = () => {
   const [processingOrder, setProcessingOrder] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string>('');
   const [paymentError, setPaymentError] = useState<string>('');
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);const [addressRefreshing, setAddressRefreshing] = useState(false);
+
+
 
   // ✅ ADDED: Debug effect to track amount changes
   useEffect(() => {
@@ -150,17 +152,23 @@ const handleDeleteAddress = async (addressId: string) => {
     }
   };
 
-  // Handle address save
-  const handleSaveAddress = async (addressData: any, setAsDefault = false) => {
-    try {
-      setPaymentError('');
-      await dispatch(checkoutActions.saveAddress({ address: addressData, setAsDefault })).unwrap();
-      setShowAddressForm(false);
-    } catch (error: any) {
-      console.error('Failed to save address:', error);
-      setPaymentError(error.message || 'Failed to save address');
-    }
-  };
+const handleSaveAddress = async (addressData: any, setAsDefault = false) => {
+  try {
+    setPaymentError('');
+    setAddressRefreshing(true); // Start refreshing
+    await dispatch(checkoutActions.saveAddress({ address: addressData, setAsDefault })).unwrap();
+    
+    // Refresh checkout data to get updated addresses
+    await dispatch(checkoutActions.fetchCheckoutData()).unwrap();
+    
+    setShowAddressForm(false);
+  } catch (error: any) {
+    console.error('Failed to save address:', error);
+    setPaymentError(error.message || 'Failed to save address');
+  } finally {
+    setAddressRefreshing(false); // Stop refreshing
+  }
+};
 
   // Enhanced order creation
   const handlePlaceOrder = async () => {
@@ -384,17 +392,18 @@ const handleDeleteAddress = async (addressId: string) => {
     <div className="space-y-6">
       {/* Enhanced Address Selection with Edit/Delete */}
       {(addresses.length > 0 || showAddressForm) && (
-        <AddressSelection
-          addresses={addresses}
-          selectedAddress={shippingAddressId}
-          onSelectAddress={(addressId) => {
-            console.log('Selecting address:', addressId);
-            dispatch(setShippingAddress(addressId));
-          }}
-          onAddNewAddress={() => setShowAddressForm(true)}
-          onUpdateAddress={handleUpdateAddress}
-          onDeleteAddress={handleDeleteAddress}
-        />
+<AddressSelection
+  addresses={addresses}
+  selectedAddress={shippingAddressId}
+  onSelectAddress={(addressId) => {
+    console.log('Selecting address:', addressId);
+    dispatch(setShippingAddress(addressId));
+  }}
+  onAddNewAddress={() => setShowAddressForm(true)}
+  onUpdateAddress={handleUpdateAddress}
+  onDeleteAddress={handleDeleteAddress}
+  refreshing={addressRefreshing} // Pass the refreshing state
+/>
       )}
 
       {/* Address Form - Show when adding new address OR when no addresses exist */}

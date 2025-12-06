@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ProductData, Variant } from './productTypes';
-import { baseURL } from '../config/config';
+import { 
+  getImageUrl, 
+  getPlaceholderImage, 
+  getImageAltText 
+} from '../utils/imageUtils'; // Import from imageUtils
 
 interface ProductImagesProps {
   productData: ProductData;
@@ -17,90 +21,54 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
     type: string;
   }>>([]);
 
-  // Get image URL
-  const getImageUrl = (url: string | undefined): string => {
-    if (!url || url.startsWith('blob:')) {
-      return getPlaceholderImage();
-    }
-
-    const baseUrl = process.env.REACT_APP_API_URL || baseURL;
-    
-    // Extract just the filename from any path
-    let filename = url;
-    if (url.includes('/')) {
-      filename = url.split('/').pop() || url;
-    }
-    
-    // Files are in /uploads/products/ directory
-    return `${baseUrl}/uploads/products/${filename}`;
-  };
-
-  // Create placeholder image
-  const getPlaceholderImage = () => {
-    const placeholderSVG = `data:image/svg+xml;base64,${btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
-        <rect width="400" height="400" fill="#f3f4f6"/>
-        <rect x="100" y="100" width="200" height="200" fill="#e5e7eb"/>
-        <path d="M150 200 L200 150 L250 200 L200 250 Z" fill="#9ca3af"/>
-        <circle cx="200" cy="200" r="20" fill="#6b7280"/>
-        <text x="200" y="220" text-anchor="middle" font-family="Arial" font-size="14" fill="#4b5563">Image Loading</text>
-      </svg>
-    `)}`;
-    return placeholderSVG;
-  };
-
-  // Get all images
+  // Get all images - using imageUtils
   const getAllImages = () => {
+    
     const imagesList: Array<{
       url: string;
       altText: string;
       type: string;
     }> = [];
 
-    // Add product images (omitted for brevity)
-    if (productData.images) {
-      if (productData.images.thumbnail?.url) {
-        imagesList.push({
-          url: getImageUrl(productData.images.thumbnail.url),
-          altText: productData.images.thumbnail.altText || productData.name,
-          type: 'thumbnail'
-        });
-      }
-      if (productData.images.hoverImage?.url) {
-        imagesList.push({
-          url: getImageUrl(productData.images.hoverImage.url),
-          altText: productData.images.hoverImage.altText || `${productData.name} hover`,
-          type: 'hover'
-        });
-      }
-      if (productData.images.gallery) {
-        productData.images.gallery.forEach((img, index) => {
-          if (img.url && !img.url.startsWith('blob:')) {
-            imagesList.push({
-              url: getImageUrl(img.url),
-              altText: img.altText || `${productData.name} gallery ${index + 1}`,
-              type: `gallery-${index + 1}`
-            });
-          }
-        });
-      }
-    }
+      if (selectedVariant?.images?.thumbnail?.url?.startsWith('blob:')) {
+    console.error('❌ CRITICAL: Variant thumbnail is a blob URL in database!', {
+      variant: selectedVariant.name,
+      url: selectedVariant.images.thumbnail.url
+    });
+  }
+  
+  if (selectedVariant?.images?.gallery?.some(img => img.url?.startsWith('blob:'))) {
+    const blobCount = selectedVariant.images.gallery.filter(img => 
+      img.url?.startsWith('blob:')
+    ).length;
+    console.error(`❌ CRITICAL: ${blobCount} blob URLs in variant gallery!`);
+  }
 
-    // Add variant images (omitted for brevity)
+    // 1. Add variant images FIRST (so they appear first)
     if (selectedVariant?.images) {
-      if (selectedVariant.images.thumbnail?.url) {
-        imagesList.unshift({
-          url: getImageUrl(selectedVariant.images.thumbnail.url),
-          altText: selectedVariant.images.thumbnail.altText || `${productData.name} - ${selectedVariant.name}`,
-          type: 'variant-thumbnail'
-        });
+      // Variant thumbnail
+      if (selectedVariant.images.thumbnail) {
+        const variantThumbnailUrl = getImageUrl(selectedVariant.images.thumbnail);
+        // Only add if it's not a blob URL (blob URLs are temporary previews)
+        if (!variantThumbnailUrl.startsWith('blob:')) {
+          imagesList.push({
+            url: variantThumbnailUrl,
+            altText: getImageAltText(selectedVariant.images.thumbnail, 
+              `${productData.name} - ${selectedVariant.name}`),
+            type: 'variant-thumbnail'
+          });
+        }
       }
+
+      // Variant gallery images
       if (selectedVariant.images.gallery) {
         selectedVariant.images.gallery.forEach((img, index) => {
-          if (img.url && !img.url.startsWith('blob:')) {
-            imagesList.unshift({
-              url: getImageUrl(img.url),
-              altText: img.altText || `${productData.name} - ${selectedVariant.name} gallery ${index + 1}`,
+          const galleryUrl = getImageUrl(img);
+          if (galleryUrl && !galleryUrl.startsWith('blob:')) {
+            imagesList.push({
+              url: galleryUrl,
+              altText: getImageAltText(img, 
+                `${productData.name} - ${selectedVariant.name} gallery ${index + 1}`),
               type: `variant-gallery-${index + 1}`
             });
           }
@@ -108,14 +76,78 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
       }
     }
 
-    // If no images, add placeholder
+    // 2. Add base product images
+    if (productData.images) {
+      // Base product thumbnail
+      if (productData.images.thumbnail) {
+        const baseThumbnailUrl = getImageUrl(productData.images.thumbnail);
+        if (baseThumbnailUrl && !baseThumbnailUrl.startsWith('blob:')) {
+          imagesList.push({
+            url: baseThumbnailUrl,
+            altText: getImageAltText(productData.images.thumbnail, productData.name),
+            type: 'base-thumbnail'
+          });
+        }
+      }
+
+      // Base product hover image
+      if (productData.images.hoverImage) {
+        const hoverImageUrl = getImageUrl(productData.images.hoverImage);
+        if (hoverImageUrl && !hoverImageUrl.startsWith('blob:')) {
+          imagesList.push({
+            url: hoverImageUrl,
+            altText: getImageAltText(productData.images.hoverImage, 
+              `${productData.name} hover image`),
+            type: 'hover'
+          });
+        }
+      }
+
+      // Base product gallery images
+      if (productData.images.gallery) {
+        productData.images.gallery.forEach((img, index) => {
+          const galleryUrl = getImageUrl(img);
+          if (galleryUrl && !galleryUrl.startsWith('blob:')) {
+            imagesList.push({
+              url: galleryUrl,
+              altText: getImageAltText(img, 
+                `${productData.name} gallery ${index + 1}`),
+              type: `base-gallery-${index + 1}`
+            });
+          }
+        });
+      }
+    }
+
+    // 3. Add manufacturer images (if any)
+    if (productData.manufacturerImages) {
+      productData.manufacturerImages.forEach((img, index) => {
+        const manufacturerUrl = getImageUrl(img);
+        if (manufacturerUrl && !manufacturerUrl.startsWith('blob:')) {
+          imagesList.push({
+            url: manufacturerUrl,
+            altText: getImageAltText(img, 
+              `${productData.name} manufacturer image ${index + 1}`),
+            type: `manufacturer-${index + 1}`
+          });
+        }
+      });
+    }
+
+    // 4. If no images, add placeholder
     if (imagesList.length === 0) {
       imagesList.push({
-        url: getPlaceholderImage(),
+        url: getPlaceholderImage('No Product Images', 400, 400),
         altText: 'Product image not available',
         type: 'placeholder'
       });
     }
+
+    // Log for debugging
+    console.log('Generated images list:', imagesList.map(img => ({
+      url: img.url.substring(0, 100) + '...',
+      type: img.type
+    })));
 
     return imagesList;
   };
@@ -125,6 +157,8 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
       setLoading(true);
       const loadedImages = getAllImages();
       setImages(loadedImages);
+      // Reset to first image when images change
+      setSelectedImage(0);
       setLoading(false);
     };
     
@@ -136,21 +170,16 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     setImageError(true);
     const target = e.currentTarget;
-    target.src = getPlaceholderImage();
+    target.src = getPlaceholderImage('Image Failed to Load', 400, 400);
   };
 
   const handleImageLoad = () => {
     setImageError(false);
   };
   
-  // 💡 NEW HANDLER: Prevent click action on the main image
   const handleMainImageClick = (e: React.MouseEvent) => {
-      // Prevents the click from activating any surrounding <a> tags or default browser actions
-      e.preventDefault(); 
-      // Stops the click event from traveling up to parent elements
-      e.stopPropagation();
-      // Optional: You can add logic here if you want to explicitly open a lightbox/modal
-      // console.log('Image click prevented from opening new tab.');
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   if (loading) {
@@ -170,10 +199,9 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
     <div className="space-y-4">
       {/* Main Image */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-center h-96 min-h-[24rem]">
-        {/* 🎯 WRAPPED IMAGE WITH onClick HANDLER TO PREVENT DEFAULT ACTION */}
         <div 
-            className="relative w-full h-full flex items-center justify-center"
-            onClick={handleMainImageClick} // 👈 Added click handler here
+          className="relative w-full h-full flex items-center justify-center"
+          onClick={handleMainImageClick}
         >
           {currentImage ? (
             <img
@@ -220,7 +248,7 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
                   alt={image.altText}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.src = getPlaceholderImage();
+                    e.currentTarget.src = getPlaceholderImage('Thumbnail Error', 80, 80);
                   }}
                 />
                 {selectedImage === index && (

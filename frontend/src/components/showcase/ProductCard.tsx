@@ -130,14 +130,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <div className="aspect-square relative bg-gray-100 rounded-lg overflow-hidden">
             {/* Main Image */}
             <img
-              src={product.images?.thumbnail?.url || 'https://via.placeholder.com/300x300?text=Product+Image'}
+              src={product.images?.thumbnail?.url || ''}
               alt={product.images?.thumbnail?.altText || product.name}
               className={`w-full h-full object-cover transition-opacity duration-300 ${
                 isImageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
               onLoad={handleImageLoad}
               onError={(e) => {
-                e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Product+Image';
+                e.currentTarget.src = '';
               }}
             />
             
@@ -150,7 +150,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   isHovered ? 'opacity-100' : 'opacity-0'
                 }`}
                 onError={(e) => {
-                  e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Product+Image';
+                  e.currentTarget.src = '';
                 }}
               />
             )}

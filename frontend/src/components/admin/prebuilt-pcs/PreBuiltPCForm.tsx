@@ -30,7 +30,7 @@ const PreBuiltPCForm: React.FC = () => {
  const getImageUrl = (url: any): string => {
     // Handle null, undefined, or non-string values
     if (!url || typeof url !== 'string') {
-      return 'https://placehold.co/300x300?text=No+Image';
+      return '';
     }
 
     // Already full URL (e.g., Cloudinary)

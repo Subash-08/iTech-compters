@@ -9,6 +9,7 @@ interface AddressSelectionProps {
   onAddNewAddress: () => void;
   onUpdateAddress: (addressId: string, addressData: any, setAsDefault?: boolean) => Promise<void>;
   onDeleteAddress: (addressId: string) => Promise<void>;
+   refreshing?: boolean;
 }
 
 const AddressSelection: React.FC<AddressSelectionProps> = ({
@@ -17,7 +18,8 @@ const AddressSelection: React.FC<AddressSelectionProps> = ({
   onSelectAddress,
   onAddNewAddress,
   onUpdateAddress,
-  onDeleteAddress
+  onDeleteAddress,
+  refreshing = false
 }) => {
   const [editingAddress, setEditingAddress] = useState<CheckoutAddress | null>(null);
   const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
@@ -62,6 +64,14 @@ const AddressSelection: React.FC<AddressSelectionProps> = ({
 
   return (
     <div className="space-y-4">
+            {refreshing && (
+        <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded-lg">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <p className="text-sm text-gray-600">Updating addresses...</p>
+          </div>
+        </div>
+      )}
       <h3 className="text-lg font-medium">
         Select Shipping Address {selectedAddress && '✅'}
       </h3>

@@ -365,11 +365,11 @@ const extractAvailableFilters = (products: Product[]) => {
         <Link to={`/product/${product.slug}`} className="block p-4 flex-1">
           <div className="relative mb-4">
             <img
-              src={product.images?.thumbnail?.url || 'https://via.placeholder.com/300x300?text=Product+1'}
+              src={product.images?.thumbnail?.url || ''}
               alt={product.images?.thumbnail?.altText || product.name}
               className="w-full h-48 object-contain rounded-lg"
               onError={(e) => {
-                e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Product+1';
+                e.currentTarget.src = '';
               }}
             />
             

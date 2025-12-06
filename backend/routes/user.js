@@ -19,7 +19,8 @@ const {
     updateUserStatus,
     deleteUser,
     getCompleteUserProfile,
-    getUserAnalytics
+    getUserAnalytics,
+    verifyResetToken
 } = require('../controllers/authController');
 
 
@@ -43,6 +44,7 @@ router.post('/resend-verification', resendVerification);
 // Password routes
 router.post('/password/forgot', forgotPassword);
 router.put('/password/reset', resetPassword);
+router.get('/password/reset/verify', verifyResetToken);
 
 // Profile routes (Authenticated)
 router.get('/profile', isAuthenticatedUser, getUserProfile);

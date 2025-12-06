@@ -134,7 +134,7 @@ export const uploadImage = async (
   const uploadEntity = supportedEntities.includes(entity) ? entity : "products";
 
   try {
-    const res = await fetch(`${getBaseURL()}/api/upload/${uploadEntity}`, {
+    const res = await fetch(`${getBaseURL()}/api/v1/uploads/${uploadEntity}`, {
       method: "POST",
       body: form,
       credentials: "include",

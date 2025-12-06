@@ -22,10 +22,10 @@ const checkoutRoutes = require('./routes/checkout');
 const paymentRoutes = require('./routes/payment');
 const orderRoutes = require('./routes/order');
 const analyticsRoutes = require('./routes/analyticsRoutes');
-
-dotenv.config({ path: path.join(__dirname, 'config/config.env') });
+const blogRoutes = require('./routes/blogRoutes');
 
 const app = express();
+
 
 // CORS configuration
 const allowedOrigins = [
@@ -82,6 +82,7 @@ app.use('/api/v1', couponRoutes);
 app.use('/api/v1', checkoutRoutes);
 app.use('/api/v1', paymentRoutes);
 app.use('/api/v1', orderRoutes);
+app.use('/api/v1', blogRoutes);
 // Health check route
 app.get('/api/v1/health', (req, res) => {
     res.json({

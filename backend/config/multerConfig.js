@@ -259,7 +259,34 @@ const handleSimplePreBuiltPCUpload = () => {
         });
     };
 };
-
+const blogUpload = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            try {
+                const uploadPath = path.join(__dirname, '../public/uploads/blogs');
+                ensureUploadDir(uploadPath);
+                cb(null, uploadPath);
+            } catch (error) {
+                cb(new Error(`Failed to create upload directory: ${error.message}`), null);
+            }
+        },
+        filename: function (req, file, cb) {
+            try {
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const fileExtension = path.extname(file.originalname);
+                const filename = `blog-${uniqueSuffix}${fileExtension}`;
+                cb(null, filename);
+            } catch (error) {
+                cb(new Error(`Failed to generate filename: ${error.message}`), null);
+            }
+        }
+    }),
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB for blog images
+        files: 1
+    }
+});
 // NEW: Debug middleware to see what Multer is processing
 const debugMulterUpload = (req, res, next) => {
 
@@ -291,6 +318,7 @@ module.exports = {
     handlePreBuiltPCUpload,
     handleSimplePreBuiltPCUpload,
     handleMulterError,
+    blogUpload,
     // Field configurations
     preBuiltPCFields,
     generateComponentFields,

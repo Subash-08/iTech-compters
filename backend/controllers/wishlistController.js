@@ -165,7 +165,7 @@ exports.getWishlist = catchAsyncErrors(async (req, res, next) => {
                 let displayName = product.name || 'Product';
                 let image = product.images?.thumbnail?.url ||
                     product.images?.gallery?.[0]?.url ||
-                    'https://via.placeholder.com/300x300?text=Product+1';
+                    '';
 
                 // Use variant data if available
                 if (item.variant && item.variant.variantId) {
@@ -205,7 +205,7 @@ exports.getWishlist = catchAsyncErrors(async (req, res, next) => {
                 const displayPrice = pc.discountPrice > 0 ? pc.discountPrice : pc.totalPrice || 0;
                 const displayMrp = pc.totalPrice || displayPrice;
                 const displayName = pc.name || 'Pre-built PC';
-                const image = pc.images?.[0]?.url || 'https://via.placeholder.com/300x300?text=Product+1';
+                const image = pc.images?.[0]?.url || '';
 
                 const discountPercentage = displayMrp > displayPrice
                     ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)

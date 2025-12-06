@@ -258,7 +258,37 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const updateFormData = (updates: Partial<ProductFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
   };
+const cleanedVariants = formData.variants.map(variant => {
+  const cleanedVariant = { ...variant };
+  
+  // Fix thumbnail - ensure it has a URL
+  if (cleanedVariant.images?.thumbnail) {
+    // If it has _fileUpload but no proper URL, set a placeholder
+    if (cleanedVariant.images.thumbnail._fileUpload && 
+        (!cleanedVariant.images.thumbnail.url || 
+         cleanedVariant.images.thumbnail.url.includes('file-upload:'))) {
+      // Keep the placeholder URL
+      cleanedVariant.images.thumbnail.url = cleanedVariant.images.thumbnail.url || 
+        `file-upload:${Date.now()}`;
+    }
+    // Remove the _fileUpload flag before sending
+    delete cleanedVariant.images.thumbnail._fileUpload;
+  }
+  
+  // Fix gallery items
+  if (cleanedVariant.images?.gallery) {
+    cleanedVariant.images.gallery = cleanedVariant.images.gallery.map((img: any) => {
+      const cleanedImg = { ...img };
+      // Remove _fileUpload flag
+      delete cleanedImg._fileUpload;
+      return cleanedImg;
+    }).filter((img: any) => img.url && img.url.trim() !== '');
+  }
+  
+  return cleanedVariant;
+});
 
+console.log("Cleaned variants:", cleanedVariants);
 const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   setSubmitLoading(true);
@@ -308,19 +338,19 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     fd.append("isActive", String(formData.isActive));
     fd.append("condition", formData.condition || "New");
     
-    // ✅ ADD MISSING TEXT FIELDS
+    // ADD MISSING TEXT FIELDS
     fd.append("label", formData.label || "");
     fd.append("hsn", formData.hsn || "");
     fd.append("warranty", formData.warranty || "");
     fd.append("notes", formData.notes || "");
     fd.append("canonicalUrl", formData.canonicalUrl || "");
 
-    // 🔥 REQUIRED — Pricing and Inventory
+    // REQUIRED — Pricing and Inventory
     fd.append("basePrice", String(formData.basePrice || 0));
     fd.append("mrp", String(formData.mrp || formData.basePrice || 0));
     fd.append("stockQuantity", String(formData.stockQuantity || 0));
     
-    // ✅ ADD MISSING PRICING FIELDS
+    // ADD MISSING PRICING FIELDS
     fd.append("taxRate", String(formData.taxRate || 0));
     fd.append("sku", formData.sku || "");
     fd.append("barcode", formData.barcode || "");
@@ -330,9 +360,29 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     fd.append("meta", JSON.stringify(formData.meta || {}));
     fd.append("linkedProducts", JSON.stringify(formData.linkedProducts || []));
 
-    // 🔹 Variants
+    // 🔹 Variants - IMPORTANT: Clean variants before sending
+    const cleanedVariants = formData.variants.map(variant => {
+      const cleanedVariant = { ...variant };
+      
+      // Handle thumbnail - remove if it's empty (for file upload)
+      if (cleanedVariant.images?.thumbnail) {
+        // If thumbnail has a file but no URL, keep it (backend will handle upload)
+        // If it has a URL, use it
+        // If it's empty, check if there's a file in uploadedFiles
+      }
+      
+      // Handle gallery - filter out empty URLs
+      if (cleanedVariant.images?.gallery) {
+        cleanedVariant.images.gallery = cleanedVariant.images.gallery.filter(
+          (img: any) => img && img.url && img.url.trim() !== ""
+        );
+      }
+      
+      return cleanedVariant;
+    });
+
     fd.append("variantConfiguration", JSON.stringify(formData.variantConfiguration || {}));
-    fd.append("variants", JSON.stringify(formData.variants || []));
+fd.append("variants", JSON.stringify(cleanedVariants));
 
     // 🔹 Manufacturer images
     fd.append("manufacturerImages", JSON.stringify(formData.manufacturerImages || []));
@@ -396,16 +446,12 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     fd.append("dimensions", JSON.stringify(formData.dimensions || {}));
     fd.append("weight", JSON.stringify(formData.weight || {}));
 
-    for (let [key, value] of fd.entries()) {
-      if (typeof value === 'string') {
-      } else {
-      }
-    }
-
-    const requiredFields = ['taxRate', 'hsn', 'sku', 'barcode', 'warranty', 'notes', 'label'];
-    requiredFields.forEach(field => {
-      const value = formData[field as keyof ProductFormData];
-    });
+    // Debug: Log what we're sending
+    console.log("Sending variants:", cleanedVariants.map(v => ({
+      name: v.name,
+      thumbnail: v.images?.thumbnail,
+      gallery: v.images?.gallery
+    })));
 
     await onSubmit(fd);
 

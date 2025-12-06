@@ -3,7 +3,7 @@ const User = require('../models/userModel');
 const ErrorHandler = require('../utils/errorHandler');
 const sendToken = require('../utils/jwt');
 const crypto = require('crypto');
-const n8nService = require('../services/n8nService');
+const N8NService = require('../services/n8nService');
 const fs = require('fs');
 const Order = require('../models/orderModel');
 const path = require('path');
@@ -30,6 +30,7 @@ const verifyGoogleToken = async (accessToken) => {
             photo: payload.picture,
             emailVerified: payload.email_verified
         };
+
     } catch (error) {
         throw new Error('Invalid Google token');
     }
@@ -83,19 +84,23 @@ exports.registerUser = catchAsyncError(async (req, res, next) => {
         const verificationToken = user.generateEmailVerificationToken();
         await user.save();
 
-        // Send verification email via n8n (fire and forget)
-        n8nService.sendEmailVerification(user, verificationToken)
-            .then(result => {
-                if (result.success) {
-                } else if (result.skipped) {
-                } else {
-                }
-            })
-            .catch(error => {
-                console.error(`❌ Background email error for ${user.email}:`, error.message);
-            });
+        // 1️⃣ respond immediately
+        res.status(201).json({
+            success: true,
+            message: "Account created successfully",
+            user: {
+                _id: user._id,
+                email: user.email,
+                firstName: user.firstName,
+            }
+        });
 
-        sendToken(user, 201, res, 'Registration successful. Please check your email for verification.');
+        N8NService.run("welcomeEmail", {
+            event: "welcomeEmail",
+            email: user.email,
+            firstName: user.firstName,
+            userId: user._id.toString()
+        }).catch(err => console.error("n8n trigger failed:", err));
 
     } catch (error) {
         console.error('❌ Registration error details:', error);
@@ -147,38 +152,39 @@ exports.loginUser = catchAsyncError(async (req, res, next) => {
     }
 
     sendToken(user, 200, res, 'Login successful');
+
 });
 
-// controllers/authController.js - IMPROVED VERSION
 exports.googleAuth = catchAsyncError(async (req, res, next) => {
     const { credential } = req.body;
-
-    if (!credential) {
-        return next(new ErrorHandler('Google credential is required', 400));
-    }
+    if (!credential) return next(new ErrorHandler("Google credential is required", 400));
 
     try {
         const profile = await verifyGoogleToken(credential);
 
         if (!profile || !profile.id || !profile.email) {
-            return next(new ErrorHandler('Invalid Google profile data', 400));
+            return next(new ErrorHandler("Invalid Google profile data", 400));
         }
 
-        // ✅ FIX: Use findOrCreateGoogleUser which handles social login users properly
         const user = await User.findOrCreateGoogleUser(profile);
+        const isNewUser = user._wasNew === true;
 
-        sendToken(user, 200, res, 'Google login successful');
+        // ONE RESPONSE ONLY
+        sendToken(user, 200, res, "Google login successful");
+
+        // N8NService.run("welcomeEmail", {
+        //     event: "welcomeEmail",
+        //     email: user.email,
+        //     firstName: user.firstName,
+        //     userId: user._id.toString()
+        // }).catch(err => console.error("n8n trigger failed:", err));
 
     } catch (error) {
-        console.error('Google auth error:', error);
-
-        if (error.name === 'ValidationError') {
-            return next(new ErrorHandler('User validation failed: ' + error.message, 400));
-        }
-
-        return next(new ErrorHandler('Google authentication failed', 401));
+        console.error("Google auth error:", error);
+        return next(new ErrorHandler("Google authentication failed", 401));
     }
 });
+
 
 // Logout user
 exports.logout = catchAsyncError(async (req, res, next) => {
@@ -262,7 +268,6 @@ exports.resendVerification = catchAsyncError(async (req, res, next) => {
 
 // ==================== PASSWORD MANAGEMENT CONTROLLERS ====================
 
-// Forgot password
 exports.forgotPassword = catchAsyncError(async (req, res, next) => {
     const { email } = req.body;
 
@@ -275,25 +280,68 @@ exports.forgotPassword = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('Password reset not available for Google login users', 400));
     }
 
+    // Check for active reset token
+    if (user.resetPasswordToken && user.resetPasswordTokenExpire > Date.now()) {
+        return next(new ErrorHandler('A password reset email was already sent. Please check your email or wait 30 minutes.', 400));
+    }
+
     const resetToken = user.generatePasswordResetToken();
     await user.save();
 
-    await n8nService.sendPasswordReset(user, resetToken);
+    // Send to n8n - make sure resetToken is the unhashed token
+    N8NService.run("forgotPassword", {
+        event: "forgotPassword",
+        email: user.email,
+        firstName: user.firstName,
+        resetToken: resetToken // This is the unhashed token
+    });
 
     res.status(200).json({
         success: true,
         message: 'Password reset email sent successfully'
     });
 });
+// Add this to your authController.js
+exports.verifyResetToken = catchAsyncError(async (req, res, next) => {
+    const { token } = req.query;
 
-// Reset password
-exports.resetPassword = catchAsyncError(async (req, res, next) => {
-    const { token, userId, newPassword } = req.body;
+    if (!token) {
+        return next(new ErrorHandler('Reset token is required', 400));
+    }
 
+    // Hash the token to compare with stored hash
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await User.findOne({
-        _id: userId,
+        resetPasswordToken: hashedToken,
+        resetPasswordTokenExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        return next(new ErrorHandler('Password reset token is invalid or has expired', 400));
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Token is valid',
+        data: {
+            email: user.email,
+            firstName: user.firstName
+        }
+    });
+});
+// authController.js - resetPassword should NOT use authentication
+exports.resetPassword = catchAsyncError(async (req, res, next) => {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+        return next(new ErrorHandler('Token and password are required', 400));
+    }
+
+    // Hash the token from the request
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
         resetPasswordToken: hashedToken,
         resetPasswordTokenExpire: { $gt: Date.now() }
     }).select('+password');
@@ -302,12 +350,18 @@ exports.resetPassword = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('Invalid or expired reset token', 400));
     }
 
-    user.password = newPassword;
+    // Set new password
+    user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordTokenExpire = undefined;
+
     await user.save();
 
-    sendToken(user, 200, res, 'Password reset successfully');
+    // Send response (don't use sendToken if it requires auth)
+    res.status(200).json({
+        success: true,
+        message: 'Password has been reset successfully'
+    });
 });
 
 // Update password (authenticated)

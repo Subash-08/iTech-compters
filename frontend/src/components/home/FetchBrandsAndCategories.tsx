@@ -93,7 +93,7 @@ const HomePage: React.FC = () => {
 const getImageUrl = (url: string | null | undefined) => {
   // Check if url is valid
   if (!url || typeof url !== 'string') {
-    return 'https://placehold.co/300x300?text=No+Image';
+    return '';
   }
 
   // Already full URL (e.g., Cloudinary)
@@ -122,7 +122,7 @@ const getImageUrl = (url: string | null | undefined) => {
           alt={product.name}
           className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
           onError={(e) => {
-            e.currentTarget.src = 'https://placehold.co/300x300?text=Product+Image';
+            e.currentTarget.src = '';
           }}
         />
         {product.discountPercentage && product.discountPercentage > 0 && (
