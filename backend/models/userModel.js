@@ -93,7 +93,7 @@ const userSchema = new mongoose.Schema({
     // ==================== EMAIL VERIFICATION (For n8n) ====================
     emailVerified: {
         type: Boolean,
-        default: false
+        default: true
     },
     emailVerificationToken: {
         type: String,

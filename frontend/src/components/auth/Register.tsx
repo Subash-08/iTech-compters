@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { register, clearError } from '../../redux/actions/authActions';
+import { toast } from 'react-toastify';
 
 const Register: React.FC = () => {
     const [formData, setFormData] = useState({
@@ -96,49 +97,43 @@ const Register: React.FC = () => {
         setAvatarPreview('');
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        // Validation
-        if (formData.password !== formData.confirmPassword) {
-            dispatch(clearError());
-            return;
-        }
+// In Register.tsx, update the handleSubmit function:
+const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation
+    if (formData.password !== formData.confirmPassword) {
+        dispatch(clearError());
+        return;
+    }
 
-        if (formData.password.length < 8) {
-            return;
-        }
+    if (formData.password.length < 8) {
+        return;
+    }
 
-        const { confirmPassword, ...registerData } = formData;
-        
-        // Create FormData for file upload
-        const submitData = new FormData();
-        submitData.append('firstName', registerData.firstName);
-        submitData.append('lastName', registerData.lastName);
-        submitData.append('email', registerData.email);
-        submitData.append('password', registerData.password);
-        
-        if (avatar) {
-            submitData.append('avatar', avatar);
-        }
+    const { confirmPassword, ...registerData } = formData;
+    
+    // Create FormData for file upload
+    const submitData = new FormData();
+    submitData.append('firstName', registerData.firstName);
+    submitData.append('lastName', registerData.lastName);
+    submitData.append('email', registerData.email);
+    submitData.append('password', registerData.password);
+    
+    if (avatar) {
+        submitData.append('avatar', avatar);
+    }
 
-        const result = await dispatch(register(submitData));
+    const result = await dispatch(register(submitData));
+    
+    if (result.success) {
+        // ✅ AUTO-LOGIN: Redirect to home/dashboard instead of showing verification
+        navigate('/', { replace: true });
         
-        if (result.success) {
-            // ✅ Show verification message instead of redirecting
-            setVerificationSent(true);
-            setFormData({ 
-                firstName: '', 
-                lastName: '', 
-                email: '', 
-                password: '', 
-                confirmPassword: '' 
-            });
-            setAvatar(null);
-            setAvatarPreview('');
-        }
-    };
-
+        // Optional: Show success toast
+        toast.success('Registration successful!');
+    }
+};
 
 
     // ✅ Show verification success message

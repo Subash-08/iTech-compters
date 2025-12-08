@@ -84,17 +84,11 @@ exports.registerUser = catchAsyncError(async (req, res, next) => {
         const verificationToken = user.generateEmailVerificationToken();
         await user.save();
 
-        // 1️⃣ respond immediately
-        res.status(201).json({
-            success: true,
-            message: "Account created successfully",
-            user: {
-                _id: user._id,
-                email: user.email,
-                firstName: user.firstName,
-            }
-        });
+        // ✅ FIX: Use sendToken instead of manual response
+        // This will set the cookie and return token
+        sendToken(user, 201, res, 'Account created successfully');
 
+        // Send welcome email (async, after response)
         N8NService.run("welcomeEmail", {
             event: "welcomeEmail",
             email: user.email,

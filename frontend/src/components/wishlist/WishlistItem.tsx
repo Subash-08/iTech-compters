@@ -12,69 +12,76 @@ interface WishlistItemProps {
   onRemove: (itemId: string, productType: 'product' | 'prebuilt-pc') => void;
 }
 
-// Helper function to get full image URL
+// Helper function to get full image URL - FIXED VERSION
 const getFullImageUrl = (url: string): string => {
-  if (!url) return 'https://via.placeholder.com/300x300/e5e7eb/374151?text=Product';
   
-  // If it's already a full URL, return as is
+  if (!url || url.trim() === '') {
+    return '/images/placeholder-product.jpg';
+  }
+  
+  // 1. Handle live server URLs - CONVERT TO LOCAL
+  if (url.includes('itech-compters.onrender.com')) {
+    // Extract the path from the live URL
+    const urlObj = new URL(url);
+    const path = urlObj.pathname;
+    
+    // Use local server instead
+    const LOCAL_API_URL = 'http://localhost:5000'; // Your local backend
+    return `${LOCAL_API_URL}${path}`;
+  }
+  
+  // 2. Handle other external URLs (keep as-is but log)
   if (url.startsWith('http://') || url.startsWith('https://')) {
+    
+    // Optionally convert any other external URLs to local
+    if (url.includes('render.com') || url.includes('onrender.com')) {
+      const urlObj = new URL(url);
+      const path = urlObj.pathname;
+      const LOCAL_API_URL = 'http://localhost:5000';
+      return `${LOCAL_API_URL}${path}`;
+    }
+    
     return url;
   }
   
-  // If it's a data URL, return as is
+  // 3. Handle data URLs
   if (url.startsWith('data:')) {
     return url;
   }
   
-  // Add your API base URL - adjust as needed
-  const API_BASE_URL = process.env.REACT_APP_API_URL || baseURL;
-  
-  // Remove trailing slash from base URL if present
-  const cleanBaseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
-  
-  // Handle different URL formats
+  // 4. Handle relative paths - prepend local API URL
+  const LOCAL_API_URL = process.env.REACT_APP_API_URL || baseURL;
+  const cleanBaseUrl = LOCAL_API_URL.endsWith('/') ? LOCAL_API_URL.slice(0, -1) : LOCAL_API_URL;
+    
   if (url.startsWith('/uploads/')) {
-    return `${cleanBaseUrl}${url}`;
+    const fullUrl = `${cleanBaseUrl}${url}`;
+    return fullUrl;
   }
   
   if (url.startsWith('/')) {
-    return `${cleanBaseUrl}${url}`;
+    const fullUrl = `${cleanBaseUrl}${url}`;
+    return fullUrl;
   }
   
-  // If it's just a filename, assume it's in the products folder
+  // 5. Handle filenames only
   if (!url.includes('/')) {
-    return `${cleanBaseUrl}/uploads/products/${url}`;
+    const fullUrl = `${cleanBaseUrl}/uploads/products/${url}`;
+    return fullUrl;
   }
-  
-  // Default fallback
-  return `${cleanBaseUrl}/${url}`;
+  return '/images/placeholder-product.jpg';
 };
+
 
 const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
   const dispatch = useAppDispatch();
 
-  // Debug log to see the data structure
-  React.useEffect(() => {
-    console.log('🔍 Wishlist Item Data:', {
-      itemId: item._id,
-      productType: item.productType,
-      productName: item.product?.name,
-      variant: item.variant,
-      productData: item.product,
-      hasPriceInProduct: (item.product as any)?.price !== undefined,
-      productKeys: Object.keys(item.product || {})
-    });
-  }, [item]);
 
-  const handleRemove = () => {
-    console.log('🗑️ Removing wishlist item:', {
-      wishlistItemId: item._id,
-      productId: item.product._id,
-      productType: item.productType
-    });
+// In WishlistItem.tsx - FIXED handleRemove function
+const handleRemove = () => {
     
-    onRemove(item.product._id, item.productType || 'product');
-  };
+    // ✅ FIXED: Pass item._id (wishlist item ID), not product._id
+    onRemove(item._id, item.productType || 'product');
+};
 
   const handleMoveToCart = async () => {
     try {
@@ -210,6 +217,7 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
     };
   };
 
+
   const { price, mrp, discountPercentage, name, image } = getDisplayData();
   const hasDiscount = discountPercentage > 0;
   const productSlug = item.productType === 'prebuilt-pc' 
@@ -259,16 +267,18 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
       {/* Product Image */}
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
         <Link to={productSlug} className="block w-full h-full">
-          <img
-            src={image}
-            alt={name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onError={(e) => { 
-              console.error('🖼️ Image failed to load:', image);
-              e.currentTarget.src = `https://via.placeholder.com/300x300/e5e7eb/374151?text=${encodeURIComponent(name.substring(0, 10))}`;
-              e.currentTarget.classList.add('bg-gray-200');
-            }}
-          />
+
+<img
+  src={image}
+  alt={name}
+  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+  onError={(e) => { 
+    console.error('🖼️ Image failed to load:', image);
+    // Use local placeholder instead of external URL
+    e.currentTarget.src = `/images/placeholder-product.jpg`;
+    e.currentTarget.classList.add('bg-gray-200');
+  }}
+/>
         </Link>
         
         {/* Remove Button */}

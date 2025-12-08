@@ -500,8 +500,76 @@ exports.getProductVariants = catchAsyncErrors(async (req, res, next) => {
 
     res.status(200).json({ success: true, variants: product.variants || [] });
 });
+;
 
+// 🆕 ADD: Process variant images for create (same as update)
+const processVariantImages = (req, variants) => {
 
+    if (!Array.isArray(variants)) {
+        console.error('❌ processVariantImages: variants is not an array');
+        return variants;
+    }
+
+    // Process simple field names: variantThumbnail_0, variantGallery_0_0, etc.
+    const variantFiles = {};
+
+    if (req.files) {
+        Object.keys(req.files).forEach(fieldName => {
+            // Handle variantThumbnail_0
+            if (fieldName.startsWith('variantThumbnail_')) {
+                const variantIndex = parseInt(fieldName.replace('variantThumbnail_', ''));
+                if (!isNaN(variantIndex) && variantIndex < variants.length) {
+                    const file = req.files[fieldName][0];
+                    if (!variantFiles[variantIndex]) variantFiles[variantIndex] = { thumbnail: null, gallery: [] };
+                    variantFiles[variantIndex].thumbnail = file;
+                }
+            }
+
+            // Handle variantGallery_0_0
+            if (fieldName.startsWith('variantGallery_')) {
+                const parts = fieldName.split('_');
+                if (parts.length >= 3) {
+                    const variantIndex = parseInt(parts[1]);
+                    const fileIndex = parseInt(parts[2]);
+                    if (!isNaN(variantIndex) && variantIndex < variants.length) {
+                        const file = req.files[fieldName][0];
+                        if (!variantFiles[variantIndex]) variantFiles[variantIndex] = { thumbnail: null, gallery: [] };
+                        variantFiles[variantIndex].gallery.push(file);
+                    }
+                }
+            }
+        });
+    }
+    return variants.map((variant, index) => {
+        const updatedVariant = { ...variant };
+
+        if (!updatedVariant.images) {
+            updatedVariant.images = { gallery: [] };
+        }
+
+        // Apply thumbnail if exists
+        if (variantFiles[index]?.thumbnail) {
+            const file = variantFiles[index].thumbnail;
+            updatedVariant.images.thumbnail = {
+                url: `/uploads/products/${file.filename}`,
+                altText: updatedVariant.images?.thumbnail?.altText || variant.name || 'Variant thumbnail'
+            };
+        }
+        if (variantFiles[index]?.gallery && variantFiles[index].gallery.length > 0) {
+            const newGallery = variantFiles[index].gallery.map(file => ({
+                url: `/uploads/products/${file.filename}`,
+                altText: file.originalname.split('.')[0] || `Variant ${index} gallery image`
+            }));
+            const existingGallery = updatedVariant.images.gallery || [];
+            updatedVariant.images.gallery = [
+                ...existingGallery,
+                ...newGallery
+            ];
+        }
+
+        return updatedVariant;
+    });
+};
 
 exports.createProduct = catchAsyncErrors(async (req, res, next) => {
     const parseJSON = (field, fallback) => {
@@ -515,6 +583,10 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
             return fallback;
         }
     };
+    if (!processProductImages || !processManufacturerImages || !processVariantImages) {
+        console.error('❌ Missing required image processing functions');
+        return next(new ErrorHandler("Server configuration error", 500));
+    }
 
     const parseNumber = (value, fieldName, { required = false, min = 0 } = {}) => {
         if (value === undefined || value === null || value === "") {
@@ -678,10 +750,18 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
             );
         }
 
+        // 🆕 PROCESS VARIANT IMAGES FROM FILES
+        let variantsWithImages = variantsInput;
+        try {
+            variantsWithImages = processVariantImages(req, variantsInput);
+        } catch (error) {
+            console.warn('Failed to process variant images:', error.message);
+        }
+
         const seenNames = new Set();
 
-        for (let i = 0; i < variantsInput.length; i++) {
-            const v = variantsInput[i];
+        for (let i = 0; i < variantsWithImages.length; i++) {
+            const v = variantsWithImages[i];
 
             const variantName = v.name?.trim();
             if (!variantName) {
@@ -709,7 +789,6 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
                         min: 0
                     });
                     if (mrp < price) {
-                        // Medium strictness: auto-correct instead of throwing
                         mrp = price;
                     }
                 } else {
@@ -728,33 +807,57 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
                 return next(new ErrorHandler(err.message, 400));
             }
 
-            // Variant images mapping
             const variantImages = {
-                thumbnail: productImages.thumbnail, // default
+                thumbnail: null,
                 gallery: []
             };
 
+            // Check for variant-specific images
             if (v.images && typeof v.images === "object") {
-                if (v.images.thumbnail?.url) {
-                    variantImages.thumbnail = v.images.thumbnail.url;
+                // Thumbnail
+                if (v.images.thumbnail) {
+                    if (typeof v.images.thumbnail === 'object' && v.images.thumbnail.url) {
+                        variantImages.thumbnail = {
+                            url: v.images.thumbnail.url,
+                            altText: v.images.thumbnail.altText || `Variant ${variantName} thumbnail`
+                        };
+                    } else if (typeof v.images.thumbnail === 'string' && v.images.thumbnail.trim() !== '') {
+                        variantImages.thumbnail = {
+                            url: v.images.thumbnail,
+                            altText: `Variant ${variantName} thumbnail`
+                        };
+                    }
                 }
 
+                // Gallery
                 if (Array.isArray(v.images.gallery) && v.images.gallery.length > 0) {
-                    variantImages.gallery = v.images.gallery.map((img) => ({
+                    variantImages.gallery = v.images.gallery
+                        .filter(img => img && (typeof img === 'object' ? img.url : img))
+                        .map((img) => ({
+                            url: typeof img === 'object' ? img.url : img,
+                            altText: (typeof img === 'object' ? img.altText : `Variant ${variantName} image`) ||
+                                `Variant ${variantName} image`
+                        }));
+                }
+            }
+
+            // 🆕 ONLY fallback to product images if variant has NO images at all
+            const hasVariantImages = variantImages.thumbnail || variantImages.gallery.length > 0;
+
+            if (!hasVariantImages && productImages.thumbnail?.url) {
+                // Use product thumbnail as fallback
+                variantImages.thumbnail = {
+                    url: productImages.thumbnail.url,
+                    altText: `Variant ${variantName} - ${productImages.thumbnail.altText}`
+                };
+
+                // Use product gallery as fallback
+                if (productImages.gallery.length > 0) {
+                    variantImages.gallery = productImages.gallery.map((img, index) => ({
                         url: img.url,
-                        altText: img.altText || `Variant ${variantName} image`
-                    }));
-                } else if (productImages.gallery.length > 0) {
-                    variantImages.gallery = productImages.gallery.map((img) => ({
-                        url: img.url,
-                        altText: img.altText || `Variant ${variantName} image`
+                        altText: `Variant ${variantName} - ${img.altText}`
                     }));
                 }
-            } else if (productImages.gallery.length > 0) {
-                variantImages.gallery = productImages.gallery.map((img) => ({
-                    url: img.url,
-                    altText: img.altText || `Variant ${variantName} image`
-                }));
             }
 
             processedVariants.push({
@@ -771,7 +874,7 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
                 specifications: Array.isArray(v.specifications)
                     ? v.specifications
                     : [],
-                images: variantImages
+                images: variantImages  // 🆕 Now contains variant-specific images
             });
         }
     }

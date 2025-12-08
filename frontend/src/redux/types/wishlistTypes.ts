@@ -99,6 +99,7 @@ export interface AddToWishlistData {
     sku?: string;
   };
   productType?: 'product' | 'prebuilt-pc';
+   product?: any;
 }
 
 export interface RemoveFromWishlistData {

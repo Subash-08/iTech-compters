@@ -134,6 +134,53 @@ const VariantItem: React.FC<VariantItemProps> = ({
     const updatedAttributes = (variant.identifyingAttributes || []).filter((_, i) => i !== attrIndex);
     handleVariantChange('identifyingAttributes', updatedAttributes);
   };
+  const handleThumbnailFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    // Create a preview URL
+    const previewUrl = URL.createObjectURL(file);
+    
+    // Update variant with both file and preview
+    onVariantChange({
+      ...variant,
+      images: {
+        ...variant.images,
+        thumbnail: {
+          url: previewUrl,
+          altText: variant.images?.thumbnail?.altText || file.name
+        }
+      },
+      _thumbnailFile: file // Store the actual file for FormData
+    });
+  }
+};
+
+const handleGalleryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const files = Array.from(e.target.files || []);
+  if (files.length > 0) {
+    const newGalleryImages = files.map(file => ({
+      url: URL.createObjectURL(file),
+      altText: file.name,
+      _fileUpload: file // Store actual file
+    }));
+
+    // Store files separately
+    const currentFiles = variant._galleryFiles || [];
+    
+    // Update variant
+    onVariantChange({
+      ...variant,
+      images: {
+        ...variant.images,
+        gallery: [
+          ...(variant.images.gallery || []),
+          ...newGalleryImages
+        ]
+      },
+      _galleryFiles: [...currentFiles, ...files]
+    });
+  }
+};
 
   const getColorHexCode = (colorName: string): string => {
     const colorMap: { [key: string]: string } = {
@@ -379,56 +426,79 @@ const VariantItem: React.FC<VariantItemProps> = ({
         <label className="block text-sm font-medium text-gray-700">Variant Images</label>
         
         {/* Thumbnail */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h5 className="text-sm font-medium text-gray-700 mb-3">Thumbnail Image</h5>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Thumbnail URL</label>
-              <input
-                type="text"
-                value={variant.images?.thumbnail?.url || ''}
-                onChange={(e) => handleNestedChange('images', 'thumbnail', {
-                  ...variant.images?.thumbnail,
-                  url: e.target.value
-                })}
-                onKeyDown={handleKeyDown}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                placeholder="https://example.com/image.jpg"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Alt Text</label>
-              <input
-                type="text"
-                value={variant.images?.thumbnail?.altText || ''}
-                onChange={(e) => handleNestedChange('images', 'thumbnail', {
-                  ...variant.images?.thumbnail,
-                  altText: e.target.value
-                })}
-                onKeyDown={handleKeyDown}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                placeholder="Product variant image"
-              />
-            </div>
-          </div>
-          
-          {/* Thumbnail Preview */}
-      {(variant.images?.thumbnail?.url || baseThumbnail?.url) && (
-        <div className="mt-3">
-          <label className="block text-xs text-gray-600 mb-1">Preview</label>
-          <div className="w-20 h-20 border border-gray-300 rounded-lg overflow-hidden">
-            <img
-              src={getThumbnailUrl()}  // 🆕 Use getThumbnailUrl
-              alt={variant.images?.thumbnail?.altText || baseThumbnail?.altText}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCA0MEM0Mi4yMDkxIDQwIDQ0IDQxLjc5MDkgNDQgNDRDNDQgNDYuMjA5MSA0Mi4yMDkxIDQ4IDQwIDQ4QzM3Ljc5MDkgNDggMzYgNDYuMjA5MSAzNiA0NEMzNiA0MS43OTA5IDM3Ljc5MDkgNDAgNDAgNDBaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik01MiAzNkM1MiAzNC44OTU0IDUxLjEwNDYgMzQgNTAgMzRMMzAgMzRDMjguODk1NCAzNCAyOCAzNC44OTU0IDI4IDM2TDI4IDUyQzI4IDUzLjEwNDYgMjguODk1NCA1NCAzMCA1NEw1MCA1NEM1MS4xMDQ2IDU0IDUyIDUzLjEwNDYgNTIgNTJMNjIgNDJMNjIgNTJDNjIgNTMuMTA0NiA2Mi44OTU0IDU0IDY0IDU0QzY1LjEwNDYgNTQgNjYgNTMuMTA0NiA2NiA1Mkw2NiAzNkM2NiAzNC44OTU0IDY1LjEwNDYgMzQgNjQgMzRMNTIgMzRaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
-              }}
-            />
-          </div>
-        </div>
-      )}
-        </div>
+<div className="bg-gray-50 p-4 rounded-lg">
+  <h5 className="text-sm font-medium text-gray-700 mb-3">Thumbnail Image</h5>
+    {/* Thumbnail Preview */}
+  {getThumbnailUrl() && (
+    <div className="mb-3">
+      <label className="block text-xs text-gray-600 mb-1">Preview</label>
+      <div className="w-32 h-32 border border-gray-300 rounded-lg overflow-hidden">
+        <img
+          src={getThumbnailUrl()}
+          alt="Thumbnail preview"
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zMiAzMkMzMy42NTQ4IDMyIDM1IDMzLjM0NTIgMzUgMzVDMzUgMzYuNjU0OCAzMy42NTQ4IDM4IDMyIDM4QzMwLjM0NTIgMzggMjkgMzYuNjU0OCAyOSAzNUMyOSAzMy4zNDUyIDMwLjM0NTIgMzIgMzIgMzJaIiBmaWxsPSIjOEE4QThBIi8+CjxwYXRoIGQ9Ik00MiAyNEM0MiAyMi44OTU0IDQxLjEwNDYgMjIgNDAgMjJMMzIgMjJDMzAuODk1NCAyMiAzMCAyMi44OTU0IDMwIDI0TDMwIDM2QzMwIDM3LjEwNDYgMzAuODk1NCAzOCAzMiAzOEw0MCAzOEM0MS4wNDU2IDM4IDQyIDM3LjEwNDYgNDIgMzZMNDIgMjRaIiBmaWxsPSIjOEE4QThBIi8+Cjwvc3ZnPgo=';
+          }}
+        />
+      </div>
+    </div>
+  )}
+  {/* File Upload Option */}
+  <div className="mb-3">
+    <label className="block text-xs text-gray-600 mb-1">Upload Thumbnail</label>
+    <input
+      type="file"
+      accept="image/*"
+      onChange={handleThumbnailFileChange}
+      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+    />
+  </div>
+  
+  {/* Or URL Input */}
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <label className="block text-xs text-gray-600 mb-1">Or Enter URL</label>
+      <input
+        type="text"
+        value={variant.images?.thumbnail?.url || ''}
+        onChange={(e) => handleNestedChange('images', 'thumbnail', {
+          ...variant.images?.thumbnail,
+          url: e.target.value
+        })}
+        onKeyDown={handleKeyDown}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+        placeholder="https://example.com/image.jpg"
+      />
+    </div>
+    <div>
+      <label className="block text-xs text-gray-600 mb-1">Alt Text</label>
+      <input
+        type="text"
+        value={variant.images?.thumbnail?.altText || ''}
+        onChange={(e) => handleNestedChange('images', 'thumbnail', {
+          ...variant.images?.thumbnail,
+          altText: e.target.value
+        })}
+        onKeyDown={handleKeyDown}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+        placeholder="Product variant image"
+      />
+    </div>
+  </div>
+  
+  {/* File upload for gallery */}
+  <div className="mt-4">
+    <label className="block text-xs text-gray-600 mb-1">Upload Gallery Images</label>
+    <input
+      type="file"
+      accept="image/*"
+      multiple
+      onChange={handleGalleryFileChange}
+      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+    />
+  </div>
+</div>
 
         {/* Gallery Images */}
         <div className="bg-gray-50 p-4 rounded-lg">

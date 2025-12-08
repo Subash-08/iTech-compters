@@ -3,6 +3,8 @@ const ErrorHandler = require('../utils/errorHandler');
 const PCQuote = require('../models/customPCQuote');
 const Product = require('../models/productModel');
 const Category = require('../models/categoryModel');
+const PCRequirements = require('../models/PCRequirements');
+const N8NService = require('../services/n8nService');
 
 // Get PC builder configuration
 exports.getPCBuilderConfig = catchAsyncErrors(async (req, res, next) => {
@@ -265,6 +267,7 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
     // Validate and enrich components
     const enrichedComponents = [];
     const seenProducts = new Set();
+    let totalPrice = 0;
 
     for (const [index, component] of components.entries()) {
         // Basic component validation
@@ -292,7 +295,7 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
 
             try {
                 const product = await Product.findById(component.productId)
-                    .select('name basePrice mrp images slug')
+                    .select('name basePrice mrp images slug stockStatus')
                     .lean();
 
                 if (!product) {
@@ -307,6 +310,9 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
                 enrichedComponent.productPrice = product.basePrice;
                 enrichedComponent.productImage = product.images?.thumbnail?.url || '';
                 enrichedComponent.productSlug = product.slug;
+
+                // Add to total price
+                totalPrice += product.basePrice || 0;
 
             } catch (error) {
                 console.error('Error fetching product:', error);
@@ -332,18 +338,68 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
             notes: customer.notes ? customer.notes.trim() : ''
         },
         components: enrichedComponents,
+        totalEstimated: totalPrice,
         ipAddress: req.ip,
         userAgent: req.get('User-Agent'),
         source: metadata.source || 'web',
         ...metadata
     });
 
+    // Trigger N8N workflow for quote generation asynchronously
+    // Don't await to avoid delaying the response
+    N8NService.run("pcQuoteGenerated", {
+        event: "pcQuoteGenerated",
+        quoteId: pcQuote._id.toString(),
+        customerName: pcQuote.customer.name,
+        customerEmail: pcQuote.customer.email,
+        customerPhone: pcQuote.customer.phone || '',
+        totalEstimated: pcQuote.totalEstimated,
+        status: pcQuote.status,
+        quoteExpiry: pcQuote.quoteExpiry.toISOString(),
+        componentCount: pcQuote.components.filter(c => c.selected).length,
+        components: pcQuote.components
+            .filter(c => c.selected)
+            .map(c => ({
+                category: c.category,
+                productName: c.productName,
+                productPrice: c.productPrice
+            })),
+        createdAt: pcQuote.createdAt.toISOString(),
+        ipAddress: pcQuote.ipAddress,
+        source: pcQuote.source
+    }).then(result => {
+        if (!result.success && !result.skipped) {
+            console.error('N8N pcQuoteGenerated workflow failed:', result.error);
+        } else if (result.skipped) {
+            console.warn('N8N pcQuoteGenerated skipped:', result.reason);
+        } else {
+            console.log('N8N pcQuoteGenerated triggered successfully');
+        }
+    }).catch(err => {
+        console.error('Unexpected error triggering N8N:', err);
+    });
+
+    // Also trigger requirements confirmation if this is from the form
+    if (metadata.source === 'requirements_form' || req.body.requirementId) {
+        N8NService.run("pcRequirementsConfirmation", {
+            event: "pcRequirementsConfirmation",
+            email: pcQuote.customer.email,
+            customerName: pcQuote.customer.name,
+            quoteId: pcQuote._id.toString(),
+            totalEstimated: pcQuote.totalEstimated,
+            requirementId: req.body.requirementId || pcQuote._id.toString(),
+            estimatedContactTime: "24 hours",
+            submittedAt: pcQuote.createdAt.toISOString()
+        }).catch(err => console.error("N8N pcRequirementsConfirmation failed:", err));
+    }
+
     res.status(201).json({
         success: true,
         message: 'Your PC quote request has been submitted successfully! We will contact you within 24 hours.',
         quoteId: pcQuote._id,
         totalEstimated: pcQuote.totalEstimated,
-        expiresIn: pcQuote.daysUntilExpiry
+        expiresIn: pcQuote.daysUntilExpiry,
+        quoteExpiry: pcQuote.quoteExpiry
     });
 });
 
@@ -745,3 +801,314 @@ exports.extendQuoteExpiry = catchAsyncErrors(async (req, res, next) => {
         newExpiry: quote.quoteExpiry
     });
 });
+
+exports.submitPCRequirements = async (req, res) => {
+    try {
+        const {
+            customer,
+            requirements,
+            source = 'requirements_form',
+            metadata = {}
+        } = req.body;
+
+        // Validate required fields
+        if (!customer || !customer.name || !customer.email || !customer.phone || !customer.city) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide all required customer information'
+            });
+        }
+
+        if (!requirements || !requirements.purpose || !requirements.budget ||
+            !requirements.paymentPreference || !requirements.deliveryTimeline) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide all required PC requirements'
+            });
+        }
+
+        // Create new requirements document
+        const pcRequirements = new PCRequirements({
+            customer: {
+                name: customer.name.trim(),
+                email: customer.email.trim().toLowerCase(),
+                phone: customer.phone.trim(),
+                city: customer.city.trim(),
+                additionalNotes: customer.additionalNotes || ''
+            },
+            requirements: {
+                purpose: requirements.purpose,
+                purposeCustom: requirements.purposeCustom || '',
+                budget: requirements.budget,
+                budgetCustom: requirements.budgetCustom || '',
+                paymentPreference: requirements.paymentPreference,
+                deliveryTimeline: requirements.deliveryTimeline,
+                timelineCustom: requirements.timelineCustom || ''
+            },
+            source,
+            metadata: {
+                ipAddress: req.ip || metadata.ipAddress,
+                userAgent: req.get('User-Agent') || metadata.userAgent,
+                deviceType: metadata.deviceType || 'web'
+            }
+        });
+
+        await pcRequirements.save();
+
+        // Trigger N8N workflows asynchronously
+        // Admin notification
+        N8NService.run("pcRequirementsSubmitted", {
+            event: "pcRequirementsSubmitted",
+            requirementId: pcRequirements._id.toString(),
+            customerName: pcRequirements.customer.name,
+            customerEmail: pcRequirements.customer.email,
+            customerPhone: pcRequirements.customer.phone,
+            customerCity: pcRequirements.customer.city,
+            purpose: pcRequirements.requirements.purpose,
+            budget: pcRequirements.requirements.budget,
+            paymentPreference: pcRequirements.requirements.paymentPreference,
+            deliveryTimeline: pcRequirements.requirements.deliveryTimeline,
+            additionalNotes: pcRequirements.customer.additionalNotes,
+            source: pcRequirements.source,
+            createdAt: pcRequirements.createdAt,
+            status: pcRequirements.status
+        }).catch(err => console.error("N8N pcRequirementsSubmitted failed:", err));
+
+        // Customer confirmation
+        N8NService.run("pcRequirementsConfirmation", {
+            event: "pcRequirementsConfirmation",
+            email: pcRequirements.customer.email,
+            customerName: pcRequirements.customer.name,
+            requirementId: pcRequirements._id.toString(),
+            purpose: pcRequirements.requirements.purpose,
+            budget: pcRequirements.requirements.budget,
+            estimatedContactTime: "24 hours",
+            submittedAt: pcRequirements.createdAt
+        }).catch(err => console.error("N8N pcRequirementsConfirmation failed:", err));
+
+        res.status(201).json({
+            success: true,
+            message: 'PC requirements submitted successfully',
+            requirementId: pcRequirements._id,
+            data: {
+                id: pcRequirements._id,
+                customerName: pcRequirements.customer.name,
+                status: pcRequirements.status,
+                estimatedContactTime: '24 hours'
+            }
+        });
+    } catch (error) {
+        console.error('Error submitting PC requirements:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to submit requirements',
+            error: error.message
+        });
+    }
+};
+
+
+exports.getAllPCRequirements = async (req, res) => {
+    try {
+        const {
+            page = 1,
+            limit = 20,
+            status,
+            search,
+            sortBy = 'createdAt',
+            sortOrder = 'desc'
+        } = req.query;
+
+        const query = {};
+
+        // Filter by status
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        // Search functionality
+        if (search) {
+            query.$or = [
+                { 'customer.name': { $regex: search, $options: 'i' } },
+                { 'customer.email': { $regex: search, $options: 'i' } },
+                { 'customer.phone': { $regex: search, $options: 'i' } },
+                { 'customer.city': { $regex: search, $options: 'i' } },
+                { 'requirements.purpose': { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Sorting
+        const sort = {};
+        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+        // Pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        const [requirements, total] = await Promise.all([
+            PCRequirements.find(query)
+                .sort(sort)
+                .skip(skip)
+                .limit(parseInt(limit))
+                .populate('assignedTo', 'name email')
+                .lean(),
+            PCRequirements.countDocuments(query)
+        ]);
+
+        res.json({
+            success: true,
+            requirements,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                pages: Math.ceil(total / parseInt(limit))
+            },
+            filters: {
+                status,
+                search,
+                sortBy,
+                sortOrder
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching PC requirements:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch requirements'
+        });
+    }
+};
+
+
+exports.getPCRequirement = async (req, res) => {
+    try {
+        const requirement = await PCRequirements.findById(req.params.id)
+            .populate('assignedTo', 'name email')
+            .populate('recommendations.product', 'name price images');
+
+        if (!requirement) {
+            return res.status(404).json({
+                success: false,
+                message: 'Requirement not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            requirement
+        });
+    } catch (error) {
+        console.error('Error fetching PC requirement:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch requirement'
+        });
+    }
+};
+
+
+exports.updatePCRequirement = async (req, res) => {
+    try {
+        const { status, adminNotes, assignedTo, recommendations, estimatedTotal } = req.body;
+        const requirement = await PCRequirements.findById(req.params.id);
+
+        if (!requirement) {
+            return res.status(404).json({
+                success: false,
+                message: 'Requirement not found'
+            });
+        }
+
+        // Update fields if provided
+        if (status && requirement.status !== status) {
+            requirement.status = status;
+            if (status === 'quoted') {
+                requirement.quotedAt = new Date();
+            } else if (status === 'completed') {
+                requirement.completedAt = new Date();
+            }
+        }
+
+        if (adminNotes !== undefined) requirement.adminNotes = adminNotes;
+        if (assignedTo !== undefined) requirement.assignedTo = assignedTo;
+        if (recommendations) requirement.recommendations = recommendations;
+        if (estimatedTotal !== undefined) requirement.estimatedTotal = estimatedTotal;
+
+        // Add contact attempt if status changed to contacted
+        if (status === 'contacted') {
+            requirement.contactAttempts.push({
+                date: new Date(),
+                method: 'call',
+                notes: adminNotes || 'Initial contact',
+                admin: req.user._id
+            });
+        }
+
+        await requirement.save();
+
+        res.json({
+            success: true,
+            message: 'Requirement updated successfully',
+            requirement
+        });
+    } catch (error) {
+        console.error('Error updating PC requirement:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update requirement'
+        });
+    }
+};
+
+
+exports.getPCRequirementsStats = async (req, res) => {
+    try {
+        const [statusStats, total, newCount] = await Promise.all([
+            PCRequirements.getStats(),
+            PCRequirements.countDocuments(),
+            PCRequirements.countDocuments({ status: 'new' })
+        ]);
+
+        // Get budget distribution
+        const budgetStats = await PCRequirements.aggregate([
+            {
+                $group: {
+                    _id: '$requirements.budget',
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]);
+
+        // Get purpose distribution
+        const purposeStats = await PCRequirements.aggregate([
+            {
+                $group: {
+                    _id: '$requirements.purpose',
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { count: -1 } }
+        ]);
+
+        res.json({
+            success: true,
+            stats: {
+                byStatus: statusStats,
+                byBudget: budgetStats,
+                byPurpose: purposeStats,
+                total,
+                new: newCount,
+                conversionRate: total > 0 ?
+                    ((await PCRequirements.countDocuments({ status: 'completed' })) / total * 100).toFixed(2) : 0
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching PC requirements stats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch stats'
+        });
+    }
+};

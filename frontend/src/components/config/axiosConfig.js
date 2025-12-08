@@ -3,8 +3,8 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'https://itech-compters.onrender.com/api/v1',
-    timeout: 15000,
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+    timeout: 30000,
     withCredentials: true,
 });
 

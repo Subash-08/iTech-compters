@@ -61,9 +61,9 @@ interface VariantData {
 }
 
 
-
 interface AddToCartButtonProps {
   productId: string;
+  product?: any; // ✅ ADD THIS
   variant?: VariantData | null;
   productType?: 'product' | 'prebuilt-pc';
   className?: string;
@@ -74,8 +74,10 @@ interface AddToCartButtonProps {
   children?: React.ReactNode;
 }
 
+// Update the AddToCartButton component
 const AddToCartButton: React.FC<AddToCartButtonProps> = ({ 
   productId, 
+  product, // ✅ Add this
   variant,
   productType = 'product',
   className = '',
@@ -91,16 +93,31 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const handleAddToCart = async () => {
     if (loading || disabled) return;
     
+    console.log('🛒 DEBUG ProductCard AddToCart:', {
+      productId,
+      hasProduct: !!product,
+      productName: product?.name,
+      hasVariant: !!variant,
+      variantId: variant?.variantId
+    });
+    
     setLoading(true);
     try {
       const cartPayload = {
         productId, 
-        variantId: variant?.variantId, // Extract variantId from variant object
-        variantData: variant, // Send full variant data
-        quantity 
+        variantId: variant?.variantId,
+        variantData: variant,
+        quantity,
+        product: product || { // ✅ Pass product data
+          _id: productId,
+          name: product?.name || 'Product',
+          images: product?.images || [],
+          effectivePrice: product?.effectivePrice || variant?.price || 0
+        }
       };
       
-      // Dispatch the add to cart action
+      console.log('🛒 Cart payload from ProductCard:', cartPayload);
+      
       await dispatch(cartActions.addToCart(cartPayload));
       
       toast.success('Product added to cart!');
@@ -171,7 +188,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     if (!mrp || mrp <= effectivePrice) return 0;
     return Math.round(((mrp - effectivePrice) / mrp) * 100);
   };
-
+console.log('🔍 ProductCard Wishlist Debug:', {
+  productId: _id,
+  product,
+  hasImages: !!product?.images,
+  images: product?.images,
+});
   const hasVariants = variants && variants.length > 0;
 
   // 🔧 FIXED: Get base/default variant logic
@@ -359,12 +381,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
         {/* Wishlist */}
         <div className="absolute top-3 right-3 z-10">
-          <AddToWishlistButton 
-            productId={_id}
-            variant={productData.variant}
-            className="p-2"
-            size="sm"
-          />
+<AddToWishlistButton 
+  productId={_id}
+  product={product} // ✅ PASS PRODUCT DATA
+  variant={productData.variant}
+  className="p-2"
+  size="sm"
+/>
         </div>
 
         <Link to={productUrl} className="block w-full h-full">
@@ -433,22 +456,23 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
           </div>
 
-          <AddToCartButton
-            productId={_id}
-            variant={productData.variant}
-            quantity={1}
-            disabled={!inStock}
-            className={`w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-200 
-              ${inStock 
-                ? 'bg-gray-900 text-white hover:bg-black hover:shadow-lg active:scale-95' 
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
-            <span>Add to Cart</span>
-          </AddToCartButton>
+<AddToCartButton
+  productId={_id}
+  product={product} // ✅ PASS THE PRODUCT OBJECT
+  variant={productData.variant}
+  quantity={1}
+  disabled={!inStock}
+  className={`w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-200 
+    ${inStock 
+      ? 'bg-gray-900 text-white hover:bg-black hover:shadow-lg active:scale-95' 
+      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+    }`}
+>
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+  </svg>
+  <span>Add to Cart</span>
+</AddToCartButton>
         </div>
       </div>
     </div>

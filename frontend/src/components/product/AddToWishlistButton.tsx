@@ -17,7 +17,8 @@ interface VariantData {
 
 interface AddToWishlistButtonProps {
   productId: string;
-  variant?: VariantData | null; // NEW: Accept variant data
+  product?: any; // ✅ ADD THIS: Product data for guest wishlist
+  variant?: VariantData | null;
   productType?: 'product' | 'prebuilt-pc';
   className?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -26,7 +27,8 @@ interface AddToWishlistButtonProps {
 
 const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({ 
   productId, 
-  variant, // NEW: Variant data
+  product, // ✅ ADD THIS
+  variant,
   productType = 'product',
   className = '',
   size = 'md',
@@ -46,6 +48,16 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
 
   const handleWishlistToggle = async () => {
     if (loading) return;
+      console.log('❤️ AddToWishlistButton Debug:', {
+    productId,
+    product, // Check if this exists
+    hasProduct: !!product,
+    productName: product?.name,
+    productImages: product?.images,
+    variant,
+    variantId: variant?.variantId
+  });
+  
     setLoading(true);
     
     try {
@@ -57,10 +69,11 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
         
         toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} removed from wishlist`);
       } else {
-        // CHANGED: Send variant data when adding to wishlist
+        // CHANGED: Send both product and variant data
         await dispatch(wishlistActions.addToWishlist({ 
           productId,
-          variant, // NEW: Send variant data
+          product, // ✅ ADD THIS: Pass product data
+          variant, // Send variant data
           productType
         }));
         

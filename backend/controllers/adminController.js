@@ -42,72 +42,68 @@ const processIdentifyingAttributes = (attributes) => {
     });
 };
 
-// 🆕 UPDATED: Process variants update with MRP support
 const processVariantsUpdate = async (existingVariants, newVariants) => {
-    const processedVariants = [];
-
-    for (const newVariant of newVariants) {
-        // Check if this variant already exists (by _id or by identifying attributes)
-        let existingVariant = null;
-
-        if (newVariant._id) {
-            // Find by ID if provided
-            existingVariant = existingVariants.find(v => v._id?.toString() === newVariant._id);
-        } else {
-            // Find by identifying attributes for new variants
-            existingVariant = existingVariants.find(existingVariant =>
-                areVariantsMatching(existingVariant, newVariant)
-            );
-        }
-
-        if (existingVariant) {
-            // **UPDATE EXISTING VARIANT**
-            const updatedVariant = {
-                ...existingVariant.toObject(),
-                ...newVariant,
-                // Preserve the original _id
-                _id: existingVariant._id,
-                // 🆕 UPDATED: Process identifying attributes with MRP support
-                identifyingAttributes: processIdentifyingAttributes(newVariant.identifyingAttributes || existingVariant.identifyingAttributes),
-                // 🆕 UPDATED: Handle MRP - if not provided, use price as fallback
-                mrp: newVariant.mrp !== undefined ? newVariant.mrp : (newVariant.offerPrice || existingVariant.mrp || existingVariant.price),
-                // Handle images properly
-                images: {
-                    thumbnail: newVariant.images?.thumbnail || existingVariant.images.thumbnail,
-                    gallery: newVariant.images?.gallery || existingVariant.images.gallery
-                },
-                // Preserve creation date, update modification date
-                updatedAt: Date.now()
-            };
-            processedVariants.push(updatedVariant);
-        } else {
-            // **CREATE NEW VARIANT**
-            const newVariantData = {
-                ...newVariant,
-                // 🆕 UPDATED: Process identifying attributes with MRP support
-                identifyingAttributes: processIdentifyingAttributes(newVariant.identifyingAttributes || []),
-                // 🆕 UPDATED: Handle MRP - if not provided, use price as fallback
-                mrp: newVariant.mrp !== undefined ? newVariant.mrp : (newVariant.offerPrice || newVariant.price || 0),
-                // Ensure images structure
-                images: {
-                    thumbnail: newVariant.images?.thumbnail || { url: '', altText: '' },
-                    gallery: newVariant.images?.gallery || []
-                },
-                // Set timestamps
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-                // Default values
-                isActive: newVariant.isActive !== undefined ? newVariant.isActive : true,
-                stockQuantity: newVariant.stockQuantity || 0,
-                price: newVariant.price || 0
-            };
-            processedVariants.push(newVariantData);
-        }
+    if (!Array.isArray(newVariants)) {
+        console.error('❌ newVariants is not an array:', typeof newVariants);
+        return existingVariants || [];
     }
 
-    return processedVariants;
-};
+    const processed = [];
 
+    for (let i = 0; i < newVariants.length; i++) {
+        const newVariant = { ...newVariants[i] };
+        const existingVariant = existingVariants?.[i] || {};
+
+        // Preserve existing variant ID if updating
+        if (existingVariant._id) {
+            newVariant._id = existingVariant._id;
+        }
+        if (newVariant.images) {
+            if (newVariant.images.thumbnail === null ||
+                (newVariant.images.thumbnail && !newVariant.images.thumbnail.url)) {
+                newVariant.images.thumbnail = null;
+            } else if (newVariant.images.thumbnail?.url) {
+            } else if (existingVariant.images?.thumbnail) {
+                newVariant.images.thumbnail = existingVariant.images.thumbnail;
+            }
+            if (newVariant.images.gallery) {
+                if (existingVariant.images?.gallery) {
+                    const newGalleryUrls = newVariant.images.gallery.map(img => img.url);
+
+                    // Filter existing gallery to only keep images that are in the new gallery
+                    const filteredExistingGallery = existingVariant.images.gallery.filter(img =>
+                        newGalleryUrls.includes(img.url)
+                    );
+                    const combinedGallery = [...filteredExistingGallery];
+                    newVariant.images.gallery.forEach(newImg => {
+                        if (!combinedGallery.some(existingImg => existingImg.url === newImg.url)) {
+                            combinedGallery.push(newImg);
+                        }
+                    });
+
+                    newVariant.images.gallery = combinedGallery;
+                } else {
+                }
+            } else if (existingVariant.images?.gallery) {
+                newVariant.images.gallery = existingVariant.images.gallery;
+            }
+        } else if (existingVariant.images) {
+            newVariant.images = existingVariant.images;
+        } else {
+            newVariant.images = { gallery: [] };
+        }
+        delete newVariant._thumbnailFile;
+        delete newVariant._galleryFiles;
+        delete newVariant._variantIndex;
+        delete newVariant._fileUpload;
+
+        // 🆕 Ensure required fields
+        if (newVariant.isActive === undefined) newVariant.isActive = true;
+        if (!newVariant.images.gallery) newVariant.images.gallery = [];
+        processed.push(newVariant);
+    }
+    return processed;
+};
 // **EXISTING: Helper to detect if variants match based on identifying attributes**
 const areVariantsMatching = (existingVariant, newVariant) => {
     const existingAttrs = existingVariant.identifyingAttributes || [];
@@ -177,17 +173,20 @@ const validateLinkedProducts = async (linkedProducts, currentProductId) => {
     }
 };
 
-// 🆕 NEW: Process uploaded files for updates
+// 🆕 UPDATED: Process uploaded files for updates (with variant support)
 const processUploadedFiles = (req) => {
     const fileMap = {};
 
     if (req.files) {
         Object.entries(req.files).forEach(([fieldname, files]) => {
-            fileMap[fieldname] = files.map(file => ({
-                url: `${req.protocol}://${req.get('host')}/uploads/products/${file.filename}`,
-                filename: file.filename,
-                originalName: file.originalname
-            }));
+            // Only process product-level files (not variant files)
+            if (!fieldname.startsWith('variant')) {
+                fileMap[fieldname] = files.map(file => ({
+                    url: `/uploads/products/${file.filename}`,
+                    filename: file.filename,
+                    originalName: file.originalname
+                }));
+            }
         });
     }
 
@@ -259,7 +258,6 @@ const mergeManufacturerImagesWithUploads = (existingManufacturerImages, uploaded
 };
 
 
-// 🆕 UPDATED UPDATE PRODUCT with COMPLETE field handling
 exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
     try {
         let product = await Product.findById(req.params.id);
@@ -268,33 +266,71 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler("Product not found", 404));
         }
 
+        // 🆕 IMPROVED Helper function to parse JSON fields
+        const parseJsonField = (field, fieldName = 'field') => {
+
+            if (field === undefined || field === null || field === '') {
+                return undefined;
+            }
+
+            // If it's already an object/array, return as-is
+            if (typeof field === 'object') {
+                return field;
+            }
+
+            // If it's a string, try to parse it
+            if (typeof field === 'string') {
+                const trimmed = field.trim();
+                if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null') {
+                    return undefined;
+                }
+
+                // Check if it looks like JSON
+                if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+                    (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        return parsed;
+                    } catch (e) {
+                        console.error(`❌ Failed to parse ${fieldName} as JSON:`, e.message);
+                        // Return the string as-is if it's not valid JSON
+                        return field;
+                    }
+                } else {
+                    return field;
+                }
+            }
+            return field;
+        };
+
         // 🆕 FIX: Handle BOTH FormData with files AND regular JSON
         let updateData = {};
         let productData = {};
-
-        // Helper function to parse JSON fields
-        const parseJsonField = (field) => {
-            if (!field || field === 'undefined' || field === 'null') return [];
-            try {
-                return typeof field === 'string' ? JSON.parse(field) : field;
-            } catch (e) {
-                console.warn(`Failed to parse JSON field:`, e);
-                return [];
-            }
-        };
 
         if (req.files && Object.keys(req.files).length > 0) {
 
             // 🆕 NEW: Process individual fields from FormData
             productData = { ...req.body };
 
-            // 🆕 CRITICAL FIX: Parse ALL JSON fields properly
+            // 🆕 CRITICAL FIX: Parse variants FIRST and PROPERLY
+            if (productData.variants !== undefined) {
+                productData.variants = parseJsonField(productData.variants, 'variants');
+
+                if (Array.isArray(productData.variants)) {
+                    if (req.files) {
+                        productData.variants = processVariantImages(req, productData.variants);
+                    }
+                } else {
+                    console.error('❌ Variants is not an array after parsing:', typeof productData.variants);
+                }
+            }
+
+            // 🆕 Parse other JSON fields
             const jsonFields = [
                 'categories',
                 'variantConfiguration',
-                'variants',
                 'tags',
-                'linkedProducts',  // ← THIS WAS MISSING
+                'linkedProducts',
                 'specifications',
                 'features',
                 'dimensions',
@@ -305,8 +341,8 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             ];
 
             jsonFields.forEach(field => {
-                if (productData[field] !== undefined && productData[field] !== '') {
-                    productData[field] = parseJsonField(productData[field]);
+                if (productData[field] !== undefined) {
+                    productData[field] = parseJsonField(productData[field], field);
                 }
             });
 
@@ -314,7 +350,8 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             const numericFields = ['basePrice', 'mrp', 'taxRate', 'discountPercentage', 'stockQuantity'];
             numericFields.forEach(field => {
                 if (productData[field] !== undefined && productData[field] !== '') {
-                    productData[field] = parseFloat(productData[field]);
+                    const num = parseFloat(productData[field]);
+                    productData[field] = isNaN(num) ? 0 : num;
                 }
             });
 
@@ -323,6 +360,7 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
                 productData.isActive = productData.isActive === 'true' || productData.isActive === true;
             }
 
+            // Process uploaded files
             const uploadedFiles = processUploadedFiles(req);
             const finalImages = mergeImagesWithUploads(
                 productData.images || {},
@@ -334,6 +372,7 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
                 uploadedFiles,
                 product.manufacturerImages
             );
+
             const allowedFields = [
                 'name', 'description', 'brand', 'categories', 'status', 'condition',
                 'isActive', 'definition', 'tags', 'label', 'specifications', 'features',
@@ -357,14 +396,12 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
 
         } else {
             productData = req.body;
-
-            // 🆕 CRITICAL: Parse JSON fields for regular JSON requests too
             const jsonFields = [
                 'categories',
                 'variantConfiguration',
                 'variants',
                 'tags',
-                'linkedProducts',  // ← THIS WAS MISSING
+                'linkedProducts',
                 'specifications',
                 'features',
                 'dimensions',
@@ -375,10 +412,11 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             ];
 
             jsonFields.forEach(field => {
-                if (productData[field] !== undefined && productData[field] !== '') {
-                    productData[field] = parseJsonField(productData[field]);
+                if (productData[field] !== undefined) {
+                    productData[field] = parseJsonField(productData[field], field);
                 }
             });
+
             const allowedFields = [
                 'name', 'description', 'brand', 'categories', 'status', 'condition',
                 'isActive', 'definition', 'tags', 'label', 'specifications', 'features',
@@ -424,6 +462,11 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             if (productData.meta && !updateData.meta) {
                 updateData.meta = { ...product.meta, ...productData.meta };
             }
+
+            // 🆕 Handle variants for JSON requests
+            if (productData.variants !== undefined && Array.isArray(productData.variants)) {
+                updateData.variants = await processVariantsUpdate(product.variants, productData.variants);
+            }
         }
 
         // 🆕 Ensure MRP is set
@@ -435,7 +478,7 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
         if (updateData.linkedProducts !== undefined) {
             // Ensure linkedProducts is an array
             if (!Array.isArray(updateData.linkedProducts)) {
-                console.error('❌ linkedProducts is not an array:', updateData.linkedProducts);
+                console.error('❌ linkedProducts is not an array:', typeof updateData.linkedProducts, updateData.linkedProducts);
                 return next(new ErrorHandler("Linked products must be an array", 400));
             }
 
@@ -451,19 +494,23 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             updateData.linkedProducts = validatedLinkedProducts.validated;
         }
 
-        // Handle variants separately (for both file and non-file uploads)
+        // 🆕 Handle variants separately (for both file and non-file uploads)
         if (productData.variants !== undefined && Array.isArray(productData.variants)) {
             updateData.variants = await processVariantsUpdate(product.variants, productData.variants);
         }
-        // In your updateProduct function, add this check:
+
+        // Handle barcode
         if (updateData.barcode === '' || updateData.barcode === undefined) {
-            // If barcode is empty, don't update it or set it to null
-            delete updateData.barcode; // Don't update barcode if empty
-            // OR: updateData.barcode = null; // Set to null instead of empty string
+            delete updateData.barcode;
         }
 
-        // Add updatedAt timestamp
-        updateData.updatedAt = Date.now();
+        // Add updatedAt timestamp - 🆕 CRITICAL: Only if updateData is an object
+        if (typeof updateData === 'object' && updateData !== null) {
+            updateData.updatedAt = Date.now();
+        } else {
+            console.error('❌ updateData is not an object:', typeof updateData, updateData);
+            return next(new ErrorHandler("Invalid update data", 400));
+        }
         product = await Product.findByIdAndUpdate(
             req.params.id,
             { $set: updateData },
@@ -486,6 +533,77 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
         next(error);
     }
 });
+
+// 🆕 ADD: processVariantImages function 
+const processVariantImages = (req, variants) => {
+
+    if (!Array.isArray(variants)) {
+        console.error('❌ processVariantImages: variants is not an array');
+        return variants;
+    }
+
+    // Process simple field names: variantThumbnail_0, variantGallery_0_0, etc.
+    const variantFiles = {};
+
+    if (req.files) {
+        Object.keys(req.files).forEach(fieldName => {
+            // Handle variantThumbnail_0
+            if (fieldName.startsWith('variantThumbnail_')) {
+                const variantIndex = parseInt(fieldName.replace('variantThumbnail_', ''));
+                if (!isNaN(variantIndex) && variantIndex < variants.length) {
+                    const file = req.files[fieldName][0];
+                    if (!variantFiles[variantIndex]) variantFiles[variantIndex] = { thumbnail: null, gallery: [] };
+                    variantFiles[variantIndex].thumbnail = file;
+                }
+            }
+
+            // Handle variantGallery_0_0
+            if (fieldName.startsWith('variantGallery_')) {
+                const parts = fieldName.split('_');
+                if (parts.length >= 3) {
+                    const variantIndex = parseInt(parts[1]);
+                    const fileIndex = parseInt(parts[2]);
+                    if (!isNaN(variantIndex) && variantIndex < variants.length) {
+                        const file = req.files[fieldName][0];
+                        if (!variantFiles[variantIndex]) variantFiles[variantIndex] = { thumbnail: null, gallery: [] };
+                        variantFiles[variantIndex].gallery.push(file);
+                    }
+                }
+            }
+        });
+    }
+    return variants.map((variant, index) => {
+        const updatedVariant = { ...variant };
+
+        if (!updatedVariant.images) {
+            updatedVariant.images = { gallery: [] };
+        }
+
+        // Apply thumbnail if exists
+        if (variantFiles[index]?.thumbnail) {
+            const file = variantFiles[index].thumbnail;
+            updatedVariant.images.thumbnail = {
+                url: `/uploads/products/${file.filename}`,
+                altText: updatedVariant.images?.thumbnail?.altText || variant.name || 'Variant thumbnail'
+            };
+        }
+
+        // Apply gallery images if exist
+        if (variantFiles[index]?.gallery && variantFiles[index].gallery.length > 0) {
+            const newGallery = variantFiles[index].gallery.map(file => ({
+                url: `/uploads/products/${file.filename}`,
+                altText: file.originalname.split('.')[0] || `Variant ${index} gallery image`
+            }));
+            const existingGallery = updatedVariant.images.gallery || [];
+            updatedVariant.images.gallery = [
+                ...existingGallery,
+                ...newGallery
+            ];
+        }
+
+        return updatedVariant;
+    });
+};
 
 // 🆕 UPDATED PARTIAL UPDATE with file upload support
 exports.partialUpdateProduct = catchAsyncErrors(async (req, res, next) => {

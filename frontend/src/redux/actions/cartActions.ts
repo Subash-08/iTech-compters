@@ -30,10 +30,8 @@ const cartAPI = {
     }
   },
 
-// In cartAPI object - FIXED addToCart
 addToCart: async (cartData: AddToCartData): Promise<{ data: any; message: string }> => {
   try {
-    // ✅ FIXED: Handle case where variant might not be required
     const variantId = cartData.variantData?.variantId || cartData.variantId;
     
     const payload = {
@@ -46,16 +44,16 @@ addToCart: async (cartData: AddToCartData): Promise<{ data: any; message: string
       payload.variantId = variantId;
     }
     
-    
     const response = await api.post('/cart', payload);
     toast.success('Product added to cart successfully');
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 401) {
-      // Guest cart handling
+      // Guest cart handling - ENHANCED with product data
       const guestCart = localStorageUtils.getGuestCart();
       
       const variantId = cartData.variantData?.variantId || cartData.variantId;
+      const price = cartData.variantData?.price || cartData.product?.effectivePrice || cartData.product?.offerPrice || 0;
       
       const existingItemIndex = guestCart.findIndex(
         item => item.productId === cartData.productId && 
@@ -68,13 +66,14 @@ addToCart: async (cartData: AddToCartData): Promise<{ data: any; message: string
           index === existingItemIndex 
             ? { 
                 ...item, 
-                quantity: item.quantity + (cartData.quantity || 1)
+                quantity: item.quantity + (cartData.quantity || 1),
+                product: cartData.product || item.product,
+                variant: cartData.variantData || item.variant,
+                price: price || item.price
               }
             : item
         );
       } else {
-        const price = cartData.variantData?.price || 0;
-        
         const newItem: GuestCartItem = {
           _id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           productId: cartData.productId,
@@ -82,7 +81,31 @@ addToCart: async (cartData: AddToCartData): Promise<{ data: any; message: string
           quantity: cartData.quantity || 1,
           price: price,
           addedAt: new Date().toISOString(),
-          productType: 'product'
+          productType: 'product',
+          product: cartData.product ? {
+            _id: cartData.product._id,
+            name: cartData.product.name,
+            slug: cartData.product.slug,
+            effectivePrice: cartData.product.effectivePrice,
+            mrp: cartData.product.mrp,
+            stockQuantity: cartData.product.stockQuantity,
+            hasStock: cartData.product.hasStock,
+            condition: cartData.product.condition,
+            averageRating: cartData.product.averageRating,
+            images: cartData.product.images,
+            brand: cartData.product.brand,
+            variants: cartData.product.variants
+          } : undefined,
+          variant: cartData.variantData ? {
+            variantId: cartData.variantData.variantId,
+            name: cartData.variantData.name,
+            price: cartData.variantData.price,
+            mrp: cartData.variantData.mrp,
+            stock: cartData.variantData.stock,
+            sku: cartData.variantData.sku,
+            attributes: cartData.variantData.attributes,
+            images: cartData.variantData.images
+          } : undefined
         };
         updatedCart = [...guestCart, newItem];
       }
@@ -247,7 +270,7 @@ const fetchCart = () => async (dispatch: any, getState: any) => {
   }
 };
 
-// redux/actions/cartActions.ts - FIXED addToCart
+// In cartActions.ts - FIXED addToCart for guest users
 const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: any) => {
   try {
     dispatch({ type: 'cart/updateCartStart' });
@@ -256,29 +279,36 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
     const isGuest = !state.authState.isAuthenticated;
 
     if (isGuest) {
-      // Guest user handling
+      // Guest user handling - ENHANCED to save product data
       const guestCart = localStorageUtils.getGuestCart();
       
       const variantId = cartData.variantData?.variantId || cartData.variantId;
+      const price = cartData.variantData?.price || cartData.product?.effectivePrice || cartData.product?.offerPrice || 0;
       
+      // Check if item already exists
       const existingItemIndex = guestCart.findIndex(
         item => item.productId === cartData.productId && 
                item.variantId === variantId
       );
 
-      let updatedCart;
+      let updatedCart: GuestCartItem[];
+      
       if (existingItemIndex > -1) {
+        // Update existing item with enhanced data
         updatedCart = guestCart.map((item, index) => 
           index === existingItemIndex 
             ? { 
                 ...item, 
-                quantity: item.quantity + (cartData.quantity || 1)
+                quantity: item.quantity + (cartData.quantity || 1),
+                // Update product data if it's more complete
+                product: cartData.product || item.product,
+                variant: cartData.variantData || item.variant,
+                price: price || item.price
               }
             : item
         );
       } else {
-        const price = cartData.variantData?.price || 0;
-        
+        // Add new item with complete product data
         const newItem: GuestCartItem = {
           _id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           productId: cartData.productId,
@@ -286,13 +316,42 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
           quantity: cartData.quantity || 1,
           price: price,
           addedAt: new Date().toISOString(),
-          productType: 'product'
+          productType: 'product',
+          // ✅ SAVE PRODUCT DATA
+          product: cartData.product ? {
+            _id: cartData.product._id,
+            name: cartData.product.name,
+            slug: cartData.product.slug,
+            effectivePrice: cartData.product.effectivePrice,
+            mrp: cartData.product.mrp,
+            stockQuantity: cartData.product.stockQuantity,
+            hasStock: cartData.product.hasStock,
+            condition: cartData.product.condition,
+            averageRating: cartData.product.averageRating,
+            images: cartData.product.images,
+            brand: cartData.product.brand,
+            variants: cartData.product.variants
+          } : undefined,
+          // ✅ SAVE VARIANT DATA
+          variant: cartData.variantData ? {
+            variantId: cartData.variantData.variantId,
+            name: cartData.variantData.name,
+            price: cartData.variantData.price,
+            mrp: cartData.variantData.mrp,
+            stock: cartData.variantData.stock,
+            sku: cartData.variantData.sku,
+            attributes: cartData.variantData.attributes,
+            images: cartData.variantData.images
+          } : undefined
         };
+        
         updatedCart = [...guestCart, newItem];
       }
 
+      // Save to localStorage
       localStorageUtils.saveGuestCart(updatedCart);
       
+      // Dispatch success
       dispatch({
         type: 'cart/updateCartSuccess',
         payload: {
@@ -304,12 +363,13 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
       toast.success('Product added to cart successfully');
       
     } else {
-      // For authenticated users - FIXED payload
+      // For authenticated users
       const apiPayload = {
         productId: cartData.productId,
         variantId: cartData.variantData?.variantId || cartData.variantId || undefined,
         quantity: cartData.quantity || 1
       };
+      
       const response = await cartAPI.addToCart(apiPayload);
       
       let items = [];

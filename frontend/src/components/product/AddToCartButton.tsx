@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAppDispatch } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
+import { toast } from 'react-toastify'; // ✅ ADD THIS IMPORT
 
 interface VariantData {
   variantId: string;
@@ -46,7 +47,12 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
 
     if (loading || disabled) return;
     
-    console.log('🛒 AddToCart Clicked:', { productId, hasProductData: !!product });
+    console.log('🛒 AddToCart Clicked:', { 
+      productId, 
+      productName: product?.name,
+      hasProductData: !!product,
+      hasVariantData: !!variant 
+    });
     
     setLoading(true);
     try {
@@ -57,18 +63,30 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           preBuiltPC: product // Pass PC data for guest cart
         }));
       } else {
+        // ✅ ENHANCED: Create product data if not provided
+        const productData = product || {
+          _id: productId,
+          name: 'Product',
+          effectivePrice: variant?.price || 0,
+          offerPrice: variant?.price || 0,
+          price: variant?.price || 0,
+          images: []
+        };
+        
         const cartPayload = {
           productId, 
           variantId: variant?.variantId, 
           variantData: variant, 
           quantity,
-          product: product // ✅ CRITICAL: Pass full product data for Guest Cart
+          product: productData
         };
         
+        console.log('🛒 Cart payload:', cartPayload);
         await dispatch(cartActions.addToCart(cartPayload));
       }
     } catch (error) {
       console.error('Failed to add to cart:', error);
+      toast.error('Failed to add product to cart');
     } finally {
       setLoading(false);
     }

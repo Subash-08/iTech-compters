@@ -15,7 +15,7 @@ const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenti
 const { getQuickStats } = require('../controllers/analyticsController');
 
 // 🆕 IMPORT MULTER CONFIGURATION
-const { productUpload, handleMulterError } = require("../config/multerConfig");
+const { productUpload, handleMulterError, handleDynamicFields } = require("../config/multerConfig");
 
 router.get('/admin/analytics/quick-stats', authorizeRoles('admin'), getQuickStats);
 
@@ -25,12 +25,7 @@ router.get('/admin/analytics/quick-stats', authorizeRoles('admin'), getQuickStat
 router.put('/admin/product/:id',
     isAuthenticatedUser,
     authorizeRoles('admin'),
-    productUpload.fields([
-        { name: 'thumbnail', maxCount: 1 },
-        { name: 'hoverImage', maxCount: 1 },
-        { name: 'gallery', maxCount: 10 },
-        { name: 'manufacturerImages', maxCount: 10 }
-    ]),
+    handleDynamicFields(),
     handleMulterError,
     updateProduct
 );

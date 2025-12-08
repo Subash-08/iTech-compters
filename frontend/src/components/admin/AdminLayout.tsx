@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { SidebarItem } from './types/admin';
 import { Icons } from './Icon';
-import {Computer} from 'lucide-react'
+import {Computer, ClipboardList, Quote} from 'lucide-react'
 
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -49,6 +49,16 @@ import Dashboard from './dashboard/Dashboard';
 import BlogList from './blog/BlogList';
 import BlogEditor from './blog/BlogEditor';
 import BlogStatisticsComponent from './blog/BlogStatistics';
+import PCRequirementsList from './pc-builder/PCRequirementsList';
+import PCRequirementDetail from './pc-builder/PCRequirementDetail';
+import PCQuotesList from './pc-builder/PCQuotesList';
+import PCQuoteDetail from './pc-builder/PCQuoteDetail';
+import VideoList from './videos/VideoList';
+import VideoUpload from './videos/VideoUpload';
+import VideoDetail from './videos/VideoDetail';
+import SectionList from './sections/SectionList';
+import SectionForm from './sections/SectionForm';
+import SectionDetail from './sections/SectionDetail';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -326,13 +336,38 @@ const AdminLayout: React.FC = () => {
       label: 'blogs',
       icon: <Icons.Shipping className="w-5 h-5" />,
       path: '/admin/blogs'
+    },    {
+      id: 'Vidoes',
+      label: 'Videos',
+      icon: <Icons.Shipping className="w-5 h-5" />,
+      path: '/admin/videos'
     },
-    {
-      id: 'payments',
-      label: 'Payments',
-      icon: <Icons.Payments className="w-5 h-5" />,
-      path: '/admin/payments'
-    }
+        {
+      id: 'Video Section',
+      label: 'Video Section',
+      icon: <Icons.Shipping className="w-5 h-5" />,
+      path: '/admin/sections'
+    },
+  {
+    id: 'pc-builder',
+    label: 'PC Builder',
+    icon: <Computer className="w-5 h-5" />,
+    path: '/admin/pc-builder',
+    children: [
+      {
+        id: 'pc-requirements',
+        label: 'PC Requirements',
+        icon: <ClipboardList className="w-4 h-4" />,
+        path: '/admin/pc-builder/requirements'
+      },
+      {
+        id: 'pc-quotes',
+        label: 'PC Quotes',
+        icon: <Quote className="w-4 h-4" />,
+        path: '/admin/pc-builder/quotes'
+      }
+    ]
+  },
   ];
 
   const handleItemClick = (path: string) => {
@@ -462,6 +497,23 @@ const AdminLayout: React.FC = () => {
   <Route path="/blogs/new" element={<BlogEditor />} />
   <Route path="/blogs/edit/:id" element={<BlogEditor isEdit />} />
   <Route path="/blogs/statistics" element={<BlogStatisticsComponent />} />
+  
+  {/* PC Builder Routes */}
+  <Route path="/pc-builder/requirements" element={<PCRequirementsList />} />
+  <Route path="/pc-builder/requirements/:id" element={<PCRequirementDetail />} />
+  <Route path="/pc-builder/quotes" element={<PCQuotesList />} />
+  <Route path="/pc-builder/quotes/:id" element={<PCQuoteDetail />} />
+
+        {/* Video Routes */}
+      <Route path="/videos" element={<VideoList />} />
+      <Route path="/videos/upload" element={<VideoUpload />} />
+      <Route path="/videos/:id" element={<VideoDetail />} />
+      
+      {/* Section Routes */}
+      <Route path="/sections" element={<SectionList />} />
+      <Route path="/sections/create" element={<SectionForm />} />
+      <Route path="/sections/:id" element={<SectionDetail />} />
+      <Route path="/sections/:id/edit" element={<SectionForm />} />
             </Routes>
           </div>
         </main>

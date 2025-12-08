@@ -136,3 +136,78 @@ export interface CreateQuoteResponse {
   totalEstimated: number;
   expiresIn: number;
 }
+export interface PCRequirementsRequest {
+  customer: {
+    name: string;
+    email: string;
+    phone: string;
+    city: string;
+    additionalNotes?: string;
+  };
+  requirements: {
+    purpose: string;
+    purposeCustom?: string;
+    budget: string;
+    budgetCustom?: string;
+    paymentPreference: string;
+    deliveryTimeline: string;
+    timelineCustom?: string;
+  };
+  source?: string;
+  metadata?: {
+    userAgent?: string;
+    deviceType?: string;
+  };
+}
+
+export interface PCRequirementsResponse {
+  success: boolean;
+  message: string;
+  requirementId: string;
+  data: {
+    id: string;
+    customerName: string;
+    status: string;
+    estimatedContactTime: string;
+  };
+}
+
+export interface PCRequirementsListResponse {
+  success: boolean;
+  requirements: any[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+  filters: {
+    status: string;
+    search: string;
+    sortBy: string;
+    sortOrder: string;
+  };
+}
+
+export interface PCRequirementStatsResponse {
+  success: boolean;
+  stats: {
+    byStatus: Array<{
+      status: string;
+      count: number;
+      totalEstimatedValue: number;
+      avgBudget: number;
+    }>;
+    byBudget: Array<{
+      budget: string;
+      count: number;
+    }>;
+    byPurpose: Array<{
+      purpose: string;
+      count: number;
+    }>;
+    total: number;
+    new: number;
+    conversionRate: string;
+  };
+}

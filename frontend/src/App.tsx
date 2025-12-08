@@ -37,6 +37,7 @@ import SingleBlog from "./components/blog/SingleBlog";
 import BlogCategory from "./components/blog/BlogCategory";
 import BlogTag from "./components/blog/BlogTag";
 import { HelmetProvider } from "react-helmet-async";
+import VideoSectionsPage from "./components/video/VideoSectionsPage";
 
 // ✅ UPDATED: Root Layout - AuthInitializer at the top level
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -349,7 +350,7 @@ const App: React.FC = () => {
             } 
           />
 
-                    <Route 
+          <Route 
             path="/blog" 
             element={
               <PublicLayout>

@@ -23,7 +23,6 @@ const wishlistSlice = createSlice({
       state.error = null;
     },
     
-// slices/wishlistSlice.ts - HANDLE UNDEFINED PAYLOAD
 fetchWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isGuest: boolean }>) => {
   state.loading = false;
   
@@ -39,7 +38,19 @@ fetchWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isG
   // ✅ DEFENSIVE CHECK: Ensure items is always an array
   const items = Array.isArray(action.payload.items) ? action.payload.items : [];
   
-  state.items = items;
+  // ✅ FIXED: Deep clone items to preserve nested objects
+  state.items = items.map(item => ({
+    ...item,
+    // Preserve variant - ensure it's not lost
+    variant: item.variant ? { ...item.variant } : item.variant,
+    // Preserve product with nested images
+    product: item.product ? { 
+      ...item.product,
+      // Deep clone images object
+      images: item.product.images ? { ...item.product.images } : item.product.images
+    } : item.product
+  }));
+  
   state.isGuest = Boolean(action.payload.isGuest);
   
   // ✅ DEFENSIVE CHECK: Safe mapping for checkedItems
@@ -59,23 +70,58 @@ fetchWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isG
       state.error = null;
     },
     
-    // ✅ DEFENSIVE: Update success
-    updateWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isGuest: boolean }>) => {
-      state.updating = false;
-      
-      if (!action.payload) {
-        console.error('❌ updateWishlistSuccess: action.payload is undefined');
-        return;
-      }
-      
-      const items = Array.isArray(action.payload.items) ? action.payload.items : [];
-      state.items = items;
-      state.isGuest = Boolean(action.payload.isGuest);
-      state.checkedItems = items
-        .map(item => item?.product?._id)
-        .filter((id): id is string => Boolean(id));
-    },
-    
+updateWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isGuest: boolean }>) => {
+  state.updating = false;
+  
+  if (!action.payload) {
+    console.error('❌ updateWishlistSuccess: action.payload is undefined');
+    return;
+  }
+  
+  const items = Array.isArray(action.payload.items) ? action.payload.items : [];
+  
+  // ✅ FIXED: Deep clone items
+  state.items = items.map(item => ({
+    ...item,
+    variant: item.variant ? { ...item.variant } : item.variant,
+    product: item.product ? { 
+      ...item.product,
+      images: item.product.images ? { ...item.product.images } : item.product.images
+    } : item.product
+  }));
+  
+  state.isGuest = Boolean(action.payload.isGuest);
+  state.checkedItems = items
+    .map(item => item?.product?._id)
+    .filter((id): id is string => Boolean(id));
+},
+
+syncWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isGuest: boolean }>) => {
+  state.updating = false;
+  
+  if (!action.payload) {
+    console.error('❌ syncWishlistSuccess: action.payload is undefined');
+    return;
+  }
+  
+  const items = Array.isArray(action.payload.items) ? action.payload.items : [];
+  
+  // ✅ FIXED: Deep clone items
+  state.items = items.map(item => ({
+    ...item,
+    variant: item.variant ? { ...item.variant } : item.variant,
+    product: item.product ? { 
+      ...item.product,
+      images: item.product.images ? { ...item.product.images } : item.product.images
+    } : item.product
+  }));
+  
+  state.checkedItems = items
+    .map(item => item?.product?._id)
+    .filter((id): id is string => Boolean(id));
+  state.isGuest = Boolean(action.payload.isGuest);
+  state.lastSynced = new Date().toISOString();
+},
     updateWishlistFailure: (state, action: PayloadAction<string>) => {
       state.updating = false;
       state.error = action.payload;
@@ -129,14 +175,21 @@ fetchWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isG
       }
     },
 
-    removeItemFromWishlist: (state, action: PayloadAction<{ productId: string }>) => {
-      if (!action.payload?.productId) return;
-      
-      state.items = state.items.filter(item => 
-        item.product._id !== action.payload.productId
-      );
-      state.checkedItems = state.checkedItems.filter(id => id !== action.payload.productId);
-    },
+// In wishlistSlice.ts - Update removeItemFromWishlist
+removeItemFromWishlist: (state, action: PayloadAction<{ productId: string }>) => {
+    if (!action.payload?.productId) return;
+    
+    // ✅ Handle both regular productId and guest itemId format
+    const idToRemove = action.payload.productId;
+    
+    state.items = state.items.filter(item => {
+        // Check if this is the item to remove
+        // Could be matching by item._id (guest-xxx) or product._id
+        return item._id !== idToRemove && item.product._id !== idToRemove;
+    });
+    
+    state.checkedItems = state.checkedItems.filter(id => id !== idToRemove);
+},
 
     // Batch check items
     batchCheckWishlistItems: (state, action: PayloadAction<{ productIds: string[]; allInWishlist: boolean }>) => {
@@ -171,24 +224,6 @@ fetchWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isG
     syncWishlistStart: (state) => {
       state.updating = true;
       state.error = null;
-    },
-
-    // ✅ DEFENSIVE: Sync success
-    syncWishlistSuccess: (state, action: PayloadAction<{ items: WishlistItem[]; isGuest: boolean }>) => {
-      state.updating = false;
-      
-      if (!action.payload) {
-        console.error('❌ syncWishlistSuccess: action.payload is undefined');
-        return;
-      }
-      
-      const items = Array.isArray(action.payload.items) ? action.payload.items : [];
-      state.items = items;
-      state.checkedItems = items
-        .map(item => item?.product?._id)
-        .filter((id): id is string => Boolean(id));
-      state.isGuest = Boolean(action.payload.isGuest);
-      state.lastSynced = new Date().toISOString();
     },
 
     syncWishlistFailure: (state, action: PayloadAction<string>) => {

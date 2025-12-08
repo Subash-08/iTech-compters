@@ -2,6 +2,7 @@ import React from 'react';
 import { ProductData, Variant } from './productTypes';
 import VariantSelectors from './VariantSelectors';
 import AddToCartButton from './AddToCartButton';
+import AddToWishlistButton from './AddToWishlistButton';
 
 interface ProductInfoProps {
   productData: ProductData;
@@ -246,34 +247,44 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
           </p>
         </div>
       )}
-
       <div className="flex space-x-4">
-        {/* Add to Cart Button - FIXED: Pass variant data instead of variantId */}
-        <AddToCartButton
-          productId={productData._id}
-          variant={getVariantData()} // ✅ CHANGED: Pass full variant object
-          quantity={1}
-          className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
-            !canAddToCart
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
-          }`}
-          disabled={!canAddToCart}
-        >
-          Add to Cart
-        </AddToCartButton>
+<AddToCartButton
+  productId={productData._id}
+  product={productData} // ✅ ADD THIS CRITICAL PROP
+  variant={getVariantData()}
+  quantity={1}
+  className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
+    !canAddToCart
+      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+      : 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
+  }`}
+  disabled={!canAddToCart}
+>
+  Add to Cart
+</AddToCartButton>
         
-        {/* Buy Now Button */}
-        <button
-          className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
-            !canAddToCart
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-orange-500 hover:bg-orange-600 text-white'
-          }`}
-          disabled={!canAddToCart}
-        >
-          Buy Now
-        </button>
+ <button
+    onClick={() => {
+      // Create a click handler that uses your AddToWishlistButton logic
+      // Or you can wrap it in a container
+    }}
+    className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center ${
+      !canAddToCart
+        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+        : 'bg-orange-500 hover:bg-orange-600 text-white'
+    }`}
+    disabled={!canAddToCart}
+  >
+    <AddToWishlistButton
+      productId={productData._id}
+      variant={getVariantData()}
+      productType="product"
+      className="!w-5 !h-5 mr-2"
+      size="sm"
+      showTooltip={false}
+    />
+    Wishlist
+  </button>
       </div>
 
       {/* Selected Variant Info */}

@@ -153,6 +153,7 @@ export interface ImageData {
   altText: string;
   sectionTitle?: string;
   file?: File;
+  _fileUpload?: File;
 }
 
 export interface VariantConfiguration {
@@ -192,6 +193,8 @@ export interface ProductVariant {
   };
   isActive: boolean;
   specifications: Specification[];
+   _thumbnailFile?: File;
+  _galleryFiles?: File[];
 }
 
 export interface IdentifyingAttribute {

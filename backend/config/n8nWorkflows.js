@@ -12,5 +12,10 @@ module.exports = {
     invoiceGenerated: { path: "/webhook/order-events" },
 
     // STOCK EVENTS WORKFLOW
-    lowStockAlert: { path: "/webhook/inventory-events" }
+    lowStockAlert: { path: "/webhook/inventory-events" },
+
+    // INQUIRY/LEAD EVENTS WORKFLOW
+    pcRequirementsSubmitted: { path: "/webhook/lead-events" },
+    pcQuoteGenerated: { path: "/webhook/lead-events" },
+    pcRequirementsConfirmation: { path: "/webhook/lead-events" }
 };

@@ -23,6 +23,9 @@ const paymentRoutes = require('./routes/payment');
 const orderRoutes = require('./routes/order');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const blogRoutes = require('./routes/blogRoutes');
+const videoRoutes = require('./routes/videoRoutes');
+const sectionRoutes = require('./routes/sectionRoutes');
+const { cleanupTempFiles } = require('./middlewares/uploadVideo');
 
 const app = express();
 
@@ -61,6 +64,8 @@ app.use(cookieParser());
 // Serve static files - FIXED PATH
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(cleanupTempFiles);
 // Alternative: Serve entire public folder
 // app.use(express.static(path.join(__dirname, 'public')));
 
@@ -83,6 +88,8 @@ app.use('/api/v1', checkoutRoutes);
 app.use('/api/v1', paymentRoutes);
 app.use('/api/v1', orderRoutes);
 app.use('/api/v1', blogRoutes);
+app.use('/api/v1/videos', videoRoutes);
+app.use('/api/v1/sections', sectionRoutes);
 // Health check route
 app.get('/api/v1/health', (req, res) => {
     res.json({

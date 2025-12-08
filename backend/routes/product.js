@@ -36,7 +36,7 @@ const {
 } = require("../controllers/productController");
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
-const { productUpload, handleMulterError } = require("../config/multerConfig");
+const { productUpload, handleMulterError, handleDynamicFields } = require("../config/multerConfig");
 
 const router = express.Router();
 
@@ -83,12 +83,7 @@ router.get("/admin/product/:id", isAuthenticatedUser, authorizeRoles("admin"), g
 router.post("/admin/product/new",
     isAuthenticatedUser,
     authorizeRoles("admin"),
-    productUpload.fields([
-        { name: 'thumbnail', maxCount: 1 },
-        { name: 'hoverImage', maxCount: 1 },
-        { name: 'gallery', maxCount: 10 },
-        { name: 'manufacturerImages', maxCount: 10 }
-    ]),
+    handleDynamicFields(),
     handleMulterError,
     createProduct
 );

@@ -6,6 +6,7 @@ import ComponentsTab from './tabs/ComponentsTab';
 import ExtrasTab from './tabs/ExtrasTab';
 import PeripheralsTab from './tabs/PeripheralsTab';
 import QuoteModal from './QuoteModal';
+import PCRequirementsForm from './PCRequirementsForm';
 
 const PCBuilder: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -15,6 +16,8 @@ const PCBuilder: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [visibleCategories, setVisibleCategories] = useState<Set<string>>(new Set());
+  
+const [showRequirementsForm, setShowRequirementsForm] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -131,6 +134,31 @@ const PCBuilder: React.FC = () => {
             </div>
           </div>
         </div>
+        <div className="mt-4">
+  <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+    <div className="flex flex-col md:flex-row justify-between items-center">
+      <div className="mb-4 md:mb-0">
+        <h3 className="font-semibold text-blue-900 mb-1">Not sure which components to choose?</h3>
+        <p className="text-blue-700 text-sm">Let our experts build the perfect PC for your needs</p>
+      </div>
+      <div className="flex space-x-3">
+        <button
+          onClick={() => setShowRequirementsForm(true)}
+          className="px-4 py-2 bg-white border border-blue-600 text-blue-600 rounded-md text-sm font-medium hover:bg-blue-50 transition-colors"
+        >
+          Fill Requirements Form
+        </button>
+        <button
+          onClick={() => {}}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+        >
+          Build Manually
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm">
@@ -226,6 +254,21 @@ const PCBuilder: React.FC = () => {
           totalPrice={getTotalPrice()}
         />
       </div>
+      {showRequirementsForm && (
+  <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+    <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <button
+        onClick={() => setShowRequirementsForm(false)}
+        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-white rounded-full p-1"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <PCRequirementsForm onClose={() => setShowRequirementsForm(false)} />
+    </div>
+  </div>
+)}
     </div>
   );
 };

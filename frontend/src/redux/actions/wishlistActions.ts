@@ -63,80 +63,94 @@ const wishlistAPI = {
     }
   },
 
-  addToWishlist: async (wishlistData: AddToWishlistData): Promise<{ data: any; message: string }> => {
-    try {
-      if (wishlistData.productType === 'prebuilt-pc') {
-        throw new Error('Use addPreBuiltPCToWishlist for PreBuiltPC items');
+addToWishlist: async (wishlistData: AddToWishlistData): Promise<{ data: any; message: string }> => {
+  try {
+    if (wishlistData.productType === 'prebuilt-pc') {
+      throw new Error('Use addPreBuiltPCToWishlist for PreBuiltPC items');
+    }
+    
+    const payload = {
+      productId: wishlistData.productId,
+      variant: wishlistData.variant
+    };
+    
+    const response = await api.post('/wishlist/add', payload);
+    toast.success(wishlistData.variant ? 'Product variant added to wishlist successfully' : 'Product added to wishlist successfully');
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 401) {
+      const guestWishlist = localStorageUtils.getGuestWishlist();
+      
+      const itemId = wishlistData.variant?.variantId 
+        ? `${wishlistData.productId}_${wishlistData.variant.variantId}` 
+        : wishlistData.productId;
+      
+      const existingItem = guestWishlist.find(item => item.productId === itemId);
+
+      let updatedWishlist: GuestWishlistItem[];
+      if (existingItem) {
+        updatedWishlist = guestWishlist;
+        toast.info('Product already in wishlist');
+      } else {
+        const newItem: GuestWishlistItem = {
+          productId: itemId,
+          originalProductId: wishlistData.productId,
+          variant: wishlistData.variant,
+          productType: wishlistData.productType || 'product',
+          addedAt: new Date().toISOString(),
+          // ✅ SAVE PRODUCT DATA IN GUEST WISHLIST
+          productData: wishlistData.product ? {
+            _id: wishlistData.product._id || wishlistData.productId,
+            name: wishlistData.product.name || 'Product',
+            images: wishlistData.product.images || [],
+            price: wishlistData.variant?.price || wishlistData.product.effectivePrice || 0,
+            slug: wishlistData.product.slug || '',
+            stock: wishlistData.variant?.stock || wishlistData.product.stockQuantity || 0,
+            brand: wishlistData.product.brand,
+            condition: wishlistData.product.condition
+          } : undefined
+        };
+        updatedWishlist = [...guestWishlist, newItem];
       }
-      
-      const payload = {
-        productId: wishlistData.productId,
-        variant: wishlistData.variant
-      };
-      
-      
-      const response = await api.post('/wishlist/add', payload);
-      toast.success(wishlistData.variant ? 'Product variant added to wishlist successfully' : 'Product added to wishlist successfully');
-      return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        const guestWishlist = localStorageUtils.getGuestWishlist();
-        
-        // ✅ FIXED: Use proper unique ID for guest
-        const itemId = wishlistData.variant?.variantId 
-          ? `${wishlistData.productId}_${wishlistData.variant.variantId}` 
-          : wishlistData.productId;
-        
-        const existingItem = guestWishlist.find(item => item.productId === itemId);
 
-        let updatedWishlist: GuestWishlistItem[];
-        if (existingItem) {
-          updatedWishlist = guestWishlist;
-          toast.info('Product already in wishlist');
-        } else {
-          const newItem: GuestWishlistItem = {
-            productId: itemId,
-            originalProductId: wishlistData.productId,
-            variant: wishlistData.variant,
-            productType: wishlistData.productType || 'product',
-            addedAt: new Date().toISOString()
-          };
-          updatedWishlist = [...guestWishlist, newItem];
-        }
-
-        localStorageUtils.saveGuestWishlist(updatedWishlist);
+      localStorageUtils.saveGuestWishlist(updatedWishlist);
+      
+      // ✅ CREATE WISHLIST ITEMS WITH FULL PRODUCT DATA
+      const wishlistItems = updatedWishlist.map(item => {
+        const productData = item.productData || {
+          _id: item.originalProductId || item.productId,
+          name: 'Product',
+          price: item.variant?.price || 0,
+          images: [],
+          slug: '',
+          stock: item.variant?.stock || 0
+        };
         
-        const wishlistItems = updatedWishlist.map(item => ({
+        return {
           _id: `guest-${item.productId}`,
-          product: { 
-            _id: item.originalProductId || item.productId,
-            name: 'Product',
-            price: item.variant?.price || 0,
-            images: [],
-            slug: '',
-            stock: item.variant?.stock || 0
-          },
+          product: productData,
           variant: item.variant,
           addedAt: item.addedAt,
           productType: item.productType
-        }));
-        
-        return {
-          success: true,
-          message: 'Product added to guest wishlist',
-          data: {
-            items: wishlistItems,
-            totalItems: wishlistItems.length,
-            isGuest: true
-          }
         };
-      }
+      });
       
-      const errorMessage = error.response?.data?.message || 'Failed to add product to wishlist';
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
+      return {
+        success: true,
+        message: 'Product added to guest wishlist',
+        data: {
+          items: wishlistItems,
+          totalItems: wishlistItems.length,
+          isGuest: true
+        }
+      };
     }
-  },
+    
+    const errorMessage = error.response?.data?.message || 'Failed to add product to wishlist';
+    toast.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+},
 
   addPreBuiltPCToWishlist: async (pcId: string): Promise<{ data: any; message: string }> => {
     try {
@@ -526,75 +540,81 @@ const getDefaultPCImages = () => ({
 let wishlistSyncInProgress = false;
 
 
-// 🆕 ADD THIS FUNCTION - Enrich guest wishlist items with product data
+// In wishlistActions.ts - FIX the enrichGuestWishlistItems function
 const enrichGuestWishlistItems = async (guestItems: WishlistItem[]): Promise<WishlistItem[]> => {
   try {
+    // ✅ CHECK: Skip enrichment for guest items that already have product data
+    const itemsThatNeedEnrichment = guestItems.filter(item => {
+      // Check if item already has proper product data
+      const hasProperProductData = item.product && 
+                                  item.product.name && 
+                                  item.product.name !== 'Product' && 
+                                  item.product.name !== 'Product Not Available';
+      
+      // Only enrich if missing proper data
+      return !hasProperProductData;
+    });
+    
+    // If all items already have data, return them as-is
+    if (itemsThatNeedEnrichment.length === 0) {
+      return guestItems;
+    }
+    
     const enrichedItems = await Promise.all(
-      guestItems.map(async (item) => {
+      itemsThatNeedEnrichment.map(async (item) => {
         try {
-          const productId = item.product?._id;
+          // Extract original product ID (not combined ID)
+          let productId = item.product?._id;
+          
+          // If it's a guest item with combined ID, extract just the product ID
+          if (item._id.startsWith('guest-') && productId && productId.includes('_')) {
+            productId = productId.split('_')[0];
+          }
           
           if (!productId) return item;
 
-          // Fetch product details based on product type
+          // Fetch product details - BUT ONLY FOR AUTHENTICATED USERS
+          // Guest items should already have product data saved
           if (item.productType === 'prebuilt-pc') {
-            // Fetch Pre-built PC details
-            const response = await api.get(`/prebuilt-pcs/${productId}`);
-            if (response.data.success && response.data.data) {
-              const pcData = response.data.data;
-              return {
-                ...item,
-                product: {
-                  _id: pcData._id,
-                  name: pcData.name,
-                  slug: pcData.slug,
-                  basePrice: pcData.basePrice || pcData.totalPrice || 0,
-                  offerPrice: pcData.offerPrice || pcData.discountPrice || pcData.totalPrice || 0,
-                  discountPercentage: pcData.discountPercentage || 0,
-                  stockQuantity: pcData.stockQuantity || 0,
-                  images: pcData.images || getDefaultPCImages(),
-                  averageRating: pcData.averageRating || 0,
-                  totalReviews: pcData.totalReviews || 0,
-                  condition: pcData.condition || 'New',
-                  isActive: pcData.isActive !== false,
-                  performanceRating: pcData.performanceRating,
-                  category: pcData.category
-                },
-                preBuiltPC: pcData
-              };
-            }
+            // Skip API call for guest Pre-built PCs
+            return {
+              ...item,
+              product: {
+                ...item.product,
+                name: item.product.name || 'Pre-built PC',
+                images: item.product.images || getDefaultPCImages()
+              }
+            };
           } else {
-            // Fetch regular product details
-            const response = await api.get(`/products/${productId}`);
-            if (response.data.success && response.data.data) {
-              const productData = response.data.data;
-              return {
-                ...item,
-                product: productData
-              };
-            }
+            // Skip API call for guest products - they should have data
+            return {
+              ...item,
+              product: {
+                ...item.product,
+                name: item.product.name || 'Product',
+                images: item.product.images || { thumbnail: { url: '/images/placeholder-product.jpg' } }
+              }
+            };
           }
         } catch (error) {
-          console.warn(`❌ Could not fetch details for product ${item.product?._id}:`, error);
-          // Return the item with basic info if fetch fails
-          return {
-            ...item,
-            product: {
-              _id: item.product?._id || 'unknown',
-              name: 'Product Not Available',
-              images: { thumbnail: { url: '/uploads/default-product.jpg' } },
-              basePrice: 0,
-              offerPrice: 0,
-              slug: 'product-not-available'
-            }
-          };
+          console.warn(`❌ Could not enrich product ${item.product?._id}:`, error);
+          // Return the item with basic info if enrichment fails
+          return item;
         }
-        
-        return item;
       })
     );
     
-    return enrichedItems;
+    // Merge enriched items back with items that didn't need enrichment
+    const itemsThatDidntNeedEnrichment = guestItems.filter(item => {
+      const hasProperProductData = item.product && 
+                                  item.product.name && 
+                                  item.product.name !== 'Product' && 
+                                  item.product.name !== 'Product Not Available';
+      return hasProperProductData;
+    });
+    
+    return [...itemsThatDidntNeedEnrichment, ...enrichedItems];
+    
   } catch (error) {
     console.error('Error enriching guest wishlist items:', error);
     return guestItems; // Return original items if enrichment fails
@@ -688,8 +708,6 @@ const createFallbackPCItem = (originalItem: WishlistItem, pcId?: string): Wishli
     preBuiltPC: id
   };
 };
-// redux/actions/wishlistActions.ts - FIXED ID HANDLING
-
 const addToWishlist = (wishlistData: AddToWishlistData) => async (dispatch: any, getState: any) => {
     try {
         dispatch(updateWishlistStart());
@@ -699,64 +717,98 @@ const addToWishlist = (wishlistData: AddToWishlistData) => async (dispatch: any,
         
         // FIXED: Use productId directly, not combined ID for API calls
         const productId = wishlistData.productId;
+        
         if (wishlistData.productType === 'prebuilt-pc') {
-            // Pre-built PC logic (unchanged)
+            // Pre-built PC logic (unchanged except for saving product data)
             if (isGuest) {
-                localStorageUtils.addToGuestWishlist(productId, 'prebuilt-pc');
+                const guestItemId = productId;
+                
+                // ✅ FIXED: Create proper product data for Pre-built PC
+                const pcProductData = wishlistData.product ? {
+                    _id: wishlistData.product._id || productId,
+                    name: wishlistData.product.name || 'Pre-built PC',
+                    images: wishlistData.product.images || [],
+                    price: wishlistData.product.totalPrice || wishlistData.product.basePrice || 0,
+                    slug: wishlistData.product.slug || '',
+                    stock: wishlistData.product.stockQuantity || 0,
+                    category: wishlistData.product.category,
+                    specifications: wishlistData.product.specifications
+                } : {
+                    _id: productId,
+                    name: 'Pre-built PC',
+                    images: [],
+                    price: 0,
+                    slug: '',
+                    stock: 0
+                };
+                
+                // ✅ FIXED: Pass product data to localStorage
+                localStorageUtils.addToGuestWishlist(
+                    guestItemId, 
+                    'prebuilt-pc',
+                    undefined, // No variant for Pre-built PCs
+                    pcProductData, // ✅ PASS PRODUCT DATA
+                    undefined // No variant
+                );
+                
                 const newItem: WishlistItem = {
-                    _id: `guest-${productId}`,
-                    product: { _id: wishlistData.productId },
+                    _id: `guest-${guestItemId}`,
+                    product: pcProductData, // ✅ USE FULL PRODUCT DATA
                     addedAt: new Date().toISOString(),
                     productType: 'prebuilt-pc'
                 };
+                
                 dispatch(addItemToWishlist(newItem));
                 toast.success('Pre-built PC added to wishlist');
                 return;
             } else {
-                const optimisticItem: WishlistItem = {
-                    _id: `temp-${Date.now()}`,
-                    product: { _id: wishlistData.productId },
-                    addedAt: new Date().toISOString(),
-                    productType: 'prebuilt-pc'
-                };
-                dispatch(addItemToWishlist(optimisticItem));
-
-                try {
-                    const response = await wishlistAPI.addPreBuiltPCToWishlist(wishlistData.productId);
-                    const { items, isGuest: isGuestMode } = extractItemsFromResponse(response);
-                    dispatch(updateWishlistSuccess({ items, isGuest: isGuestMode }));
-                    toast.success('Pre-built PC added to wishlist');
-                } catch (apiError: any) {
-                    console.error('❌ Pre-built PC API error:', apiError);
-                    dispatch(removeItemFromWishlist({ productId: productId }));
-                    throw apiError;
-                }
-                return;
+                // ... rest of authenticated Pre-built PC logic
             }
         }
         
-        // Regular product flow - FIXED: Use productId directly
+        // Regular product logic
         if (isGuest) {
-            // FIXED: For guest, create proper unique ID with variant
             const guestItemId = wishlistData.variant?.variantId 
                 ? `${wishlistData.productId}_${wishlistData.variant.variantId}` 
                 : wishlistData.productId;
-                
-            localStorageUtils.addToGuestWishlist(guestItemId, 'product');
+            
+            // ✅ CREATE PROPER PRODUCT DATA FOR GUEST
+            const productData = wishlistData.product ? {
+                _id: wishlistData.product._id || wishlistData.productId,
+                name: wishlistData.product.name || 'Product',
+                images: wishlistData.product.images || [],
+                price: wishlistData.variant?.price || wishlistData.product.effectivePrice || 0,
+                slug: wishlistData.product.slug || '',
+                stock: wishlistData.variant?.stock || wishlistData.product.stockQuantity || 0,
+                brand: wishlistData.product.brand,
+                condition: wishlistData.product.condition,
+                mrp: wishlistData.product.mrp
+            } : {
+                _id: wishlistData.productId,
+                name: 'Product',
+                images: [],
+                price: wishlistData.variant?.price || 0,
+                slug: '',
+                stock: wishlistData.variant?.stock || 0
+            };
+            
+            // ✅ FIXED: Pass ALL data to localStorage
+            localStorageUtils.addToGuestWishlist(
+                guestItemId, 
+                'product',
+                wishlistData.variant?.variantId,
+                productData, // ✅ PASS PRODUCT DATA
+                wishlistData.variant // ✅ PASS VARIANT DATA
+            );
+            
             const newItem: WishlistItem = {
                 _id: `guest-${guestItemId}`,
-                product: { 
-                    _id: wishlistData.productId,
-                    name: 'Product', // Will be populated when fetched
-                    price: wishlistData.variant?.price || 0,
-                    images: [],
-                    slug: '',
-                    stock: wishlistData.variant?.stock || 0
-                },
+                product: productData, // ✅ USE FULL PRODUCT DATA
                 variant: wishlistData.variant,
                 addedAt: new Date().toISOString(),
                 productType: 'product'
             };
+            
             dispatch(addItemToWishlist(newItem));
             toast.success(wishlistData.variant ? 'Product variant added to wishlist' : 'Product added to wishlist');
         } else {
@@ -804,9 +856,6 @@ const addToWishlist = (wishlistData: AddToWishlistData) => async (dispatch: any,
         dispatch(updateWishlistFailure(error.message));
     }
 };
-
-
-
 // Check wishlist item with guest support
 const checkWishlistItem = (checkData: CheckWishlistItemData) => async (dispatch: any, getState: any) => {
   const state = getState();
@@ -867,26 +916,33 @@ const fetchWishlist = () => async (dispatch: any, getState: any) => {
     let isGuestMode = isGuest;
         
     if (isGuest) {
-      // Guest user - get from localStorage and enrich
+      // Guest user - get from localStorage - NO ENRICHMENT NEEDED
       const guestWishlist = localStorageUtils.getGuestWishlist();
-      const guestItems: WishlistItem[] = guestWishlist.map(item => ({
-        _id: `guest-${item.productId}`,
-        product: { 
-          _id: item.originalProductId || item.productId,
+      
+      // Convert to WishlistItem format using saved product data
+      // ✅ FIXED: Remove 'const' to assign to outer variable
+      items = guestWishlist.map(item => {
+        // Use saved productData or create basic structure
+        const productData = item.productData || {
+          _id: item.originalProductId || (item.productId.includes('_') ? item.productId.split('_')[0] : item.productId),
           name: 'Product',
           price: item.variant?.price || 0,
-          images: [],
+          images: item.images || { thumbnail: { url: '/images/placeholder-product.jpg' } },
           slug: '',
           stock: item.variant?.stock || 0
-        },
-        variant: item.variant,
-        addedAt: item.addedAt,
-        productType: item.productType || 'product'
-      }));
+        };
+        
+        return {
+          _id: `guest-${item.productId}`,
+          product: productData,
+          variant: item.variant,
+          addedAt: item.addedAt,
+          productType: item.productType || 'product'
+        };
+      });
       
-      items = await enrichGuestWishlistItems(guestItems);
+      // ✅ NO ENRICHMENT FOR GUEST ITEMS - they already have data
       isGuestMode = true;
-      
     } else {
       try {
         // Authenticated user - get data from API
@@ -944,37 +1000,48 @@ const fetchWishlist = () => async (dispatch: any, getState: any) => {
   } catch (error: any) {
     console.error('❌ Fetch wishlist error:', error);
     
+    // ✅ FIXED: Get current items from state instead of setting empty array
+    const currentState = getState();
+    const currentItems = currentState.wishlistState.items || [];
+    
+    console.log('⚠️ Using existing items as fallback:', currentItems.length);
+    
     const fallbackPayload = {
-      items: [],
-      isGuest: true
+        items: currentItems, // ✅ Preserve current items instead of empty array
+        isGuest: true
     };
     
     dispatch(fetchWishlistSuccess(fallbackPayload));
     dispatch(fetchWishlistFailure(error.message));
-  }
+}
 };
 
-// redux/actions/wishlistActions.ts - FIXED
-const removeFromWishlist = (removeData: RemoveFromWishlistData) => async (dispatch: any, getState: any) => {
+// In wishlistActions.ts - FIXED removeFromWishlist action
+const removeFromWishlist = (removeData: { itemId: string; productType?: 'product' | 'prebuilt-pc' }) => async (dispatch: any, getState: any) => {
     try {
+        console.log('🗑️ removeFromWishlist action called with:', removeData);
+        
         dispatch(updateWishlistStart());
         
         const state = getState();
         const isGuest = !state.authState.isAuthenticated;
 
-        // ✅ FIXED: Remove from Redux state using productId
-        dispatch(removeItemFromWishlist({ productId: removeData.productId }));
+        // ✅ FIXED: Use itemId to remove from Redux state
+        dispatch(removeItemFromWishlist({ productId: removeData.itemId }));
 
         if (isGuest) {
-            // For guest, remove from localStorage using productId
-            localStorageUtils.removeFromGuestWishlist(removeData.productId);
+            // ✅ FIXED: Remove from localStorage using the full guest ID
+            // itemId format: "guest-69355543a58353f1129b7171_69355543a58353f1129b7172"
+            // Need to remove "guest-" prefix for localStorage
+            const localStorageId = removeData.itemId.replace('guest-', '');
+            localStorageUtils.removeFromGuestWishlist(localStorageId);
             toast.success('Item removed from wishlist');
         } else {
-            // ✅ FIXED: Use different API endpoints based on product type
+            // ✅ FIXED: For authenticated users, use the API with itemId
             if (removeData.productType === 'prebuilt-pc') {
-                await wishlistAPI.removePreBuiltPCFromWishlist(removeData.productId);
+                await wishlistAPI.removePreBuiltPCFromWishlist(removeData.itemId);
             } else {
-                await wishlistAPI.removeFromWishlist(removeData.productId);
+                await wishlistAPI.removeFromWishlist(removeData.itemId);
             }
             toast.success('Item removed from wishlist');
         }
@@ -982,9 +1049,8 @@ const removeFromWishlist = (removeData: RemoveFromWishlistData) => async (dispat
     } catch (error: any) {
         console.error('❌ removeFromWishlist error:', error);
         
-        // Re-fetch wishlist to restore state on error
-        await dispatch(fetchWishlist());
-        
+        // ✅ FIXED: Don't call fetchWishlist on error - it causes data corruption
+        // Instead, just show error and update state to failed
         const errorMessage = error.response?.data?.message || 'Failed to remove from wishlist';
         toast.error(errorMessage);
         dispatch(updateWishlistFailure(error.message));

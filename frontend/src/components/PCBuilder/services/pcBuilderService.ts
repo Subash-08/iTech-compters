@@ -3,7 +3,11 @@ import {
   PCBuilderConfig, 
   Product, 
   Pagination,
-  Category 
+  Category, 
+  PCRequirementStatsResponse,
+  PCRequirementsListResponse,
+  PCRequirementsRequest,
+  PCRequirementsResponse
 } from '../types/pcBuilder';
 
 export interface PCQuoteRequest {
@@ -252,6 +256,75 @@ export const pcBuilderService = {
       return response.data;
     } catch (error) {
       console.error('Error searching products:', error);
+      throw error;
+    }
+  },
+    createPCRequirements: async (data: PCRequirementsRequest): Promise<PCRequirementsResponse> => {
+    try {
+      const response = await api.post('/custom-pc/requirements', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error submitting PC requirements:', error);
+      throw error;
+    }
+  },
+
+  // Get all PC requirements (Admin)
+  getPCRequirements: async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<PCRequirementsListResponse> => {
+    try {
+      const response = await api.get('/custom-pc/admin/requirements', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching PC requirements:', error);
+      throw error;
+    }
+  },
+
+  // Get single PC requirement (Admin)
+  getPCRequirement: async (id: string): Promise<{ success: boolean; requirement: any }> => {
+    try {
+      const response = await api.get(`/custom-pc/admin/requirements/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching PC requirement:', error);
+      throw error;
+    }
+  },
+
+  // Update PC requirement (Admin)
+  updatePCRequirement: async (
+    id: string,
+    data: {
+      status?: string;
+      adminNotes?: string;
+      assignedTo?: string;
+      recommendations?: any[];
+      estimatedTotal?: number;
+    }
+  ): Promise<{ success: boolean; message: string; requirement: any }> => {
+    try {
+      const response = await api.put(`/custom-pc/admin/requirements/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating PC requirement:', error);
+      throw error;
+    }
+  },
+
+  // Get PC requirements statistics (Admin)
+  getPCRequirementsStats: async (): Promise<PCRequirementStatsResponse> => {
+    try {
+      const response = await api.get('/custom-pc/admin/requirements/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching PC requirements stats:', error);
       throw error;
     }
   }

@@ -293,6 +293,8 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   setSubmitLoading(true);
 
+  
+
   try {
     // -------- Frontend validation --------
     const errors: string[] = [];
@@ -317,6 +319,26 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       formData.images.thumbnail.url.trim() === ''
     ) {
       errors.push('Thumbnail image is required');
+    }
+
+    // Validate variant images if variants exist
+    if (formData.variantConfiguration.hasVariants) {
+      formData.variants.forEach((variant, index) => {
+        // Variant name is required
+        if (!variant.name?.trim()) {
+          errors.push(`Variant #${index + 1}: Name is required`);
+        }
+        
+        // Variant price is required
+        if (!variant.price || variant.price <= 0) {
+          errors.push(`Variant "${variant.name || `#${index + 1}`}": Valid price is required`);
+        }
+        
+        // Variant SKU is required
+        if (!variant.sku?.trim()) {
+          errors.push(`Variant "${variant.name || `#${index + 1}`}": SKU is required`);
+        }
+      });
     }
 
     if (errors.length > 0) {
@@ -360,42 +382,112 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     fd.append("meta", JSON.stringify(formData.meta || {}));
     fd.append("linkedProducts", JSON.stringify(formData.linkedProducts || []));
 
-    // 🔹 Variants - IMPORTANT: Clean variants before sending
-    const cleanedVariants = formData.variants.map(variant => {
+    // 🔹 Clean variants and handle variant image files
+    const cleanedVariants = formData.variants.map((variant, variantIndex) => {
       const cleanedVariant = { ...variant };
       
-      // Handle thumbnail - remove if it's empty (for file upload)
-      if (cleanedVariant.images?.thumbnail) {
-        // If thumbnail has a file but no URL, keep it (backend will handle upload)
-        // If it has a URL, use it
-        // If it's empty, check if there's a file in uploadedFiles
+      // Handle variant thumbnail files
+      if (variant._thumbnailFile) {
+        // Append the file with simple field name for backend
+        fd.append(`variantThumbnail_${variantIndex}`, variant._thumbnailFile);
+        
+        // Remove temporary file property from variant data
+        delete cleanedVariant._thumbnailFile;
+        
+        // If we have a blob URL for preview, don't send it
+        if (cleanedVariant.images?.thumbnail?.url?.startsWith('blob:')) {
+          cleanedVariant.images.thumbnail.url = ''; // Will be set by backend
+        }
       }
       
-      // Handle gallery - filter out empty URLs
-      if (cleanedVariant.images?.gallery) {
-        cleanedVariant.images.gallery = cleanedVariant.images.gallery.filter(
-          (img: any) => img && img.url && img.url.trim() !== ""
-        );
+      // Handle variant gallery files
+      if (variant._galleryFiles && variant._galleryFiles.length > 0) {
+        variant._galleryFiles.forEach((file, fileIndex) => {
+          fd.append(`variantGallery_${variantIndex}_${fileIndex}`, file);
+        });
+        
+        // Remove temporary file property
+        delete cleanedVariant._galleryFiles;
+        
+        // Filter out blob URLs from gallery (they're just previews)
+        if (cleanedVariant.images?.gallery) {
+          cleanedVariant.images.gallery = cleanedVariant.images.gallery.filter(img => 
+            !img.url.startsWith('blob:')
+          );
+        }
       }
+      
+      // Send existing gallery URLs separately (not blobs)
+      if (cleanedVariant.images?.gallery && cleanedVariant.images.gallery.length > 0) {
+        const existingGallery = cleanedVariant.images.gallery.filter(img => 
+          img.url && !img.url.startsWith('blob:')
+        );
+        
+        if (existingGallery.length > 0) {
+          // Store in variant data, backend will process it
+          cleanedVariant.images.gallery = existingGallery;
+        }
+      }
+      
+      // Clean up temporary file properties from images
+      if (cleanedVariant.images) {
+        // Clean thumbnail
+        if (cleanedVariant.images.thumbnail) {
+          delete cleanedVariant.images.thumbnail._fileUpload;
+          delete cleanedVariant.images.thumbnail.file;
+          
+          // If it's a blob URL and we're not uploading a file, clear it
+          if (cleanedVariant.images.thumbnail.url?.startsWith('blob:') && !variant._thumbnailFile) {
+            delete cleanedVariant.images.thumbnail.url;
+          }
+        }
+        
+        // Clean gallery
+        if (cleanedVariant.images.gallery) {
+          cleanedVariant.images.gallery = cleanedVariant.images.gallery.map(img => {
+            const cleanImg = { ...img };
+            delete cleanImg._fileUpload;
+            delete cleanImg.file;
+            delete cleanImg._file;
+            return cleanImg;
+          }).filter(img => img.url && img.url.trim() !== '');
+        }
+      }
+      
+      // Ensure variant has images object
+      if (!cleanedVariant.images) {
+        cleanedVariant.images = { gallery: [] };
+      }
+      
+      // Remove any frontend-only properties
+      delete cleanedVariant._id; // Remove _id if it exists (backend will handle)
+      delete cleanedVariant.createdAt;
+      delete cleanedVariant.updatedAt;
+      delete cleanedVariant._variantIndex;
       
       return cleanedVariant;
     });
 
+    // 🆕 CRITICAL FIX: Stringify variants PROPERLY
+    const variantsString = JSON.stringify(cleanedVariants);
+    console.log("🔄 Variants JSON being sent:", variantsString.substring(0, 200) + "...");
+    fd.append("variants", variantsString);
+
+    // Append variantConfiguration
     fd.append("variantConfiguration", JSON.stringify(formData.variantConfiguration || {}));
-fd.append("variants", JSON.stringify(cleanedVariants));
 
     // 🔹 Manufacturer images
     fd.append("manufacturerImages", JSON.stringify(formData.manufacturerImages || []));
     
-    // 🔹 IMAGES
+    // 🔹 PRODUCT IMAGES
     // Thumbnail
     if (uploadedFiles.thumbnail) {
       fd.append("thumbnail", uploadedFiles.thumbnail);
     } else if (formData.images.thumbnail.url && !formData.images.thumbnail.url.startsWith("blob:")) {
-      // Editing mode with URL
+      // Editing mode with existing URL
       fd.append("thumbnailUrl", formData.images.thumbnail.url);
     } else {
-      throw new Error("Thumbnail image missing");
+      throw new Error("Thumbnail image is required");
     }
     fd.append("thumbnailAlt", formData.images.thumbnail.altText || "");
 
@@ -447,17 +539,70 @@ fd.append("variants", JSON.stringify(cleanedVariants));
     fd.append("weight", JSON.stringify(formData.weight || {}));
 
     // Debug: Log what we're sending
-    console.log("Sending variants:", cleanedVariants.map(v => ({
-      name: v.name,
-      thumbnail: v.images?.thumbnail,
-      gallery: v.images?.gallery
-    })));
+    console.log("📋 FormData being sent:");
+    for (let [key, value] of fd.entries()) {
+      if (typeof value === 'string') {
+        if (key === 'variants') {
+          console.log(`  ${key}: JSON string (${value.length} chars)`);
+          console.log(`  First 200 chars: ${value.substring(0, 200)}...`);
+        } else if (value.length > 100) {
+          console.log(`  ${key}: ${value.substring(0, 100)}...`);
+        } else {
+          console.log(`  ${key}: ${value}`);
+        }
+      } else if (value instanceof File) {
+        console.log(`  ${key}: File - ${value.name} (${value.type}, ${value.size} bytes)`);
+      }
+    }
 
-    await onSubmit(fd);
+    // Clean up blob URLs before submitting
+    const cleanupBlobUrls = () => {
+      // Clean product thumbnail blob URL
+      if (formData.images.thumbnail.url?.startsWith('blob:')) {
+        URL.revokeObjectURL(formData.images.thumbnail.url);
+      }
+      
+      // Clean product hover image blob URL
+      if (formData.images.hoverImage?.url?.startsWith('blob:')) {
+        URL.revokeObjectURL(formData.images.hoverImage.url);
+      }
+      
+      // Clean product gallery blob URLs
+      formData.images.gallery.forEach(img => {
+        if (img.url?.startsWith('blob:')) {
+          URL.revokeObjectURL(img.url);
+        }
+      });
+      
+      // Clean variant blob URLs
+      formData.variants.forEach(variant => {
+        if (variant.images?.thumbnail?.url?.startsWith('blob:')) {
+          URL.revokeObjectURL(variant.images.thumbnail.url);
+        }
+        variant.images?.gallery?.forEach(img => {
+          if (img.url?.startsWith('blob:')) {
+            URL.revokeObjectURL(img.url);
+          }
+        });
+      });
+    };
 
-    toast.success(
-      initialData ? 'Product updated successfully!' : 'Product created successfully!'
-    );
+    try {
+      await onSubmit(fd);
+
+      
+      
+      // Clean up blob URLs after successful submission
+      cleanupBlobUrls();
+      
+      toast.success(
+        initialData ? 'Product updated successfully!' : 'Product created successfully!'
+      );
+    } catch (submitError) {
+      // Still clean up blob URLs on error
+      cleanupBlobUrls();
+      throw submitError;
+    }
   } catch (err) {
     showErrorToast(err);
   } finally {

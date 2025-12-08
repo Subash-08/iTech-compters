@@ -1,4 +1,4 @@
-// components/wishlist/Wishlist.tsx - FIXED VERSION
+// components/wishlist/Wishlist.tsx - COMPLETE FIXED VERSION
 import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { wishlistActions } from '../../redux/actions/wishlistActions';
@@ -24,13 +24,14 @@ const Wishlist: React.FC = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
 
-  console.log(wishlistItems);
+  console.log('📊 Wishlist items in component:', wishlistItems);
   
 
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [hasCheckedSync, setHasCheckedSync] = useState(false);
 
   useEffect(() => {
+    console.log('🔄 Wishlist useEffect - fetching wishlist');
     dispatch(wishlistActions.fetchWishlist());
   }, [dispatch]);
 
@@ -38,6 +39,7 @@ const Wishlist: React.FC = () => {
   useEffect(() => {    
     if (!loading && isAuthenticated && user && !hasCheckedSync) {
       const guestWishlist = localStorageUtils.getGuestWishlist();
+      console.log('🔍 Guest wishlist check:', guestWishlist.length, 'items');
       if (guestWishlist.length > 0) {
         setShowSyncModal(true);
       }
@@ -59,13 +61,15 @@ const Wishlist: React.FC = () => {
     setShowSyncModal(false);
   };
 
-const handleRemoveFromWishlist = (productId: string, productType: 'product' | 'prebuilt-pc') => {
-    console.log('🗑️ Removing from parent:', productId, 'Type:', productType);
+  // ✅ FIXED: Accept itemId (wishlist item ID) instead of productId
+  const handleRemoveFromWishlist = (itemId: string, productType: 'product' | 'prebuilt-pc') => {
+    console.log('🗑️ Removing from parent - WishlistItem ID:', itemId, 'Type:', productType);
+    
     dispatch(wishlistActions.removeFromWishlist({ 
-        productId, // ✅ Send product ID
+        itemId: itemId, // ✅ Use itemId (wishlist item ID), not productId
         productType 
     }));
-};
+  };
 
   const handleClearWishlist = () => {
     dispatch(wishlistActions.clearWishlist());
@@ -73,6 +77,7 @@ const handleRemoveFromWishlist = (productId: string, productType: 'product' | 'p
 
   const handleManualSync = () => {
     const guestWishlist = localStorageUtils.getGuestWishlist();
+    console.log('🔄 Manual sync check:', guestWishlist.length, 'items');
     if (guestWishlist.length > 0) {
       setShowSyncModal(true);
     }
@@ -179,7 +184,7 @@ const handleRemoveFromWishlist = (productId: string, productType: 'product' | 'p
                 <WishlistItem 
                   key={item._id} 
                   item={item} 
-                  onRemove={handleRemoveFromWishlist} // ✅ Now only passes itemId
+                  onRemove={handleRemoveFromWishlist} // ✅ Now passes correct itemId
                 />
               ))}
             </div>

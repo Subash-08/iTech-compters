@@ -22,118 +22,147 @@ const CartItem: React.FC<CartItemProps> = ({
   const isPreBuiltPC = item.productType === 'prebuilt-pc' || !!item.preBuiltPC || !!item.pcId;
   const product = item.product || {};
   const preBuiltPC = item.preBuiltPC || {};
-  
-  // FIXED: Enhanced image handling that handles both populated objects and string IDs
-  const getItemImage = (): string => {
-    console.log('🖼️ CartItem debug - item:', item);
-    console.log('🖼️ preBuiltPC:', preBuiltPC);
-    console.log('🖼️ typeof preBuiltPC:', typeof preBuiltPC);
-    
-    if (isPreBuiltPC) {
-      // Handle pre-built PC images - check if preBuiltPC is populated or just an ID
-      if (typeof preBuiltPC === 'string') {
-        // preBuiltPC is just an ID string - check if item has direct images
-        console.log('🖼️ preBuiltPC is string ID, checking item.images');
-        const directImages = item.images || [];
-        return extractImageUrl(directImages, 'Pre-built PC (Direct)');
-      } else {
-        // preBuiltPC is a populated object
-        const pcImages = preBuiltPC.images || item.images || [];
-        console.log('🖼️ preBuiltPC is object, images:', pcImages);
-        return extractImageUrl(pcImages, 'Pre-built PC (Object)');
-      }
-    } else {
-      // Handle product images
-      const productImages = product.images || item.images || [];
-      
-      // If product has variant, try to get variant image first
-      if (item.variant && item.variant.images) {
-        const variantImage = extractImageUrl(item.variant.images, 'Variant');
-        if (variantImage !== '/images/placeholder-image.jpg') {
-          return variantImage;
-        }
-      }
-      
-      // Fall back to product images
-      return extractImageUrl(productImages, 'Product');
-    }
-  };
 
-  // Helper function to extract image URL from various formats
-  const extractImageUrl = (images: any, type: string): string => {
-    console.log(`🖼️ ${type} images:`, images);
+  // In CartItem.tsx - Enhanced extractImageUrl function
+const extractImageUrl = (images: any, type: string): string => {
+  console.log(`🖼️ ${type} images:`, images);
+  
+  if (!images) {
+    console.log(`🖼️ No ${type} images provided`);
+    return '/images/placeholder-image.jpg';
+  }
+  
+  // Case 1: Array of images
+  if (Array.isArray(images) && images.length > 0) {
+    const firstImage = images[0];
     
-    if (!images) {
-      console.log(`🖼️ No ${type} images provided`);
-      return '/images/placeholder-image.jpg';
-    }
-    
-    // Case 1: Array of images
-    if (Array.isArray(images) && images.length > 0) {
-      const firstImage = images[0];
-      
-      // Array of objects with url property
-      if (firstImage && firstImage.url) {
-        const url = formatImageUrl(firstImage.url);
-        console.log(`🖼️ Using array object URL: ${url}`);
-        return url;
-      }
-      
-      // Array of strings (direct URLs)
-      if (typeof firstImage === 'string') {
-        const url = formatImageUrl(firstImage);
-        console.log(`🖼️ Using array string URL: ${url}`);
-        return url;
-      }
-      
-      // Array of Cloudinary objects
-      if (firstImage && firstImage.public_id) {
-        const url = `https://res.cloudinary.com/${process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'demo'}/image/upload/w_150,h_150/${firstImage.public_id}`;
-        console.log(`🖼️ Using Cloudinary URL: ${url}`);
-        return url;
-      }
-    }
-    
-    // Case 2: Single image object
-    if (images && typeof images === 'object' && !Array.isArray(images)) {
-      // Direct url property
-      if (images.url) {
-        const url = formatImageUrl(images.url);
-        console.log(`🖼️ Using object URL: ${url}`);
-        return url;
-      }
-      
-      // Thumbnail
-      if (images.thumbnail && images.thumbnail.url) {
-        const url = formatImageUrl(images.thumbnail.url);
-        console.log(`🖼️ Using thumbnail URL: ${url}`);
-        return url;
-      }
-      
-      // Main image
-      if (images.main && images.main.url) {
-        const url = formatImageUrl(images.main.url);
-        console.log(`🖼️ Using main image URL: ${url}`);
-        return url;
-      }
-      
-      // Gallery array inside object
-      if (images.gallery && Array.isArray(images.gallery) && images.gallery.length > 0) {
-        console.log(`🖼️ Using gallery from object`);
-        return extractImageUrl(images.gallery, `${type} Gallery`);
-      }
-    }
-    
-    // Case 3: Direct string URL
-    if (typeof images === 'string' && images.trim() !== '') {
-      const url = formatImageUrl(images);
-      console.log(`🖼️ Using direct string URL: ${url}`);
+    // Array of objects with url property
+    if (firstImage && firstImage.url) {
+      const url = formatImageUrl(firstImage.url);
+      console.log(`🖼️ Using array object URL: ${url}`);
       return url;
     }
     
-    console.log(`🖼️ No ${type} image found, using placeholder`);
+    // Array of strings (direct URLs)
+    if (typeof firstImage === 'string') {
+      const url = formatImageUrl(firstImage);
+      console.log(`🖼️ Using array string URL: ${url}`);
+      return url;
+    }
+    
+    // Array of Cloudinary objects
+    if (firstImage && firstImage.public_id) {
+      const url = `https://res.cloudinary.com/${process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'demo'}/image/upload/w_150,h_150/${firstImage.public_id}`;
+      console.log(`🖼️ Using Cloudinary URL: ${url}`);
+      return url;
+    }
+  }
+  
+  // Case 2: Single image object
+  if (images && typeof images === 'object' && !Array.isArray(images)) {
+    // Direct url property
+    if (images.url) {
+      const url = formatImageUrl(images.url);
+      console.log(`🖼️ Using object URL: ${url}`);
+      return url;
+    }
+    
+    // Thumbnail
+    if (images.thumbnail && images.thumbnail.url) {
+      const url = formatImageUrl(images.thumbnail.url);
+      console.log(`🖼️ Using thumbnail URL: ${url}`);
+      return url;
+    }
+    
+    // Main image
+    if (images.main && images.main.url) {
+      const url = formatImageUrl(images.main.url);
+      console.log(`🖼️ Using main image URL: ${url}`);
+      return url;
+    }
+    
+    // Gallery array inside object
+    if (images.gallery && Array.isArray(images.gallery) && images.gallery.length > 0) {
+      console.log(`🖼️ Using gallery from object`);
+      return extractImageUrl(images.gallery, `${type} Gallery`);
+    }
+  }
+  
+  // Case 3: Direct string URL
+  if (typeof images === 'string' && images.trim() !== '') {
+    const url = formatImageUrl(images);
+    console.log(`🖼️ Using direct string URL: ${url}`);
+    return url;
+  }
+  
+  // ✅ NEW: Check for variant structure that might have thumbnail
+  if (type === 'Variant' && images.thumbnail) {
+    console.log(`🖼️ Checking variant thumbnail`);
+    return extractImageUrl(images.thumbnail, `${type} Thumbnail`);
+  }
+  
+  console.log(`🖼️ No ${type} image found, using placeholder`);
+  return '/images/placeholder-image.jpg';
+};
+  
+// In CartItem.tsx - Update getItemImage() function
+const getItemImage = (): string => {
+  console.log('🖼️ CartItem debug - item:', item);
+  console.log('🖼️ Variant data:', item.variant);
+  console.log('🖼️ Product data:', item.product);
+  
+  const isPreBuiltPC = item.productType === 'prebuilt-pc' || !!item.preBuiltPC || !!item.pcId;
+  
+  if (isPreBuiltPC) {
+    const preBuiltPC = item.preBuiltPC || {};
+    const pcImages = preBuiltPC.images || item.images || [];
+    return extractImageUrl(pcImages, 'Pre-built PC');
+  } else {
+    // ✅ ENHANCED: Check multiple image sources in priority order
+    
+    // 1. First, check variant images
+    if (item.variant && item.variant.images) {
+      console.log('🖼️ Checking variant images:', item.variant.images);
+      const variantImage = extractImageUrl(item.variant.images, 'Variant');
+      if (variantImage !== '/images/placeholder-image.jpg') {
+        return variantImage;
+      }
+    }
+    
+    // 2. Check if variant has images in a different structure
+    if (item.variant && !item.variant.images) {
+      console.log('🖼️ Variant exists but no images property, checking other properties');
+      // Sometimes images might be directly on variant object
+      if (item.variant.thumbnail) {
+        return extractImageUrl(item.variant.thumbnail, 'Variant Thumbnail');
+      }
+      if (item.variant.image) {
+        return extractImageUrl(item.variant.image, 'Variant Image');
+      }
+    }
+    
+    // 3. Check product images
+    const product = item.product || {};
+    const productImages = product.images || item.images || [];
+    console.log('🖼️ Checking product images:', productImages);
+    
+    const productImage = extractImageUrl(productImages, 'Product');
+    if (productImage !== '/images/placeholder-image.jpg') {
+      return productImage;
+    }
+    
+    // 4. Last resort: Check if there are any images directly on the item
+    if (item.images) {
+      console.log('🖼️ Checking item.images:', item.images);
+      return extractImageUrl(item.images, 'Item');
+    }
+    
+    // 5. If nothing found, use placeholder
     return '/images/placeholder-image.jpg';
-  };
+  }
+};
+
+
 
   const formatImageUrl = (url: string): string => {
     if (!url || url === 'undefined' || url === 'null') {
