@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import VideoCard from '../video/VideoCard';
 import VideoPlayer from '../video/VideoPlayer';
+import { baseURL } from '../config/config';
 
 // Define proper interfaces
 interface Video {
@@ -112,7 +113,7 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
   const getFullUrl = (url: string) => {
     if (url.startsWith('http')) return url;
     // Add your backend URL here
-    const backendUrl = 'http://localhost:5000';
+    const backendUrl = baseURL;
     return `${backendUrl}${url}`;
   };
 

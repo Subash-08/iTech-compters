@@ -1,5 +1,6 @@
 // src/components/video/VideoPlayer.tsx
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { baseURL } from '../config/config';
 
 interface VideoPlayerProps {
   src: string;
@@ -59,7 +60,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     
     // If it starts with /, prepend backend URL
     if (url.startsWith('/')) {
-      const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const backendUrl = process.env.REACT_APP_API_URL || baseURL;
       return `${backendUrl}${url}`;
     }
     

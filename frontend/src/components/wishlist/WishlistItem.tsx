@@ -26,7 +26,7 @@ const getFullImageUrl = (url: string): string => {
     const path = urlObj.pathname;
     
     // Use local server instead
-    const LOCAL_API_URL = 'http://localhost:5000'; // Your local backend
+    const LOCAL_API_URL = baseURL; // Your local backend
     return `${LOCAL_API_URL}${path}`;
   }
   
@@ -37,7 +37,7 @@ const getFullImageUrl = (url: string): string => {
     if (url.includes('render.com') || url.includes('onrender.com')) {
       const urlObj = new URL(url);
       const path = urlObj.pathname;
-      const LOCAL_API_URL = 'http://localhost:5000';
+      const LOCAL_API_URL = baseURL;
       return `${LOCAL_API_URL}${path}`;
     }
     
