@@ -5,6 +5,7 @@ import { cartActions } from '../../redux/actions/cartActions';
 
 interface PreBuiltPCAddToCartButtonProps {
   pcId: string;
+  product?: any; // ✅ ADD THIS
   className?: string;
   quantity?: number;
   disabled?: boolean;
@@ -15,6 +16,7 @@ interface PreBuiltPCAddToCartButtonProps {
 
 const PreBuiltPCAddToCartButton: React.FC<PreBuiltPCAddToCartButtonProps> = ({ 
   pcId, 
+  product, // ✅ ADD THIS
   className = '',
   quantity = 1,
   disabled = false,
@@ -30,10 +32,10 @@ const PreBuiltPCAddToCartButton: React.FC<PreBuiltPCAddToCartButtonProps> = ({
     
     setLoading(true);
     try {
-      // ✅ FIXED: Make sure we're calling the action correctly
       await dispatch(cartActions.addPreBuiltPCToCart({ 
         pcId, 
-        quantity 
+        quantity,
+        product // ✅ PASS PRODUCT DATA
       }));
     } catch (error) {
       console.error('Failed to add pre-built PC to cart:', error);

@@ -83,11 +83,8 @@ export interface PCQuoteDocument {
     name: string;
     email: string;
   };
-  quoteExpiry: string;
   createdAt: string;
   updatedAt: string;
-  isExpired?: boolean;
-  daysUntilExpiry?: number;
   ipAddress?: string;
   userAgent?: string;
   source: 'web' | 'mobile' | 'api';
@@ -148,4 +145,11 @@ export interface PCQuoteStats {
   total: number;
   pending: number;
   expired: number;
+}
+export interface PCQuoteResponse {
+  success: boolean;
+  message: string;
+  quoteId: string;
+  totalEstimated: number;
+  // REMOVED: expiresIn and quoteExpiry
 }

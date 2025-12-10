@@ -230,9 +230,15 @@ exports.getComponentsByCategory = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// Create PC quote with comprehensive validation
-
 exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
+    console.log('=== QUOTE REQUEST RECEIVED ===');
+    console.log('Total components:', req.body.components?.length);
+    console.log('Customer:', {
+        name: req.body.customer?.name,
+        email: req.body.customer?.email,
+        phone: req.body.customer?.phone
+    });
+
     const { customer, components, metadata = {} } = req.body;
 
     // Validate required fields
@@ -252,8 +258,12 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
     const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
     if (!emailRegex.test(customer.email)) customerErrors.push('Please provide a valid email address');
 
-    if (customer.phone && !/^[\+]?[1-9][\d]{0,15}$/.test(customer.phone)) {
-        customerErrors.push('Please provide a valid phone number');
+    // Relax phone validation to accept more formats
+    if (customer.phone && customer.phone.trim() !== '') {
+        const cleanedPhone = customer.phone.replace(/[^\d+]/g, '');
+        if (cleanedPhone.length < 10 || cleanedPhone.length > 15) {
+            customerErrors.push('Phone number should be between 10-15 digits');
+        }
     }
 
     if (customer.notes && customer.notes.length > 1000) {
@@ -270,6 +280,8 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
     let totalPrice = 0;
 
     for (const [index, component] of components.entries()) {
+        console.log(`\n=== Processing component ${index + 1}/${components.length} ===`);
+
         // Basic component validation
         if (!component.category || !component.categorySlug) {
             return next(new ErrorHandler(`Component at index ${index} must have category and categorySlug`, 400));
@@ -285,34 +297,63 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
             sortOrder: component.sortOrder || index
         };
 
-        // If product is selected, validate and enrich with product data
+        // Only validate product if it's selected and has an ID
         if (component.selected && component.productId) {
+            console.log('Processing selected component:', {
+                index,
+                category: component.category,
+                productId: component.productId,
+                selected: component.selected
+            });
+
             // Check for duplicate products
             if (seenProducts.has(component.productId)) {
+                console.log('Duplicate product found:', component.productId);
                 return next(new ErrorHandler(`Duplicate product selected: ${component.productId}`, 400));
             }
             seenProducts.add(component.productId);
 
             try {
                 const product = await Product.findById(component.productId)
-                    .select('name basePrice mrp images slug stockStatus')
+                    .select('name basePrice mrp images slug stockStatus isActive status')
                     .lean();
 
+                console.log('Fetched product:', {
+                    productId: component.productId,
+                    productName: product?.name,
+                    isActive: product?.isActive,
+                    status: product?.status
+                });
+
                 if (!product) {
+                    console.log('Product not found:', component.productId);
                     return next(new ErrorHandler(`Product with ID ${component.productId} not found`, 404));
                 }
 
-                if (!product.isActive || product.status !== 'Published') {
+                // Simplified availability check
+                const isAvailable = product.isActive !== false &&
+                    (product.status === 'Published' || product.status === 'Active' || product.status === 'published');
+
+                console.log('Availability check:', {
+                    isActive: product.isActive,
+                    status: product.status,
+                    isAvailable
+                });
+
+                if (!isAvailable) {
+                    console.log('Product not available');
                     return next(new ErrorHandler(`Product ${product.name} is not available`, 400));
                 }
 
+                console.log('Product is available, adding to quote...');
                 enrichedComponent.productName = product.name;
-                enrichedComponent.productPrice = product.basePrice;
+                enrichedComponent.productPrice = product.basePrice || 0;
                 enrichedComponent.productImage = product.images?.thumbnail?.url || '';
                 enrichedComponent.productSlug = product.slug;
 
                 // Add to total price
-                totalPrice += product.basePrice || 0;
+                totalPrice += enrichedComponent.productPrice;
+                console.log(`Added price ${enrichedComponent.productPrice} to total, new total: ${totalPrice}`);
 
             } catch (error) {
                 console.error('Error fetching product:', error);
@@ -325,11 +366,13 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
 
     // Check for minimum components (at least one selected)
     const selectedComponents = enrichedComponents.filter(comp => comp.selected);
+    console.log('\nSelected components count:', selectedComponents.length);
+
     if (selectedComponents.length === 0) {
         return next(new ErrorHandler('At least one component must be selected', 400));
     }
 
-    // Create the quote with metadata
+    // Create the quote WITHOUT expiry
     const pcQuote = await PCQuote.create({
         customer: {
             name: customer.name.trim(),
@@ -341,12 +384,15 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         totalEstimated: totalPrice,
         ipAddress: req.ip,
         userAgent: req.get('User-Agent'),
-        source: metadata.source || 'web',
-        ...metadata
+        source: metadata.source || 'web'
     });
 
-    // Trigger N8N workflow for quote generation asynchronously
-    // Don't await to avoid delaying the response
+    console.log('\n=== QUOTE CREATED SUCCESSFULLY ===');
+    console.log('Quote ID:', pcQuote._id);
+    console.log('Total Estimated:', pcQuote.totalEstimated);
+    console.log('Components count:', pcQuote.components.filter(c => c.selected).length);
+
+    // Trigger N8N workflow asynchronously
     N8NService.run("pcQuoteGenerated", {
         event: "pcQuoteGenerated",
         quoteId: pcQuote._id.toString(),
@@ -355,7 +401,6 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         customerPhone: pcQuote.customer.phone || '',
         totalEstimated: pcQuote.totalEstimated,
         status: pcQuote.status,
-        quoteExpiry: pcQuote.quoteExpiry.toISOString(),
         componentCount: pcQuote.components.filter(c => c.selected).length,
         components: pcQuote.components
             .filter(c => c.selected)
@@ -393,14 +438,17 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         }).catch(err => console.error("N8N pcRequirementsConfirmation failed:", err));
     }
 
-    res.status(201).json({
+    console.log('=== SENDING RESPONSE ===');
+    const responseData = {
         success: true,
         message: 'Your PC quote request has been submitted successfully! We will contact you within 24 hours.',
         quoteId: pcQuote._id,
-        totalEstimated: pcQuote.totalEstimated,
-        expiresIn: pcQuote.daysUntilExpiry,
-        quoteExpiry: pcQuote.quoteExpiry
-    });
+        totalEstimated: pcQuote.totalEstimated
+        // Removed expiresIn and quoteExpiry fields
+    };
+    console.log('Response data:', responseData);
+
+    res.status(201).json(responseData);
 });
 
 

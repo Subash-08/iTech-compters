@@ -6,7 +6,6 @@ import {
   Phone,
   Calendar,
   IndianRupee,
-  Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -16,11 +15,11 @@ import {
   X,
   Package,
   ShoppingBag,
-  ExternalLink,
   Send,
   Download,
-  RefreshCw,
-  Trash2
+  User,
+  Trash2,
+  UserCircle // Added UserCircle as alternative to User
 } from 'lucide-react';
 import { pcBuilderAdminService } from '../services/pcBuilderAdminService';
 import { PCQuoteDocument } from '../types/pcBuilderAdmin';
@@ -32,7 +31,6 @@ const PCQuoteDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [extending, setExtending] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formData, setFormData] = useState({
@@ -81,21 +79,6 @@ const PCQuoteDetail: React.FC = () => {
     }
   };
 
-  const handleExtendExpiry = async () => {
-    try {
-      setExtending(true);
-      const days = 7; // Extend by 7 days
-      await pcBuilderAdminService.extendQuoteExpiry(id!, days);
-      await loadQuote();
-      alert(`Quote expiry extended by ${days} days`);
-    } catch (error) {
-      console.error('Error extending quote:', error);
-      alert('Failed to extend quote expiry');
-    } finally {
-      setExtending(false);
-    }
-  };
-
   const handleDelete = async () => {
     try {
       setDeleting(true);
@@ -125,13 +108,13 @@ const PCQuoteDetail: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="w-5 h-5" />;
+      case 'pending': return <MessageSquare className="w-5 h-5" />;
       case 'contacted': return <MessageSquare className="w-5 h-5" />;
       case 'quoted': return <AlertCircle className="w-5 h-5" />;
       case 'accepted': return <CheckCircle className="w-5 h-5" />;
       case 'rejected': return <XCircle className="w-5 h-5" />;
       case 'cancelled': return <XCircle className="w-5 h-5" />;
-      default: return <Clock className="w-5 h-5" />;
+      default: return <MessageSquare className="w-5 h-5" />;
     }
   };
 
@@ -153,12 +136,6 @@ const PCQuoteDetail: React.FC = () => {
       currency: 'INR',
       minimumFractionDigits: 0
     }).format(amount);
-  };
-
-  const isQuoteExpired = () => {
-    if (!quote) return false;
-    if (quote.isExpired !== undefined) return quote.isExpired;
-    return new Date(quote.quoteExpiry) < new Date();
   };
 
   if (loading) {
@@ -189,8 +166,6 @@ const PCQuoteDetail: React.FC = () => {
     );
   }
 
-  const expired = isQuoteExpired();
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -205,6 +180,7 @@ const PCQuoteDetail: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">PC Quote Details</h1>
             <p className="text-gray-600">Quote ID: {quote._id}</p>
+            <p className="text-sm text-gray-500">Created: {formatDate(quote.createdAt)}</p>
           </div>
         </div>
         <div className="flex items-center space-x-3">
@@ -260,7 +236,7 @@ const PCQuoteDetail: React.FC = () => {
           {/* Customer Information Card */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <User className="w-5 h-5 mr-2" />
+              <UserCircle className="w-5 h-5 mr-2" /> {/* Changed from User to UserCircle */}
               Customer Information
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -373,6 +349,16 @@ const PCQuoteDetail: React.FC = () => {
                     <option value="cancelled">Cancelled</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Admin Notes</label>
+                  <textarea
+                    value={formData.adminNotes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, adminNotes: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Add notes about this quote..."
+                  />
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -403,45 +389,42 @@ const PCQuoteDetail: React.FC = () => {
             )}
           </div>
 
-          {/* Expiry Card */}
+          {/* Timeline Card (Replaces Expiry Card) */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Clock className="w-5 h-5 mr-2" />
-              Quote Expiry
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Timeline</h2>
             <div className="space-y-4">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Expiry Date</span>
-                <span className={`text-sm font-medium ${expired ? 'text-red-600' : 'text-gray-900'}`}>
-                  {formatDate(quote.quoteExpiry)}
+                <span className="text-sm text-gray-600">Created</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {formatDate(quote.createdAt)}
                 </span>
               </div>
               
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Days Remaining</span>
-                <span className={`text-sm font-medium ${expired ? 'text-red-600' : 'text-green-600'}`}>
-                  {expired ? 'Expired' : `${quote.daysUntilExpiry || Math.ceil((new Date(quote.quoteExpiry).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days`}
-                </span>
-              </div>
+              {quote.contactedAt && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Contacted</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatDate(quote.contactedAt)}
+                  </span>
+                </div>
+              )}
               
-              {!expired && (
-                <button
-                  onClick={handleExtendExpiry}
-                  disabled={extending}
-                  className="w-full flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {extending ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Extending...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Extend by 7 Days
-                    </>
-                  )}
-                </button>
+              {quote.quotedAt && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Quoted</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatDate(quote.quotedAt)}
+                  </span>
+                </div>
+              )}
+              
+              {quote.respondedAt && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Responded</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatDate(quote.respondedAt)}
+                  </span>
+                </div>
               )}
             </div>
           </div>

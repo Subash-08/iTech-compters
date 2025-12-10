@@ -437,6 +437,19 @@ const getEnhancedOrderAnalytics = catchAsyncErrors(async (req, res, next) => {
     ordersByStatus.forEach(status => {
         statusCounts[status._id] = status.count;
     });
+    const avgOrderValue = await Order.aggregate([
+        {
+            $match: {
+                'payment.status': 'captured'
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                averageOrderValue: { $avg: '$pricing.total' }
+            }
+        }
+    ]);
 
     res.status(200).json({
         success: true,

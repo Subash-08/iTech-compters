@@ -511,7 +511,7 @@ const createProductWishlistItem = (item: any): WishlistItem => {
     product: item.product || {
       _id: item.productId || item._id,
       name: 'Product',
-      images: { thumbnail: { url: '/uploads/default-product.jpg' } },
+      images: { thumbnail: { url: '' } },
       basePrice: 0,
       offerPrice: 0
     }
@@ -710,6 +710,7 @@ const createFallbackPCItem = (originalItem: WishlistItem, pcId?: string): Wishli
 };
 const addToWishlist = (wishlistData: AddToWishlistData) => async (dispatch: any, getState: any) => {
     try {
+      
         dispatch(updateWishlistStart());
         
         const state = getState();
@@ -848,6 +849,31 @@ const addToWishlist = (wishlistData: AddToWishlistData) => async (dispatch: any,
                 throw apiError;
             }
         }
+        // In wishlistActions.ts - Add to addToWishlist action
+console.log('🎯 Adding to wishlist - Product Data:', {
+  productId: wishlistData.productId,
+  productType: wishlistData.productType,
+  hasProduct: !!wishlistData.product,
+  productName: wishlistData.product?.name,
+  productImages: wishlistData.product?.images,
+  isGuest: isGuest
+});
+
+if (wishlistData.productType === 'prebuilt-pc' && isGuest) {
+  console.log('💾 Saving prebuilt PC to localStorage:', {
+    productId: wishlistData.productId,
+    productData: pcProductData,
+    productType: 'prebuilt-pc'
+  });
+  
+  // Call the new save function
+  localStorageUtils.saveCompleteWishlistItem({
+    productId: wishlistData.productId,
+    productType: 'prebuilt-pc',
+    productData: pcProductData,
+    addedAt: new Date().toISOString()
+  });
+}
         
     } catch (error: any) {
         console.error('❌ addToWishlist error:', error);
@@ -916,34 +942,69 @@ const fetchWishlist = () => async (dispatch: any, getState: any) => {
     let isGuestMode = isGuest;
         
     if (isGuest) {
-      // Guest user - get from localStorage - NO ENRICHMENT NEEDED
-      const guestWishlist = localStorageUtils.getGuestWishlist();
-      
-      // Convert to WishlistItem format using saved product data
-      // ✅ FIXED: Remove 'const' to assign to outer variable
-      items = guestWishlist.map(item => {
-        // Use saved productData or create basic structure
-        const productData = item.productData || {
-          _id: item.originalProductId || (item.productId.includes('_') ? item.productId.split('_')[0] : item.productId),
-          name: 'Product',
-          price: item.variant?.price || 0,
-          images: item.images || { thumbnail: { url: '/images/placeholder-product.jpg' } },
-          slug: '',
-          stock: item.variant?.stock || 0
-        };
-        
-        return {
-          _id: `guest-${item.productId}`,
-          product: productData,
-          variant: item.variant,
-          addedAt: item.addedAt,
-          productType: item.productType || 'product'
-        };
-      });
-      
-      // ✅ NO ENRICHMENT FOR GUEST ITEMS - they already have data
-      isGuestMode = true;
+  // Guest user - get from localStorage
+  const guestWishlist = localStorageUtils.getGuestWishlist();
+  
+  console.log('🎯 Guest wishlist items to process:', guestWishlist.length);
+  
+  // Convert to WishlistItem format
+  items = guestWishlist.map(item => {
+    let productData;
+    
+    if (item.productType === 'prebuilt-pc' && item.productData) {
+      // Handle Pre-built PC
+      productData = {
+        _id: item.productData._id || item.productId,
+        name: item.productData.name || 'Pre-built PC',
+        slug: item.productData.slug || 'prebuilt-pc',
+        basePrice: item.productData.basePrice || item.productData.totalPrice || 0,
+        offerPrice: item.productData.offerPrice || item.productData.discountPrice || item.productData.totalPrice || 0,
+        discountPercentage: item.productData.discountPercentage || 0,
+        stockQuantity: item.productData.stockQuantity || 0,
+        images: item.productData.images || getDefaultPCImages(),
+        averageRating: item.productData.averageRating || 0,
+        totalReviews: item.productData.totalReviews || 0,
+        condition: item.productData.condition || 'New',
+        isActive: item.productData.isActive !== false,
+        // Pre-built PC specific fields
+        performanceRating: item.productData.performanceRating,
+        category: item.productData.category,
+        totalPrice: item.productData.totalPrice,
+        discountPrice: item.productData.discountPrice,
+        specifications: item.productData.specifications
+      };
     } else {
+      // Handle regular products
+      productData = item.productData || {
+        _id: item.originalProductId || (item.productId.includes('_') ? item.productId.split('_')[0] : item.productId),
+        name: 'Product',
+        price: item.variant?.price || 0,
+        mrp: item.variant?.mrp || item.variant?.price || 0,
+        images: item.images || { thumbnail: { url: '/images/placeholder-product.jpg' } },
+        slug: '',
+        stock: item.variant?.stock || 0,
+        basePrice: item.variant?.price || 0,
+        offerPrice: item.variant?.price || 0
+      };
+    }
+    
+    return {
+      _id: `guest-${item.productId}`,
+      product: productData,
+      variant: item.variant,
+      addedAt: item.addedAt,
+      productType: item.productType || 'product'
+    };
+  });
+  
+  console.log('✅ Converted wishlist items:', items.map(item => ({
+    id: item._id,
+    name: item.product?.name,
+    type: item.productType
+  })));
+  
+  isGuestMode = true;
+}else {
       try {
         // Authenticated user - get data from API
         const response = await wishlistAPI.getWishlist();        
@@ -1092,6 +1153,177 @@ const clearWishlist = () => async (dispatch: any, getState: any) => {
     }
   }
 };
+
+const addPreBuiltPCToWishlist = (wishlistData: { 
+  pcId: string; 
+  product?: any; // ✅ Pass full product data for guest users
+}) => {
+  return async (dispatch: any, getState: any) => {
+    try {
+      dispatch(updateWishlistStart());
+      
+      // Check authentication
+      let isGuest = true;
+      if (typeof getState === 'function') {
+        const state = getState();
+        isGuest = !state.authState.isAuthenticated;
+      }
+      
+      console.log('🎯 Adding Prebuilt PC to wishlist:', {
+        pcId: wishlistData.pcId,
+        hasProduct: !!wishlistData.product,
+        isGuest
+      });
+      
+      if (isGuest) {
+        // ========== GUEST USER HANDLING ==========
+        const guestItemId = wishlistData.pcId;
+        
+        // Create proper product data structure for localStorage
+        const pcProductData = wishlistData.product ? {
+          _id: wishlistData.product._id || wishlistData.pcId,
+          name: wishlistData.product.name || 'Pre-built PC',
+          images: wishlistData.product.images || [],
+          price: wishlistData.product.totalPrice || wishlistData.product.basePrice || 0,
+          basePrice: wishlistData.product.basePrice || 0,
+          offerPrice: wishlistData.product.offerPrice || wishlistData.product.totalPrice || 0,
+          slug: wishlistData.product.slug || '',
+          stockQuantity: wishlistData.product.stockQuantity || 0,
+          condition: wishlistData.product.condition || 'New',
+          category: wishlistData.product.category,
+          performanceRating: wishlistData.product.performanceRating,
+          totalPrice: wishlistData.product.totalPrice,
+          discountPrice: wishlistData.product.discountPrice,
+          specifications: wishlistData.product.specifications || {},
+          averageRating: wishlistData.product.averageRating || 0,
+          totalReviews: wishlistData.product.totalReviews || 0
+        } : {
+          _id: wishlistData.pcId,
+          name: 'Pre-built PC',
+          images: [],
+          price: 0,
+          basePrice: 0,
+          offerPrice: 0,
+          slug: '',
+          stockQuantity: 0,
+          condition: 'New'
+        };
+        
+        console.log('💾 Saving PC to guest wishlist:', pcProductData);
+        
+        // Save to localStorage
+        const saved = localStorageUtils.saveCompleteWishlistItem({
+          productId: guestItemId,
+          productType: 'prebuilt-pc',
+          productData: pcProductData,
+          addedAt: new Date().toISOString()
+        });
+        
+        if (saved) {
+          // Create wishlist item for Redux
+          const newItem: WishlistItem = {
+            _id: `guest-${guestItemId}`,
+            product: pcProductData,
+            addedAt: new Date().toISOString(),
+            productType: 'prebuilt-pc',
+            preBuiltPC: wishlistData.pcId
+          };
+          
+          dispatch(addItemToWishlist(newItem));
+          toast.success('Pre-built PC added to wishlist');
+        } else {
+          throw new Error('Failed to save to localStorage');
+        }
+        
+      } else {
+        // ========== AUTHENTICATED USER HANDLING ==========
+        try {
+          const response = await wishlistAPI.addPreBuiltPCToWishlist(wishlistData.pcId);
+          
+          // Extract items from response
+          const { items, isGuest: isGuestMode } = extractItemsFromResponse(response);
+          
+          dispatch(updateWishlistSuccess({ 
+            items, 
+            isGuest: isGuestMode 
+          }));
+          
+          toast.success('Pre-built PC added to wishlist');
+          
+        } catch (apiError: any) {
+          console.error('❌ Prebuilt PC API error:', apiError);
+          
+          // If API fails, add to localStorage as fallback
+          if (apiError.response?.status === 401 || apiError.response?.status === 404) {
+            // Create optimistic item for Redux
+            const optimisticItem: WishlistItem = {
+              _id: `temp-pc-${Date.now()}`,
+              product: {
+                _id: wishlistData.pcId,
+                name: wishlistData.product?.name || 'Pre-built PC',
+                price: wishlistData.product?.totalPrice || 0,
+                images: wishlistData.product?.images || [],
+                slug: wishlistData.product?.slug || '',
+                stockQuantity: wishlistData.product?.stockQuantity || 0
+              },
+              addedAt: new Date().toISOString(),
+              productType: 'prebuilt-pc',
+              preBuiltPC: wishlistData.pcId
+            };
+            
+            dispatch(addItemToWishlist(optimisticItem));
+            toast.success('Pre-built PC added to wishlist (offline)');
+          } else {
+            throw apiError;
+          }
+        }
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Add pre-built PC to wishlist error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to add pre-built PC to wishlist';
+      toast.error(errorMessage);
+      dispatch(updateWishlistFailure(error.message));
+    }
+  };
+};
+
+// ✅ SEPARATE ACTION TO REMOVE PREBUILT PC FROM WISHLIST
+const removePreBuiltPCFromWishlist = (pcId: string) => {
+  return async (dispatch: any, getState: any) => {
+    try {
+      dispatch(updateWishlistStart());
+      
+      // Check authentication
+      let isGuest = true;
+      if (typeof getState === 'function') {
+        const state = getState();
+        isGuest = !state.authState.isAuthenticated;
+      }
+      
+      console.log('🗑️ Removing Prebuilt PC from wishlist:', { pcId, isGuest });
+      
+      // Remove from Redux state first (optimistic update)
+      dispatch(removeItemFromWishlist({ productId: pcId }));
+      
+      if (isGuest) {
+        // Remove from localStorage
+        localStorageUtils.removeFromGuestWishlist(pcId, 'prebuilt-pc');
+        toast.success('Pre-built PC removed from wishlist');
+      } else {
+        // Call API
+        await wishlistAPI.removePreBuiltPCFromWishlist(pcId);
+        toast.success('Pre-built PC removed from wishlist');
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Remove pre-built PC from wishlist error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to remove pre-built PC from wishlist';
+      toast.error(errorMessage);
+      dispatch(updateWishlistFailure(error.message));
+    }
+  };
+};
 // redux/actions/wishlistActions.ts - UPDATE syncGuestWishlist
 const syncGuestWishlist = () => async (dispatch: any, getState: any) => {
   if (wishlistSyncInProgress) return;
@@ -1169,8 +1401,10 @@ const clearWishlistError = () => (dispatch: any) => {
 };
 export {
   fetchWishlist,
-  addToWishlist,
-  removeFromWishlist, // ✅ Make sure this is exported
+  addToWishlist,           // For regular products only
+  addPreBuiltPCToWishlist, // NEW: For prebuilt PCs
+  removeFromWishlist,      // For regular products
+  removePreBuiltPCFromWishlist, // NEW: For prebuilt PCs
   checkWishlistItem,
   batchCheckWishlistItems,
   clearWishlist,
@@ -1179,11 +1413,13 @@ export {
   wishlistAPI
 };
 
-// ✅ THEN export as actions object
+// ✅ Update actions object too
 export const wishlistActions = {
   fetchWishlist,
   addToWishlist,
-  removeFromWishlist, // ✅ Make sure this is here too
+  addPreBuiltPCToWishlist, // ✅ ADD THIS
+  removeFromWishlist,
+  removePreBuiltPCFromWishlist, // ✅ ADD THIS
   checkWishlistItem,
   batchCheckWishlistItems,
   clearWishlist,

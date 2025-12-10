@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Statistic, Segmented, Button, Space, Tag } from 'antd';
 import { 
-  TrendingUp, 
   Users, 
   ShoppingCart, 
   Package, 
@@ -11,28 +10,56 @@ import {
 import CountUp from 'react-countup';
 import { toast } from 'react-hot-toast';
 import { dashboardService } from '../services/dashboardService';
-import { QuickStats, OrderStats } from '../types/dashboard';
+import { 
+  QuickStats, 
+  SalesChartData, 
+  ProductAnalytics as ProductAnalyticsType,
+  UserAnalytics as UserAnalyticsType,
+  PCAnalytics as PCAnalyticsType,
+  CouponAnalytics as CouponAnalyticsType 
+} from '../types/dashboard';
 
 // Import all components
 import SalesCharts from './SalesCharts';
-import OrdersBreakdown from './OrdersBreakdown';
 import ProductAnalytics from './ProductAnalytics';
 import UserInsights from './UserInsights';
 import PCAnalytics from './PCAnalytics';
 import CouponAnalytics from './CouponAnalytics';
-import AlertsPanel from './AlertsPanel';
+
+// Interface for order stats response
+interface OrderStatsResponse {
+  todayRevenue: number;
+  todayOrders: number;
+  monthlyRevenue: number;
+  monthlyOrders: number;
+  totalOrders: number;
+  pendingOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  processingOrders: number;
+  shippedOrders: number;
+}
 
 const Dashboard: React.FC = () => {
   const [quickStats, setQuickStats] = useState<QuickStats | null>(null);
-  const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [orderStats, setOrderStats] = useState<OrderStatsResponse | null>(null);
+  const [salesChartData, setSalesChartData] = useState<SalesChartData | null>(null);
+  const [productAnalytics, setProductAnalytics] = useState<ProductAnalyticsType | null>(null);
+  const [userAnalytics, setUserAnalytics] = useState<UserAnalyticsType | null>(null);
+  const [pcAnalytics, setPCAnalytics] = useState<PCAnalyticsType | null>(null);
+  const [couponAnalytics, setCouponAnalytics] = useState<CouponAnalyticsType | null>(null);
+  
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<string>('30d');
 
   console.log(quickStats);
   console.log(orderStats);
-  
+  console.log(salesChartData);
+  console.log(productAnalytics);
+  console.log(userAnalytics);
+  console.log(pcAnalytics);
+  console.log(couponAnalytics);
   
 
   const fetchDashboardData = async () => {
@@ -40,48 +67,38 @@ const Dashboard: React.FC = () => {
       setRefreshing(true);
       setLoading(true);
       
-      const [quickStatsRes, orderStatsRes] = await Promise.all([
+      // Fetch all analytics data in parallel
+      const [
+        quickStatsRes,
+        orderStatsRes,
+        salesChartRes,
+        productAnalyticsRes,
+        userAnalyticsRes,
+        pcAnalyticsRes,
+        couponAnalyticsRes
+      ] = await Promise.all([
         dashboardService.getQuickStats({ period }),
-        dashboardService.getOrderStats()
+        dashboardService.getOrderStats(),
+        dashboardService.getSalesChartData({ period }),
+        dashboardService.getProductAnalytics({ period }),
+        dashboardService.getUserAnalytics({ period }),
+        dashboardService.getPCAnalytics({ period }),
+        dashboardService.getCouponAnalytics({ period })
       ]);
 
+      // Set all states
       setQuickStats(quickStatsRes.data);
       setOrderStats(orderStatsRes.data);
-      
-      // Mock alerts data
-      setAlerts([
-        {
-          id: '1',
-          type: 'order',
-          title: 'Orders stuck for 24+ hours',
-          description: '5 orders have been in processing for more than 24 hours',
-          severity: 'high',
-          timestamp: new Date().toISOString(),
-          actionRequired: true
-        },
-        {
-          id: '2',
-          type: 'stock',
-          title: 'Low stock alert',
-          description: '12 products are running low on stock',
-          severity: 'medium',
-          timestamp: new Date().toISOString(),
-          actionRequired: true
-        },
-        {
-          id: '3',
-          type: 'payment',
-          title: 'Payment verification needed',
-          description: '3 payments pending verification',
-          severity: 'medium',
-          timestamp: new Date().toISOString(),
-          actionRequired: true
-        }
-      ]);
+      setSalesChartData(salesChartRes.data);
+      setProductAnalytics(productAnalyticsRes.data);
+      setUserAnalytics(userAnalyticsRes.data);
+      setPCAnalytics(pcAnalyticsRes.data);
+      setCouponAnalytics(couponAnalyticsRes.data);
       
       toast.success('Dashboard updated successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
+      console.error('Dashboard fetch error:', err);
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -172,7 +189,7 @@ const Dashboard: React.FC = () => {
               title={
                 <div className="flex items-center gap-2 text-gray-600 mb-2">
                   <DollarSign className="w-4 h-4" />
-                  <span>Total Revenue</span>
+                  <span>Revenue ({period})</span>
                 </div>
               }
               value={quickStats?.revenue || 0}
@@ -186,12 +203,21 @@ const Dashboard: React.FC = () => {
                 />
               )}
               valueStyle={{ color: '#10B981' }}
-              suffix={
-                <Tag color="green" className="ml-2">
-                  {period.toUpperCase()}
-                </Tag>
-              }
             />
+            <div className="mt-4 space-y-1 text-sm text-gray-600">
+              <div className="flex justify-between">
+                <span>Average Order:</span>
+                <span className="font-semibold text-green-600">
+                  ₹{(quickStats?.averageOrderValue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Today:</span>
+                <span className="font-semibold text-blue-600">
+                  ₹{(orderStats?.todayRevenue || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
           </Card>
 
           {/* Orders Card */}
@@ -200,7 +226,7 @@ const Dashboard: React.FC = () => {
               title={
                 <div className="flex items-center gap-2 text-gray-600 mb-2">
                   <ShoppingCart className="w-4 h-4" />
-                  <span>Total Orders</span>
+                  <span>Orders ({period})</span>
                 </div>
               }
               value={quickStats?.orders || 0}
@@ -213,14 +239,18 @@ const Dashboard: React.FC = () => {
               )}
               valueStyle={{ color: '#3B82F6' }}
             />
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-              <div className="text-center p-2 bg-green-50 rounded-lg">
-                <div className="font-semibold text-green-700">{quickStats?.deliveredOrders || 0}</div>
-                <div className="text-green-600">Delivered</div>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+              <div className="text-center p-2 bg-blue-50 rounded-lg">
+                <div className="font-semibold text-blue-700">{orderStats?.processingOrders || 0}</div>
+                <div className="text-blue-600">Processing</div>
               </div>
               <div className="text-center p-2 bg-orange-50 rounded-lg">
-                <div className="font-semibold text-orange-700">{quickStats?.pendingOrders || 0}</div>
-                <div className="text-orange-600">Pending</div>
+                <div className="font-semibold text-orange-700">{orderStats?.shippedOrders || 0}</div>
+                <div className="text-orange-600">Shipped</div>
+              </div>
+              <div className="text-center p-2 bg-red-50 rounded-lg">
+                <div className="font-semibold text-red-700">{orderStats?.cancelledOrders || 0}</div>
+                <div className="text-red-600">Cancelled</div>
               </div>
             </div>
           </Card>
@@ -231,10 +261,10 @@ const Dashboard: React.FC = () => {
               title={
                 <div className="flex items-center gap-2 text-gray-600 mb-2">
                   <Users className="w-4 h-4" />
-                  <span>Active Users</span>
+                  <span>Users</span>
                 </div>
               }
-              value={quickStats?.activeUsers || 0}
+              value={quickStats?.totalUsers || 0}
               formatter={(value) => (
                 <CountUp
                   end={Number(value) || 0}
@@ -246,12 +276,16 @@ const Dashboard: React.FC = () => {
             />
             <div className="mt-4 space-y-1 text-sm text-gray-600">
               <div className="flex justify-between">
-                <span>New Users:</span>
-                <span className="font-semibold text-purple-600">{quickStats?.newUsers || 0}</span>
+                <span>Active Users:</span>
+                <span className="font-semibold text-green-600">{quickStats?.activeUsers || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span>Total Users:</span>
-                <span className="font-semibold">{quickStats?.totalUsers || 0}</span>
+                <span>Verified Users:</span>
+                <span className="font-semibold text-blue-600">{quickStats?.verifiedUsers || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>New Users ({period}):</span>
+                <span className="font-semibold text-purple-600">{quickStats?.newUsers || 0}</span>
               </div>
             </div>
           </Card>
@@ -281,8 +315,12 @@ const Dashboard: React.FC = () => {
                 <span className="font-semibold text-red-600">{quickStats?.lowStockItems || 0}</span>
               </div>
               <div className="flex justify-between">
+                <span>Pre-built PCs:</span>
+                <span className="font-semibold text-indigo-600">{quickStats?.prebuiltPCsPublished || 0}</span>
+              </div>
+              <div className="flex justify-between">
                 <span>Active Coupons:</span>
-                <span className="font-semibold text-blue-600">{quickStats?.activeCoupons || 0}</span>
+                <span className="font-semibold text-green-600">{quickStats?.activeCoupons || 0}</span>
               </div>
             </div>
           </Card>
@@ -292,17 +330,31 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Left Column - Main Charts & Analytics */}
           <div className="xl:col-span-2 space-y-8">
-            <SalesCharts period={period} />
-            <OrdersBreakdown />
-            <ProductAnalytics />
+            <SalesCharts 
+              period={period} 
+              data={salesChartData}
+              loading={loading}
+            />
+            <ProductAnalytics 
+              data={productAnalytics}
+              loading={loading}
+            />
           </div>
 
           {/* Right Column - Sidebar Widgets */}
           <div className="space-y-8">
-            <AlertsPanel alerts={alerts} />
-            <UserInsights />
-            <PCAnalytics />
-            <CouponAnalytics />
+            <UserInsights 
+              data={userAnalytics}
+              loading={loading}
+            />
+            <PCAnalytics 
+              data={pcAnalytics}
+              loading={loading}
+            />
+            <CouponAnalytics 
+              data={couponAnalytics}
+              loading={loading}
+            />
           </div>
         </div>
       </div>

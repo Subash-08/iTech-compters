@@ -59,6 +59,9 @@ import VideoDetail from './videos/VideoDetail';
 import SectionList from './sections/SectionList';
 import SectionForm from './sections/SectionForm';
 import SectionDetail from './sections/SectionDetail';
+import InvoiceList from './invoice/InvoiceList';
+import InvoiceGenerator from './invoice/InvoiceGenerator';
+import InvoiceDetails from './invoice/InvoiceDetails';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -287,6 +290,14 @@ const AdminLayout: React.FC = () => {
     icon: <Icons.Image className="w-5 h-5" />,
     path: '/admin/hero-sections'
   },
+
+      {
+    id: 'invoices',
+    label: 'Invoices',
+    icon: <Icons.Image className="w-5 h-5" />,
+    path: '/admin/invoices'
+  },
+ 
     {
       id: 'users',
       label: 'User Management',
@@ -514,6 +525,10 @@ const AdminLayout: React.FC = () => {
       <Route path="/sections/create" element={<SectionForm />} />
       <Route path="/sections/:id" element={<SectionDetail />} />
       <Route path="/sections/:id/edit" element={<SectionForm />} />
+              {/* Admin Invoice Routes */}
+        <Route path="/invoices" element={<InvoiceList />} />
+        <Route path="/invoices/new" element={<InvoiceGenerator />} />
+        <Route path="/invoices/:id" element={<InvoiceDetails />} />
             </Routes>
           </div>
         </main>

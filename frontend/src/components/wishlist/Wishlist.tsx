@@ -35,6 +35,9 @@ const Wishlist: React.FC = () => {
     dispatch(wishlistActions.fetchWishlist());
   }, [dispatch]);
 
+  console.log(wishlistItems);
+  
+
   // Check if we need to show sync modal
   useEffect(() => {    
     if (!loading && isAuthenticated && user && !hasCheckedSync) {

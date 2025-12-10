@@ -3,12 +3,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { PreBuiltPC } from '../../redux/types/preBuiltPCTypes';
 import AddToWishlistButton from '../product/AddToWishlistButton';
-import AddToCartButton from '../product/AddToCartButton';
 import { useAppSelector } from '../../redux/hooks';
 import { selectIsAuthenticated } from '../../redux/selectors';
 import { Star, Shield, Cpu, TrendingUp, Zap, Monitor } from 'lucide-react';
 import { baseURL } from '../config/config';
 import PreBuiltPCAddToCartButton from './PreBuiltPCAddToCartButton';
+import PreBuiltPCAddToWishlistButton from './PreBuiltPCAddToWishlistButton';
 
   const getImageUrl = (url: string): string => {
     if (!url) return 'https://placehold.co/300x300?text=No+Image';
@@ -153,15 +153,16 @@ const PreBuiltPCCard: React.FC<PreBuiltPCCardProps> = ({ pc, className = '' }) =
           </div>
         </div>
 
-        {/* Bottom Right Wishlist */}
-        <div className="absolute bottom-3 right-3">
-          <AddToWishlistButton 
-            productId={safePC._id}
-            productType="prebuilt-pc"
-            className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
-            size="sm"
-          />
-        </div>
+<div className="absolute bottom-3 right-3">
+<div className="absolute bottom-3 right-3">
+  <PreBuiltPCAddToWishlistButton 
+    pcId={safePC._id}
+    pcData={safePC} // ✅ Pass full PC data
+    className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
+    size="sm"
+  />
+</div>
+</div>
 
         {/* Stock Overlay */}
         {!isInStock && (
@@ -284,13 +285,14 @@ const PreBuiltPCCard: React.FC<PreBuiltPCCardProps> = ({ pc, className = '' }) =
 
         {/* Action Buttons */}
         <div className="flex gap-2 mb-4">
-  <PreBuiltPCAddToCartButton
-    pcId={safePC._id}
-    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-4 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-    disabled={!isInStock}
-  >
-    {!isInStock ? 'Out of Stock' : 'Add to Cart'}
-  </PreBuiltPCAddToCartButton>
+<PreBuiltPCAddToCartButton
+  pcId={safePC._id}
+  product={safePC} // ✅ PASS PRODUCT DATA FOR GUEST USERS
+  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-4 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+  disabled={!isInStock}
+>
+  {!isInStock ? 'Out of Stock' : 'Add to Cart'}
+</PreBuiltPCAddToCartButton>
           
 <Link
     to={`/prebuilt-pcs/${safePC.slug}`}

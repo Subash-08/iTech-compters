@@ -246,21 +246,40 @@ const QuoteModal: React.FC<QuoteModalProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                      type="tel"
-                      value={customerDetails.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter your phone number"
-                    />
-                  </div>
-                </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Phone Number
+  </label>
+  <div className="relative">
+    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+    <input
+      type="tel"
+      value={customerDetails.phone}
+      onChange={(e) => {
+        // Remove all non-digit characters except plus
+        let value = e.target.value.replace(/[^\d+]/g, '');
+        
+        // Ensure it starts with + if international
+        if (value && !value.startsWith('+')) {
+          // For Indian numbers, add +91 prefix
+          if (/^[6-9]\d{9}$/.test(value)) {
+            value = '+91' + value;
+          }
+          // Allow starting with country code without + for now
+        }
+        
+        handleInputChange('phone', value);
+      }}
+      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      placeholder="+91XXXXXXXXXX"
+      pattern="^\+[1-9]\d{0,15}$"
+      title="Enter international phone number starting with + (e.g., +919876543210)"
+    />
+  </div>
+  <p className="text-xs text-gray-500 mt-1">
+    Enter with country code (e.g., +91 for India)
+  </p>
+</div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

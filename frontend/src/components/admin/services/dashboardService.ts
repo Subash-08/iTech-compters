@@ -59,9 +59,5 @@ export const dashboardService = {
     return response.data;
   },
 
-  // Get alerts
-  async getAlerts(): Promise<{ data: AlertItem[] }> {
-    const response = await api.get('/admin/analytics/alerts');
-    return response.data;
-  }
+
 };

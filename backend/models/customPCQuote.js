@@ -108,19 +108,7 @@ const pcQuoteSchema = new mongoose.Schema({
         default: null
     },
 
-    // Metadata
-    quoteExpiry: {
-        type: Date,
-        default: function () {
-            return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-        },
-        validate: {
-            validator: function (value) {
-                return value > new Date();
-            },
-            message: 'Quote expiry must be in the future'
-        }
-    },
+    // REMOVED: quoteExpiry field completely
 
     // Tracking
     ipAddress: String,
@@ -142,16 +130,8 @@ const pcQuoteSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
-// Virtual for isExpired
-pcQuoteSchema.virtual('isExpired').get(function () {
-    return this.quoteExpiry < new Date();
-});
-
-// Virtual for daysUntilExpiry
-pcQuoteSchema.virtual('daysUntilExpiry').get(function () {
-    const diffTime = Math.abs(this.quoteExpiry - new Date());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-});
+// REMOVED: Virtual properties for expiry
+// REMOVED: quoteExpiry related indexes
 
 // Pre-save middleware for calculated fields
 pcQuoteSchema.pre('save', function (next) {
@@ -186,15 +166,7 @@ pcQuoteSchema.pre('save', function (next) {
     next();
 });
 
-// Static method to find expired quotes
-pcQuoteSchema.statics.findExpired = function () {
-    return this.find({
-        quoteExpiry: { $lt: new Date() },
-        status: { $in: ['pending', 'contacted', 'quoted'] }
-    });
-};
-
-// Static method for quote statistics
+// Static method for quote statistics (removed expired queries)
 pcQuoteSchema.statics.getStats = async function () {
     const stats = await this.aggregate([
         {
@@ -218,10 +190,7 @@ pcQuoteSchema.statics.getStats = async function () {
 
     const total = await this.countDocuments();
     const pending = await this.countDocuments({ status: 'pending' });
-    const expired = await this.countDocuments({
-        quoteExpiry: { $lt: new Date() },
-        status: { $in: ['pending', 'contacted', 'quoted'] }
-    });
+    const expired = 0; // No expiration anymore
 
     return {
         byStatus: stats,
@@ -231,16 +200,11 @@ pcQuoteSchema.statics.getStats = async function () {
     };
 };
 
-// Instance method to extend expiry
-pcQuoteSchema.methods.extendExpiry = function (days = 7) {
-    this.quoteExpiry = new Date(this.quoteExpiry.getTime() + days * 24 * 60 * 60 * 1000);
-    return this.save();
-};
+// REMOVED: extendExpiry method
 
-// Indexes for performance
+// Updated indexes (removed quoteExpiry index)
 pcQuoteSchema.index({ status: 1, createdAt: -1 });
 pcQuoteSchema.index({ 'customer.email': 1 });
-pcQuoteSchema.index({ quoteExpiry: 1 });
 pcQuoteSchema.index({ createdAt: -1 });
 pcQuoteSchema.index({ totalEstimated: -1 });
 pcQuoteSchema.index({ assignedTo: 1 });

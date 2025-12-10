@@ -314,7 +314,6 @@ export const localStorageUtils = {
     localStorage.removeItem(LocalStorageKeys.CART_SESSION_ID);
   },
 
-// In localStorageUtils.ts - UPDATE THIS FUNCTION
 getGuestWishlist: (): GuestWishlistItem[] => {
   try {
     const wishlist = localStorage.getItem(LocalStorageKeys.GUEST_WISHLIST);
@@ -324,13 +323,41 @@ getGuestWishlist: (): GuestWishlistItem[] => {
       count: parsedWishlist.length,
       items: parsedWishlist.map((item: any) => ({
         productId: item.productId,
+        productType: item.productType,
         hasProductData: !!item.productData,
         productName: item.productData?.name,
         hasVariant: !!item.variant
       }))
     });
     
-    return parsedWishlist;
+    // ✅ ENHANCED: Transform data structure for prebuilt PCs
+    return parsedWishlist.map(item => {
+      // If this is a prebuilt PC and has productData
+      if (item.productType === 'prebuilt-pc' && item.productData) {
+        return {
+          ...item,
+          productData: {
+            // Ensure prebuilt PC has the right structure
+            _id: item.productData._id || item.productId,
+            name: item.productData.name || 'Pre-built PC',
+            images: item.productData.images || [],
+            price: item.productData.price || item.productData.totalPrice || 0,
+            basePrice: item.productData.basePrice || item.productData.totalPrice || 0,
+            offerPrice: item.productData.offerPrice || item.productData.discountPrice || 0,
+            slug: item.productData.slug || '',
+            stockQuantity: item.productData.stockQuantity || 0,
+            condition: item.productData.condition || 'New',
+            category: item.productData.category,
+            performanceRating: item.productData.performanceRating,
+            // Add other prebuilt PC specific fields
+            totalPrice: item.productData.totalPrice,
+            discountPrice: item.productData.discountPrice,
+            specifications: item.productData.specifications
+          }
+        };
+      }
+      return item;
+    });
   } catch (error) {
     console.error('❌ Error reading guest wishlist from localStorage:', error);
     return [];

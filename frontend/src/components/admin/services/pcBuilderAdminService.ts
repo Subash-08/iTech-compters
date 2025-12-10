@@ -83,12 +83,6 @@ export const pcBuilderAdminService = {
     const response = await api.put(`/custom-pc/admin/quotes/${id}/status`, data);
     return response.data;
   },
-
-  async extendQuoteExpiry(id: string, days: number) {
-    const response = await api.put(`/custom-pc/admin/quotes/${id}/extend`, { days });
-    return response.data;
-  },
-
   async deleteQuote(id: string) {
     const response = await api.delete(`/custom-pc/admin/quotes/${id}`);
     return response.data;

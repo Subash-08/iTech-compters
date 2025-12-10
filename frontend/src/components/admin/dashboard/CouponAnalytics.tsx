@@ -1,27 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { dashboardService } from '../services/dashboardService';
-import { Icons } from '../Icon';
-import { Crown, Ticket } from 'lucide-react';
+import React from 'react';
+import { Crown, Ticket, DollarSign } from 'lucide-react';
 
-const CouponAnalytics: React.FC = () => {
-  const [couponData, setCouponData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+interface CouponAnalyticsProps {
+  data?: any;
+  loading?: boolean;
+}
 
-  useEffect(() => {
-    const fetchCouponData = async () => {
-      try {
-        const response = await dashboardService.getCouponAnalytics();
-        setCouponData(response.data);
-      } catch (error) {
-        console.error('Error fetching coupon data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCouponData();
-  }, []);
-
+const CouponAnalytics: React.FC<CouponAnalyticsProps> = ({ data, loading = false }) => {
   if (loading) {
     return (
       <div className="bg-white/50 backdrop-blur-lg rounded-2xl border border-gray-200/50 p-6">
@@ -33,6 +18,13 @@ const CouponAnalytics: React.FC = () => {
     );
   }
 
+  // Safe data access with fallbacks
+  const totalCoupons = data?.totalCoupons || 0;
+  const activeCoupons = data?.activeCoupons || 0;
+  const totalUsage = data?.totalUsage || 0;
+  const discountGiven = data?.discountGiven || 0;
+  const mostUsed = data?.mostUsed || null;
+
   return (
     <div className="bg-white/50 backdrop-blur-lg rounded-2xl border border-gray-200/50 p-6">
       <div className="flex items-center justify-between mb-6">
@@ -43,25 +35,27 @@ const CouponAnalytics: React.FC = () => {
       {/* Coupon Stats */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-lg p-4 border border-blue-200/30">
-          <div className="text-2xl font-bold text-blue-700">{couponData?.totalCoupons || 0}</div>
+          <div className="text-2xl font-bold text-blue-700">{totalCoupons}</div>
           <div className="text-sm text-blue-600">Total Coupons</div>
         </div>
         <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-lg p-4 border border-green-200/30">
-          <div className="text-2xl font-bold text-green-700">{couponData?.activeCoupons || 0}</div>
+          <div className="text-2xl font-bold text-green-700">{activeCoupons}</div>
           <div className="text-sm text-green-600">Active</div>
         </div>
         <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-lg p-4 border border-orange-200/30">
-          <div className="text-2xl font-bold text-orange-700">{couponData?.totalUsage || 0}</div>
+          <div className="text-2xl font-bold text-orange-700">{totalUsage}</div>
           <div className="text-sm text-orange-600">Total Usage</div>
         </div>
         <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-lg p-4 border border-purple-200/30">
-          <div className="text-2xl font-bold text-purple-700">{couponData?.newCouponsThisMonth || 0}</div>
+          <div className="text-2xl font-bold text-purple-700">
+            {data?.newCouponsThisMonth || 0}
+          </div>
           <div className="text-sm text-purple-600">New This Month</div>
         </div>
       </div>
 
       {/* Most Used Coupon */}
-      {couponData?.mostUsedCoupon && (
+      {mostUsed && (
         <div className="mb-4 p-4 bg-gradient-to-br from-yellow-50 to-yellow-100/50 rounded-lg border border-yellow-200/30">
           <div className="flex items-center justify-between mb-2">
             <span className="font-medium text-yellow-800">Most Used Coupon</span>
@@ -69,14 +63,17 @@ const CouponAnalytics: React.FC = () => {
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-bold text-yellow-700">{couponData.mostUsedCoupon.code}</div>
-              <div className="text-sm text-yellow-600">{couponData.mostUsedCoupon.name}</div>
+              <div className="font-bold text-yellow-700">{mostUsed.code}</div>
+              <div className="text-sm text-yellow-600">
+                Used {mostUsed.usageCount || 0} times
+              </div>
             </div>
             <div className="text-right">
-              <div className="font-semibold text-yellow-700">{couponData.mostUsedCoupon.usageCount} uses</div>
-              <div className="text-sm text-yellow-600">
-                {couponData.mostUsedCoupon.discountValue}
-                {couponData.mostUsedCoupon.discountType === 'percentage' ? '%' : '₹'} off
+              <div className="font-semibold text-yellow-700">
+                ₹{mostUsed.discountAmount || 0} off
+              </div>
+              <div className="text-xs text-yellow-600">
+                per use
               </div>
             </div>
           </div>
@@ -89,12 +86,21 @@ const CouponAnalytics: React.FC = () => {
           <div>
             <div className="text-sm text-green-600">Total Discount Given</div>
             <div className="text-xl font-bold text-green-700">
-              ₹{couponData?.totalDiscountGiven?.toLocaleString() || 0}
+              ₹{(discountGiven || 0).toLocaleString('en-IN')}
             </div>
           </div>
-          <Icons.DollarSign className="w-8 h-8 text-green-500" />
+          <DollarSign className="w-8 h-8 text-green-500" />
         </div>
       </div>
+
+      {/* Empty state for no coupon performance */}
+      {data?.performance?.length === 0 && totalCoupons > 0 && (
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-sm text-blue-700 text-center">
+            No coupons have been used yet in the selected period
+          </p>
+        </div>
+      )}
     </div>
   );
 };

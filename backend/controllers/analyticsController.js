@@ -374,9 +374,6 @@ exports.getUserAnalytics = catchAsyncErrors(async (req, res, next) => {
     }
 });
 
-// @desc    Get product analytics with time period
-// @route   GET /api/admin/analytics/products
-// @access  Private/Admin
 exports.getProductAnalytics = catchAsyncErrors(async (req, res, next) => {
     try {
         const { period = '30d' } = req.query;
@@ -400,7 +397,7 @@ exports.getProductAnalytics = catchAsyncErrors(async (req, res, next) => {
             }),
             // Active products
             Product.countDocuments({ status: 'active', isActive: true }),
-            // Top selling products in period
+            // Top selling products in period - FIXED: Use discountedPrice
             Order.aggregate([
                 {
                     $match: {
@@ -413,7 +410,12 @@ exports.getProductAnalytics = catchAsyncErrors(async (req, res, next) => {
                     $group: {
                         _id: '$items.product',
                         sales: { $sum: '$items.quantity' },
-                        revenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } }
+                        // FIX: Use discountedPrice (actual selling price)
+                        revenue: {
+                            $sum: {
+                                $multiply: ['$items.quantity', '$items.discountedPrice']
+                            }
+                        }
                     }
                 },
                 { $sort: { sales: -1 } },
@@ -431,7 +433,31 @@ exports.getProductAnalytics = catchAsyncErrors(async (req, res, next) => {
                     $project: {
                         id: '$_id',
                         name: '$productInfo.name',
-                        image: { $arrayElemAt: ['$productInfo.images.url', 0] },
+                        image: {
+                            $cond: {
+                                if: {
+                                    $and: [
+                                        '$productInfo.images',
+                                        '$productInfo.images.thumbnail',
+                                        '$productInfo.images.thumbnail.url'
+                                    ]
+                                },
+                                then: '$productInfo.images.thumbnail.url',
+                                else: {
+                                    $cond: {
+                                        if: {
+                                            $and: [
+                                                '$productInfo.images',
+                                                '$productInfo.images.gallery',
+                                                { $gt: [{ $size: '$productInfo.images.gallery' }, 0] }
+                                            ]
+                                        },
+                                        then: { $arrayElemAt: ['$productInfo.images.gallery.url', 0] },
+                                        else: null
+                                    }
+                                }
+                            }
+                        },
                         sales: 1,
                         revenue: 1,
                         stock: '$productInfo.stockQuantity',
@@ -440,7 +466,7 @@ exports.getProductAnalytics = catchAsyncErrors(async (req, res, next) => {
                     }
                 }
             ]),
-            // Category performance in period - FIXED VERSION
+            // Category performance - FIXED: Use discountedPrice
             Order.aggregate([
                 {
                     $match: {
@@ -463,7 +489,12 @@ exports.getProductAnalytics = catchAsyncErrors(async (req, res, next) => {
                     $group: {
                         _id: '$productInfo.categories',
                         sales: { $sum: '$items.quantity' },
-                        revenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } }
+                        // FIX: Use discountedPrice
+                        revenue: {
+                            $sum: {
+                                $multiply: ['$items.quantity', '$items.discountedPrice']
+                            }
+                        }
                     }
                 },
                 { $sort: { revenue: -1 } },
@@ -482,7 +513,7 @@ exports.getProductAnalytics = catchAsyncErrors(async (req, res, next) => {
                         category: '$categoryInfo.name',
                         sales: 1,
                         revenue: 1,
-                        growth: { $literal: 0 } // Use $literal instead of direct value
+                        growth: { $literal: 0 }
                     }
                 }
             ])
@@ -495,7 +526,7 @@ exports.getProductAnalytics = catchAsyncErrors(async (req, res, next) => {
                 { 'variants.stockQuantity': { $lt: 10, $gt: 0 } }
             ]
         })
-            .select('name images stockQuantity variants')
+            .select('name images stockQuantity variants categories')
             .populate('categories', 'name')
             .limit(10);
 
@@ -510,7 +541,8 @@ exports.getProductAnalytics = catchAsyncErrors(async (req, res, next) => {
                 lowStock: lowStockProducts.map(product => ({
                     id: product._id,
                     name: product.name,
-                    image: product.images?.[0]?.url || null,
+                    image: product.images?.thumbnail?.url ||
+                        (product.images?.gallery?.[0]?.url || null),
                     stock: product.stockQuantity,
                     minStock: 10,
                     category: product.categories?.[0]?.name || 'Uncategorized'

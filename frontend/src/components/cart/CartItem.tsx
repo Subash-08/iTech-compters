@@ -23,7 +23,7 @@ const CartItem: React.FC<CartItemProps> = ({
   const product = item.product || {};
   const preBuiltPC = item.preBuiltPC || {};
 
-  // In CartItem.tsx - Enhanced extractImageUrl function
+// In CartItem.tsx - FIXED extractImageUrl function
 const extractImageUrl = (images: any, type: string): string => {
   console.log(`🖼️ ${type} images:`, images);
   
@@ -32,34 +32,38 @@ const extractImageUrl = (images: any, type: string): string => {
     return '/images/placeholder-image.jpg';
   }
   
-  // Case 1: Array of images
-  if (Array.isArray(images) && images.length > 0) {
-    const firstImage = images[0];
-    
-    // Array of objects with url property
-    if (firstImage && firstImage.url) {
-      const url = formatImageUrl(firstImage.url);
-      console.log(`🖼️ Using array object URL: ${url}`);
-      return url;
+  // ✅ NEW: Handle object with numeric keys (e.g., {0: {...}, 1: {...}})
+  if (typeof images === 'object' && !Array.isArray(images)) {
+    // Check if it's an object with numeric keys (from localStorage serialization)
+    const keys = Object.keys(images);
+    if (keys.length > 0 && /^\d+$/.test(keys[0])) {
+      console.log(`🖼️ Found object with numeric keys, treating as array`);
+      
+      // Convert to array-like handling
+      const firstKey = keys[0];
+      const firstImage = images[firstKey];
+      
+      if (firstImage && firstImage.url) {
+        const url = formatImageUrl(firstImage.url);
+        console.log(`🖼️ Using numeric key object URL: ${url}`);
+        return url;
+      }
+      
+      if (firstImage && firstImage.public_id) {
+        const url = `https://res.cloudinary.com/${process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'demo'}/image/upload/w_150,h_150/${firstImage.public_id}`;
+        console.log(`🖼️ Using Cloudinary URL from object: ${url}`);
+        return url;
+      }
+      
+      // Try direct string in the object
+      if (typeof firstImage === 'string') {
+        const url = formatImageUrl(firstImage);
+        console.log(`🖼️ Using string from object: ${url}`);
+        return url;
+      }
     }
     
-    // Array of strings (direct URLs)
-    if (typeof firstImage === 'string') {
-      const url = formatImageUrl(firstImage);
-      console.log(`🖼️ Using array string URL: ${url}`);
-      return url;
-    }
-    
-    // Array of Cloudinary objects
-    if (firstImage && firstImage.public_id) {
-      const url = `https://res.cloudinary.com/${process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'demo'}/image/upload/w_150,h_150/${firstImage.public_id}`;
-      console.log(`🖼️ Using Cloudinary URL: ${url}`);
-      return url;
-    }
-  }
-  
-  // Case 2: Single image object
-  if (images && typeof images === 'object' && !Array.isArray(images)) {
+    // Rest of existing object handling...
     // Direct url property
     if (images.url) {
       const url = formatImageUrl(images.url);
@@ -88,6 +92,32 @@ const extractImageUrl = (images: any, type: string): string => {
     }
   }
   
+  // Case 1: Array of images
+  if (Array.isArray(images) && images.length > 0) {
+    const firstImage = images[0];
+    
+    // Array of objects with url property
+    if (firstImage && firstImage.url) {
+      const url = formatImageUrl(firstImage.url);
+      console.log(`🖼️ Using array object URL: ${url}`);
+      return url;
+    }
+    
+    // Array of strings (direct URLs)
+    if (typeof firstImage === 'string') {
+      const url = formatImageUrl(firstImage);
+      console.log(`🖼️ Using array string URL: ${url}`);
+      return url;
+    }
+    
+    // Array of Cloudinary objects
+    if (firstImage && firstImage.public_id) {
+      const url = `https://res.cloudinary.com/${process.env.REACT_APP_CLOUDINARY_CLOUD_NAME || 'demo'}/image/upload/w_150,h_150/${firstImage.public_id}`;
+      console.log(`🖼️ Using Cloudinary URL: ${url}`);
+      return url;
+    }
+  }
+  
   // Case 3: Direct string URL
   if (typeof images === 'string' && images.trim() !== '') {
     const url = formatImageUrl(images);
@@ -104,7 +134,6 @@ const extractImageUrl = (images: any, type: string): string => {
   console.log(`🖼️ No ${type} image found, using placeholder`);
   return '/images/placeholder-image.jpg';
 };
-  
 // In CartItem.tsx - Update getItemImage() function
 const getItemImage = (): string => {
   console.log('🖼️ CartItem debug - item:', item);

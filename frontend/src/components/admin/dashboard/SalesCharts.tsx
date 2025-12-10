@@ -3,43 +3,70 @@ import ReactApexChart from 'react-apexcharts';
 import { dashboardService } from '../services/dashboardService';
 import { TrendingUp, CreditCard, Calendar } from 'lucide-react';
 
-const SalesCharts: React.FC = () => {
+interface SalesChartsProps {
+  period?: string;
+  data?: any;
+  loading?: boolean;
+}
+
+const SalesCharts: React.FC<SalesChartsProps> = ({ period = '30d', data, loading: propLoading }) => {
   const [chartData, setChartData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<string>('30d');
+  const [localLoading, setLocalLoading] = useState(true);
+  const [localPeriod, setLocalPeriod] = useState<string>(period);
+
+  const isLoading = propLoading !== undefined ? propLoading : localLoading;
 
   useEffect(() => {
-    const fetchChartData = async () => {
-      try {
-        setLoading(true);
-        const response = await dashboardService.getSalesChartData({ period });
-        setChartData(response.data);
-      } catch (error) {
-        console.error('Error fetching chart data:', error);
-        // Set fallback empty data to prevent crashes
-        setChartData({
-          dailyRevenue: [],
-          paymentMethods: [],
-          ordersTrend: []
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+    // If data is passed as prop, use it
+    if (data) {
+      setChartData(data);
+      setLocalLoading(false);
+    } else {
+      // Otherwise fetch it
+      const fetchChartData = async () => {
+        try {
+          setLocalLoading(true);
+          const response = await dashboardService.getSalesChartData({ period: localPeriod });
+          setChartData(response.data);
+        } catch (error) {
+          console.error('Error fetching chart data:', error);
+          // Set fallback empty data to prevent crashes
+          setChartData({
+            dailyRevenue: [],
+            paymentMethods: [],
+            ordersTrend: []
+          });
+        } finally {
+          setLocalLoading(false);
+        }
+      };
 
-    fetchChartData();
-  }, [period]);
+      fetchChartData();
+    }
+  }, [localPeriod, data]);
 
   // Safe data access with fallbacks
   const dailyRevenueData = chartData?.dailyRevenue || [];
   const paymentMethodsData = chartData?.paymentMethods || [];
   const ordersTrendData = chartData?.ordersTrend || [];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="bg-white/50 backdrop-blur-xl rounded-2xl border border-gray-200/50 p-6 animate-pulse">
         <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
         <div className="h-64 bg-gray-200 rounded"></div>
+      </div>
+    );
+  }
+
+  // Don't render charts if no data
+  if (!chartData) {
+    return (
+      <div className="bg-white/50 backdrop-blur-xl rounded-2xl border border-gray-200/50 p-6">
+        <div className="text-center py-10 text-gray-500">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Sales Analytics</h3>
+          <p>No sales data available</p>
+        </div>
       </div>
     );
   }
@@ -84,7 +111,7 @@ const SalesCharts: React.FC = () => {
           format: 'dd MMM yyyy'
         },
         y: {
-          formatter: (value: number) => `₹${value.toLocaleString()}`
+          formatter: (value: number) => `₹${value?.toLocaleString() || 0}`
         }
       }
     }
@@ -114,7 +141,10 @@ const SalesCharts: React.FC = () => {
               total: {
                 show: true,
                 label: 'Total Payments',
-                formatter: () => paymentMethodsData.reduce((acc: number, curr: any) => acc + (curr.count || 0), 0).toString()
+                formatter: () => {
+                  const total = paymentMethodsData.reduce((acc: number, curr: any) => acc + (curr.count || 0), 0);
+                  return total.toString();
+                }
               }
             }
           }
@@ -149,13 +179,16 @@ const SalesCharts: React.FC = () => {
       tooltip: {
         x: {
           format: 'dd MMM yyyy'
+        },
+        y: {
+          formatter: (value: number) => `${value || 0} orders`
         }
       }
     }
   };
 
   const handlePeriodChange = (newPeriod: string) => {
-    setPeriod(newPeriod);
+    setLocalPeriod(newPeriod);
   };
 
   return (
@@ -166,7 +199,7 @@ const SalesCharts: React.FC = () => {
         <div className="flex space-x-2">
           <button 
             className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-              period === '30d' 
+              localPeriod === '30d' 
                 ? 'bg-blue-100 text-blue-700' 
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
@@ -176,7 +209,7 @@ const SalesCharts: React.FC = () => {
           </button>
           <button 
             className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-              period === '90d' 
+              localPeriod === '90d' 
                 ? 'bg-blue-100 text-blue-700' 
                 : 'text-gray-600 hover:bg-gray-100'
             }`}

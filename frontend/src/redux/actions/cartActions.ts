@@ -632,26 +632,119 @@ const syncGuestCart = () => async (dispatch: any, getState: any) => {
     syncInProgress = false;
   }
 };
-
-// redux/actions/cartActions.ts - FIXED addPreBuiltPCToCart
-
-// FIXED: Clean version with proper thunk structure
-const addPreBuiltPCToCart = (cartData: { pcId: string; quantity?: number }) => {
+const addPreBuiltPCToCart = (cartData: { pcId: string; quantity?: number; product?: any }) => {
   return async (dispatch: any, getState: any) => {
     try {
       dispatch({ type: 'cart/updateCartStart' });
       
-      // FIXED: Check if getState exists before calling it
-      let isGuest = true;
-      if (typeof getState === 'function') {
-        const state = getState();
-        isGuest = !state.authState.isAuthenticated;
-      }
+      const state = getState();
+      const isGuest = !state.authState.isAuthenticated;
+      
+      console.log('🛒 Adding Prebuilt PC to cart:', {
+        pcId: cartData.pcId,
+        quantity: cartData.quantity,
+        isGuest,
+        hasProductData: !!cartData.product,
+        productData: cartData.product
+      });
       
       if (isGuest) {
-        // Guest cart handling...
+        // ✅ Try to get product data from wishlist state if not provided
+        let productData = cartData.product;
+        
+        if (!productData) {
+          // Check wishlist items for this PC
+          const wishlistItems = state.wishlistState?.items || [];
+          const wishlistItem = wishlistItems.find((item: any) => 
+            (item.productType === 'prebuilt-pc' && 
+             (item.product?._id === cartData.pcId || 
+              item.preBuiltPC === cartData.pcId))
+          );
+          
+          if (wishlistItem?.product) {
+            productData = wishlistItem.product;
+            console.log('🔍 Found product data in wishlist:', productData.name);
+          }
+        }
+        
         const guestCart = localStorageUtils.getGuestCart();
-        // ... rest of guest cart logic
+        
+        // Check if PC already exists in cart
+        const existingItemIndex = guestCart.findIndex(
+          item => item.productType === 'prebuilt-pc' && 
+                 item.productId === cartData.pcId
+        );
+
+        let updatedCart: GuestCartItem[];
+        const price = productData?.offerPrice || productData?.totalPrice || 75000; // Default price
+        
+        if (existingItemIndex > -1) {
+          // Update existing item
+          updatedCart = guestCart.map((item, index) => 
+            index === existingItemIndex 
+              ? { 
+                  ...item, 
+                  quantity: item.quantity + (cartData.quantity || 1),
+                  preBuiltPC: productData || item.preBuiltPC,
+                  price: price || item.price
+                }
+              : item
+          );
+        } else {
+          // Add new prebuilt PC item
+          const newItem: GuestCartItem = {
+            _id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            productType: 'prebuilt-pc',
+            productId: cartData.pcId,
+            quantity: cartData.quantity || 1,
+            price: price,
+            addedAt: new Date().toISOString(),
+            
+            // ✅ SAVE COMPLETE PREBUILT PC DATA
+            preBuiltPC: productData ? {
+              _id: productData._id || cartData.pcId,
+              name: productData.name || 'Pre-built PC',
+              slug: productData.slug,
+              totalPrice: productData.totalPrice || productData.basePrice || price,
+              discountPrice: productData.discountPrice || productData.offerPrice,
+              stockQuantity: productData.stockQuantity || 0,
+              condition: productData.condition || 'New',
+              performanceRating: productData.performanceRating,
+              images: productData.images || [],
+              category: productData.category,
+              specifications: productData.specifications || {}
+            } : {
+              _id: cartData.pcId,
+              name: 'Pre-built PC',
+              totalPrice: price,
+              stockQuantity: 0,
+              condition: 'New',
+              images: []
+            }
+          };
+          
+          updatedCart = [...guestCart, newItem];
+        }
+
+        // Save to localStorage
+        localStorageUtils.saveGuestCart(updatedCart);
+        
+        console.log('💾 Saved PC to guest cart:', {
+          count: updatedCart.length,
+          item: updatedCart.find(item => item.productId === cartData.pcId)
+        });
+        
+        // Dispatch success
+        dispatch({
+          type: 'cart/updateCartSuccess',
+          payload: {
+            items: updatedCart,
+            isGuest: true
+          }
+        });
+        
+        toast.success('Pre-built PC added to cart successfully');
+        
       } else {
         // Authenticated user - use API
         const response = await api.post('/cart/prebuilt-pc/add', cartData);
@@ -689,24 +782,33 @@ const addPreBuiltPCToCart = (cartData: { pcId: string; quantity?: number }) => {
 };
 
 
-// redux/actions/cartActions.ts - Update removePreBuiltPCFromCart
+// In cartActions.ts - FIXED removePreBuiltPCFromCart
 const removePreBuiltPCFromCart = (pcId: string) => async (dispatch: any, getState: any) => {
   try {
     dispatch({ type: 'cart/updateCartStart' });
     
     const state = getState();
     const isGuest = !state.authState.isAuthenticated;
-     if (!pcId || pcId === 'undefined') {
+    
+    if (!pcId || pcId === 'undefined') {
       throw new Error('Invalid PC ID');
     }
+
+    console.log('🗑️ Removing Prebuilt PC from cart:', { pcId, isGuest });
 
     if (isGuest) {
       // Handle guest cart removal locally
       const guestCart = localStorageUtils.getGuestCart();
+      
+      console.log('🔍 Guest cart before removal:', guestCart);
+      
+      // ✅ FIXED: Use productId, not pcId
       const updatedCart = guestCart.filter(item =>
-        !(item.productType === 'prebuilt-pc' && item.pcId === pcId)
+        !(item.productType === 'prebuilt-pc' && item.productId === pcId)
       );
 
+      console.log('🔍 Guest cart after removal:', updatedCart);
+      
       localStorageUtils.saveGuestCart(updatedCart);
       
       dispatch({
