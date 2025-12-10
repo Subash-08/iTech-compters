@@ -7,9 +7,9 @@ export const getConfig = () => {
   
   // Fallback to build-time environment variables
   return {
-    API_URL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1',
-    UPLOADS_URL: process.env.REACT_APP_UPLOADS_URL || 'http://localhost:5000/uploads'
+    API_URL: process.env.REACT_APP_API_URL || 'https://itech-compters.onrender.com/api/v1',
+    UPLOADS_URL: process.env.REACT_APP_UPLOADS_URL || 'https://itech-compters.onrender.com/uploads'
   };
 };
 
-export const baseURL = 'http://localhost:5000';
+export const baseURL = 'https://itech-compters.onrender.com';
