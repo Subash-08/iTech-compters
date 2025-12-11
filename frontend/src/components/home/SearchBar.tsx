@@ -110,11 +110,11 @@ const SearchBar: React.FC = () => {
           onBlur={() => {
             setTimeout(() => setIsFocused(false), 200);
           }}
-          className="pl-12 pr-10 py-2.5 w-full border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+          className="pl-12 pr-10 py-2.5 w-full border border-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
           aria-label="Search products"
         />
         
-        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
         
         {searchTerm && (
           <button

@@ -1,30 +1,24 @@
-// components/invoice/InvoiceSummary.tsx - UPDATED VERSION
+// components/invoice/InvoiceSummary.tsx - FIXED VERSION (No Payment)
 import React from 'react';
 import { 
   CustomerDetails, 
   InvoiceProduct, 
   InvoiceCustomProduct,
-  InvoicePreBuiltPC, 
   InvoiceTotals 
 } from '../types/invoice';
-import { FileText, Download, Send, Save, Calculator, Percent, Truck, MessageSquare } from 'lucide-react';
+import { FileText, Calculator, Percent, Truck, MessageSquare } from 'lucide-react';
 
 interface InvoiceSummaryProps {
   customer: CustomerDetails;
   products: InvoiceProduct[];
   customProducts: InvoiceCustomProduct[];
-  preBuiltPCs: InvoicePreBuiltPC[];
   totals: InvoiceTotals;
   discount: number;
   shipping: number;
   notes: string;
-  paymentStatus: 'pending' | 'paid';
-  paymentMethod: 'cash' | 'card' | 'upi' | 'cod' | 'bank_transfer' | 'online';
   onDiscountChange: (value: number) => void;
   onShippingChange: (value: number) => void;
   onNotesChange: (value: string) => void;
-  onPaymentStatusChange: (status: 'pending' | 'paid') => void;
-  onPaymentMethodChange: (method: 'cash' | 'card' | 'upi' | 'cod' | 'bank_transfer' | 'online') => void;
   onBack: () => void;
   onNext: () => void;
 }
@@ -33,30 +27,16 @@ const InvoiceSummary: React.FC<InvoiceSummaryProps> = ({
   customer,
   products,
   customProducts,
-  preBuiltPCs,
   totals,
   discount,
   shipping,
   notes,
-  paymentStatus,
-  paymentMethod,
   onDiscountChange,
   onShippingChange,
   onNotesChange,
-  onPaymentStatusChange,
-  onPaymentMethodChange,
   onBack,
   onNext
 }) => {
-  const paymentMethods = [
-    { value: 'cash', label: 'Cash', icon: '💵' },
-    { value: 'card', label: 'Card', icon: '💳' },
-    { value: 'upi', label: 'UPI', icon: '📱' },
-    { value: 'cod', label: 'COD', icon: '📦' },
-    { value: 'bank_transfer', label: 'Bank Transfer', icon: '🏦' },
-    { value: 'online', label: 'Online', icon: '🌐' }
-  ];
-
   const calculateItemTotal = (quantity: number, unitPrice: number) => {
     return quantity * unitPrice;
   };
@@ -66,7 +46,7 @@ const InvoiceSummary: React.FC<InvoiceSummaryProps> = ({
   };
 
   const getTotalItems = () => {
-    return products.length + customProducts.length + preBuiltPCs.length;
+    return products.length + customProducts.length;
   };
 
   return (
@@ -141,9 +121,6 @@ const InvoiceSummary: React.FC<InvoiceSummaryProps> = ({
                   </span>
                   <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full">
                     Custom: {customProducts.length}
-                  </span>
-                  <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full">
-                    PCs: {preBuiltPCs.length}
                   </span>
                 </div>
               </div>
@@ -248,145 +225,12 @@ const InvoiceSummary: React.FC<InvoiceSummaryProps> = ({
                   </div>
                 );
               })}
-
-              {/* Pre-built PCs */}
-              {preBuiltPCs.map((pc, index) => {
-                const itemTotal = calculateItemTotal(pc.quantity, pc.unitPrice);
-                const itemGST = calculateItemGST(pc.quantity, pc.unitPrice, pc.gstPercentage);
-                
-                return (
-                  <div key={`pc-${index}`} className="px-6 py-4 hover:bg-blue-50/30 bg-blue-50/30">
-                    <div className="flex justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-start gap-3">
-                          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="text-blue-600 font-semibold">PC</span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium text-gray-900">{pc.name}</h4>
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
-                                Pre-built PC
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 mt-2">
-                              <span className="text-sm text-gray-600">
-                                Qty: {pc.quantity}
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                Price: ₹{pc.unitPrice.toFixed(2)}
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                GST: {pc.gstPercentage}%
-                              </span>
-                            </div>
-                            {pc.components.length > 0 && (
-                              <div className="mt-2 text-xs text-gray-500">
-                                <span className="font-medium">Includes:</span>{' '}
-                                {pc.components.slice(0, 2).map((c, i) => (
-                                  <span key={i}>
-                                    {c.quantity}x {c.name}
-                                    {i < Math.min(2, pc.components.length) - 1 ? ', ' : ''}
-                                  </span>
-                                ))}
-                                {pc.components.length > 2 && '...'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900 text-lg">
-                          ₹{itemTotal.toFixed(2)}
-                        </p>
-                        {pc.gstPercentage > 0 && (
-                          <p className="text-sm text-gray-600">
-                            + GST: ₹{itemGST.toFixed(2)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>
 
         {/* Right Column - Settings & Totals */}
         <div className="space-y-6">
-          {/* Payment Settings */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <span className="text-green-600">💳</span>
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-800">Payment Settings</h2>
-                <p className="text-sm text-gray-600">Configure payment details</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              {/* Payment Status */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Status
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onPaymentStatusChange('pending')}
-                    className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 ${
-                      paymentStatus === 'pending'
-                        ? 'bg-yellow-50 border-yellow-500 text-yellow-700'
-                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span className="text-lg">⏳</span>
-                    <span>Pending</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onPaymentStatusChange('paid')}
-                    className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 ${
-                      paymentStatus === 'paid'
-                        ? 'bg-green-50 border-green-500 text-green-700'
-                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span className="text-lg">✅</span>
-                    <span>Paid</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Payment Method */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Method
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {paymentMethods.map(method => (
-                    <button
-                      key={method.value}
-                      type="button"
-                      onClick={() => onPaymentMethodChange(method.value as any)}
-                      className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-1 ${
-                        paymentMethod === method.value
-                          ? 'bg-blue-50 border-blue-500 text-blue-700'
-                          : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <span className="text-xl">{method.icon}</span>
-                      <span className="text-xs font-medium">{method.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Adjustments */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <div className="flex items-center gap-2 mb-4">

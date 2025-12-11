@@ -21,29 +21,79 @@ class AdvancedFilterBuilder {
         this.countPipeline = [];
         this.metadataPipeline = [];
 
-        // 1. Initial Projection (Common for all)
         const initialProjection = {
             $project: {
+                // Basic Info
+                _id: 1,
                 name: 1,
                 slug: 1,
-                brand: 1,
-                categories: 1,
-                condition: 1,
                 label: 1,
+                definition: 1,
+                description: 1,
+
+                // Brand Info
+                brand: 1,
+
+                // Categories & Tags
+                categories: 1,
+                tags: 1,
+
+                // Status & Condition
+                condition: 1,
                 isActive: 1,
                 status: 1,
+
+                // Pricing (for non-variant products)
                 basePrice: 1,
                 mrp: 1,
+                effectivePrice: { $cond: { if: { $gt: ['$mrp', 0] }, then: '$basePrice', else: '$basePrice' } },
+
+                // Stock
                 stockQuantity: 1,
+                hasStock: { $gt: ['$stockQuantity', 0] },
+
+                // Images (include ALL image fields)
+                images: 1,
+                manufacturerImages: 1,
+
+                // Variant Configuration
                 variantConfiguration: 1,
                 variants: 1,
-                'images.thumbnail': 1,
+
+                // Ratings & Reviews
                 averageRating: 1,
                 totalReviews: 1,
+
+                // Specifications & Features
+                specifications: 1,
+                features: 1,
+
+                // Dimensions & Weight
+                dimensions: 1,
+                weight: 1,
+
+                // Warranty
+                warranty: 1,
+
+                // SEO & Meta
+                meta: 1,
+                canonicalUrl: 1,
+
+                // Linked Products
+                linkedProducts: 1,
+
+                // Notes
+                notes: 1,
+
+                // Timestamps
                 createdAt: 1,
-                tags: 1,
-                description: 1,
-                definition: 1
+                updatedAt: 1,
+
+                // Additional fields for ProductCard
+                hsn: 1,
+                taxRate: 1,
+                sku: 1,
+                barcode: 1
             }
         };
 

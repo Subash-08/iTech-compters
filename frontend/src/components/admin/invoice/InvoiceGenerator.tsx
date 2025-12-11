@@ -484,19 +484,14 @@ const InvoiceGenerator: React.FC = () => {
             <InvoiceSummary
               customer={customerDetails}
               products={products}
-              customProducts={customProducts} // Add this
-              preBuiltPCs={preBuiltPCs}
+              customProducts={customProducts}
               totals={totals}
               discount={discount}
               shipping={shipping}
               notes={notes}
-              paymentStatus={paymentStatus}
-              paymentMethod={paymentMethod}
               onDiscountChange={setDiscount}
               onShippingChange={setShipping}
               onNotesChange={setNotes}
-              onPaymentStatusChange={setPaymentStatus}
-              onPaymentMethodChange={setPaymentMethod}
               onBack={() => setStep(2)}
               onNext={() => setStep(4)}
             />

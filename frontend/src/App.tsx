@@ -1,5 +1,5 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import Navbar from "./components/Navbar";
@@ -37,6 +37,12 @@ import SingleBlog from "./components/blog/SingleBlog";
 import BlogCategory from "./components/blog/BlogCategory";
 import BlogTag from "./components/blog/BlogTag";
 import { HelmetProvider } from "react-helmet-async";
+import ContactPage from "./components/pages/ContactPage";
+import PrivacyPolicy from "./components/pages/PrivacyPolicy";
+import RefundReturnsPolicy from "./components/pages/RefundReturnsPolicy";
+import ShippingDeliveryPolicy from "./components/pages/ShippingDeliveryPolicy";
+import WarrantyPolicy from "./components/pages/WarrantyPolicy";
+import TermsConditions from "./components/pages/TermsConditions";
 
 // ✅ UPDATED: Root Layout - AuthInitializer at the top level
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -46,6 +52,16 @@ const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {children}
     </>
   );
+};
+
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
 };
 
 const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -114,6 +130,7 @@ const App: React.FC = () => {
   return (
      <HelmetProvider>
     <BrowserRouter>
+    <ScrollToTop />
       {/* ✅ WRAP ENTIRE APP WITH ROOT LAYOUT */}
       <RootLayout>
         {/* React Toastify Container for notifications */}
@@ -267,6 +284,55 @@ const App: React.FC = () => {
               </PublicLayout>
             } 
           />
+                    <Route 
+            path="/contact" 
+            element={
+              <PublicLayout>
+                <ContactPage />
+              </PublicLayout>
+            } 
+          />
+
+<Route 
+  path="/privacy-policy" 
+  element={
+    <PublicLayout>
+      <PrivacyPolicy />
+    </PublicLayout>
+  } 
+/>
+<Route 
+  path="/refund-policy" 
+  element={
+    <PublicLayout>
+      <RefundReturnsPolicy />
+    </PublicLayout>
+  } 
+/>
+<Route 
+  path="/shipping-policy" 
+  element={
+    <PublicLayout>
+      <ShippingDeliveryPolicy />
+    </PublicLayout>
+  } 
+/>
+<Route 
+  path="/warranty-policy" 
+  element={
+    <PublicLayout>
+      <WarrantyPolicy />
+    </PublicLayout>
+  } 
+/>
+<Route 
+  path="/terms-conditions" 
+  element={
+    <PublicLayout>
+      <TermsConditions />
+    </PublicLayout>
+  } 
+/>
           
           <Route 
             path="/products" 

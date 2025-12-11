@@ -16,6 +16,7 @@ const generatePDF = async (invoice, templatePath) => {
         let productsSubtotal = 0;
         let productsTotalGst = 0;
 
+        // Regular products
         invoice.products.forEach(product => {
             const itemTotal = product.quantity * product.unitPrice;
             const itemGst = itemTotal * (product.gstPercentage / 100);
@@ -23,6 +24,15 @@ const generatePDF = async (invoice, templatePath) => {
             productsTotalGst += itemGst;
         });
 
+        // ADD THIS: Custom products calculation
+        invoice.customProducts.forEach(product => {
+            const itemTotal = product.quantity * product.unitPrice;
+            const itemGst = itemTotal * (product.gstPercentage / 100);
+            productsSubtotal += itemTotal;
+            productsTotalGst += itemGst;
+        });
+
+        // Pre-built PCs
         invoice.preBuiltPCs.forEach(pc => {
             const pcTotal = pc.quantity * pc.unitPrice;
             const pcGst = pcTotal * (pc.gstPercentage / 100);
@@ -71,6 +81,29 @@ const generatePDF = async (invoice, templatePath) => {
           <td>
             <div style="font-weight: 500;">${product.name}</div>
             ${product.sku ? `<div style="font-size: 11px; color: #666;">SKU: ${product.sku}</div>` : ''}
+          </td>
+          <td class="text-center">${product.quantity}</td>
+          <td class="text-right">₹${product.unitPrice.toFixed(2)}</td>
+          <td class="text-center">${product.gstPercentage}%</td>
+          <td class="text-right">₹${totalWithGst.toFixed(2)}</td>
+        </tr>
+      `;
+        });
+
+        // ADD THIS: Custom products section
+        invoice.customProducts.forEach(product => {
+            const total = product.quantity * product.unitPrice;
+            const gstAmount = total * (product.gstPercentage / 100);
+            const totalWithGst = total + gstAmount;
+
+            productRows += `
+        <tr>
+          <td>${rowNumber++}</td>
+          <td>
+            <div style="font-weight: 500;">${product.name}</div>
+            <div style="font-size: 11px; color: #28a745;">Custom Product</div>
+            ${product.sku ? `<div style="font-size: 11px; color: #666;">SKU: ${product.sku}</div>` : ''}
+            ${product.description ? `<div style="font-size: 11px; color: #666; font-style: italic;">${product.description}</div>` : ''}
           </td>
           <td class="text-center">${product.quantity}</td>
           <td class="text-right">₹${product.unitPrice.toFixed(2)}</td>

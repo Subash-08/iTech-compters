@@ -1,34 +1,29 @@
-// components/invoice/CategoryProductSelector.tsx - USER FRIENDLY VERSION
+// components/invoice/CategoryProductSelector.tsx - SIMPLIFIED VERSION
 import React, { useState, useEffect, useCallback } from 'react';
 import { debounce } from 'lodash';
 import { 
   InvoiceProduct, 
   InvoiceCustomProduct, 
-  InvoicePreBuiltPC, 
   Category, 
-  ProductSearchResult, 
-  PreBuiltPCSearchResult 
+  ProductSearchResult
 } from '../types/invoice';
-import { categoryService, productSearchService, preBuiltPCService } from '../services/invoiceService';
+import { categoryService, productSearchService } from '../services/invoiceService';
 import { 
-  Search, Plus, X, Package, Cpu, Edit, Grid, List, 
-  Filter, ShoppingBag, Tag, Star, TrendingUp, Zap 
+  Search, Plus, X, Grid, List, 
+  Filter, ShoppingBag, TrendingUp, ChevronRight,
+  Tag, DollarSign, Package, Clock
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 interface CategoryProductSelectorProps {
   products: InvoiceProduct[];
   customProducts: InvoiceCustomProduct[];
-  preBuiltPCs: InvoicePreBuiltPC[];
   onAddProduct: (product: InvoiceProduct) => void;
   onAddCustomProduct: (product: InvoiceCustomProduct) => void;
-  onAddPreBuiltPC: (pc: InvoicePreBuiltPC) => void;
   onRemoveProduct: (index: number) => void;
   onRemoveCustomProduct: (index: number) => void;
-  onRemovePreBuiltPC: (index: number) => void;
   onUpdateProduct: (index: number, updates: Partial<InvoiceProduct>) => void;
   onUpdateCustomProduct: (index: number, updates: Partial<InvoiceCustomProduct>) => void;
-  onUpdatePreBuiltPC: (index: number, updates: Partial<InvoicePreBuiltPC>) => void;
   onBack: () => void;
   onNext: () => void;
 }
@@ -36,16 +31,12 @@ interface CategoryProductSelectorProps {
 const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
   products,
   customProducts,
-  preBuiltPCs,
   onAddProduct,
   onAddCustomProduct,
-  onAddPreBuiltPC,
   onRemoveProduct,
   onRemoveCustomProduct,
-  onRemovePreBuiltPC,
   onUpdateProduct,
   onUpdateCustomProduct,
-  onUpdatePreBuiltPC,
   onBack,
   onNext
 }) => {
@@ -53,13 +44,21 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ProductSearchResult[]>([]);
-  const [preBuiltPCResults, setPreBuiltPCResults] = useState<PreBuiltPCSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [showPreBuiltPCs, setShowPreBuiltPCs] = useState(false);
   const [showCustomProductForm, setShowCustomProductForm] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [featuredProducts, setFeaturedProducts] = useState<ProductSearchResult[]>([]);
-  
+  const [customProductForm, setCustomProductForm] = useState({
+    name: '',
+    description: '',
+    quantity: 1,
+    unitPrice: 0,
+    gstPercentage: 18,
+    category: '',
+    sku: '',
+    hsnCode: ''
+  });
+
   // Load categories on mount
   useEffect(() => {
     loadCategories();
@@ -71,10 +70,10 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
     if (selectedCategory && !searchQuery.trim()) {
       loadCategoryProducts(selectedCategory);
     } else if (!selectedCategory && !searchQuery.trim()) {
-      setSearchResults([]);
-      setPreBuiltPCResults([]);
+      // Show featured products when no category selected
+      setSearchResults(featuredProducts);
     }
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, featuredProducts]);
 
   const loadCategories = async () => {
     try {
@@ -88,9 +87,10 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
 
   const loadFeaturedProducts = async () => {
     try {
-      const results = await productSearchService.searchProducts('', '');
-      // Take first 8 as featured
-      setFeaturedProducts(results.slice(0, 8));
+      const results = await productSearchService.searchProducts('');
+      // Take first 12 as featured
+      setFeaturedProducts(results.slice(0, 12));
+      setSearchResults(results.slice(0, 12)); // Set initial display
     } catch (error) {
       console.error('Failed to load featured products:', error);
     }
@@ -100,7 +100,7 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
     try {
       setIsSearching(true);
       const results = await productSearchService.searchProducts('', categorySlug);
-      setSearchResults(results.slice(0, 12));
+      setSearchResults(results);
     } catch (error) {
       console.error('Failed to load category products:', error);
       toast.error('Failed to load products');
@@ -115,23 +115,16 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
       if (!query.trim()) {
         if (selectedCategory) {
           loadCategoryProducts(selectedCategory);
+        } else {
+          setSearchResults(featuredProducts);
         }
         return;
       }
 
       setIsSearching(true);
       try {
-        if (showPreBuiltPCs) {
-          // Search pre-built PCs
-          const pcResults = await preBuiltPCService.searchPreBuiltPCs(query);
-          setPreBuiltPCResults(pcResults);
-          setSearchResults([]);
-        } else {
-          // Search products
-          const productResults = await productSearchService.searchProducts(query, selectedCategory);
-          setSearchResults(productResults);
-          setPreBuiltPCResults([]);
-        }
+        const productResults = await productSearchService.searchProducts(query, selectedCategory);
+        setSearchResults(productResults);
       } catch (error) {
         console.error('Search failed:', error);
         toast.error('Search failed');
@@ -139,7 +132,7 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
         setIsSearching(false);
       }
     }, 500),
-    [selectedCategory, showPreBuiltPCs]
+    [selectedCategory, featuredProducts]
   );
 
   useEffect(() => {
@@ -148,8 +141,6 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
   }, [searchQuery, debouncedSearch]);
 
   const handleAddProduct = (product: ProductSearchResult) => {
-    console.log('Adding product:', product);
-    
     const effectivePrice = product.effectivePrice || product.salePrice;
     const basePrice = product.basePrice || product.price || product.mrp || 0;
     const unitPrice = effectivePrice || basePrice;
@@ -181,28 +172,41 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
     toast.success(`Added ${product.name} to invoice`);
   };
 
-  const handleAddPreBuiltPC = (pc: PreBuiltPCSearchResult) => {
-    const invoicePC: InvoicePreBuiltPC = {
-      pcId: pc._id,
-      name: pc.name,
-      components: pc.components?.map(comp => ({
-        name: comp.product?.name || '',
-        sku: comp.product?.sku || '',
-        quantity: comp.quantity || 1,
-        unitPrice: comp.product?.price || 0
-      })) || [],
-      quantity: 1,
-      unitPrice: pc.salePrice || pc.price || 0,
-      gstPercentage: pc.gstPercentage || 18,
-      gstAmount: (pc.salePrice || pc.price || 0) * ((pc.gstPercentage || 18) / 100),
-      total: pc.salePrice || pc.price || 0
+  const handleSaveCustomProduct = () => {
+    if (!customProductForm.name.trim()) {
+      toast.error('Product name is required');
+      return;
+    }
+
+    const total = customProductForm.quantity * customProductForm.unitPrice;
+    const gstAmount = total * (customProductForm.gstPercentage / 100);
+    
+    const customProduct: InvoiceCustomProduct = {
+      ...customProductForm,
+      total,
+      gstAmount,
+      isCustom: true
     };
-    onAddPreBuiltPC(invoicePC);
-    toast.success(`Added ${pc.name} to invoice`);
+
+    onAddCustomProduct(customProduct);
+    toast.success('Custom product added');
+
+    // Reset form
+    setCustomProductForm({
+      name: '',
+      description: '',
+      quantity: 1,
+      unitPrice: 0,
+      gstPercentage: 18,
+      category: '',
+      sku: '',
+      hsnCode: ''
+    });
+    setShowCustomProductForm(false);
   };
 
   const getTotalItems = () => {
-    return products.length + customProducts.length + preBuiltPCs.length;
+    return products.length + customProducts.length;
   };
 
   const calculateItemTotal = (quantity: number, unitPrice: number) => {
@@ -225,55 +229,62 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
                     '/api/placeholder/200/200';
 
     return (
-      <div key={product._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+      <div key={product._id} className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
         {/* Product Image */}
-        <div className="relative h-48 bg-gray-100">
+        <div className="relative h-48 bg-gradient-to-br from-gray-50 to-gray-100">
           <img 
             src={imageUrl} 
             alt={product.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain p-4"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/api/placeholder/200/200';
+            }}
           />
           {isOnSale && (
-            <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+            <div className="absolute top-3 left-3 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
               SALE
             </div>
           )}
           {isOutOfStock && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">Out of Stock</span>
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <span className="text-white font-bold text-sm bg-black/70 px-3 py-1.5 rounded-lg">
+                Out of Stock
+              </span>
             </div>
           )}
+          <button
+            onClick={() => !isOutOfStock && handleAddProduct(product)}
+            disabled={isOutOfStock}
+            className={`absolute bottom-3 right-3 p-2.5 rounded-full transition-all ${
+              isOutOfStock 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-110 shadow-lg'
+            }`}
+            title={isOutOfStock ? 'Out of Stock' : 'Add to Invoice'}
+          >
+            <Plus size={18} />
+          </button>
         </div>
 
         {/* Product Info */}
         <div className="p-4">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
+          <div className="mb-3">
+            <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm h-10">
               {product.name}
             </h3>
-            <button
-              onClick={() => handleAddProduct(product)}
-              disabled={isOutOfStock}
-              className={`ml-2 p-2 rounded-full ${
-                isOutOfStock 
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-              }`}
-              title={isOutOfStock ? 'Out of Stock' : 'Add to Invoice'}
-            >
-              <Plus size={18} />
-            </button>
           </div>
 
           {/* Brand and Category */}
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             {brandName && (
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+              <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                <Tag size={10} />
                 {brandName}
               </span>
             )}
             {categoryName && (
-              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+              <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                <Package size={10} />
                 {categoryName}
               </span>
             )}
@@ -281,7 +292,7 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
 
           {/* Price */}
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-xl font-bold text-gray-900">
+            <span className="text-lg font-bold text-gray-900">
               ₹{displayPrice.toLocaleString('en-IN')}
             </span>
             {isOnSale && basePrice && (
@@ -292,78 +303,20 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
           </div>
 
           {/* GST and Stock */}
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-500">
+          <div className="flex justify-between items-center text-xs">
+            <span className="inline-flex items-center gap-1 text-gray-600 bg-gray-50 px-2 py-1 rounded">
+              <DollarSign size={10} />
               GST: {gstPercentage}%
             </span>
-            <span className={`text-xs font-medium px-2 py-1 rounded ${
+            <span className={`inline-flex items-center gap-1 font-medium px-2 py-1 rounded ${
               isOutOfStock 
                 ? 'bg-red-100 text-red-800' 
                 : stock <= 5 
                 ? 'bg-yellow-100 text-yellow-800'
                 : 'bg-green-100 text-green-800'
             }`}>
-              {isOutOfStock ? 'Out of Stock' : `Stock: ${stock}`}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderPreBuiltPCCard = (pc: PreBuiltPCSearchResult) => {
-    const price = pc.salePrice || pc.price || 0;
-    const imageUrl = pc.images?.thumbnail?.url || '/api/placeholder/200/200';
-
-    return (
-      <div key={pc._id} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 overflow-hidden hover:shadow-lg transition-shadow">
-        {/* PC Image */}
-        <div className="relative h-48 bg-gradient-to-r from-blue-100 to-indigo-100">
-          <img 
-            src={imageUrl} 
-            alt={pc.name}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">
-            PRE-BUILT
-          </div>
-        </div>
-
-        {/* PC Info */}
-        <div className="p-4">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
-              {pc.name}
-            </h3>
-            <button
-              onClick={() => handleAddPreBuiltPC(pc)}
-              className="ml-2 p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200"
-              title="Add to Invoice"
-            >
-              <Plus size={18} />
-            </button>
-          </div>
-
-          {/* Price */}
-          <div className="mb-3">
-            <span className="text-xl font-bold text-gray-900">
-              ₹{price.toLocaleString('en-IN')}
-            </span>
-          </div>
-
-          {/* Components Preview */}
-          {pc.components && pc.components.length > 0 && (
-            <div className="text-xs text-gray-600 mb-3">
-              <span className="font-medium">Includes:</span>{' '}
-              {pc.components.slice(0, 2).map(c => c.product?.name || '').join(', ')}
-              {pc.components.length > 2 && '...'}
-            </div>
-          )}
-
-          {/* GST */}
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-500">
-              GST: {pc.gstPercentage || 18}%
+              <Clock size={10} />
+              {isOutOfStock ? 'Out of Stock' : `${stock} in stock`}
             </span>
           </div>
         </div>
@@ -374,11 +327,11 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-2xl font-bold">Add Products to Invoice</h1>
-            <p className="opacity-90">Browse, search, or add custom items</p>
+            <h1 className="text-2xl font-bold">Add Products & Services</h1>
+            <p className="opacity-90 mt-1">Select from catalog or add custom items</p>
           </div>
           <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg">
             <ShoppingBag size={20} />
@@ -387,7 +340,7 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="bg-white/10 p-3 rounded-lg">
             <div className="text-sm opacity-80">Catalog Products</div>
             <div className="text-xl font-bold">{products.length}</div>
@@ -396,14 +349,10 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
             <div className="text-sm opacity-80">Custom Items</div>
             <div className="text-xl font-bold">{customProducts.length}</div>
           </div>
-          <div className="bg-white/10 p-3 rounded-lg">
-            <div className="text-sm opacity-80">Pre-built PCs</div>
-            <div className="text-xl font-bold">{preBuiltPCs.length}</div>
-          </div>
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search and Actions */}
       <div className="bg-white rounded-xl p-4 shadow-sm border">
         <div className="flex gap-4 mb-4">
           <div className="flex-1 relative">
@@ -412,11 +361,7 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={
-                showPreBuiltPCs 
-                  ? "Search pre-built PCs by name, specs..." 
-                  : "Search products by name, SKU, brand..."
-              }
+              placeholder="Search products by name, SKU, brand, or category..."
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {isSearching && (
@@ -428,22 +373,19 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
 
           <div className="flex gap-2">
             <button
-              onClick={() => setShowPreBuiltPCs(!showPreBuiltPCs)}
-              className={`px-4 py-3 rounded-xl flex items-center gap-2 ${
-                showPreBuiltPCs 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+              className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 flex items-center gap-2"
             >
-              {showPreBuiltPCs ? <Package size={18} /> : <Cpu size={18} />}
-              {showPreBuiltPCs ? 'PCs' : 'Products'}
+              {viewMode === 'grid' ? <List size={18} /> : <Grid size={18} />}
+              {viewMode === 'grid' ? 'List' : 'Grid'}
             </button>
             
             <button
-              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200"
+              onClick={() => loadFeaturedProducts()}
+              className="px-4 py-3 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 flex items-center gap-2"
             >
-              {viewMode === 'grid' ? <List size={18} /> : <Grid size={18} />}
+              <TrendingUp size={18} />
+              Refresh
             </button>
           </div>
         </div>
@@ -452,21 +394,161 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
         <div className="flex gap-3">
           <button
             onClick={() => setShowCustomProductForm(true)}
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:opacity-90 flex items-center gap-2"
+            className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:opacity-90 flex items-center gap-2 shadow-md"
           >
             <Plus size={18} />
-            Add Custom Item
-          </button>
-          
-          <button
-            onClick={() => loadFeaturedProducts()}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-2"
-          >
-            <TrendingUp size={18} />
-            Show Featured
+            Add Custom Product/Service
           </button>
         </div>
       </div>
+
+      {/* Custom Product Form */}
+      {showCustomProductForm && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 p-6">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800">Add Custom Product/Service</h2>
+              <p className="text-sm text-gray-600">Enter details for custom item</p>
+            </div>
+            <button
+              onClick={() => setShowCustomProductForm(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Product/Service Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={customProductForm.name}
+                onChange={(e) => setCustomProductForm({...customProductForm, name: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                placeholder="Enter product or service name"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <input
+                type="text"
+                value={customProductForm.category}
+                onChange={(e) => setCustomProductForm({...customProductForm, category: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                placeholder="e.g., Service, Hardware, Software"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <input
+                type="text"
+                value={customProductForm.description}
+                onChange={(e) => setCustomProductForm({...customProductForm, description: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                placeholder="Product/Service description"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                SKU (Optional)
+              </label>
+              <input
+                type="text"
+                value={customProductForm.sku}
+                onChange={(e) => setCustomProductForm({...customProductForm, sku: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                placeholder="e.g., CUST-001"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Quantity *
+              </label>
+              <input
+                type="number"
+                min="1"
+                required
+                value={customProductForm.quantity}
+                onChange={(e) => setCustomProductForm({...customProductForm, quantity: parseInt(e.target.value) || 1})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Unit Price (₹) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                value={customProductForm.unitPrice}
+                onChange={(e) => setCustomProductForm({...customProductForm, unitPrice: parseFloat(e.target.value) || 0})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                GST (%) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                required
+                value={customProductForm.gstPercentage}
+                onChange={(e) => setCustomProductForm({...customProductForm, gstPercentage: parseFloat(e.target.value) || 0})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                HSN Code (Optional)
+              </label>
+              <input
+                type="text"
+                value={customProductForm.hsnCode}
+                onChange={(e) => setCustomProductForm({...customProductForm, hsnCode: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                placeholder="e.g., 8471"
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setShowCustomProductForm(false)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveCustomProduct}
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:opacity-90"
+            >
+              Add to Invoice
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Categories */}
       <div className="bg-white rounded-xl p-4 shadow-sm border">
@@ -478,25 +560,27 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setSelectedCategory('')}
-            className={`px-4 py-2 rounded-lg border ${
+            className={`px-4 py-2.5 rounded-lg border flex items-center gap-2 ${
               selectedCategory === ''
-                ? 'bg-blue-600 text-white border-blue-600'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                 : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
             All Categories
+            {selectedCategory === '' && <ChevronRight size={16} />}
           </button>
-          {categories.slice(0, 12).map(category => (
+          {categories.slice(0, 15).map(category => (
             <button
               key={category._id}
               onClick={() => setSelectedCategory(category.slug)}
-              className={`px-4 py-2 rounded-lg border ${
+              className={`px-4 py-2.5 rounded-lg border flex items-center gap-2 ${
                 selectedCategory === category.slug
-                  ? 'bg-blue-600 text-white border-blue-600'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
               {category.name}
+              {selectedCategory === category.slug && <ChevronRight size={16} />}
             </button>
           ))}
         </div>
@@ -511,14 +595,11 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
                 ? `Search Results for "${searchQuery}"` 
                 : selectedCategory 
                 ? `${categories.find(c => c.slug === selectedCategory)?.name || 'Category'} Products`
-                : showPreBuiltPCs 
-                ? 'Pre-built PCs'
                 : 'Featured Products'}
             </h2>
             <p className="text-gray-600">
-              {showPreBuiltPCs 
-                ? `${preBuiltPCResults.length} PCs found`
-                : `${searchResults.length || featuredProducts.length} products found`}
+              {searchResults.length} {searchResults.length === 1 ? 'product' : 'products'} found
+              {selectedCategory && ` in this category`}
             </p>
           </div>
         </div>
@@ -529,96 +610,80 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-gray-600">Loading products...</p>
           </div>
+        ) : searchResults.length > 0 ? (
+          <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+            {searchResults.map(product => renderProductCard(product))}
+          </div>
         ) : (
-          <>
-            {showPreBuiltPCs ? (
-              // Pre-built PCs Grid
-              <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
-                {preBuiltPCResults.length > 0 ? (
-                  preBuiltPCResults.map(pc => renderPreBuiltPCCard(pc))
-                ) : searchQuery ? (
-                  <div className="col-span-full text-center py-12">
-                    <Package size={48} className="mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600">No pre-built PCs found</p>
-                    <p className="text-sm text-gray-500 mt-1">Try different search terms</p>
-                  </div>
-                ) : (
-                  <div className="col-span-full text-center py-12">
-                    <Zap size={48} className="mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600">Search for pre-built PCs</p>
-                    <p className="text-sm text-gray-500 mt-1">Type in the search box above to find PCs</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Products Grid
-              <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
-                {(searchResults.length > 0 ? searchResults : featuredProducts).map(product => 
-                  viewMode === 'grid' ? renderProductCard(product) : (
-                    <div key={product._id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md">
-                      <div className="flex gap-4">
-                        <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-                          <img 
-                            src={product.images?.thumbnail?.url || '/api/placeholder/200/200'} 
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 mb-2">{product.name}</h3>
-                          <div className="flex gap-4 mb-3">
-                            <span className="text-lg font-bold text-blue-600">
-                              ₹{(product.effectivePrice || product.basePrice || 0).toLocaleString('en-IN')}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              GST: {product.gstPercentage || 18}%
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => handleAddProduct(product)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                          >
-                            <Plus size={16} />
-                            Add to Invoice
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                )}
-
-                {searchResults.length === 0 && !searchQuery && featuredProducts.length === 0 && (
-                  <div className="col-span-full text-center py-12">
-                    <ShoppingBag size={48} className="mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600">No products found</p>
-                    <p className="text-sm text-gray-500 mt-1">Select a category or search for products</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
+          <div className="text-center py-12">
+            <ShoppingBag size={48} className="mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-600">No products found</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {searchQuery 
+                ? 'Try different search terms' 
+                : selectedCategory 
+                ? 'No products in this category'
+                : 'Select a category or search for products'}
+            </p>
+          </div>
         )}
       </div>
 
       {/* Added Items Summary */}
-      {(products.length > 0 || customProducts.length > 0 || preBuiltPCs.length > 0) && (
+      {(products.length > 0 || customProducts.length > 0) && (
         <div className="bg-white rounded-xl p-6 shadow-sm border">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Added Items ({getTotalItems()})</h2>
           
           <div className="space-y-4">
             {products.map((product, index) => (
-              <div key={`product-${index}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={`product-${index}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="flex-1">
                   <h4 className="font-medium text-gray-900">{product.name}</h4>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>Qty: {product.quantity}</span>
-                    <span>Price: ₹{product.unitPrice.toFixed(2)}</span>
-                    <span>Total: ₹{calculateItemTotal(product.quantity, product.unitPrice).toFixed(2)}</span>
+                  <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                    <span>Qty: 
+                      <input
+                        type="number"
+                        min="1"
+                        value={product.quantity}
+                        onChange={(e) => onUpdateProduct(index, {
+                          quantity: parseInt(e.target.value) || 1
+                        })}
+                        className="ml-2 w-16 px-2 py-1 border rounded"
+                      />
+                    </span>
+                    <span>Price: ₹
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={product.unitPrice}
+                        onChange={(e) => onUpdateProduct(index, {
+                          unitPrice: parseFloat(e.target.value) || 0
+                        })}
+                        className="ml-2 w-24 px-2 py-1 border rounded"
+                      />
+                    </span>
+                    <span>GST: 
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={product.gstPercentage}
+                        onChange={(e) => onUpdateProduct(index, {
+                          gstPercentage: parseFloat(e.target.value) || 0
+                        })}
+                        className="ml-2 w-16 px-2 py-1 border rounded"
+                      />%
+                    </span>
+                    <span className="font-medium">
+                      Total: ₹{calculateItemTotal(product.quantity, product.unitPrice).toFixed(2)}
+                    </span>
                   </div>
                 </div>
                 <button
                   onClick={() => onRemoveProduct(index)}
-                  className="p-2 text-red-600 hover:text-red-800"
+                  className="p-2 text-red-600 hover:text-red-800 ml-4"
                   title="Remove"
                 >
                   <X size={18} />
@@ -627,41 +692,57 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
             ))}
 
             {customProducts.map((product, index) => (
-              <div key={`custom-${index}`} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+              <div key={`custom-${index}`} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mb-1">
                     <h4 className="font-medium text-gray-900">{product.name}</h4>
                     <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">Custom</span>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>Qty: {product.quantity}</span>
-                    <span>Price: ₹{product.unitPrice.toFixed(2)}</span>
-                    <span>Total: ₹{calculateItemTotal(product.quantity, product.unitPrice).toFixed(2)}</span>
+                    <span>Qty: 
+                      <input
+                        type="number"
+                        min="1"
+                        value={product.quantity}
+                        onChange={(e) => onUpdateCustomProduct(index, {
+                          quantity: parseInt(e.target.value) || 1
+                        })}
+                        className="ml-2 w-16 px-2 py-1 border rounded"
+                      />
+                    </span>
+                    <span>Price: ₹
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={product.unitPrice}
+                        onChange={(e) => onUpdateCustomProduct(index, {
+                          unitPrice: parseFloat(e.target.value) || 0
+                        })}
+                        className="ml-2 w-24 px-2 py-1 border rounded"
+                      />
+                    </span>
+                    <span>GST: 
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={product.gstPercentage}
+                        onChange={(e) => onUpdateCustomProduct(index, {
+                          gstPercentage: parseFloat(e.target.value) || 0
+                        })}
+                        className="ml-2 w-16 px-2 py-1 border rounded"
+                      />%
+                    </span>
+                    <span className="font-medium">
+                      Total: ₹{calculateItemTotal(product.quantity, product.unitPrice).toFixed(2)}
+                    </span>
                   </div>
                 </div>
                 <button
                   onClick={() => onRemoveCustomProduct(index)}
-                  className="p-2 text-red-600 hover:text-red-800"
-                  title="Remove"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            ))}
-
-            {preBuiltPCs.map((pc, index) => (
-              <div key={`pc-${index}`} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{pc.name}</h4>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>Qty: {pc.quantity}</span>
-                    <span>Price: ₹{pc.unitPrice.toFixed(2)}</span>
-                    <span>Total: ₹{calculateItemTotal(pc.quantity, pc.unitPrice).toFixed(2)}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => onRemovePreBuiltPC(index)}
-                  className="p-2 text-red-600 hover:text-red-800"
+                  className="p-2 text-red-600 hover:text-red-800 ml-4"
                   title="Remove"
                 >
                   <X size={18} />
@@ -685,7 +766,7 @@ const CategoryProductSelector: React.FC<CategoryProductSelectorProps> = ({
           type="button"
           onClick={onNext}
           disabled={getTotalItems() === 0}
-          className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Next: Review Invoice
         </button>

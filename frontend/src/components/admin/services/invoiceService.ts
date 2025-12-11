@@ -1,4 +1,4 @@
-// services/invoiceService.ts - FIXED VERSION
+// services/invoiceService.ts - FIXED CATEGORY FILTERING
 import { toast } from 'react-toastify';
 import api from '../../config/axiosConfig';
 import {
@@ -7,7 +7,6 @@ import {
   InvoiceFilters,
   InvoiceStats,
   ProductSearchResult,
-  PreBuiltPCSearchResult,
   Category
 } from '../types/invoice';
 
@@ -28,18 +27,11 @@ export const invoiceService = {
         gstAmount: (product.quantity * product.unitPrice) * (product.gstPercentage / 100)
       })) || [];
 
-      // Add calculated totals to each pre-built PC
-      const preBuiltPCsWithTotals = data.preBuiltPCs.map(pc => ({
-        ...pc,
-        total: pc.quantity * pc.unitPrice,
-        gstAmount: (pc.quantity * pc.unitPrice) * (pc.gstPercentage / 100)
-      }));
-
       // Calculate overall totals
-      const subtotal = [...productsWithTotals, ...customProductsWithTotals, ...preBuiltPCsWithTotals]
+      const subtotal = [...productsWithTotals, ...customProductsWithTotals]
         .reduce((sum, item) => sum + item.total, 0);
       
-      const totalGst = [...productsWithTotals, ...customProductsWithTotals, ...preBuiltPCsWithTotals]
+      const totalGst = [...productsWithTotals, ...customProductsWithTotals]
         .reduce((sum, item) => sum + item.gstAmount, 0);
 
       const grandTotal = subtotal + totalGst + (data.totals.shipping || 0) - (data.totals.discount || 0);
@@ -49,7 +41,6 @@ export const invoiceService = {
         ...data,
         products: productsWithTotals,
         customProducts: customProductsWithTotals,
-        preBuiltPCs: preBuiltPCsWithTotals,
         totals: {
           ...data.totals,
           subtotal: subtotal,
@@ -135,75 +126,148 @@ export const invoiceService = {
   }
 };
 
-// Product search service - FIXED with correct function name
+// Product search service - FIXED CATEGORY HANDLING
 export const productSearchService = {
-  async searchProducts(query: string, category?: string) {
+  async searchProducts(query: string, categorySlug?: string) {
     try {
+      // First, let's understand your API structure by making a test call
+      console.log('=== PRODUCT SEARCH START ===');
+      console.log('Query:', query);
+      console.log('Category Slug:', categorySlug);
+      
       const params: any = {
-        search: query,
-        limit: 12, // Show 12 products initially
+        limit: 12,
         page: 1
       };
       
-      if (category) {
-        params.category = category;
+      // Add search query if provided
+      if (query && query.trim()) {
+        params.search = query.trim();
       }
       
-      console.log('Searching products with params:', params);
-      const response = await api.get('/products', { params });
-      console.log('Full API response:', response.data);
+      // Try different category parameter names based on your API
+      if (categorySlug) {
+        // Try different parameter names that your API might accept
+        params.category = categorySlug; // Most common
+        // params.categorySlug = categorySlug;
+        // params.categoryName = categorySlug;
+      }
       
-      // Handle different API response structures
+      console.log('Request params:', params);
+      
+      const response = await api.get('/products', { params });
+      console.log('API Response:', response.data);
+      
+      // Debug: Log the full response structure
+      console.log('Response keys:', Object.keys(response.data));
+      if (response.data.data) {
+        console.log('Data keys:', Object.keys(response.data.data));
+      }
+      
       let products = [];
       
-      if (response.data.data?.products) {
+      // Try different response structures
+      if (response.data.data?.products && Array.isArray(response.data.data.products)) {
         products = response.data.data.products;
-      } else if (response.data.products) {
+        console.log('Found products in data.products:', products.length);
+      } else if (response.data.products && Array.isArray(response.data.products)) {
         products = response.data.products;
+        console.log('Found products in products:', products.length);
       } else if (Array.isArray(response.data)) {
         products = response.data;
+        console.log('Found products in root array:', products.length);
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        products = response.data.data;
+        console.log('Found products in data array:', products.length);
+      } else {
+        console.log('No products found in response');
+        return [];
       }
       
-      console.log('Extracted products:', products);
+      // If category is selected, filter on frontend as backup
+      if (categorySlug && products.length > 0) {
+        console.log('Filtering by category on frontend:', categorySlug);
+        const filteredProducts = products.filter((product: any) => {
+          // Check various ways category might be stored
+          const productCategories = product.categories || [];
+          const productCategory = product.category || '';
+          
+          return (
+            // Check if category slug matches
+            productCategories.some((cat: any) => 
+              cat.slug === categorySlug || 
+              cat.name?.toLowerCase() === categorySlug.toLowerCase()
+            ) ||
+            // Check direct category field
+            productCategory === categorySlug ||
+            productCategory?.toLowerCase() === categorySlug.toLowerCase()
+          );
+        });
+        
+        console.log('After filtering:', filteredProducts.length, 'products');
+        products = filteredProducts;
+      }
       
-      // Transform to match your expected structure
-      const transformedProducts = products.map((product: any) => ({
-        _id: product._id,
-        name: product.name,
-        slug: product.slug,
-        // Price handling
-        basePrice: product.basePrice,
-        effectivePrice: product.effectivePrice,
-        price: product.basePrice,
-        salePrice: product.effectivePrice,
-        mrp: product.mrp,
-        // Stock
-        stockQuantity: product.stockQuantity || 0,
-        stock: product.stockQuantity || 0,
-        // GST
-        gstPercentage: product.gstPercentage || 18,
-        // Categories
-        categories: product.categories || [],
-        category: product.categories?.[0]?.name || '',
-        // Brand
-        brand: product.brand || null,
-        // Images
-        images: product.images || {},
-        // Additional fields
-        condition: product.condition || 'New',
-        description: product.description || '',
-        variantConfiguration: product.variantConfiguration,
-        variants: product.variants || [],
-        tags: product.tags || [],
-        // SKU
-        sku: product.sku || product._id.substring(0, 8)
-      }));
+      // Transform products
+      const transformedProducts = products.map((product: any) => {
+        // Debug individual product
+        console.log('Product structure:', {
+          id: product._id,
+          name: product.name,
+          categories: product.categories,
+          category: product.category,
+          price: product.price,
+          basePrice: product.basePrice,
+          salePrice: product.salePrice
+        });
+        
+        return {
+          _id: product._id,
+          name: product.name,
+          slug: product.slug,
+          // Price handling with fallbacks
+          basePrice: product.basePrice || product.price || 0,
+          effectivePrice: product.effectivePrice || product.salePrice || product.price || 0,
+          price: product.price || product.basePrice || 0,
+          salePrice: product.salePrice || product.effectivePrice || product.price || 0,
+          mrp: product.mrp || product.basePrice || product.price || 0,
+          // Stock
+          stockQuantity: product.stockQuantity || product.stock || 0,
+          stock: product.stockQuantity || product.stock || 0,
+          // GST
+          gstPercentage: product.gstPercentage || 18,
+          // Categories
+          categories: product.categories || [],
+          category: product.category || (product.categories?.[0]?.name) || '',
+          // Brand
+          brand: product.brand || { name: product.brandName || '' },
+          // Images
+          images: product.images || { 
+            thumbnail: { url: product.image || product.thumbnail || '' },
+            main: { url: product.image || '' }
+          },
+          // Additional fields
+          condition: product.condition || 'New',
+          description: product.description || '',
+          variantConfiguration: product.variantConfiguration,
+          variants: product.variants || [],
+          tags: product.tags || [],
+          // SKU
+          sku: product.sku || product._id?.substring(0, 8) || `SKU-${Math.random().toString(36).substr(2, 6)}`
+        };
+      });
       
-      console.log('Transformed products:', transformedProducts);
+      console.log('=== PRODUCT SEARCH END ===');
+      console.log('Transformed products count:', transformedProducts.length);
+      
       return transformedProducts;
       
-    } catch (error) {
-      console.error('Error searching products:', error);
+    } catch (error: any) {
+      console.error('Error searching products:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       toast.error('Failed to search products');
       return [];
     }
@@ -212,7 +276,7 @@ export const productSearchService = {
   // Get product by ID
   async getProductById(id: string) {
     try {
-      const response = await api.get(`/products/slug/${id}`);
+      const response = await api.get(`/products/${id}`);
       return response.data;
     } catch (error) {
       console.error('Error getting product:', error);
@@ -221,30 +285,46 @@ export const productSearchService = {
   }
 };
 
-// Category service - FIXED
+// Category service - SIMPLIFIED
 export const categoryService = {
   // Get all categories
   async getCategories() {
     try {
+      console.log('=== FETCHING CATEGORIES ===');
       const response = await api.get('/categories');
       console.log('Categories API response:', response.data);
       
-      // Handle your API response structure
-      if (response.data.categories) {
-        return response.data.categories;
-      } else if (response.data.data?.categories) {
-        return response.data.data.categories;
+      let categories = [];
+      
+      // Handle different response structures
+      if (response.data.categories && Array.isArray(response.data.categories)) {
+        categories = response.data.categories;
+      } else if (response.data.data?.categories && Array.isArray(response.data.data.categories)) {
+        categories = response.data.data.categories;
       } else if (Array.isArray(response.data)) {
-        return response.data;
+        categories = response.data;
       } else if (response.data.data && Array.isArray(response.data.data)) {
-        return response.data.data;
+        categories = response.data.data;
       }
       
-      console.warn('Unexpected categories response format:', response.data);
-      return [];
+      console.log('Extracted categories:', categories.length);
+      
+      // Transform categories to ensure they have slug
+      const transformedCategories = categories.map((cat: any) => ({
+        _id: cat._id,
+        name: cat.name,
+        slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-'),
+        description: cat.description || '',
+        image: cat.image || {}
+      }));
+      
+      return transformedCategories;
       
     } catch (error: any) {
-      console.error('Error loading categories:', error.response?.data || error.message);
+      console.error('Error loading categories:', {
+        message: error.message,
+        response: error.response?.data
+      });
       toast.error('Failed to load categories');
       return [];
     }
@@ -253,89 +333,10 @@ export const categoryService = {
   // Get category by slug
   async getCategoryBySlug(slug: string) {
     try {
-      const response = await api.get(`/category/${slug}`);
+      const response = await api.get(`/categories/${slug}`);
       return response.data;
     } catch (error) {
       console.error('Error getting category:', error);
-      return null;
-    }
-  }
-};
-
-// Pre-built PC service - FIXED
-export const preBuiltPCService = {
-  // Search pre-built PCs
-  async searchPreBuiltPCs(query: string) {
-    try {
-      const params: any = {
-        limit: 12
-      };
-      
-      if (query.trim()) {
-        params.search = query;
-      }
-      
-      console.log('Searching pre-built PCs with params:', params);
-      const response = await api.get('/prebuilt-pcs', { params });
-      console.log('Pre-built PCs API response:', response.data);
-      
-      // Handle different response formats
-      let pcs = [];
-      
-      if (response.data.data) {
-        pcs = response.data.data;
-      } else if (response.data.pcs) {
-        pcs = response.data.pcs;
-      } else if (Array.isArray(response.data)) {
-        pcs = response.data;
-      } else if (response.data.data && Array.isArray(response.data.data)) {
-        pcs = response.data.data;
-      }
-      
-      console.log('Extracted PCs count:', pcs.length);
-      
-      // Transform to match expected structure
-      const transformedPCs = pcs.map((pc: any) => ({
-        _id: pc._id,
-        name: pc.name,
-        price: pc.price || pc.basePrice,
-        salePrice: pc.salePrice || pc.discountPrice || pc.price,
-        gstPercentage: pc.gstPercentage || 18,
-        components: pc.components || [],
-        stock: pc.stockQuantity || pc.stock || 0,
-        description: pc.description || '',
-        images: pc.images || { thumbnail: { url: pc.image } },
-        brand: pc.brand || { name: '' }
-      }));
-      
-      console.log('Transformed first PC:', transformedPCs[0]);
-      return transformedPCs;
-      
-    } catch (error: any) {
-      console.error('Error searching pre-built PCs:', error.response?.data || error.message);
-      toast.error('Failed to search pre-built PCs');
-      return [];
-    }
-  },
-
-  // Get pre-built PC by ID
-  async getPreBuiltPCById(id: string) {
-    try {
-      const response = await api.get(`/prebuilt-pcs/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error getting pre-built PC:', error);
-      return null;
-    }
-  },
-
-  // Get pre-built PC by slug
-  async getPreBuiltPCBySlug(slug: string) {
-    try {
-      const response = await api.get(`/prebuilt-pcs/slug/${slug}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error getting pre-built PC:', error);
       return null;
     }
   }

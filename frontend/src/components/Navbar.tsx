@@ -8,6 +8,7 @@ import CartIcon from './icons/CartIcon';
 import UserIcon from './icons/UserIcon';
 import MenuIcon from './icons/MenuIcon';
 import XIcon from './icons/XIcon';
+import logo from '../assets/logo.png'
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { logout } from '../redux/actions/authActions';
@@ -15,7 +16,11 @@ import { logout } from '../redux/actions/authActions';
 import {
   selectIsAuthenticated,
   selectUser,
-  selectUserInitials
+  selectUserInitials,
+   selectCartItemsCount,
+  selectCartTotal,
+  selectWishlistItemsCount
+
 } from '../../src/redux/selectors/index';
 import {
   selectProfile,
@@ -187,7 +192,7 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
         <li className="group relative">
           <Link
             to={item.href}
-            className="flex items-center gap-1 text-gray-700 hover:text-blue-600 transition-colors duration-200 px-4 py-3 text-sm font-medium hover:bg-gray-50"
+            className="flex items-center gap-1 text-black hover:text-blue transition-colors duration-200 px-4 py-3 text-sm font-medium"
           >
             {item.label}
             <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" />
@@ -300,7 +305,7 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
       <li className="group relative">
         <Link
           to={item.href}
-          className="flex items-center gap-1 text-gray-700 hover:text-blue-600 transition-colors duration-200 px-4 py-3 text-sm font-medium hover:bg-gray-50"
+          className="flex items-center gap-1 text-black hover:text-blue transition-colors duration-200 px-4 py-3 text-sm font-medium"
         >
           {item.label}
           <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" />
@@ -311,10 +316,10 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
               <Link
                 key={child.label}
                 to={child.href}
-                className="flex items-center justify-between px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200 group/item hover:pl-5"
+                className="flex items-center justify-between px-4 py-3 text-sm text-black hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200 group/item hover:pl-5"
               >
                 <span>{child.label}</span>
-                <ChevronDownIcon className="w-4 h-4 text-gray-400 group-hover/item:text-blue-500 transform rotate-270" />
+                <ChevronDownIcon className="w-4 h-4 text-black group-hover/item:text-blue-500 transform rotate-270" />
               </Link>
             ))}
           </div>
@@ -327,7 +332,7 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
     <li>
       <Link
         to={item.href}
-        className="text-gray-700 hover:text-blue-600 transition-colors duration-200 px-4 py-3 text-sm font-medium hover:bg-gray-50 block"
+        className="text-black hover:text-blue transition-colors duration-200 px-4 py-3 text-sm font-medium block"
       >
         {item.label}
       </Link>
@@ -475,7 +480,7 @@ const UserDropdown: React.FC = () => {
     return (
       <Link 
         to="/login" 
-        className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors duration-200 px-3 py-2 rounded-md hover:bg-gray-50"
+        className="flex items-center space-x-2 text-black hover:text-blue-600 transition-colors duration-200 px-3 py-2 rounded-md"
         aria-label="Sign in"
       >
         <UserIcon className="w-6 h-6"/>
@@ -492,7 +497,7 @@ const UserDropdown: React.FC = () => {
       {/* User Avatar Button */}
       <button
         onClick={toggleDropdown}
-        className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors duration-200 focus:outline-none px-3 py-2 rounded-md hover:bg-gray-50"
+        className="flex items-center space-x-2 text-black hover:text-blue-600 transition-colors duration-200 focus:outline-none px-3 py-2 rounded-md"
         aria-label="User menu"
         aria-expanded={isOpen}
       >
@@ -514,12 +519,12 @@ const UserDropdown: React.FC = () => {
           )}
           
           {/* User Name (visible on larger screens) */}
-          <span className="hidden md:block text-sm font-medium text-gray-700 max-w-24 truncate">
+          <span className="hidden md:block text-sm font-medium text-black max-w-24 truncate">
             {displayUser?.firstName || 'User'}
           </span>
           
           {/* Chevron Icon */}
-          <ChevronDownIcon className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDownIcon className={`w-4 h-4 text-black transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
         </div>
       </button>
       
@@ -542,7 +547,7 @@ const UserDropdown: React.FC = () => {
               <Link 
                 key={item.label}
                 to={item.href} 
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200"
+                className="flex items-center px-4 py-2 text-sm text-black hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200"
                 onClick={() => setIsOpen(false)}
               >
                 {item.icon === 'user' && <UserIcon className="w-4 h-4 mr-3" />}
@@ -706,6 +711,20 @@ const Navbar: React.FC = () => {
   const [error, setError] = useState('');
   
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const user = useAppSelector(selectUser);
+  const cartCount = useAppSelector(selectCartItemsCount);
+  const cartTotal = useAppSelector(selectCartTotal);
+  const wishlistCount = useAppSelector(selectWishlistItemsCount);
+
+  // Format cart total to Indian Rupees
+  const formattedCartTotal = React.useMemo(() => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(cartTotal);
+  }, [cartTotal]);
 
   // Fetch categories and brands data
   const fetchNavData = async () => {
@@ -760,20 +779,11 @@ const Navbar: React.FC = () => {
         children: brandItems
       },
       { label: 'Pre-Built PC', href: '/prebuilt-pcs' },
-     {
-    label: 'Services',
-    href: '/services',
-    children: [
-      { label: 'Custom Builds', href: '/services/custom-builds' },
-      { label: 'Repairs & Upgrades', href: '/services/repairs' },
-      { label: 'Consulting', href: '/services/consulting' },
-    ],
-  },
-  { label: 'Custom Pc', href: '/custom-pcs' },
-  { label: 'Blog', href: '/blog' },
-  { label: 'Support', href: '/support' },
-  { label: 'About', href: '/about' },
-  { label: 'Contact', href: '/contact' },
+      { label: 'Custom Pc', href: '/custom-pcs' },
+      { label: 'Blogs', href: '/blog' },
+      { label: 'Support', href: '/support' },
+      { label: 'About', href: '/about' },
+      { label: 'Contact', href: '/contact' },
     ];
   }, [categories, brands]);
 
@@ -794,17 +804,114 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <>
-      <header className="bg-white shadow-md sticky top-0 z-40">
+    <div className="font-sans">
+      {/* Desktop View (lg and above) - Keep new design */}
+<header className="hidden lg:block pt-4 pb-0 relative shadow-[0_2px_10px_rgba(0,0,0,0.4)]">
+
+        <div className="container mx-auto px-4 lg:px-6">
+         <div className="grid grid-cols-1 lg:grid-cols-3 items-center pb-2 gap-4">
+
+            
+            {/* 1. Logo Section */}
+<div className="flex-shrink-0 w-full lg:w-auto flex justify-center lg:justify-start">
+  <Link to="/" className="flex items-center gap-3">
+    
+    {/* Logo */}
+    <img 
+      src={logo} 
+      alt="iTech Computers Logo"
+      className="w-12 h-12 object-contain"
+    />
+
+    {/* Text Block (vertical stack) */}
+    <div className="flex flex-col leading-tight">
+      <span className="text-2xl font-extrabold text-[#2c2358] tracking-tight uppercase">
+        iTech Computers
+      </span>
+
+      <span className="text-[10px] text-gray-700 tracking-widest uppercase">
+        Premium Electronics
+      </span>
+    </div>
+
+  </Link>
+</div>
+
+
+
+
+            {/* 2. Search Bar (Center - Big) */}
+<div className="flex justify-center">
+  <div className="w-full">
+    <SearchBar />
+  </div>
+</div>
+
+
+            {/* 3. Right Actions (User, Wishlist, Cart) */}
+           <div className="hidden lg:flex justify-end items-center gap-6 text-[#1a1a1a]">
+              
+              {/* Wishlist with real count */}
+              <Link to="/wishlist" className="relative group hover:opacity-80 transition-opacity">
+                <HeartIcon className="w-7 h-7" />
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[#544D89] text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center">
+                    {wishlistCount > 99 ? '99+' : wishlistCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Cart with real count and total */}
+              <Link to="/cart" className="flex items-center gap-2 hover:opacity-80 transition-opacity group">
+                <div className="relative">
+                  <CartIcon className="w-7 h-7" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#544D89] text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                </div>
+                <div className="hidden lg:flex flex-col leading-none">
+                </div>
+              </Link>
+
+              {/* User / Login */}
+              <div className="flex items-center gap-2">
+                <UserDropdown />
+              </div>
+            </div>
+          </div>
+        </div>
+
+<div className="hidden lg:block border-t border-grey/100 mt-2">
+  <div className="container mx-auto px-4 lg:px-6">
+    <div className="flex items-center justify-center h-12">
+      
+      <nav>
+        <ul className="flex items-center space-x-1">
+          {updatedNavItems.map((item) => (
+            <NavLink key={item.label} item={item} />
+          ))}
+        </ul>
+      </nav>
+
+    </div>
+  </div>
+</div>
+
+      </header>
+
+      {/* Mobile & Tablet View (below lg) - Keep previous UI */}
+      <header className="lg:hidden bg-white shadow-md sticky top-0 z-40">
         {/* === TOP TIER NAVBAR === */}
         <div className="container mx-auto px-4 sm:px-6">
           <div className="h-20 flex justify-between items-center">
             {/* Left: Logo & Mobile Menu Button */}
             <div className="flex items-center space-x-4">
-              {/* Mobile menu button - MOVED TO LEFT SIDE */}
+              {/* Mobile menu button */}
               <button
                 onClick={() => setIsMenuOpen(true)}
-                className="lg:hidden text-gray-700 hover:text-blue-600 p-2 rounded-md hover:bg-gray-50 transition-colors"
+                className="lg:hidden text-black hover:text-[#544D89] p-2 rounded-md transition-colors"
                 aria-label="Open navigation menu"
                 aria-expanded={isMenuOpen}
               >
@@ -813,37 +920,47 @@ const Navbar: React.FC = () => {
 
               {/* Logo */}
               <div className="flex-shrink-0">
-                <Link to="/" className="text-2xl font-bold text-blue-600 hover:text-blue-700 transition-colors">
+                <Link to="/" className="text-2xl font-bold text-[#2c2358] hover:text-[#433d6e] transition-colors">
                   iTech Computers
                 </Link>
               </div>
             </div>
-
-            {/* Center: Search Bar (Desktop) */}
-            <div className="hidden lg:flex flex-grow justify-center px-8">
-              <SearchBar />
-            </div>
             
-            {/* Right: Icons */}
+            {/* Right: Icons with real counts */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3 sm:space-x-5 text-gray-600">
-                {/* Wishlist */}
+                {/* Wishlist with real count */}
                 <Link 
                   to="/wishlist" 
-                  className="hover:text-blue-600 transition-colors duration-200 p-2 rounded-md hover:bg-gray-50"
+                  className="relative hover:text-[#544D89] transition-colors duration-200 p-2 rounded-md group"
                   aria-label="Wishlist"
                 >
-                  <HeartIcon className="w-6 h-6"/>
+                  <HeartIcon className="w-6 h-6 group-hover:scale-110 transition-transform"/>
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#544D89] text-white text-xs font-bold h-5 w-5 rounded-full flex items-center justify-center">
+                      {wishlistCount > 99 ? '99+' : wishlistCount}
+                    </span>
+                  )}
+                  <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    Wishlist ({wishlistCount})
+                  </span>
                 </Link>
                 
-                {/* Cart */}
+                {/* Cart with real count and total */}
                 <Link 
                   to="/cart" 
-                  className="relative hover:text-blue-600 transition-colors duration-200 p-2 rounded-md hover:bg-gray-50"
+                  className="relative hover:text-[#544D89] transition-colors duration-200 p-2 rounded-md group"
                   aria-label="Shopping Cart"
                 >
-                  <CartIcon className="w-6 h-6"/>
-                  {/* Cart count badge can be added here */}
+                  <CartIcon className="w-6 h-6 group-hover:scale-110 transition-transform"/>
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#544D89] text-white text-xs font-bold h-5 w-5 rounded-full flex items-center justify-center">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                  <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    Cart ({cartCount}) - {formattedCartTotal}
+                  </span>
                 </Link>
                 
                 {/* User dropdown - HIDDEN ON MOBILE, shown in mobile menu */}
@@ -852,15 +969,40 @@ const Navbar: React.FC = () => {
                 </div>
               </div>
 
-              {/* Mobile User Icon - Only show when not authenticated */}
-              {!isAuthenticated && (
+              {/* Mobile User Icon */}
+              {!isAuthenticated ? (
                 <div className="lg:hidden">
                   <Link 
                     to="/login" 
-                    className="text-gray-700 hover:text-blue-600 p-2 rounded-md hover:bg-gray-50 transition-colors"
+                    className="relative text-black hover:text-[#544D89] p-2 rounded-md transition-colors group"
                     aria-label="Sign in"
                   >
-                    <UserIcon className="w-6 h-6"/>
+                    <UserIcon className="w-6 h-6 group-hover:scale-110 transition-transform"/>
+                    <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Sign In
+                    </span>
+                  </Link>
+                </div>
+              ) : (
+                <div className="lg:hidden">
+                  <Link 
+                    to="/profile" 
+                    className="relative text-black hover:text-[#544D89] p-2 rounded-md transition-colors group"
+                    aria-label="My Profile"
+                  >
+                    {/* User Avatar with badge */}
+                    <div className="relative">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-white text-xs font-medium">
+                          {user?.firstName?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                      {/* Online indicator */}
+                      <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-white"></div>
+                    </div>
+                    <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      {user?.firstName || 'Profile'}
+                    </span>
                   </Link>
                 </div>
               )}
@@ -868,20 +1010,11 @@ const Navbar: React.FC = () => {
           </div>
         </div>
         
-        {/* === BOTTOM TIER NAVBAR (Desktop) & MOBILE SEARCH === */}
+        {/* === MOBILE SEARCH === */}
         <div className="border-t border-gray-200 bg-white">
           <div className="container mx-auto px-4 sm:px-6">
-            {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex h-12 items-center justify-center">
-              <ul className="flex items-center space-x-1 font-medium">
-                {updatedNavItems.map((item) => (
-                  <NavLink key={item.label} item={item} />
-                ))}
-              </ul>
-            </nav>
-
             {/* Mobile Search Bar */}
-            <div className="lg:hidden py-3">
+            <div className="py-3">
               <SearchBar />
             </div>
           </div>
@@ -908,11 +1041,11 @@ const Navbar: React.FC = () => {
         >
           <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-blue-600 text-white shrink-0">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-[#544D89] text-white shrink-0">
               <h2 className="text-xl font-bold">Menu</h2>
               <button
                 onClick={closeMobileMenu}
-                className="p-2 text-white hover:text-blue-200 rounded-full hover:bg-blue-700 transition-colors"
+                className="p-2 text-white hover:text-gray-200 rounded-full hover:bg-[#433d6e] transition-colors"
                 aria-label="Close navigation menu"
               >
                 <XIcon className="w-6 h-6" />
@@ -941,14 +1074,14 @@ const Navbar: React.FC = () => {
                   <div className="space-y-2">
                     <Link
                       to="/login"
-                      className="block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium"
+                      className="block w-full text-center bg-[#544D89] text-white py-2 px-4 rounded-md hover:bg-[#433d6e] transition-colors font-medium"
                       onClick={closeMobileMenu}
                     >
                       Sign In
                     </Link>
                     <Link
                       to="/register"
-                      className="block w-full text-center border border-blue-600 text-blue-600 py-2 px-4 rounded-md hover:bg-blue-50 transition-colors font-medium"
+                      className="block w-full text-center border border-[#544D89] text-[#544D89] py-2 px-4 rounded-md hover:bg-[#544D89]/10 transition-colors font-medium"
                       onClick={closeMobileMenu}
                     >
                       Create Account
@@ -960,7 +1093,7 @@ const Navbar: React.FC = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

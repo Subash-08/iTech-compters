@@ -95,7 +95,7 @@ const PreBuiltPCFilters: React.FC<PreBuiltPCFiltersProps> = ({
       </div>
 
       {/* Performance Rating Filter */}
-      <div className="mb-6">
+      {/* <div className="mb-6">
         <h4 className="font-medium mb-3">Performance Rating</h4>
         <div className="space-y-2">
           {[8, 7, 6, 5].map((rating) => (
@@ -122,7 +122,7 @@ const PreBuiltPCFilters: React.FC<PreBuiltPCFiltersProps> = ({
             Any Rating
           </button>
         </div>
-      </div>
+      </div> */}
 
       {/* Stock Status Filter */}
       <div className="mb-6">

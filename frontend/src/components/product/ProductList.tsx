@@ -1,3 +1,4 @@
+// src/components/products/ProductList.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -26,10 +27,10 @@ import ProductPagination from './ProductPagination';
 import { useAuthErrorHandler } from '../hooks/useAuthErrorHandler';
 import ProductCardShimmer from './ProductCardShimmer';
 
-// Shimmer Components
+// --- Premium Shimmer Components ---
 const ProductCardShimmerGrid: React.FC<{ count?: number }> = ({ count = 12 }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 lg:gap-8">
       {Array.from({ length: count }).map((_, index) => (
         <ProductCardShimmer key={index} />
       ))}
@@ -39,16 +40,15 @@ const ProductCardShimmerGrid: React.FC<{ count?: number }> = ({ count = 12 }) =>
 
 const FilterShimmer: React.FC = () => {
   return (
-    <div className="space-y-6 animate-pulse">
-      {/* Filter Section Shimmers */}
+    <div className="space-y-8 animate-pulse">
       {[1, 2, 3, 4].map((section) => (
-        <div key={section} className="border-b border-gray-200 pb-4">
-          <div className="h-4 bg-gray-300 rounded w-3/4 mb-3"></div>
-          <div className="space-y-2">
-            {[1, 2, 3, 4].map((item) => (
+        <div key={section} className="border-b border-gray-100 pb-6">
+          <div className="h-5 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="space-y-3">
+            {[1, 2, 3].map((item) => (
               <div key={item} className="flex items-center">
-                <div className="h-4 w-4 bg-gray-300 rounded mr-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-full"></div>
+                <div className="h-4 w-4 bg-gray-200 rounded-sm mr-3"></div>
+                <div className="h-3 bg-gray-100 rounded w-3/4"></div>
               </div>
             ))}
           </div>
@@ -60,12 +60,12 @@ const FilterShimmer: React.FC = () => {
 
 const HeaderShimmer: React.FC = () => {
   return (
-    <div className="animate-pulse">
-      <div className="h-8 bg-gray-300 rounded w-1/3 mb-2"></div>
-      <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-      <div className="flex flex-wrap gap-2">
+    <div className="animate-pulse mb-8">
+      <div className="h-10 bg-gray-200 rounded w-64 mb-3"></div>
+      <div className="h-4 bg-gray-100 rounded w-48 mb-6"></div>
+      <div className="flex gap-3">
         {[1, 2, 3].map((item) => (
-          <div key={item} className="h-6 bg-gray-200 rounded-full w-20"></div>
+          <div key={item} className="h-8 bg-gray-200 rounded-full w-24"></div>
         ))}
       </div>
     </div>
@@ -92,34 +92,26 @@ const ProductList: React.FC = () => {
   const activeFilters = useAppSelector(selectActiveFilters);
   const hasActiveFilters = useAppSelector(selectHasActiveFilters);
   const lastSearchQuery = useAppSelector(selectLastSearchQuery);
-  // Check if filter is route-based
+  
   const isRouteFilter = useCallback((key: string) => {
     return (key === 'category' && categoryName) || (key === 'brand' && brandName);
   }, [categoryName, brandName]);
 
-  // In ProductList.tsx - UPDATE URL parameter parsing
+  // Handle URL Params
   useEffect(() => {
     const urlFilters: any = {};
-    
     searchParams.forEach((value, key) => {
-      // Skip route parameters that are already in URL path
-      if ((key === 'category' && categoryName) || (key === 'brand' && brandName)) {
-        return;
-      }
+      if ((key === 'category' && categoryName) || (key === 'brand' && brandName)) return;
       
-      // 🎯 FIX: Handle price parameters correctly
-      if (key === 'minPrice' || key === 'maxPrice' || key === 'rating' || key === 'page' || key === 'limit') {
+      if (['minPrice', 'maxPrice', 'rating', 'page', 'limit'].includes(key)) {
         const numValue = Number(value);
         urlFilters[key] = value === '' ? null : (isNaN(numValue) ? null : numValue);
       } else if (key === 'inStock') {
         urlFilters[key] = value === 'true';
       } else if (key === 'sort') {
         const sortMap: Record<string, string> = {
-          'newest': 'newest',
-          'price-low': 'price-low', 
-          'price-high': 'price-high',
-          'rating': 'rating',
-          'popular': 'popular'
+          'newest': 'newest', 'price-low': 'price-low', 'price-high': 'price-high',
+          'rating': 'rating', 'popular': 'popular'
         };
         urlFilters.sortBy = sortMap[value] || 'newest';
       } else if (key === 'sortBy') {
@@ -131,7 +123,7 @@ const ProductList: React.FC = () => {
     dispatch(productActions.updateFilters(urlFilters));
   }, [searchParams, dispatch, brandName, categoryName]);
 
-  // Fetch products when filters change
+  // Fetch Products
   useEffect(() => {
     const fetchProductsWithAuth = async () => {
       try {
@@ -140,106 +132,70 @@ const ProductList: React.FC = () => {
           categoryName: categoryName?.replace(/-/g, ' ') 
         }));
       } catch (error: any) {
-        if (handleAuthError(error)) {
-          return;
-        }
+        if (handleAuthError(error)) return;
       }
     };
-
     if (categoryName || brandName || (!categoryName && !brandName)) {
       fetchProductsWithAuth();
     }
   }, [filters, dispatch, handleAuthError, brandName, categoryName]);
 
-  // Update filter function
+  // Filter Handlers
   const updateFilter = useCallback((key: string, value: string | number | boolean | null) => {
-    // Prevent removing route-based filters
     if (value === null && isRouteFilter(key)) {
       toast.info(`Cannot remove ${key} filter on this page`);
       return;
     }
-    
     const newParams = new URLSearchParams(searchParams);
-    
-    // Reset to page 1 when filters change (except page and limit changes)
-    if (key !== 'page' && key !== 'limit') {
-      newParams.delete('page');
-    }
-    
-    // Handle value removal
-    if (value === null || value === '' || value === false) {
-      newParams.delete(key);
-    } else {
-      newParams.set(key, value.toString());
-    }
-    
+    if (key !== 'page' && key !== 'limit') newParams.delete('page');
+    if (value === null || value === '' || value === false) newParams.delete(key);
+    else newParams.set(key, value.toString());
     setSearchParams(newParams);
   }, [searchParams, setSearchParams, isRouteFilter]);
 
   const handleSortChange = useCallback((sortBy: string) => {
     const urlSortMap: Record<string, string> = {
-      'featured': 'newest',
-      'newest': 'newest',
-      'price-low': 'price-low', 
-      'price-high': 'price-high',
-      'rating': 'rating',
-      'popular': 'popular'
+      'featured': 'newest', 'newest': 'newest', 'price-low': 'price-low', 
+      'price-high': 'price-high', 'rating': 'rating', 'popular': 'popular'
     };
-    
-    const urlSortValue = urlSortMap[sortBy] || sortBy;
     updateFilter('sortBy', sortBy);
   }, [updateFilter]);
 
-  // Clear filters function
   const clearFilters = useCallback(() => {
     const newParams = new URLSearchParams();
-    
     setSearchParams(newParams);
-    
     dispatch(productActions.clearFilters({ 
       brandName: brandName?.replace(/-/g, ' '), 
       categoryName: categoryName?.replace(/-/g, ' ') 
     }));
-    
     toast.success('Filters cleared successfully');
   }, [setSearchParams, dispatch, brandName, categoryName]);
 
-  // Remove specific filter
   const removeFilter = useCallback((key: string) => {
     if (isRouteFilter(key)) {
       toast.info(`Cannot remove ${key} filter on this page`);
       return;
     }
-    
     updateFilter(key, null);
   }, [updateFilter, isRouteFilter]);
 
-  // Handle page change
   const handlePageChange = useCallback((page: number) => {
     updateFilter('page', page);
   }, [updateFilter]);
 
-  // Get page title with search support
   const getPageTitle = useCallback(() => {
-    if (brandName) {
-      return `${brandName.replace(/-/g, ' ')} Products`;
-    } else if (categoryName) {
-      return `${categoryName.replace(/-/g, ' ')} Products`;
-    } else if (lastSearchQuery) {
-      return `Search Results for "${lastSearchQuery}"`;
-    } else {
-      return 'All Products';
-    }
+    if (brandName) return `${brandName.replace(/-/g, ' ')}`;
+    if (categoryName) return `${categoryName.replace(/-/g, ' ')}`;
+    if (lastSearchQuery) return `Results for "${lastSearchQuery}"`;
+    return 'All Products';
   }, [brandName, categoryName, lastSearchQuery]);
 
-  // Check if we should show specific filters
   const shouldShowFilter = useCallback((filterType: 'brand' | 'category') => {
     if (filterType === 'brand' && brandName) return false;
     if (filterType === 'category' && categoryName) return false;
     return true;
   }, [brandName, categoryName]);
 
-  // Handle retry with auth error handling
   const handleRetry = useCallback(async () => {
     try {
       await dispatch(productActions.fetchProducts(filters, { 
@@ -247,80 +203,59 @@ const ProductList: React.FC = () => {
         categoryName: categoryName?.replace(/-/g, ' ') 
       }));
     } catch (error: any) {
-      if (handleAuthError(error)) {
-        return;
-      }
+      if (handleAuthError(error)) return;
       toast.error('Failed to load products. Please try again.');
     }
   }, [dispatch, filters, handleAuthError, brandName, categoryName]);
 
-  // Get removable active filters (excluding route filters)
   const getRemovableActiveFilters = useCallback(() => {
     return activeFilters.filter(filter => !isRouteFilter(filter.key));
   }, [activeFilters, isRouteFilter]);
 
   const hasRemovableFilters = getRemovableActiveFilters().length > 0;
 
-  // Clear search functionality
   const clearSearch = useCallback(() => {
     dispatch(productActions.clearSearchResults());
     updateFilter('search', null);
   }, [dispatch, updateFilter]);
 
-  // Full page loading state (initial load)
+  // --- Initial Loading State ---
   if (loading && products.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Shimmer */}
+      <div className="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-12 py-12">
         <HeaderShimmer />
-        
-        <div className="flex flex-col lg:flex-row gap-8 mt-6">
-          {/* Filters Shimmer */}
-          <div className="w-full lg:w-80">
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+        <div className="flex flex-col lg:flex-row gap-10 mt-8">
+          <div className="w-full lg:w-72 hidden lg:block">
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
               <FilterShimmer />
             </div>
           </div>
-          
-          {/* Products Grid Shimmer */}
           <div className="flex-1">
-            <div className="flex justify-between items-center mb-6">
-              <div className="h-6 bg-gray-300 rounded w-48 animate-pulse"></div>
-              <div className="h-10 bg-gray-300 rounded w-32 animate-pulse"></div>
-            </div>
-            <ProductCardShimmerGrid count={12} />
+            <ProductCardShimmerGrid count={8} />
           </div>
         </div>
       </div>
     );
   }
 
-  // Error state with auth handling
+  // --- Error State ---
   if (error && products.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center py-12">
-          <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to Load Products</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <div className="space-x-4">
+      <div className="min-h-[60vh] flex items-center justify-center bg-gray-50/50">
+        <div className="text-center p-12 max-w-lg">
+          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl">⚠️</div>
+          <h2 className="text-3xl font-bold text-gray-900 tracking-tight mb-3">Unable to Load Products</h2>
+          <p className="text-gray-500 mb-8 leading-relaxed">{error}</p>
+          <div className="flex items-center justify-center gap-4">
             <button 
               onClick={handleRetry}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
+              className="px-6 py-2.5 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-all duration-300 shadow-lg shadow-gray-200"
             >
               Try Again
             </button>
-            {hasRemovableFilters && (
-              <button 
-                onClick={clearFilters}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
-              >
-                Clear Filters
-              </button>
-            )}
             <Link 
               to="/"
-              className="inline-block bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors"
+              className="px-6 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-full font-medium hover:bg-gray-50 transition-all duration-300"
             >
               Go Home
             </Link>
@@ -330,73 +265,98 @@ const ProductList: React.FC = () => {
     );
   }
 
+  // --- Main Content ---
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 capitalize">
-            {getPageTitle()}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Showing {products.length} of {totalProducts} products
-            {loading && products.length > 0 && (
-              <span className="inline-flex items-center ml-2 text-blue-600">
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
-                Updating...
-              </span>
-            )}
-          </p>
-          
-          {/* Search results info */}
-          {lastSearchQuery && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded border border-blue-200">
-                🔍 Search: "{lastSearchQuery}"
-              </span>
-              <button
-                onClick={clearSearch}
-                className="text-xs text-red-600 hover:text-red-800 underline"
-              >
-                Clear Search
-              </button>
+    <div className="min-h-screen bg-[#FDFDFD]">
+      <div className="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-12 py-10">
+        
+        {/* --- Header Section --- */}
+        <div className="flex flex-col gap-6 mb-10">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div>
+              <div className="flex items-baseline gap-3">
+                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight capitalize">
+                  {getPageTitle()}
+                </h1>
+                <span className="text-gray-400 font-medium text-lg">
+                  {totalProducts}
+                </span>
+              </div>
+              <p className="text-gray-500 mt-2 text-lg">
+                Curated collection for you.
+              </p>
             </div>
-          )}
-          
-          {/* Active filters display */}
-          {hasActiveFilters && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {/* Route-based filters (non-removable) */}
-              {brandName && (
-                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded flex items-center border border-blue-200">
-                  <span className="mr-1">🏷️</span>
-                  Brand: {brandName.replace(/-/g, ' ')}
-                </span>
-              )}
-              {categoryName && (
-                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded flex items-center border border-green-200">
-                  <span className="mr-1">📁</span>
-                  Category: {categoryName.replace(/-/g, ' ')}
-                </span>
-              )}
+
+            {/* Sort & Filter Mobile Toggle */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="lg:hidden flex items-center px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all active:scale-95"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                Filters
+              </button>
+
+              <div className="relative group">
+                <select
+                  value={filters.sortBy || 'featured'}
+                  onChange={(e) => handleSortChange(e.target.value)}
+                  className="appearance-none bg-white border border-gray-200 rounded-full pl-5 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all cursor-pointer shadow-sm"
+                  disabled={loading}
+                >
+                  <option value="featured">Featured</option>
+                  <option value="newest">Newest Drops</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                  <option value="rating">Top Rated</option>
+                </select>
+                <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-gray-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Filters Bar */}
+          {(hasActiveFilters || lastSearchQuery) && (
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               
-              {/* Removable filters */}
+              {/* Route Filters (Static) */}
+              {(brandName || categoryName) && (
+                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-black text-white shadow-md">
+                  {brandName ? `Brand: ${brandName.replace(/-/g, ' ')}` : `Category: ${categoryName?.replace(/-/g, ' ')}`}
+                </span>
+              )}
+
+              {/* Removable Filters */}
               {getRemovableActiveFilters().map(filter => (
                 <button
                   key={filter.key}
                   onClick={() => removeFilter(filter.key)}
-                  className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded flex items-center hover:bg-gray-200 transition-colors border border-gray-300"
+                  className="group inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-red-200 hover:text-red-600 transition-all shadow-sm"
                 >
                   {filter.label}
-                  <span className="ml-1 text-gray-600">×</span>
+                  <svg className="ml-2 w-3 h-3 text-gray-400 group-hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               ))}
-              
-              {/* Clear All button - only show if there are removable filters */}
-              {hasRemovableFilters && (
+
+              {/* Search Badge */}
+              {lastSearchQuery && (
+                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                  "{lastSearchQuery}"
+                  <button onClick={clearSearch} className="ml-2 hover:text-blue-900">×</button>
+                </span>
+              )}
+
+              {/* Clear All */}
+              {(hasRemovableFilters || lastSearchQuery) && (
                 <button
-                  onClick={clearFilters}
-                  className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded hover:bg-red-200 transition-colors border border-red-300"
+                  onClick={() => { clearFilters(); if(lastSearchQuery) clearSearch(); }}
+                  className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-wider ml-2 transition-colors"
                 >
                   Clear All
                 </button>
@@ -405,141 +365,112 @@ const ProductList: React.FC = () => {
           )}
         </div>
 
-        {/* Sort and Filter Controls */}
-        <div className="flex items-center space-x-4 mt-4 lg:mt-0">
-          {/* Show filters button - visible on all screens */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="lg:hidden bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
-          >
-            {showFilters ? (
-              <>
-                <span className="mr-2">✕</span>
-                Hide Filters
-              </>
-            ) : (
-              <>
-                <span className="mr-2">☰</span>
-                Show Filters
-              </>
-            )}
-          </button>
-
-          <select
-            value={filters.sortBy || 'featured'}
-            onChange={(e) => handleSortChange(e.target.value)}
-            className="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={loading}
-          >
-            <option value="featured">Featured</option>
-            <option value="newest">Newest</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="rating">Customer Rating</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Filters Sidebar - Always visible on desktop, toggleable on mobile */}
-        <div className={`${showFilters ? 'block' : 'hidden'} lg:block w-full lg:w-80`}>
-          {loading ? (
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <FilterShimmer />
+        <div className="flex flex-col lg:flex-row gap-14 relative">
+          
+          {/* --- Sidebar Filters --- */}
+          <div className={`
+            fixed inset-0 z-40 bg-white/95 backdrop-blur-md transform transition-transform duration-300 ease-in-out lg:relative lg:transform-none lg:bg-transparent lg:backdrop-blur-none lg:z-0 lg:w-72 lg:block
+            ${showFilters ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          `}>
+            {/* Mobile Close Button */}
+            <div className="lg:hidden p-6 flex justify-between items-center border-b border-gray-100">
+              <span className="text-lg font-bold">Filters</span>
+              <button onClick={() => setShowFilters(false)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
-          ) : (
-            <ProductDetailFilters
-              showFilters={true}
-              availableFilters={availableFilters}
-              currentFilters={filters}
-              onUpdateFilter={updateFilter}
-              onClearFilters={clearFilters}
-              shouldShowFilter={shouldShowFilter}
-              products={products}
+
+            <div className="h-full overflow-y-auto lg:overflow-visible p-6 lg:p-0">
+               <ProductDetailFilters
+                  showFilters={true}
+                  availableFilters={availableFilters}
+                  currentFilters={filters}
+                  onUpdateFilter={updateFilter}
+                  onClearFilters={clearFilters}
+                  shouldShowFilter={shouldShowFilter}
+                  products={products}
+                />
+            </div>
+          </div>
+
+          {/* Backdrop for Mobile */}
+          {showFilters && (
+            <div 
+              className="fixed inset-0 bg-black/20 z-30 lg:hidden backdrop-blur-sm"
+              onClick={() => setShowFilters(false)}
             />
           )}
-        </div>
 
-        {/* Products Grid */}
-        <div className="flex-1">
-          {products.length === 0 && !loading ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">
-                {lastSearchQuery ? '🔍' : '😔'}
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {lastSearchQuery ? 'No products found' : 'No products available'}
-              </h3>
-              <p className="text-gray-600 mb-4">
-                {lastSearchQuery 
-                  ? `No products found for "${lastSearchQuery}". Try different keywords.`
-                  : 'Try adjusting your filters or browse other categories.'
-                }
-              </p>
-              <div className="space-x-4">
-                {lastSearchQuery && (
-                  <button
-                    onClick={clearSearch}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
-                  >
-                    Clear Search
-                  </button>
-                )}
-                {hasRemovableFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
-                  >
-                    Clear Filters
-                  </button>
-                )}
-                <Link 
-                  to="/products"
-                  className="inline-block bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors"
-                >
-                  Browse All Products
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <>
-              {loading && products.length > 0 ? (
-                // Loading state when we have existing products but are updating
-                <div className="relative">
-                  <div className="opacity-50 pointer-events-none">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {products.map(product => (
-                        <ProductCard key={product._id} product={product} />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                      <p className="text-gray-600">Updating products...</p>
-                    </div>
-                  </div>
+          {/* --- Product Grid & Content --- */}
+          <div className="flex-1 relative min-h-[500px]">
+            
+            {/* Loading Overlay (Glassmorphism) */}
+            {loading && products.length > 0 && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-start justify-center pt-32 transition-opacity duration-300">
+                <div className="bg-white px-6 py-3 rounded-full shadow-xl border border-gray-100 flex items-center gap-3">
+                   <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                   <span className="text-sm font-medium text-gray-900">Updating Catalog...</span>
                 </div>
-              ) : (
-                // Normal state with products
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {products.map(product => (
-                      <ProductCard key={product._id} product={product} />
-                    ))}
-                  </div>
+              </div>
+            )}
 
-                  {totalPages > 1 && (
+            {products.length === 0 && !loading ? (
+              // --- Empty State ---
+              <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/50">
+                <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center mb-6 text-3xl">
+                  {lastSearchQuery ? '🔍' : '📦'}
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {lastSearchQuery ? 'No matches found' : 'Collection Empty'}
+                </h3>
+                <p className="text-gray-500 max-w-md mx-auto mb-8 leading-relaxed">
+                  {lastSearchQuery 
+                    ? `We couldn't find anything matching "${lastSearchQuery}". Try using broader terms.`
+                    : 'We are currently restocking this collection. Check back later for new drops.'
+                  }
+                </p>
+                <div className="flex gap-4">
+                  {hasRemovableFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="px-6 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl font-semibold hover:border-gray-400 transition-colors"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                  <Link 
+                    to="/products"
+                    className="px-6 py-2.5 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200"
+                  >
+                    View All Products
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              // --- Products Grid ---
+              <div className="animate-fade-in-up">
+<div className="grid gap-6 lg:gap-8"
+     style={{
+       gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))"
+     }}>
+  {products.map((product) => (
+    <ProductCard key={product._id} product={product} />
+  ))}
+</div>
+
+
+                {totalPages > 1 && (
+                  <div className="mt-16 pt-8 border-t border-gray-100">
                     <ProductPagination
                       currentPage={currentPage}
                       totalPages={totalPages}
                       onPageChange={handlePageChange}
                     />
-                  )}
-                </>
-              )}
-            </>
-          )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

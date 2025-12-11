@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import store from './redux/store';  // Should be a default export
 import { Provider } from 'react-redux';
+import './index.css'
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

@@ -14,7 +14,7 @@ interface ProductShowcaseContainerProps {
 
 const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
   sections: propSections,
-  maxSections = 3, // Reduced default
+  maxSections = 3,
   className = '',
   autoRefresh = false
 }) => {
@@ -26,16 +26,13 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
   const fetchSections = async () => {
     try {
       setError(null);
-      if (!propSections) {
-        setLoading(true);
-      }
-      
+      if (!propSections) setLoading(true);
+
       const response = await showcaseSectionService.getActiveShowcaseSections({
         limit: maxSections,
         showOnHomepage: true
       });
-      
-      // Handle different response structures
+
       const sectionsData = response.sections || response.data || [];
       setSections(sectionsData);
     } catch (err: any) {
@@ -56,10 +53,8 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
     fetchSections();
   }, [propSections, maxSections]);
 
-  // Auto-refresh functionality
   useEffect(() => {
     if (!autoRefresh || propSections) return;
-
     const interval = setInterval(fetchSections, 30000);
     return () => clearInterval(interval);
   }, [autoRefresh, propSections]);
@@ -74,14 +69,14 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
     fetchSections();
   };
 
-  // Loading State - More compact
+  // -------- Loading Skeleton --------
   if (loading) {
     return (
       <div className={`space-y-4 ${className}`}>
         {[...Array(maxSections)].map((_, index) => (
           <div key={index} className="animate-pulse">
             <div className="bg-white rounded-xl p-4 border border-gray-200 h-64 flex flex-col">
-              {/* Header Skeleton */}
+
               <div className="flex items-center justify-between mb-4">
                 <div className="space-y-2">
                   <div className="h-5 bg-gray-300 rounded w-40"></div>
@@ -89,8 +84,7 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
                 </div>
                 <div className="h-7 bg-gray-300 rounded w-20"></div>
               </div>
-              
-              {/* Products Grid Skeleton */}
+
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
                 {[...Array(4)].map((_, productIndex) => (
                   <div key={productIndex} className="bg-gray-100 rounded-lg p-2 space-y-1.5">
@@ -108,7 +102,7 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
     );
   }
 
-  // Error State - More compact
+  // -------- Error State --------
   if (error && sections.length === 0) {
     return (
       <div className={`flex flex-col items-center justify-center py-8 ${className}`}>
@@ -116,18 +110,16 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
           <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
             <AlertCircle className="w-5 h-5 text-red-600" />
           </div>
+
           <h3 className="text-base font-semibold text-gray-900 mb-1">Unable to Load</h3>
           <p className="text-gray-600 text-xs mb-3">{error}</p>
+
           <button
             onClick={handleRetry}
             disabled={refreshing}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5 mx-auto text-sm"
           >
-            {refreshing ? (
-              <RefreshCw className="w-3 h-3 animate-spin" />
-            ) : (
-              <RefreshCw className="w-3 h-3" />
-            )}
+            {refreshing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
             {refreshing ? 'Retrying...' : 'Try Again'}
           </button>
         </div>
@@ -135,7 +127,7 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
     );
   }
 
-  // Empty State - More compact
+  // -------- Empty State --------
   if (!loading && sections.length === 0 && !error) {
     return (
       <div className={`flex flex-col items-center justify-center py-8 ${className}`}>
@@ -143,10 +135,10 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
           <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
             <Package className="w-5 h-5 text-gray-400" />
           </div>
+
           <h3 className="text-base font-semibold text-gray-900 mb-1">No Sections</h3>
-          <p className="text-gray-600 text-xs mb-3">
-            No showcase sections available.
-          </p>
+          <p className="text-gray-600 text-xs mb-3">No showcase sections available.</p>
+
           <button
             onClick={handleRefresh}
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1.5 mx-auto text-sm"
@@ -161,7 +153,8 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      {/* Refresh Button - More compact */}
+
+      {/* Refresh Button */}
       {!propSections && (
         <div className="flex justify-end mb-2">
           <button
@@ -175,24 +168,23 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
         </div>
       )}
 
-      {/* Error Banner - More compact */}
+      {/* Error Banner (Compact) */}
       {error && sections.length > 0 && (
         <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded flex items-center gap-1.5 text-xs">
           <AlertCircle className="w-3 h-3 text-yellow-600 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-yellow-800">{error}</p>
-          </div>
+          <p className="flex-1 text-yellow-800">{error}</p>
+
           <button
             onClick={handleRetry}
             disabled={refreshing}
-            className="text-yellow-800 hover:text-yellow-900 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
+            className="text-yellow-800 hover:text-yellow-900 text-xs font-medium disabled:opacity-50"
           >
             {refreshing ? 'Retrying...' : 'Retry'}
           </button>
         </div>
       )}
 
-      {/* Showcase Sections - Reduced spacing */}
+      {/* Showcase Sections */}
       <div className="space-y-4">
         {sections.map((section, index) => (
           <ProductShowcaseSection
@@ -204,10 +196,10 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
         ))}
       </div>
 
-      {/* Loading Overlay for Refresh - More compact */}
+      {/* Refreshing Overlay (NO BLUR) */}
       {refreshing && (
-        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm rounded-xl flex items-center justify-center z-10">
-          <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-3 py-2 rounded shadow text-xs">
+        <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 rounded-xl">
+          <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded shadow text-xs">
             <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
             <span className="text-gray-700 font-medium">Updating...</span>
           </div>

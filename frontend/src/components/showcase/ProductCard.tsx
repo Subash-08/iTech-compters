@@ -1,273 +1,214 @@
-// src/components/showcase/ProductCard.tsx - FIXED
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Heart, ShoppingCart, Eye, Zap } from 'lucide-react';
+import { Eye, ShoppingBag, ChevronRight } from 'lucide-react';
 import { Product } from '../admin/types/product';
 import AddToWishlistButton from '../product/AddToWishlistButton';
 import AddToCartButton from '../product/AddToCartButton';
 
 interface ProductCardProps {
   product: Product;
-  cardStyle?: 'modern' | 'minimal' | 'elegant' | 'bold' | 'glass' | 'gradient';
-  animation?: 'fade' | 'slide' | 'zoom' | 'flip' | 'bounce';
   onQuickView?: (product: Product) => void;
-  onAddToCart?: (product: Product) => void;
-  onAddToWishlist?: (product: Product) => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({
-  product,
-  cardStyle = 'modern',
-  animation = 'fade',
-  onQuickView,
-  onAddToCart,
-  onAddToWishlist
-}) => {
-  const [isHovered, setIsHovered] = useState(false);
+const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }) => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const displayPrice = product.offerPrice || product.basePrice;
   const originalPrice = product.basePrice;
   const hasDiscount = product.offerPrice && product.offerPrice < product.basePrice;
+
+  const discountPercentage =
+    hasDiscount && product.discountPercentage
+      ? product.discountPercentage
+      : hasDiscount
+      ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100)
+      : 0;
+
   const inStock = product.stockQuantity > 0;
   const hasVariants = product.variants && product.variants.length > 0;
 
-  const getCardClasses = () => {
-    const baseClasses = "relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-102 h-full flex flex-col group";
-    
-    const styleClasses = {
-      modern: "bg-white shadow-sm hover:shadow-md border border-gray-100",
-      minimal: "bg-white border border-gray-200 hover:border-gray-300",
-      elegant: "bg-white shadow-sm hover:shadow-md border border-gray-100",
-      bold: "bg-gray-900 text-white shadow-md",
-      glass: "bg-white/80 backdrop-blur-sm border border-white/20 shadow-sm",
-      gradient: "bg-gradient-to-br from-blue-50 to-purple-50 shadow-sm hover:shadow-md"
-    };
-
-    const animationClasses = {
-      fade: "animate-fade-in",
-      slide: "animate-slide-in",
-      zoom: "animate-zoom-in",
-      flip: "group-hover:rotate-y-180",
-      bounce: "hover:animate-bounce"
-    };
-
-    return `${baseClasses} ${styleClasses[cardStyle]} ${animationClasses[animation]}`;
-  };
-
-  const getDiscountBadge = () => {
-    if (!product.discountPercentage || product.discountPercentage <= 0) return null;
-    
-    return (
-      <div className="absolute top-2 left-2 z-10">
-        <div className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-md">
-          -{product.discountPercentage}%
-        </div>
-      </div>
-    );
-  };
-
-  const getStockBadge = () => {
-    const stock = product.stockQuantity || 0;
-    if (stock === 0) {
-      return (
-        <div className="absolute top-2 right-2 z-10 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-          Out of Stock
-        </div>
-      );
-    }
-    if (stock < 10) {
-      return (
-        <div className="absolute top-2 right-2 z-10 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-          Low Stock
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const getRatingStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`w-3 h-3 ${
-          i < Math.floor(rating) 
-            ? 'text-yellow-400 fill-current' 
-            : 'text-gray-300'
-        }`}
-      />
-    ));
-  };
-
-  const handleImageLoad = () => {
-    setIsImageLoaded(true);
-  };
-
-  const handleQuickView = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onQuickView?.(product);
-  };
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onAddToCart?.(product);
-  };
+  // Format price
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
 
   return (
     <div
-      className={getCardClasses()}
+      className="group relative bg-white rounded-2xl overflow-hidden h-full flex flex-col border border-gray-100 hover:shadow-xl transition-shadow duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Product Image Section with Link */}
-      <Link 
-        to={`/product/${product.slug}`} 
-        className="block flex-1 p-3"
-      >
-        <div className="relative mb-3">
-          <div className="aspect-square relative bg-gray-100 rounded-lg overflow-hidden">
-            {/* Main Image */}
+      {/* --- IMAGE SECTION --- */}
+      <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-gray-50 to-white">
+        
+        <Link to={`/product/${product.slug}`} className="block w-full h-full">
+          {/* Main Image */}
+          <img
+            src={product.images?.thumbnail?.url || ''}
+            alt={product.images?.thumbnail?.altText || product.name}
+            width={300}
+            height={400}
+            className={`w-full h-full object-contain transition-all duration-700 ${
+              isImageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            onLoad={() => setIsImageLoaded(true)}
+            onError={(e) => {
+              e.currentTarget.src = '/placeholder.png';
+              e.currentTarget.className = 'w-full h-full object-contain p-4';
+            }}
+          />
+
+          {/* Hover Image */}
+          {product.images?.hoverImage?.url && (
             <img
-              src={product.images?.thumbnail?.url || ''}
-              alt={product.images?.thumbnail?.altText || product.name}
-              className={`w-full h-full object-cover transition-opacity duration-300 ${
-                isImageLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
-              onLoad={handleImageLoad}
-              onError={(e) => {
-                e.currentTarget.src = '';
-              }}
+              src={product.images.hoverImage.url}
+              alt={`${product.name} hover`}
+              width={400}
+              height={500}
+              className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500 opacity-0 group-hover:opacity-100"
+              onError={(e) => (e.currentTarget.style.display = 'none')}
             />
-            
-            {/* Hover Image */}
-            {product.images?.hoverImage?.url && (
-              <img
-                src={product.images.hoverImage.url}
-                alt={product.images.hoverImage.altText || product.name}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                  isHovered ? 'opacity-100' : 'opacity-0'
-                }`}
-                onError={(e) => {
-                  e.currentTarget.src = '';
-                }}
-              />
-            )}
-            
-            {/* Loading Skeleton */}
-            {!isImageLoaded && (
-              <div className="absolute inset-0 bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse rounded-lg" />
-            )}
+          )}
+        </Link>
 
-            {/* Out of Stock Overlay */}
-            {!inStock && (
-              <div className="absolute inset-0 bg-gray-100 bg-opacity-80 rounded-lg flex items-center justify-center">
-                <span className="bg-gray-800 text-white px-2 py-1 rounded text-xs font-medium">
-                  Out of Stock
-                </span>
-              </div>
-            )}
-
-            {/* Badges */}
-            {getDiscountBadge()}
-            {getStockBadge()}
-
-            {/* Wishlist Button - Top Right */}
-            <div className="absolute top-1.5 right-1.5 z-10">
-              <AddToWishlistButton 
-                productId={product._id}
-                className="bg-white/90 backdrop-blur-sm shadow-sm hover:shadow-md p-1.5"
-                iconSize="w-3 h-3"
-              />
-            </div>
-
-            {/* Quick View Button - Appears on Hover */}
-            <div className={`absolute bottom-2 right-2 z-10 transition-all duration-300 ${
-              isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-            }`}>
-              <button
-                onClick={handleQuickView}
-                className="bg-white/90 backdrop-blur-sm text-gray-700 p-1.5 rounded-lg shadow-sm hover:shadow-md transform hover:scale-110 transition-all duration-200"
-              >
-                <Eye className="w-3 h-3" />
-              </button>
-            </div>
+        {/* Loading Spinner */}
+        {!isImageLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-400 rounded-full animate-spin"></div>
           </div>
+        )}
+
+        {/* --- DISCOUNT BADGE (NO BLUR) --- */}
+        <div className="absolute top-3 left-3 flex flex-col gap-2 z-20">
+          {discountPercentage > 0 && (
+            <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md">
+              -{discountPercentage}% OFF
+            </span>
+          )}
+
+          {!inStock && (
+            <span className="bg-white text-gray-700 text-xs font-bold px-3 py-1.5 rounded-full shadow-md border border-gray-200">
+              Out of Stock
+            </span>
+          )}
         </div>
 
-        {/* Product Info */}
-        <div className="space-y-1.5 flex-1">
-          {/* Brand */}
-          <div className="text-xs text-gray-500 uppercase tracking-wide font-medium">
-            {product.brand?.name || 'No Brand'}
+        {/* --- ACTION BUTTONS (NO BLUR) --- */}
+        <div
+          className={`absolute top-3 right-3 z-20 flex flex-col gap-2 transition-all duration-500 ${
+            isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
+          }`}
+        >
+          {/* Wishlist */}
+          <div className="bg-white rounded-full shadow-lg p-2 hover:shadow-xl transition-all duration-300">
+            <AddToWishlistButton
+              productId={product._id}
+              product={product}
+              className="p-1.5 text-gray-600 hover:text-red-500 transition-colors duration-300"
+              iconSize="w-4 h-4"
+            />
           </div>
 
-          {/* Product Name */}
-          <h3 className="font-medium text-gray-900 line-clamp-2 text-sm leading-tight min-h-[2.5rem] group-hover:text-blue-600 transition-colors">
+          {/* Quick View */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onQuickView?.(product);
+            }}
+            className="bg-white rounded-full shadow-lg p-2.5 text-gray-600 hover:text-blue-600 hover:shadow-xl transition-all duration-300"
+            aria-label="Quick View"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* --- OUT OF STOCK OVERLAY (NO BLUR) --- */}
+        {!inStock && (
+          <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+            <div className="bg-gray-900 text-white px-4 py-2 rounded-lg transform -rotate-3 transition-transform duration-300 group-hover:rotate-0">
+              <span className="text-sm font-bold uppercase tracking-wider">
+                Sold Out
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* --- PRODUCT INFO --- */}
+      <div className="p-3 flex flex-col flex-1 bg-white">
+
+        {/* Brand */}
+        <div className="mb-1">
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+            {product.brand?.name || 'Premium Brand'}
+          </span>
+        </div>
+
+        {/* Title */}
+        <Link to={`/product/${product.slug}`} className="block mb-1 group/title">
+          <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 transition-colors duration-300 group-hover/title:text-blue-600">
             {product.name}
           </h3>
+        </Link>
 
-          {/* Rating */}
-          {product.averageRating > 0 && (
-            <div className="flex items-center space-x-1">
-              <div className="flex items-center gap-0.5">
-                {getRatingStars(product.averageRating)}
-              </div>
+        {/* PRICE */}
+        <div className="mt-1">
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-lg font-bold text-gray-900">
+              {formatPrice(displayPrice)}
+            </span>
+
+            {hasDiscount && (
+              <span className="text-sm text-gray-400 line-through decoration-gray-300">
+                {formatPrice(originalPrice)}
+              </span>
+            )}
+          </div>
+
+          {/* Low Stock Info */}
+          {inStock && product.stockQuantity && product.stockQuantity < 20 && (
+            <div className="flex items-center mb-1">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
               <span className="text-xs text-gray-500">
-                ({product.averageRating.toFixed(1)})
+                Only {product.stockQuantity} left
               </span>
             </div>
           )}
-
-          {/* Price */}
-          <div className="flex items-center space-x-2">
-            <span className="text-lg font-bold text-gray-900">
-              R{displayPrice.toFixed(2)}
-            </span>
-            {hasDiscount && originalPrice > displayPrice && (
-              <span className="text-sm text-gray-500 line-through">
-                R{originalPrice.toFixed(2)}
-              </span>
-            )}
-          </div>
-
-          {/* Stock Status */}
-          <div className={`text-xs font-medium ${
-            inStock ? 'text-green-600' : 'text-red-600'
-          }`}>
-            {inStock ? (
-              <div className="flex items-center gap-1">
-                <Zap className="w-3 h-3 text-green-500" />
-                <span>In Stock</span>
-              </div>
-            ) : (
-              'Out of Stock'
-            )}
-          </div>
         </div>
-      </Link>
 
-      {/* Add to Cart Button - Bottom of Card */}
-      <div className="p-3 pt-2 border-t border-gray-100">
-        {hasVariants ? (
-          // If product has variants, show a button that links to product page
-          <Link 
-            to={`/product/${product.slug}`}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 text-center block text-sm font-medium shadow-sm hover:shadow-md transform hover:scale-105"
-          >
-            View Options
-          </Link>
-        ) : (
-          // If no variants, show direct Add to Cart button WITH PRODUCT DATA
-          <AddToCartButton
-            productId={product._id}
-            productData={product} // ✅ ADD THIS - Pass the full product data
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow-md transform hover:scale-105 transition-all duration-200 text-sm py-2"
-            quantity={1}
-            disabled={!inStock}
-          />
-        )}
+        {/* --- ADD TO CART OR VARIANT OPTIONS --- */}
+        <div className="mt-auto pt-4 border-t border-gray-100">
+          {hasVariants ? (
+            <Link
+              to={`/product/${product.slug}`}
+              className="flex items-center justify-center w-full bg-gray-900 text-white py-3.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg hover:bg-blue-700 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span>View Options</span>
+              <ChevronRight className="w-4 h-4 ml-2" />
+            </Link>
+          ) : (
+            <AddToCartButton
+              productId={product._id}
+              product={product}
+              disabled={!inStock}
+              quantity={1}
+              className={`w-full py-3.5 flex items-center justify-center gap-2 text-sm font-semibold rounded-xl shadow-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
+                inStock
+                  ? 'bg-gray-900 text-white hover:bg-blue-700 hover:shadow-lg'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4" />
+              {inStock ? 'Add to Cart' : 'Out of Stock'}
+            </AddToCartButton>
+          )}
+        </div>
       </div>
     </div>
   );

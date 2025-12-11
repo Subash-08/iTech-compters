@@ -26,6 +26,7 @@ const blogRoutes = require('./routes/blogRoutes');
 const videoRoutes = require('./routes/videoRoutes');
 const sectionRoutes = require('./routes/sectionRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+const reelRoutes = require('./routes/reels');
 const { cleanupTempFiles } = require('./middlewares/uploadVideo');
 
 const app = express();
@@ -75,6 +76,7 @@ app.use(cleanupTempFiles);
 app.use('/api/v1', blogRoutes);
 app.use('/api/v1/videos', videoRoutes);
 app.use('/api/v1/sections', sectionRoutes);
+app.use('/api/v1/reels', reelRoutes);
 app.use('/api/v1/admin/analytics', analyticsRoutes);
 app.use('/api/v1', productRoutes);
 app.use("/api/v1", categoryRoutes);
@@ -93,6 +95,7 @@ app.use('/api/v1', checkoutRoutes);
 app.use('/api/v1', paymentRoutes);
 app.use('/api/v1', orderRoutes);
 app.use('/api/v1', invoiceRoutes);
+
 
 // Health check route
 app.get('/api/v1/health', (req, res) => {

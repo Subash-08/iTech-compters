@@ -412,7 +412,6 @@ class SectionController {
         }
     };
 
-    // Reorder sections - FIXED
     reorderSections = async (req, res) => {
         try {
             const { sections } = req.body; // Expecting array in req.body.sections
