@@ -53,16 +53,16 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
           {/* Title */}
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-8 bg-blue-500 rounded-full"></div>
-            <div>
+            <div className="flex justify-center items-center">
               <h2 className="text-2xl lg:text-3xl font-bold text-gray-900">
                 {title}
               </h2>
               {timerConfig.hasTimer && timerConfig.endDate && (
-                <div className="mt-2">
+                <div className="m-2">
                   <CountdownTimer
                     endDate={timerConfig.endDate}
                     timerText={timerConfig.timerText}
-                    className="bg-red-500 text-white px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider"
+                    className="text-black px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider"
                   />
                 </div>
               )}

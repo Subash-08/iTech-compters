@@ -416,7 +416,7 @@ const App: React.FC = () => {
           />
 
           <Route 
-            path="/blog" 
+            path="/blogs" 
             element={
               <PublicLayout>
                 <BlogList />

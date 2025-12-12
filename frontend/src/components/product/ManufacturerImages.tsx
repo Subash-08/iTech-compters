@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Image as ImageIcon, Info } from 'lucide-react';
 import { ProductData } from './productTypes';
 import { baseURL } from '../config/config';
 
@@ -9,138 +11,145 @@ interface ManufacturerImagesProps {
 const ManufacturerImages: React.FC<ManufacturerImagesProps> = ({ productData }) => {
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
 
-  // 🎯 FIXED: Clean URL transformation
+  // 🛠 HELPER: Robust URL Resolver
   const getImageUrl = (url: string | undefined): string => {
-    if (!url || url.startsWith('blob:')) {
-      // Return placeholder SVG
-      return `data:image/svg+xml;base64,${btoa(`
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
-          <rect width="400" height="300" fill="#f3f4f6"/>
-          <rect x="100" y="75" width="200" height="150" fill="#e5e7eb"/>
-          <text x="200" y="160" text-anchor="middle" font-family="Arial" font-size="16" fill="#6b7280">Manufacturer Image</text>
-          <text x="200" y="180" text-anchor="middle" font-family="Arial" font-size="12" fill="#9ca3af">Not Available</text>
-        </svg>
-      `)}`;
-    }
-
-    const baseUrl = process.env.REACT_APP_API_URL || baseURL;
-        let filename = '';
+    if (!url || url.startsWith('blob:')) return ''; // Return empty to trigger error handler naturally
     
-    if (url.includes('/')) {
-      filename = url.split('/').pop() || url;
-    } else {
-      filename = url;
-    }
-    const correctUrl = `${baseUrl}/uploads/products/${filename}`;
-    return correctUrl;
+    // If it's already a full URL, return it
+    if (url.startsWith('http')) return url;
+
+    // Construct backend URL
+    const baseUrl = process.env.REACT_APP_API_URL || baseURL;
+    const filename = url.includes('/') ? url.split('/').pop() || url : url;
+    return `${baseUrl}/uploads/products/${filename}`;
   };
 
-  // Test URL on component mount
-  React.useEffect(() => {
-    if (productData.manufacturerImages) {
-      productData.manufacturerImages.forEach((img, index) => {
-        if (img.url && !img.url.startsWith('blob:')) {
-          const testUrl = getImageUrl(img.url);
-        }
-      });
+  // 🧠 MEMOIZED DATA PROCESSING
+  const { groupedImages, sections, hasImages } = useMemo(() => {
+    if (!productData.manufacturerImages || productData.manufacturerImages.length === 0) {
+      return { groupedImages: {}, sections: [], hasImages: false };
     }
+
+    // Filter valid images
+    const validImages = productData.manufacturerImages
+      .filter(img => img.url && !img.url.startsWith('blob:'))
+      .map(img => ({
+        ...img,
+        resolvedUrl: getImageUrl(img.url)
+      }));
+
+    if (validImages.length === 0) {
+      return { groupedImages: {}, sections: [], hasImages: false };
+    }
+
+    // Group by section
+    const grouped = validImages.reduce((acc, image) => {
+      const section = image.sectionTitle?.trim() || 'Product Overview';
+      if (!acc[section]) acc[section] = [];
+      acc[section].push(image);
+      return acc;
+    }, {} as Record<string, typeof validImages>);
+
+    return { 
+      groupedImages: grouped, 
+      sections: Object.keys(grouped), 
+      hasImages: true 
+    };
   }, [productData.manufacturerImages]);
 
-  if (!productData.manufacturerImages || productData.manufacturerImages.length === 0) {
-    return null;
-  }
-
-  // Create enhanced images with correct URLs
-  const enhancedManufacturerImages = productData.manufacturerImages
-    .filter(img => img.url && !img.url.startsWith('blob:'))
-    .map(img => {
-      const resolvedUrl = getImageUrl(img.url);
-      return {
-        ...img,
-        resolvedUrl: resolvedUrl,
-        // Extract just filename for debugging
-        filename: img.url ? img.url.split('/').pop() : ''
-      };
-    });
-
-  if (enhancedManufacturerImages.length === 0) {
-    return null;
-  }
-
-  // Group manufacturer images by sectionTitle
-  const groupedImages = enhancedManufacturerImages.reduce((acc, image) => {
-    const section = image.sectionTitle || 'Product Features';
-    if (!acc[section]) {
-      acc[section] = [];
+  // Set default section on load
+  React.useEffect(() => {
+    if (sections.length > 0 && !selectedSection) {
+      setSelectedSection(sections[0]);
     }
-    acc[section].push(image);
-    return acc;
-  }, {} as Record<string, typeof enhancedManufacturerImages>);
+  }, [sections, selectedSection]);
 
-  const sections = Object.keys(groupedImages);
-  const displaySection = selectedSection || sections[0];
+  if (!hasImages) return null;
 
-  // Simple error handler - just use placeholder on error
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, originalUrl: string) => {
-    const target = e.currentTarget as HTMLImageElement;
-    console.error('❌ Manufacturer image failed to load:', target.src);
-    
-    // Use placeholder
-    target.src = `data:image/svg+xml;base64,${btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
-        <rect width="400" height="300" fill="#f3f4f6"/>
-        <rect x="100" y="75" width="200" height="150" fill="#e5e7eb"/>
-        <text x="200" y="140" text-anchor="middle" font-family="Arial" font-size="14" fill="#6b7280">Failed to load</text>
-        <text x="200" y="160" text-anchor="middle" font-family="Arial" font-size="12" fill="#9ca3af">URL: ${target.src.substring(0, 50)}...</text>
-      </svg>
-    `)}`;
-  };
+  const currentImages = selectedSection ? groupedImages[selectedSection] : [];
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 mt-8">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Product Details & Features</h2>
-      <p className="text-gray-600 mb-6">
-        High-quality images and information provided by the manufacturer
-      </p>
+    <div className="w-full mt-12 overflow-hidden">
+      
+      {/* 1️⃣ Header Block */}
+      <div className="p-8 border-b border-gray-100">
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center">
+          <ImageIcon className="w-6 h-6 mr-3 text-blue-600" />
+          From the Manufacturer
+        </h2>
+        <p className="text-gray-500 mt-2 max-w-2xl">
+          Visual details and specifications provided directly by the brand.
+        </p>
 
-      {/* Section Navigation */}
-      {sections.length > 1 && (
-        <div className="flex space-x-2 mb-6 overflow-x-auto">
-          {sections.map((section) => (
-            <button
-              key={section}
-              onClick={() => setSelectedSection(section)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                displaySection === section
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {section}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Images Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {groupedImages[displaySection]?.map((image, index) => (
-          <div key={index} className="space-y-3">
-            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 flex items-center justify-center h-64 min-h-[16rem] relative">
-              <img
-                src={image.resolvedUrl}
-                alt={image.altText}
-                className="max-h-full max-w-full object-contain"
-                onError={(e) => handleImageError(e, image.url || '')}
-                onLoad={() => {
-                }}
-              />
-            </div>
-            {image.altText && (
-              <p className="text-sm text-gray-600 text-center">{image.altText}</p>
-            )}
+        {/* 2️⃣ Premium Tab Navigation */}
+        {sections.length > 1 && (
+          <div className="flex space-x-8 mt-8 border-b border-gray-100 overflow-x-auto no-scrollbar">
+            {sections.map((section) => {
+              const isActive = selectedSection === section;
+              return (
+                <button
+                  key={section}
+                  onClick={() => setSelectedSection(section)}
+                  className={`
+                    relative pb-4 text-sm font-semibold transition-colors whitespace-nowrap
+                    ${isActive ? 'text-blue-600' : 'text-gray-500 hover:text-gray-800'}
+                  `}
+                >
+                  {section}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
-        ))}
+        )}
+      </div>
+
+      {/* 3️⃣ Content Area - Full Width */}
+      <div className="bg-gray-50/50 w-full">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={selectedSection || 'default'}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="w-full"
+          >
+            {currentImages?.map((image, index) => (
+              <div 
+                key={index} 
+                className="group w-full transition-shadow duration-300 mb-2 last:mb-0"
+              >
+                {/* Full Width Image Container */}
+                <div className="relative w-full bg-white flex items-center justify-center overflow-hidden">
+                  {/* Full Width Image */}
+                  <img
+                    src={image.resolvedUrl}
+                    alt={image.altText || 'Manufacturer Image'}
+                    className="w-full h-auto max-h-[500px] object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                    onError={(e) => {
+                      // Fallback Placeholder
+                      e.currentTarget.src = `data:image/svg+xml;base64,${btoa(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500">
+                          <rect width="1200" height="500" fill="#f9fafb"/>
+                          <rect x="400" y="150" width="400" height="200" fill="#e5e7eb" rx="8"/>
+                          <text x="600" y="300" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#9ca3af">Manufacturer Image</text>
+                        </svg>
+                      `)}`;
+                    }}
+                  />
+                </div>
+                
+
+              </div>
+            ))}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

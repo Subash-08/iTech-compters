@@ -50,21 +50,21 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
 
   if (timeLeft.expired) {
     return (
-      <div className={`flex items-center justify-center gap-2 py-2 px-4 bg-red-100 border border-red-200 rounded-xl ${className}`}>
-        <Clock className="w-4 h-4 text-red-600" />
-        <span className="text-red-700 font-medium text-sm">Offer Expired</span>
+      <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-xl ${className}`}>
+        <Clock className="w-4 h-4" />
+        <span className="font-medium text-black text-sm">Offer Expired</span>
       </div>
     );
   }
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`flex text-black border items-center gap-3 ${className}`}>
       <div className="flex items-center gap-2">
         <Clock className="w-4 h-4 text-gray-600" />
         <span className="text-sm font-medium text-gray-700">{timerText}</span>
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex text-black items-center gap-2">
         {timeLeft.days > 0 && (
           <TimeUnit value={timeLeft.days} label="days" />
         )}
@@ -77,8 +77,8 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
 };
 
 const TimeUnit: React.FC<{ value: number; label: string }> = ({ value, label }) => (
-  <div className="flex flex-col items-center">
-    <div className="bg-gradient-to-br from-purple-500 to-blue-600 text-white rounded-lg px-2 py-1 min-w-8 text-center">
+  <div className="flex text-black flex-col items-center">
+    <div className="rounded-lg px-2 py-1 min-w-8 text-center">
       <span className="text-sm font-bold">{value.toString().padStart(2, '0')}</span>
     </div>
     <span className="text-xs text-gray-500 mt-1">{label}</span>

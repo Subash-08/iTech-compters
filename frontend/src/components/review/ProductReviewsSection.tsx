@@ -91,7 +91,7 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
   }
 
   return (
-    <section className="border-t border-gray-200 mt-12">
+    <section className="border-t border-gray-200 mt-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="w-full py-6 px-4 sm:px-6 lg:px-8">

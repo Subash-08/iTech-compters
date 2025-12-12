@@ -12,6 +12,9 @@ import HeroSection from '../heroSection/HeroSection';
 import ProductShowcaseContainer from '../showcase/ProductShowcaseContainer';
 import InstagramReels from './InstagramReels';
 import VideoSectionsPage from '../video/VideoSectionsPage';
+import PCPackageSection from './PCPackageSection';
+import HomeLatestNews from './HomeLatestNews';
+import TrustedBrandsSection from './TrustedBrandsSection';
 
 const App: React.FC = () => {
   return (
@@ -23,6 +26,7 @@ const App: React.FC = () => {
       <HomePage />
       <DealsSection />
       <PcBuilderPromo />
+      <PCPackageSection />
       <VideoSectionsPage />
        <section className="py-12">
         <div className="container mx-auto px-4">
@@ -33,8 +37,8 @@ const App: React.FC = () => {
           />
         </div>
       </section>
-      <Testimonials />
-      <BlogSection />
+      <TrustedBrandsSection />
+      <HomeLatestNews />
     </div>
   );
 };

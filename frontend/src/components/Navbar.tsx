@@ -780,7 +780,7 @@ const Navbar: React.FC = () => {
       },
       { label: 'Pre-Built PC', href: '/prebuilt-pcs' },
       { label: 'Custom Pc', href: '/custom-pcs' },
-      { label: 'Blogs', href: '/blog' },
+      { label: 'Blogs', href: '/blogs' },
       { label: 'Support', href: '/support' },
       { label: 'About', href: '/about' },
       { label: 'Contact', href: '/contact' },

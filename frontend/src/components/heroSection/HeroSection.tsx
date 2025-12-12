@@ -248,7 +248,7 @@ const HeroSection: React.FC = () => {
         Uses gap-4 for mobile, gap-6 for desktop for a breathable layout.
         Maintains the specific aspect ratios required by the logic.
       */}
-      <div className="flex flex-col md:flex-row w-full h-[500px] md:h-[450px] lg:h-[500px] gap-2 md:gap-4">
+      <div className="flex flex-col md:flex-row w-full h-[500px] md:h-[450px] lg:h-[500px] gap-2 md:gap-4 px-2">
         
         {/* Primary Hero (Left Side) */}
         {displaySections[0] && (

@@ -3,7 +3,27 @@ import { Link } from 'react-router-dom';
 import api from '../config/axiosConfig';
 import { baseURL } from '../config/config';
 
-// Types
+// --- Icons --- //
+const ArrowRightIcon = () => (
+  <svg className="w-4 h-4 ml-2 transition-transform duration-300 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+  </svg>
+);
+
+const BoxIcon = () => (
+  <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+  </svg>
+);
+
+const BuildingIcon = () => (
+  <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  </svg>
+);
+
+// ---- TYPES ---- //
 interface BrandLogo {
   url: string | null;
   altText: string | null;
@@ -14,183 +34,101 @@ interface Brand {
   _id: string;
   name: string;
   slug: string;
-  description?: string;
   logo: BrandLogo;
-  productCount?: number;
 }
 
 interface Category {
   _id: string;
   name: string;
   slug: string;
-  description?: string;
-  parent?: string;
-  image?: string;
-  productCount?: number;
+  image?: any;
 }
 
-interface Product {
-  _id: string;
-  name: string;
-  slug: string;
-  basePrice: number;
-  offerPrice?: number;
-  discountPercentage?: number;
-  images: {
-    thumbnail?: string;
-    gallery: string[];
-  };
-  brand: Brand;
-  categories: Category[];
-  stockQuantity: number;
-  averageRating?: number;
-  totalReviews?: number;
-}
+// ---- UTILITY COMPONENTS ---- //
+const FadeImage = ({ src, alt, className, fallback }: any) => {
+  const [isLoaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
 
+  if (!src || error)
+    return <div className={`flex items-center justify-center ${className}`}>{fallback}</div>;
+
+  return (
+    <div className={`relative overflow-hidden ${className}`}>
+      <img
+        src={src}
+        alt={alt}
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        className={`w-full h-full object-contain transition-all duration-700 ease-out ${
+          isLoaded ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-105 blur-sm'
+        }`}
+      />
+    </div>
+  );
+};
+
+const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
+  <div className="text-center mb-16 space-y-4">
+    <h1 className="text-6xl font-bold tracking-tight mb-6">
+      {title}
+    </h1>
+    <p className="text-gray-500 text-lg max-w-2xl mx-auto font-light">{subtitle}</p>
+  </div>
+);
+
+// ---- MAIN COMPONENT ---- //
 const HomePage: React.FC = () => {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
+  const getImageUrl = (url: any) => {
+    if (!url) return "";
+    const value = typeof url === "string" ? url : url.url;
+    if (!value) return "";
+    if (value.startsWith("http")) return value;
+    const prefix = process.env.NODE_ENV === "production" ? "" : baseURL;
+    return `${prefix}${value.startsWith("/") ? value : "/" + value}`;
+  };
 
-  // Fetch all homepage data using Axios
+  // Fetch Data
   const fetchHomepageData = async () => {
     try {
       setLoading(true);
-      setError('');
-
       const [brandsRes, categoriesRes] = await Promise.all([
-        api.get('/brands'),
-        api.get('/categories'),
+        api.get("/brands"),
+        api.get("/categories"),
       ]);
 
-      const brandsData = brandsRes.data;
-      const categoriesData = categoriesRes.data;
-
-      setBrands(brandsData.brands || brandsData || []);
-      setCategories(categoriesData.categories || categoriesData || []);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch data');
+      setBrands(brandsRes.data.brands || brandsRes.data || []);
+      setCategories(categoriesRes.data.categories || categoriesRes.data || []);
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchHomepageData();
-  }, []);
+  useEffect(() => { fetchHomepageData(); }, []);
 
-  // Format price
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price);
-  };
-// Get full image URL with proper error handling
-const getImageUrl = (url: string | null | undefined) => {
-  // Check if url is valid
-  if (!url || typeof url !== 'string') {
-    return '';
-  }
-
-  // Already full URL (e.g., Cloudinary)
-  if (url.startsWith('http')) return url;
-
-  // Handle different environments
-  if (process.env.NODE_ENV === 'production') {
-    // In production, use relative path (same domain)
-    return url.startsWith('/') ? url : `/${url}`;
-  } else {
-    // In development, use local backend
-    const baseUrl = baseURL;
-    return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
-  }
-};
-
-  // Render product card
-  const ProductCard: React.FC<{ product: Product }> = ({ product }) => (
-    <Link
-      to={`/product/${product.slug}`}
-      className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 group"
-    >
-      <div className="aspect-w-1 aspect-h-1 bg-gray-100 overflow-hidden relative">
-        <img 
-          src={getImageUrl(product.images.thumbnail || product.images.gallery?.[0])}
-          alt={product.name}
-          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-          onError={(e) => {
-            e.currentTarget.src = '';
-          }}
-        />
-        {product.discountPercentage && product.discountPercentage > 0 && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">
-            -{product.discountPercentage}%
-          </div>
-        )}
-      </div>
-      
-      <div className="p-4">
-        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2 mb-2">
-          {product.name}
-        </h3>
-        
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center space-x-2">
-            <span className="text-lg font-bold text-gray-900">
-              {formatPrice(product.offerPrice || product.basePrice)}
-            </span>
-            {product.offerPrice && product.offerPrice < product.basePrice && (
-              <span className="text-sm text-gray-500 line-through">
-                {formatPrice(product.basePrice)}
-              </span>
-            )}
-          </div>
-          
-          {product.averageRating && (
-            <div className="flex items-center space-x-1">
-              <span className="text-yellow-400">★</span>
-              <span className="text-sm text-gray-600">
-                {product.averageRating.toFixed(1)}
-              </span>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <span>{product.brand.name}</span>
-          <span className={product.stockQuantity > 0 ? 'text-green-600' : 'text-red-600'}>
-            {product.stockQuantity > 0 ? 'In Stock' : 'Out of Stock'}
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
-
+  // ---- Loading ---- //
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <div className="text-gray-600">Loading...</div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-14 h-14 border-2 border-gray-200 border-t-black rounded-full animate-spin"></div>
       </div>
     );
   }
 
+  // ---- Error ---- //
   if (error) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
-        <div className="text-center">
-          <div className="text-red-500 text-xl mb-2">Error</div>
-          <div className="text-gray-600 mb-4">{error}</div>
-          <button 
-            onClick={fetchHomepageData}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium"
-          >
-            Try Again
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="p-8 bg-white rounded-2xl shadow max-w-sm text-center">
+          <p className="text-red-500 font-semibold mb-4">{error}</p>
+          <button onClick={fetchHomepageData} className="bg-black text-white px-6 py-3 rounded-lg">
+            Retry
           </button>
         </div>
       </div>
@@ -198,145 +136,159 @@ const getImageUrl = (url: string | null | undefined) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-700 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl font-bold mb-6">
-            Welcome to Our Store
-          </h1>
-          <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">
-            Discover amazing products from top brands and categories. Quality guaranteed with fast delivery.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/products"
-              className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-lg"
-            >
-              Shop Now
-            </Link>
-            <Link
-              to="/products?sort=newest"
-              className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors text-lg"
-            >
-              New Arrivals
-            </Link>
-          </div>
-        </div>
-      </section>
-{/* Categories Section */}
-{categories.length > 0 && (
-  <section className="py-16 bg-white">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Shop by Category</h2>
-        <p className="text-gray-600 text-lg">Browse products by your favorite categories</p>
-      </div>
-      
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-        {categories.slice(0, 12).map(category => (
-          <Link
-            key={category._id}
-            to={`/products/category/${category.slug}`}
-            className="bg-gray-50 rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 group border border-gray-200 hover:border-blue-300"
-          >
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-50 transition-colors shadow-sm">
-              {category.image?.url ? (
-                <img 
-                  src={getImageUrl(category.image.url)} // Use category.image.url
-                  alt={category.image.altText || category.name}
-                  className="w-8 h-8 object-contain"
-                  onError={(e) => {
-                    console.error('Failed to load category image:', category.image?.url);
-                    e.currentTarget.src = 'https://placehold.co/80x80?text=📦';
-                  }}
-                />
-              ) : (
-                <span className="text-2xl text-gray-400">📦</span>
-              )}
-            </div>
-            <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-              {category.name}
-            </h3>
-          </Link>
-        ))}
-      </div>
-      
-      {categories.length > 12 && (
-        <div className="text-center mt-8">
-          <Link 
-            to="/products" 
-            className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-          >
-            View All Categories
-          </Link>
-        </div>
-      )}
-    </div>
-  </section>
-)}
+    <div className="min-h-screen bg-white text-gray-900">
 
-      {/* Brands Section */}
+
+
+      {/* CATEGORIES SECTION — unchanged */}
+      {categories.length > 0 && (
+<section className="py-12">
+  <div className="max-w-8xl mx-auto px-4 lg:px-12">
+
+    <SectionHeader
+      title="Curated Categories"
+      subtitle="Explore our meticulously organized collection designed for efficiency and style."
+    />
+
+    <div
+      className="
+        grid grid-cols-2 
+        md:grid-cols-3 
+        lg:grid-cols-6 
+        gap-x-4 gap-y-8 
+        items-center 
+        justify-items-center
+      "
+    >
+      {categories.slice(0, 12).map((cat, idx) => (
+        <Link
+          key={cat._id}
+          to={`/products/category/${cat.slug}`}
+          className="
+            group 
+            flex flex-col 
+            items-center 
+            justify-center 
+            transition-all 
+            duration-300
+            opacity-80 
+            hover:opacity-100 
+            hover:scale-105
+          "
+          style={{ transitionDelay: `${idx * 40}ms` }}
+        >
+          {/* Larger icon without any box */}
+          <FadeImage
+            src={getImageUrl(cat.image)}
+            alt={cat.name}
+            className="
+              w-24 h-24 
+              object-contain 
+              grayscale 
+              group-hover:grayscale-0 
+              transition-all 
+              duration-300
+            "
+            fallback={<BoxIcon />}
+          />
+
+          {/* More balanced spacing */}
+          <h3
+            className="
+              mt-2 
+              text-sm 
+              font-semibold 
+              text-gray-900 
+              group-hover:text-blue-600 
+              transition-colors
+              text-center
+            "
+          >
+            {cat.name}
+          </h3>
+        </Link>
+      ))}
+    </div>
+
+  </div>
+</section>
+
+      )}
+
+      {/* ============================== */}
+      {/*       UPDATED BRANDS SECTION   */}
+      {/* ============================== */}
+
       {brands.length > 0 && (
-        <section className="py-16 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">Popular Brands</h2>
-              <p className="text-gray-600 text-lg">Shop from your favorite trusted brands</p>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-              {brands.slice(0, 12).map(brand => (
+        <section className="py-24 bg-white border-t border-gray-100">
+          <div className="max-w-8xl mx-auto px-6 lg:px-12">
+
+            <SectionHeader
+              title="Shop by Brands"
+              subtitle="We collaborate with the world’s most innovative engineering teams."
+            />
+
+            {/* Pure logo strip – NO background boxes */}
+            <div className="
+              grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6
+              gap-x-8 gap-y-12
+              items-center justify-items-center
+            ">
+              {brands.slice(0, 12).map((brand, idx) => (
                 <Link
                   key={brand._id}
                   to={`/products/brand/${brand.slug}`}
-                  className="bg-gray-50 rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300 group border border-gray-200 hover:border-blue-300"
+                  className="
+                    group 
+                    flex items-center justify-center 
+                    w-full 
+                    opacity-90 
+                    hover:opacity-100 
+                    hover:grayscale-0 
+                    hover:scale-105 
+                    transition-all 
+                    duration-300
+                  "
+                  style={{ transitionDelay: `${idx * 40}ms` }}
                 >
-                  <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-50 transition-colors p-2 shadow-sm">
-                    {brand.logo?.url ? (
-                      <img 
-                        src={getImageUrl(brand.logo.url)} 
-                        alt={brand.logo.altText || brand.name}
-                        className="max-w-full max-h-full object-contain"
-                        onError={(e) => {
-                          e.currentTarget.src = 'https://placehold.co/80x80?text=Brand';
-                        }}
-                      />
-                    ) : (
-                      <div className="text-2xl text-gray-400">🏢</div>
-                    )}
-                  </div>
-                  <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                    {brand.name}
-                  </h3>
+                  <FadeImage
+                    src={getImageUrl(brand.logo)}
+                    alt={brand.name}
+                    className="max-w-[120px] max-h-10 object-contain"
+                    fallback={<BuildingIcon />}
+                  />
                 </Link>
               ))}
             </div>
+
           </div>
         </section>
       )}
 
-      {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-purple-700 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold mb-4">Ready to Explore More?</h2>
-          <p className="text-xl mb-8 opacity-90">
-            Discover our complete collection with thousands of products across all categories
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/products"
-              className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-lg"
-            >
-              Browse All Products
-            </Link>
-            <Link
-              to="/products?inStock=true"
-              className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors text-lg"
-            >
-              In Stock Items
-            </Link>
-          </div>
+      {/* FOOTER CTA — unchanged */}
+      <section className="py-20 bg-black text-white text-center">
+        <h2 className="text-3xl font-bold mb-4">Ready to upgrade your workflow?</h2>
+        <p className="text-gray-400 mb-8">Join thousands of satisfied customers.</p>
+        <Link to="/products" className="bg-white text-black px-10 py-4 rounded-full font-bold hover:bg-gray-200">
+          Browse Catalog
+        </Link>
+      </section>
+      {/* HERO SECTION — unchanged */}
+      <section className="relative pt-8 pb-8 text-center">
+        <h1 className="text-6xl font-bold tracking-tight mb-6">
+          Define Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500">Tech Lifestyle.</span>
+        </h1>
+        <p className="text-gray-500 text-lg max-w-2xl mx-auto mb-10">
+          Premium electronics curated for the modern professional.
+        </p>
+
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <Link to="/products" className="group flex items-center justify-center bg-black text-white px-8 py-4 rounded-full text-lg font-medium hover:scale-105 transition transform">
+            Start Shopping <ArrowRightIcon />
+          </Link>
+          <Link to="/products?sort=newest" className="border border-gray-300 px-8 py-4 rounded-full hover:bg-gray-50 text-lg">
+            View New Arrivals
+          </Link>
         </div>
       </section>
     </div>

@@ -3,6 +3,7 @@ import { ProductData, Variant } from './productTypes';
 import VariantSelectors from './VariantSelectors';
 import AddToCartButton from './AddToCartButton';
 import AddToWishlistButton from './AddToWishlistButton';
+import { motion } from 'framer-motion';
 
 interface ProductInfoProps {
   productData: ProductData;
@@ -17,61 +18,59 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
   selectedAttributes,
   onAttributeChange
 }) => {
-  // 🆕 UPDATED: Get current price and stock info using virtual fields
+  // Get current price info
   const getCurrentPriceInfo = () => {
     if (selectedVariant) {
       return {
-        // 🆕 Use variant MRP if available, otherwise use variant price as fallback
-        price: selectedVariant.mrp || selectedVariant.price,
-        sellingPrice: selectedVariant.price, // 🆕 What customer actually pays
+        mrp: selectedVariant.mrp || selectedVariant.price,
+        offerPrice: selectedVariant.offerPrice || selectedVariant.price,
+        price: selectedVariant.price,
         stockQuantity: selectedVariant.stockQuantity,
-        hasDiscount: selectedVariant.mrp && selectedVariant.mrp > selectedVariant.price
+        hasDiscount: selectedVariant.mrp && selectedVariant.mrp > (selectedVariant.offerPrice || selectedVariant.price)
       };
     }
     
-    // 🆕 Use virtual fields for base product
     return {
-      price: productData.displayMrp || productData.basePrice || 0,
-      sellingPrice: productData.sellingPrice || productData.basePrice || 0,
+      mrp: productData.mrp || productData.basePrice || 0,
+      offerPrice: productData.basePrice || 0,
+      price: productData.basePrice || 0,
       stockQuantity: productData.stockQuantity || 0,
-      hasDiscount: productData.calculDiscount && productData.calculatedDiscount > 0
+      hasDiscount: productData.mrp && productData.mrp > productData.basePrice
     };
   };
 
   const currentPriceInfo = getCurrentPriceInfo();
 
-  // 🆕 Calculate tax based on selling price
-  const calculateTax = (price: number) => {
-    const taxRate = productData.taxRate || 0;
-    return (price * taxRate) / 100;
+  // Calculate savings
+  const calculateSavings = () => {
+    const mrp = currentPriceInfo.mrp;
+    const offerPrice = currentPriceInfo.offerPrice;
+    if (mrp <= 0 || offerPrice >= mrp) return 0;
+    return Math.round(((mrp - offerPrice) / mrp) * 100);
   };
 
-  // Check if we have a valid variant selection
-  const hasValidVariantSelection = () => {
-    if (!productData.variantConfiguration?.hasVariants) {
-      return true; // No variants required
-    }
-    
-    if (productData.variants.length === 0) {
-      return true; // No variants available
-    }
-    
-    return selectedVariant !== null; // Variant is selected
-  };
+  const savings = calculateSavings();
+  const canAddToCart = currentPriceInfo.stockQuantity > 0;
 
-  // Get the variant ID for cart
+  // Get variant ID for cart
   const getVariantId = () => {
     return selectedVariant?._id;
   };
 
-  // Check if product can be added to cart
-  const canAddToCart = currentPriceInfo.stockQuantity > 0 && hasValidVariantSelection();
+  // Get display name
+  const getDisplayName = () => {
+    if (selectedVariant?.name) {
+      return selectedVariant.name;
+    }
+    return productData.name;
+  };
 
+  // Get variant data for cart
   const getVariantData = () => {
     if (!selectedVariant) return null;
 
     return {
-      variantId: selectedVariant._id, // Use _id as variantId
+      variantId: selectedVariant._id,
       name: selectedVariant.name,
       price: selectedVariant.price,
       mrp: selectedVariant.mrp,
@@ -81,136 +80,89 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
     };
   };
 
-  // Get display name - show variant name if selected, otherwise product name
-  const getDisplayName = () => {
-    if (selectedVariant?.name) {
-      return selectedVariant.name;
-    }
-    return productData.name;
-  };
-
-  // Get display SKU - show variant SKU if selected, otherwise product SKU
-  const getDisplaySku = () => {
-    if (selectedVariant?.sku) {
-      return selectedVariant.sku;
-    }
-    return productData.sku;
-  };
-
-  // 🆕 Get discount percentage
-  const getDiscountPercentage = () => {
-    if (selectedVariant && selectedVariant.mrp && selectedVariant.mrp > selectedVariant.price) {
-      return Math.round(((selectedVariant.mrp - selectedVariant.price) / selectedVariant.mrp) * 100);
-    }
-    return productData.calculatedDiscount || 0;
-  };
-
-  // 🆕 Show price range for products with variants
-  const renderPriceRange = () => {
-    if (productData.priceRange?.hasRange && !selectedVariant) {
-      return (
-        <div className="text-lg text-gray-900 font-semibold">
-          ${productData.priceRange.min.toFixed(2)} - ${productData.priceRange.max.toFixed(2)}
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Product Title - Shows variant name when selected */}
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      {/* Product Title */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1 leading-tight">
           {getDisplayName()}
-          {selectedVariant && selectedVariant.name !== productData.name && (
-            <span className="text-lg font-normal text-gray-600 ml-2">
-              ({productData.name})
-            </span>
-          )}
         </h1>
-        <div className="flex items-center space-x-4 text-sm text-gray-600">
-          {productData.brand && (
+        
+        {/* Brand and Rating */}
+        <div className="flex items-center space-x-4 mb-2">
+          <span className="text-sm text-gray-600">
+            Brand: <span className="font-medium text-gray-900">{productData.brand?.name || 'HP'}</span>
+          </span>
+          <span className="text-gray-300">•</span>
+          
+          {/* Rating */}
+          <div className="flex items-center">
+            <div className="flex items-center mr-1">
+              {[...Array(5)].map((_, i) => (
+                <svg
+                  key={i}
+                  className={`w-4 h-4 ${i < Math.floor(productData.averageRating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              ))}
+            </div>
+            <a 
+              href="#reviews" 
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-200"
+            >
+              {productData.totalReviews > 0 
+                ? `${productData.totalReviews} rating${productData.totalReviews !== 1 ? 's' : ''}`
+                : 'No ratings yet'}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Price Block - Amazon Style */}
+      <div className="space-y-3">
+        {/* Offer Price */}
+        <div className="flex items-baseline">
+          <span className="text-3xl font-bold text-gray-900">
+            ₹{currentPriceInfo.offerPrice.toLocaleString('en-IN')}
+          </span>
+          
+          {/* MRP with Strikethrough */}
+          {currentPriceInfo.hasDiscount && (
             <>
-              <span>Brand: {productData.brand.name}</span>
-              <span>•</span>
-            </>
-          )}
-          <span>Condition: {productData.condition}</span>
-          {productData.label && (
-            <>
-              <span>•</span>
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-                {productData.label}
+              <span className="ml-3 text-lg text-gray-500 line-through">
+                ₹{currentPriceInfo.mrp.toLocaleString('en-IN')}
+              </span>
+              <span className="ml-3 px-2 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded">
+                Save {savings}%
               </span>
             </>
           )}
-          <span>•</span>
-          <span>SKU: {getDisplaySku()}</span>
-          {productData.hsn && (
-            <>
-              <span>•</span>
-              <span>HSN: {productData.hsn}</span>
-            </>
-          )}
         </div>
-      </div>
-
-      {/* Rating */}
-      <div className="flex items-center space-x-2">
-        <div className="flex text-yellow-400">
-          {'★'.repeat(Math.floor(productData.averageRating || 0)).padEnd(5, '☆')}
-        </div>
-        <span className="text-sm text-gray-600">
-          {productData.totalReviews === 0 
-            ? 'No reviews yet' 
-            : `${productData.averageRating || 0} out of 5 (${productData.totalReviews} reviews)`
-          }
-        </span>
-      </div>
-
-      {/* 🆕 UPDATED: Price Display with New Virtual Fields */}
-      <div className="space-y-2">
-        {/* Price Range for Variants */}
-        {renderPriceRange()}
         
-        {/* Single Price Display */}
-        {(!productData.priceRange?.hasRange || selectedVariant) && (
-          <div className="flex items-center space-x-3">
-            {/* 🆕 Show selling price (what customer pays) */}
-            <span className="text-3xl font-bold text-gray-900">
-              ₹{currentPriceInfo.sellingPrice.toFixed(2)}
-            </span>
-            
-            {/* 🆕 Show MRP with strikethrough if there's a discount */}
-            {currentPriceInfo.hasDiscount && currentPriceInfo.price > currentPriceInfo.sellingPrice && (
-              <>
-                <span className="text-xl text-gray-500 line-through">
-                  ₹{currentPriceInfo.price.toFixed(2)}
-                </span>
-                <span className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1 rounded">
-                  Save ₹{(currentPriceInfo.price - currentPriceInfo.sellingPrice).toFixed(2)}
-                </span>
-              </>
-            )}
-          </div>
+        {/* Savings Message */}
+        {savings > 0 && (
+          <p className="text-green-600 text-sm font-medium">
+            You save ₹{(currentPriceInfo.mrp - currentPriceInfo.offerPrice).toLocaleString('en-IN')} ({savings}% off)
+          </p>
         )}
         
-        {/* 🆕 Discount Percentage */}
-        {getDiscountPercentage() > 0 && (
-          <div className="text-sm text-green-600 font-medium">
-            {getDiscountPercentage()}% OFF
-          </div>
-        )}
-        
-        <div className="text-sm text-gray-600">
+        {/* Tax Info */}
+        <div className="text-gray-500 text-sm">
           Inclusive of all taxes
-          {productData.taxRate && productData.taxRate > 0 && (
-            <span> (incl. ${calculateTax(currentPriceInfo.sellingPrice).toFixed(2)} tax)</span>
-          )}
+          {productData.taxRate ? ` • GST: ${productData.taxRate}%` : ''}
         </div>
+        
       </div>
 
+      {/* Variant Selection */}
       <VariantSelectors
         productData={productData}
         selectedAttributes={selectedAttributes}
@@ -218,131 +170,96 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         onAttributeChange={onAttributeChange}
       />
 
-      {/* Stock Status */}
-      <div className="flex items-center space-x-2">
-        {currentPriceInfo.stockQuantity > 0 ? (
-          <>
-            <span className="text-green-600 text-sm font-medium">In Stock</span>
-            <span className="text-gray-500 text-sm">
-              ({currentPriceInfo.stockQuantity} available)
-            </span>
-          </>
-        ) : (
-          <span className="text-red-600 text-sm font-medium">Out of Stock</span>
-        )}
-        
-        {/* 🆕 Show total variants stock if product has variants */}
-        {productData.hasActiveVariants && productData.totalStock && (
-          <span className="text-blue-600 text-sm">
-            • {productData.totalStock} total across all variants
-          </span>
-        )}
-      </div>
+      {/* Stock & Delivery Info */}
+      <div className="space-y-4">
 
-      {/* Variant Selection Warning */}
-      {productData.variantConfiguration?.hasVariants && !selectedVariant && productData.variants.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <p className="text-yellow-800 text-sm">
-            ⚠️ Please select a variant before adding to cart
+        {/* Action Buttons */}
+      <div className="space-y-4">
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Add to Cart Button - Full width on mobile, 2/3 on desktop */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 font-bold py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canAddToCart}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Add to Cart
+          </motion.button>
+          
+          {/* Wishlist Button - Full width on mobile, 1/3 on desktop */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="sm:w-1/3 py-3.5 border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center justify-center gap-2"
+          >
+            <AddToWishlistButton
+              productId={productData._id}
+              variant={getVariantData()}
+              productType="product"
+              className="!w-5 !h-5"
+              size="sm"
+              showTooltip={false}
+            />
+            Wishlist
+          </motion.button>
+        </div>
+
+        {/* Secure Transaction */}
+        <div className="text-center pt-2">
+          <p className="text-xs text-gray-500 flex items-center justify-center gap-1">
+            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Secure transaction with easy returns • 30-day return policy
           </p>
         </div>
-      )}
-      <div className="flex space-x-4">
-<AddToCartButton
-  productId={productData._id}
-  product={productData} // ✅ ADD THIS CRITICAL PROP
-  variant={getVariantData()}
-  quantity={1}
-  className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
-    !canAddToCart
-      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-      : 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
-  }`}
-  disabled={!canAddToCart}
->
-  Add to Cart
-</AddToCartButton>
-        
- <button
-    onClick={() => {
-      // Create a click handler that uses your AddToWishlistButton logic
-      // Or you can wrap it in a container
-    }}
-    className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center ${
-      !canAddToCart
-        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-        : 'bg-orange-500 hover:bg-orange-600 text-white'
-    }`}
-    disabled={!canAddToCart}
-  >
-    <AddToWishlistButton
-      productId={productData._id}
-      variant={getVariantData()}
-      productType="product"
-      className="!w-5 !h-5 mr-2"
-      size="sm"
-      showTooltip={false}
-    />
-    Wishlist
-  </button>
+      </div>
+        {/* Warranty Info */}
+        <div className="flex items-center text-sm text-gray-600">
+          <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          <span>Warranty: {productData.warranty || '1 Year Manufacturer Warranty'}</span>
+        </div>
       </div>
 
-      {/* Selected Variant Info */}
-      {selectedVariant && selectedVariant.identifyingAttributes && selectedVariant.identifyingAttributes.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-blue-800 text-sm">
-            ✅ Selected: 
-            {selectedVariant.identifyingAttributes.map(attr => (
-              <span key={attr.key} className="ml-2">
-                {attr.label}: {attr.displayValue || attr.value}
-                {attr.hexCode && (
-                  <div 
-                    className="inline-block w-3 h-3 rounded-full border border-gray-300 ml-1 align-middle"
-                    style={{ backgroundColor: attr.hexCode }}
-                  />
-                )}
-              </span>
-            ))}
-          </p>
-        </div>
-      )}
-
-      {/* Delivery Info */}
+      {/* Quick Specifications */}
       <div className="border-t border-gray-200 pt-4">
-        <div className="text-sm text-gray-600 space-y-1">
-          <div className="flex justify-between">
-            <span>Delivery</span>
-            <span className="font-medium">2-4 business days</span>
+        <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wide">
+          Quick Specifications
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-gray-600">Model</p>
+            <p className="font-medium text-gray-900">{productData.name}</p>
           </div>
-          <div className="flex justify-between">
-            <span>Returns</span>
-            <span className="font-medium">30 days return policy</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Warranty</span>
-            <span className="font-medium">{productData.warranty || '1 year manufacturer warranty'}</span>
-          </div>
+          {selectedVariant?.identifyingAttributes?.[0] && (
+            <div>
+              <p className="text-sm text-gray-600">
+                {selectedVariant.identifyingAttributes[0].label || 'RAM'}
+              </p>
+              <p className="font-medium text-gray-900">
+                {selectedVariant.identifyingAttributes[0].displayValue || selectedVariant.identifyingAttributes[0].value}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Description */}
       {productData.description && (
         <div className="border-t border-gray-200 pt-4">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Description</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-2 uppercase tracking-wide">
+            About This Item
+          </h3>
           <p className="text-gray-600 text-sm leading-relaxed">{productData.description}</p>
         </div>
       )}
-
-      {/* 🆕 HSN Code Display */}
-      {productData.hsn && (
-        <div className="border-t border-gray-200 pt-4">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Tax Information</h3>
-          <p className="text-gray-600 text-sm">
-            HSN Code: <span className="font-medium">{productData.hsn}</span>
-          </p>
-        </div>
-      )}
-    </div>
+    </motion.div>
   );
 };
 

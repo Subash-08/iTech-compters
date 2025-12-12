@@ -131,13 +131,10 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
   if (!loading && sections.length === 0 && !error) {
     return (
       <div className={`flex flex-col items-center justify-center py-8 ${className}`}>
-        <div className="text-center max-w-sm">
+        {/* <div className="text-center max-w-sm">
           <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
             <Package className="w-5 h-5 text-gray-400" />
           </div>
-
-          <h3 className="text-base font-semibold text-gray-900 mb-1">No Sections</h3>
-          <p className="text-gray-600 text-xs mb-3">No showcase sections available.</p>
 
           <button
             onClick={handleRefresh}
@@ -146,27 +143,14 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
             <RefreshCw className="w-3 h-3" />
             Refresh
           </button>
-        </div>
+        </div> */}
       </div>
     );
   }
 
   return (
     <div className={`relative ${className}`}>
-
-      {/* Refresh Button */}
-      {!propSections && (
-        <div className="flex justify-end mb-2">
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-gray-600 hover:text-gray-800 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 transition-colors"
-          >
-            <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
-      )}
+ 
 
       {/* Error Banner (Compact) */}
       {error && sections.length > 0 && (
