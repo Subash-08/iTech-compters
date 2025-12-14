@@ -1,6 +1,20 @@
-// Enhanced OrderSummary component with debugging
 import React, { useEffect } from 'react';
 import { CheckoutCoupon } from '../../redux/types/checkout';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ShoppingBag,
+  Truck,
+  Receipt,
+  Tag,
+  ShieldCheck,
+  Check,
+  AlertCircle,
+  IndianRupee,
+  Sparkles,
+  Info,
+  CreditCard,
+  X
+} from 'lucide-react';
 
 interface OrderSummaryProps {
   subtotal: number;
@@ -13,7 +27,7 @@ interface OrderSummaryProps {
   currency: string;
   onApplyCoupon?: (code: string) => void;
   onRemoveCoupon?: () => void;
-  debugMode?: boolean; // Add debug mode prop
+  debugMode?: boolean;
 }
 
 const OrderSummary: React.FC<OrderSummaryProps> = ({
@@ -27,160 +41,219 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   currency,
   onApplyCoupon,
   onRemoveCoupon,
-  debugMode = true // Enable debug by default
+  debugMode = false
 }) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'INR'
+      currency: 'INR',
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  // Debug effect to log pricing details
+  // Debug effect
   useEffect(() => {
     if (debugMode) {
       console.group('💰 ORDER SUMMARY DEBUG');
-      console.log('📊 Pricing Breakdown:', {
-        subtotal,
-        shipping,
-        tax,
-        discount,
-        total,
-        itemCount
-      });
-      
-      // Tax calculation verification
-      const expectedTax = Math.round(subtotal * 0.18);
-      const taxCalculationCorrect = Math.abs(tax - expectedTax) <= 1; // Allow 1 rupee difference for rounding
-      
-console.log('🧾 Tax Calculation:', {
-  'Subtotal': subtotal,
-  'Actual Tax from Backend': tax,
-  'Actual Tax Rate': ((tax / subtotal) * 100).toFixed(2) + '%'
-});
-
-      // Total calculation verification
-      const expectedTotal = subtotal + shipping + tax - discount;
-      const totalCalculationCorrect = Math.abs(total - expectedTotal) <= 1;
-      
-      console.log('🧮 Total Calculation Check:', {
-        'Subtotal': subtotal,
-        '+ Shipping': shipping,
-        '+ Tax': tax,
-        '- Discount': discount,
-        'Expected Total': expectedTotal,
-        'Actual Total': total,
-        'Total Calculation': totalCalculationCorrect ? '✅ Correct' : '❌ Incorrect',
-        'Difference': total - expectedTotal
-      });
-
+      console.log('📊 Pricing Breakdown:', { subtotal, shipping, tax, discount, total, itemCount });
       console.groupEnd();
     }
   }, [subtotal, shipping, tax, discount, total, itemCount, debugMode]);
 
+  const freeShippingThreshold = 1000;
+  const amountForFreeShipping = freeShippingThreshold - subtotal;
+  const qualifiesForFreeShipping = subtotal >= freeShippingThreshold;
+
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
-      <h3 className="text-xl font-bold mb-4">Order Summary</h3>
-      
-      {/* Debug Info - Only show in debug mode */}
-      {debugMode && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex justify-between items-center mb-2">
-            <h4 className="text-sm font-semibold text-blue-800">🔍 Debug Info</h4>
-            <span className={`text-xs px-2 py-1 rounded ${
-              Math.abs(total - (subtotal + shipping + tax - discount)) <= 1 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-red-100 text-red-800'
-            }`}>
-              {Math.abs(total - (subtotal + shipping + tax - discount)) <= 1 ? '✅ Valid' : '❌ Invalid'}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sticky top-24 overflow-hidden"
+    >
+      {/* Header */}
+      <div className="p-6 border-b border-slate-50 flex items-center gap-3 bg-slate-50/30 backdrop-blur-sm">
+        <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-900">
+          <Receipt className="w-5 h-5" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900 tracking-tight">Order Summary</h3>
+          <p className="text-xs font-medium text-slate-500">{itemCount} items in cart</p>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+        {/* Debug Panel */}
+        <AnimatePresence>
+          {debugMode && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="p-3 bg-slate-900 rounded-lg text-[10px] font-mono text-slate-300 mb-4 overflow-hidden"
+            >
+              <div className="flex items-center gap-2 mb-2 text-slate-100 font-bold border-b border-slate-700 pb-1">
+                <Info className="w-3 h-3" /> DEBUG INFO
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <span>Subtotal:</span> <span className="text-right">{subtotal}</span>
+                <span>Tax:</span> <span className="text-right">{tax}</span>
+                <span>Total:</span> <span className="text-right text-emerald-400">{total}</span>
+                <span className="col-span-2 pt-1 mt-1 border-t border-slate-800 flex justify-between">
+                    <span>Calc Check:</span>
+                    <span className={Math.abs(total - (subtotal + shipping + tax - discount)) <= 1 ? "text-emerald-400" : "text-rose-400"}>
+                        {Math.abs(total - (subtotal + shipping + tax - discount)) <= 1 ? 'PASS' : 'FAIL'}
+                    </span>
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Price Breakdown */}
+        <div className="space-y-3.5">
+          {/* Subtotal */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-500 flex items-center gap-2">
+              <ShoppingBag className="w-4 h-4 text-slate-400" />
+              Subtotal
+            </span>
+            <span className="font-semibold text-slate-700">{formatCurrency(subtotal)}</span>
+          </div>
+
+          {/* Shipping */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-500 flex items-center gap-2">
+              <Truck className="w-4 h-4 text-slate-400" />
+              Shipping
+            </span>
+            <span className={`font-semibold ${shipping === 0 ? 'text-emerald-600' : 'text-slate-700'}`}>
+              {shipping === 0 ? 'FREE' : formatCurrency(shipping)}
             </span>
           </div>
-          <div className="text-xs text-blue-700 space-y-1">
-            <div>Subtotal: ₹{subtotal.toFixed(2)}</div>
-            <div>Shipping: ₹{shipping.toFixed(2)}</div>
-            <div>Tax: ₹{tax.toFixed(2)}</div>
-            <div>Discount: -₹{discount.toFixed(2)}</div>
-            <div className="font-semibold">Calculated: ₹{(subtotal + shipping + tax - discount).toFixed(2)}</div>
+
+          {/* Tax */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-500 flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-slate-400" />
+              Tax (GST)
+            </span>
+            <span className="font-semibold text-slate-700">{formatCurrency(tax)}</span>
           </div>
-        </div>
-      )}
-      
-      {/* Coupon Section */}
-      {onApplyCoupon && onRemoveCoupon && (
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-          {coupon ? (
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="font-medium text-green-800 text-sm">
-                  Coupon Applied: {coupon.code}
-                </p>
-                <p className="text-xs text-green-600">
-                  {coupon.discountType === 'percentage' 
-                    ? `${coupon.discountAmount}% off` 
-                    : `${formatCurrency(coupon.discountAmount)} off`
-                  }
-                </p>
-              </div>
-              <button
-                onClick={onRemoveCoupon}
-                className="text-red-600 hover:text-red-800 text-xs font-medium px-2 py-1 border border-red-200 rounded"
+
+          {/* Discount */}
+          <AnimatePresence>
+            {coupon && discount > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="flex items-center justify-between text-sm pt-1"
               >
-                Remove
-              </button>
+                <span className="text-emerald-600 font-medium flex items-center gap-2">
+                  <Tag className="w-4 h-4" />
+                  Discount <span className="text-xs bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 uppercase">{coupon.code}</span>
+                </span>
+                <span className="font-bold text-emerald-600">-{formatCurrency(discount)}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-slate-100"></div>
+
+        {/* Total */}
+        <div className="flex items-end justify-between">
+          <div>
+            <span className="text-sm font-medium text-slate-400">Total to Pay</span>
+            <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
+                <ShieldCheck className="w-3 h-3" /> Secure Payment
             </div>
-          ) : (
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-2">Have a coupon code?</p>
-              <button 
-                onClick={() => {/* Trigger coupon modal */}}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                Apply Coupon
-              </button>
+          </div>
+          <div className="text-right">
+             <span className="text-3xl font-bold text-slate-900 tracking-tight">{formatCurrency(total)}</span>
+             <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-1">Inclusive of all taxes</p>
+          </div>
+        </div>
+
+        {/* Free Shipping Progress */}
+        {!qualifiesForFreeShipping && amountForFreeShipping > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-100 relative overflow-hidden"
+          >
+            <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1 bg-white rounded-full shadow-sm">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    </div>
+                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wide">Unlock Free Shipping</span>
+                </div>
+                
+                <div className="h-2 w-full bg-white/60 rounded-full overflow-hidden mb-2">
+                    <motion.div 
+                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(subtotal / freeShippingThreshold) * 100}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                    />
+                </div>
+                
+                <p className="text-xs font-medium text-amber-700 flex justify-between">
+                    <span>Add <span className="font-bold">{formatCurrency(amountForFreeShipping)}</span> more</span>
+                    <span className="opacity-75">{Math.round((subtotal / freeShippingThreshold) * 100)}%</span>
+                </p>
             </div>
-          )}
-        </div>
-      )}
-      
-      <div className="space-y-3">
-        <div className="flex justify-between text-sm">
-          <span>Items ({itemCount})</span>
-          <span>{formatCurrency(subtotal)}</span>
-        </div>
-        
-        <div className="flex justify-between text-sm">
-          <span>Shipping</span>
-          <span className={shipping === 0 ? 'text-green-600' : ''}>
-            {shipping === 0 ? 'FREE' : formatCurrency(shipping)}
-          </span>
-        </div>
-        
-        <div className="flex justify-between text-sm">
-          <span>Tax (GST)</span>
-          <span>{formatCurrency(tax)}</span>
-        </div>
-        
-        {coupon && discount > 0 && (
-          <div className="flex justify-between text-sm text-green-600">
-            <span>Discount ({coupon.code})</span>
-            <span>-{formatCurrency(discount)}</span>
-          </div>
+            
+            {/* Background Decoration */}
+            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-orange-200 to-transparent opacity-20 rounded-bl-full"></div>
+          </motion.div>
         )}
-        
-        <hr className="my-3" />
-        
-        <div className="flex justify-between text-lg font-bold">
-          <span>Total</span>
-          <span>{formatCurrency(total)}</span>
-        </div>
-        
-        {subtotal < 1000 && (
-          <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded-lg mt-3">
-            Add {formatCurrency(1000 - subtotal)} more for FREE shipping!
-          </div>
-        )}
+
+        {/* Coupon Applied Section (Moved inside card for cohesion) */}
+        <AnimatePresence>
+            {coupon ? (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex items-center justify-between p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl group"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="p-1.5 bg-white rounded-lg shadow-sm text-emerald-600 border border-emerald-50">
+                            <Check className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">{coupon.code}</p>
+                            <p className="text-[10px] font-medium text-emerald-600">Coupon Applied</p>
+                        </div>
+                    </div>
+                    {onRemoveCoupon && (
+                        <button 
+                            onClick={onRemoveCoupon}
+                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-white rounded-lg transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
+                </motion.div>
+            ) : (
+                onApplyCoupon && (
+                    <button
+                        onClick={() => onApplyCoupon('')}
+                        className="w-full py-3 flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl hover:bg-white hover:border-slate-300 hover:shadow-sm hover:text-slate-900 transition-all duration-200 border-dashed"
+                    >
+                        <Tag className="w-4 h-4" />
+                        Have a Promo Code?
+                    </button>
+                )
+            )}
+        </AnimatePresence>
+
       </div>
-    </div>
+    </motion.div>
   );
 };
 

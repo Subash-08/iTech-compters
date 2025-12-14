@@ -399,7 +399,6 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         customerName: pcQuote.customer.name,
         customerEmail: pcQuote.customer.email,
         customerPhone: pcQuote.customer.phone || '',
-        totalEstimated: pcQuote.totalEstimated,
         status: pcQuote.status,
         componentCount: pcQuote.components.filter(c => c.selected).length,
         components: pcQuote.components
@@ -423,6 +422,38 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
     }).catch(err => {
         console.error('Unexpected error triggering N8N:', err);
     });
+
+    // Trigger N8N workflow - Quote Confirmation (User-facing)
+    N8NService.run("pcQuoteConfirmation", {
+        event: "pcQuoteConfirmation",
+        quoteId: pcQuote._id.toString(),
+        customerName: pcQuote.customer.name,
+        customerEmail: pcQuote.customer.email,
+        customerPhone: pcQuote.customer.phone || '',
+        status: pcQuote.status,
+        componentCount: pcQuote.components.filter(c => c.selected).length,
+        components: pcQuote.components
+            .filter(c => c.selected)
+            .map(c => ({
+                category: c.category,
+                productName: c.productName,
+                productPrice: c.productPrice
+            })),
+        createdAt: pcQuote.createdAt.toISOString(),
+        confirmedAt: new Date().toISOString(),
+        source: pcQuote.source
+    }).then(result => {
+        if (!result.success && !result.skipped) {
+            console.error('N8N pcQuoteConfirmation workflow failed:', result.error);
+        } else if (result.skipped) {
+            console.warn('N8N pcQuoteConfirmation skipped:', result.reason);
+        } else {
+            console.log('N8N pcQuoteConfirmation triggered successfully');
+        }
+    }).catch(err => {
+        console.error('Unexpected error triggering N8N:', err);
+    });
+
 
     // Also trigger requirements confirmation if this is from the form
     if (metadata.source === 'requirements_form' || req.body.requirementId) {

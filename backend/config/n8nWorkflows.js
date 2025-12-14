@@ -17,5 +17,6 @@ module.exports = {
     // INQUIRY/LEAD EVENTS WORKFLOW
     pcRequirementsSubmitted: { path: "/webhook/lead-events" },
     pcQuoteGenerated: { path: "/webhook/lead-events" },
+    pcQuoteConfirmation: { path: "/webhook/lead-events" },
     pcRequirementsConfirmation: { path: "/webhook/lead-events" }
 };

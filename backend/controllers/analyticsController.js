@@ -6,42 +6,69 @@ const Coupon = require('../models/couponModel');
 const PCQuote = require('../models/customPCQuote');
 const PreBuiltPC = require('../models/preBuiltPCModel');
 
-// Helper function to get date range
+// Helper function to get date range - FIXED VERSION
 const getDateRange = (period) => {
-    const now = new Date();
-    const startDate = new Date();
+    const endDate = new Date();  // Current time
+    const startDate = new Date(endDate); // Clone the date to avoid mutation bug
 
     switch (period) {
         case 'today':
             startDate.setHours(0, 0, 0, 0);
             break;
         case '7d':
-            startDate.setDate(now.getDate() - 7);
+            startDate.setDate(endDate.getDate() - 7);
             break;
         case '30d':
-            startDate.setDate(now.getDate() - 30);
+            startDate.setDate(endDate.getDate() - 30);
             break;
         case '90d':
-            startDate.setDate(now.getDate() - 90);
+            startDate.setDate(endDate.getDate() - 90);
             break;
         case 'lifetime':
-            startDate.setFullYear(2020); // Your start year
+            // For lifetime, use a very early date or handle specially
+            // Option 1: Very early date
+            startDate.setFullYear(1970, 0, 1); // Unix epoch
+            // Option 2: Your business start year (e.g., 2020)
+            // startDate.setFullYear(2020, 0, 1);
             break;
         default:
-            startDate.setDate(now.getDate() - 30); // Default to 30d
+            startDate.setDate(endDate.getDate() - 30);
     }
 
-    return { startDate, endDate: now };
+    return { startDate, endDate };
 };
 
-// @desc    Get enhanced quick stats with time period
+// @desc    Get enhanced quick stats with time period - FIXED VERSION
 // @route   GET /api/admin/analytics/quick-stats
 // @access  Private/Admin
 exports.getQuickStats = catchAsyncErrors(async (req, res, next) => {
     try {
-        const { period = '30d' } = req.query;
-        const { startDate, endDate } = getDateRange(period);
+        const { period = '30d', includeAllPayments = 'false' } = req.query;
 
+        // Build base match conditions
+        const dateRange = getDateRange(period);
+        const { startDate, endDate } = dateRange;
+
+        // For lifetime, we might want different behavior
+        // If period is 'lifetime' and you want ALL data (not just from 2020), 
+        // you could set startDate to null or handle specially
+        let dateMatchCondition = {};
+        if (period !== 'lifetime' || startDate.getFullYear() > 1970) {
+            // Only apply date filter if not lifetime OR if we have a valid start date
+            dateMatchCondition.createdAt = { $gte: startDate, $lte: endDate };
+        }
+
+        // Build payment match condition
+        let paymentMatchCondition = {};
+        if (includeAllPayments === 'false') {
+            paymentMatchCondition['payment.status'] = 'captured';
+        }
+
+        // Combine match conditions
+        const matchCondition = {
+            ...dateMatchCondition,
+            ...paymentMatchCondition
+        };
         const [
             revenueStats,
             orderStats,
@@ -53,10 +80,7 @@ exports.getQuickStats = catchAsyncErrors(async (req, res, next) => {
             // Revenue and orders
             Order.aggregate([
                 {
-                    $match: {
-                        createdAt: { $gte: startDate, $lte: endDate },
-                        'payment.status': 'captured'
-                    }
+                    $match: matchCondition
                 },
                 {
                     $group: {
@@ -67,12 +91,10 @@ exports.getQuickStats = catchAsyncErrors(async (req, res, next) => {
                     }
                 }
             ]),
-            // Orders by status
+            // Orders by status (for this period, all payment statuses)
             Order.aggregate([
                 {
-                    $match: {
-                        createdAt: { $gte: startDate, $lte: endDate }
-                    }
+                    $match: dateMatchCondition // Only date filter, no payment filter
                 },
                 {
                     $group: {
@@ -136,34 +158,70 @@ exports.getQuickStats = catchAsyncErrors(async (req, res, next) => {
 
         const revenueData = revenueStats[0] || { revenue: 0, orders: 0, averageOrderValue: 0 };
 
+        // Also get totals for comparison
+        const totalRevenueAllTime = await Order.aggregate([
+            {
+                $match: { 'payment.status': 'captured' }
+            },
+            {
+                $group: {
+                    _id: null,
+                    revenue: { $sum: '$pricing.total' },
+                    orders: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const totalOrdersAllTime = await Order.countDocuments({ 'payment.status': 'captured' });
+
         res.status(200).json({
             success: true,
             data: {
                 period,
+                includeAllPayments: includeAllPayments === 'true',
+                dateRange: {
+                    start: startDate.toISOString(),
+                    end: endDate.toISOString()
+                },
+                // Period-specific stats
                 revenue: revenueData.revenue,
                 orders: revenueData.orders,
                 averageOrderValue: revenueData.averageOrderValue,
                 pendingOrders: statusCounts['pending'] || 0,
                 deliveredOrders: statusCounts['delivered'] || 0,
                 cancelledOrders: statusCounts['cancelled'] || 0,
+                processingOrders: statusCounts['processing'] || 0,
+                shippedOrders: statusCounts['shipped'] || 0,
+                // User stats
                 totalUsers: userStats[0],
                 activeUsers: userStats[1],
                 newUsers: userStats[2],
                 verifiedUsers: userStats[3],
+                // Product stats
                 totalProducts: productStats[0],
                 lowStockItems: productStats[1],
+                // PC stats
                 totalQuotes: pcStats[0],
                 pendingQuotes: pcStats[1],
                 prebuiltPCsPublished: pcStats[2],
+                // Coupon stats
                 totalCoupons: couponStats[0],
-                activeCoupons: couponStats[1]
+                activeCoupons: couponStats[1],
+                // Debug info (optional - remove in production)
+                _debug: {
+                    matchConditionUsed: matchCondition,
+                    totalRevenueAllTime: totalRevenueAllTime[0]?.revenue || 0,
+                    totalOrdersAllTime,
+                    ordersByStatus: statusCounts
+                }
             }
         });
     } catch (error) {
-        console.error('Quick stats error:', error);
+        console.error('❌ Quick stats error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error fetching quick stats'
+            message: 'Error fetching quick stats',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

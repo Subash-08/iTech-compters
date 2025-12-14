@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GSTInfo } from '../../redux/types/checkout';
+import { Building2, FileText, Info } from 'lucide-react';
 
 interface GSTInfoFormProps {
   gstInfo: GSTInfo | null;
@@ -16,6 +17,7 @@ const GSTInfoForm: React.FC<GSTInfoFormProps> = ({ gstInfo, onSave, onCancel }) 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateGST = (gstNumber: string): boolean => {
+    // 2 digits, 5 letters, 4 digits, 1 letter, 1 alphanumeric, 'Z', 1 alphanumeric
     const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
     return gstRegex.test(gstNumber);
   };
@@ -26,11 +28,11 @@ const GSTInfoForm: React.FC<GSTInfoFormProps> = ({ gstInfo, onSave, onCancel }) 
     const newErrors: Record<string, string> = {};
     
     if (formData.gstNumber && !validateGST(formData.gstNumber)) {
-      newErrors.gstNumber = 'Invalid GST number format';
+      newErrors.gstNumber = 'Invalid GST format (e.g. 07AABCU9603R1ZM)';
     }
     
     if (formData.gstNumber && !formData.businessName) {
-      newErrors.businessName = 'Business name is required when providing GST number';
+      newErrors.businessName = 'Business name is required';
     }
     
     setErrors(newErrors);
@@ -47,66 +49,95 @@ const GSTInfoForm: React.FC<GSTInfoFormProps> = ({ gstInfo, onSave, onCancel }) 
     }
   };
 
+  // Reusable Input Field Component
+  const InputField = ({ 
+    label, 
+    value, 
+    onChange, 
+    placeholder, 
+    error, 
+    icon: Icon,
+    hint 
+  }: any) => (
+    <div>
+      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">
+        {label}
+      </label>
+      <div className="relative group">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors">
+          <Icon className="w-4 h-4" />
+        </div>
+        <input
+          type="text"
+          value={value}
+          onChange={onChange}
+          className={`w-full bg-white border rounded-lg pl-10 pr-4 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all duration-200 outline-none ${
+            error 
+              ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10' 
+              : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/10 hover:border-slate-300'
+          }`}
+          placeholder={placeholder}
+        />
+      </div>
+      {error && (
+        <p className="text-rose-500 text-xs mt-1.5 ml-1 font-medium animate-pulse">{error}</p>
+      )}
+      {hint && !error && (
+        <p className="text-slate-400 text-xs mt-1.5 ml-1 flex items-center gap-1">
+          <Info className="w-3 h-3" />
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+
   return (
-    <div className="border rounded-lg p-6 bg-gray-50">
-      <h3 className="text-lg font-medium mb-4">GST Information</h3>
-      <p className="text-sm text-gray-600 mb-4">
-        Provide GST details for business purchases (optional)
-      </p>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 animate-fade-in">
+      <div className="flex items-start gap-4 mb-6">
+        <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm text-slate-600">
+          <Building2 className="w-6 h-6" />
+        </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            GST Number
-          </label>
-          <input
-            type="text"
-            value={formData.gstNumber}
-            onChange={(e) => handleChange('gstNumber', e.target.value.toUpperCase())}
-            className={`w-full border rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.gstNumber ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="e.g., 07AABCU9603R1ZM"
-          />
-          {errors.gstNumber && (
-            <p className="text-red-500 text-xs mt-1">{errors.gstNumber}</p>
-          )}
-          <p className="text-xs text-gray-500 mt-1">
-            Format: 2-digit state code + 10-digit PAN + 3-digit entity code + 1-digit checksum
+          <h3 className="text-lg font-bold text-slate-900">Tax Information</h3>
+          <p className="text-sm text-slate-500 leading-relaxed mt-1">
+            Adding your GST details allows you to claim input tax credit on this purchase.
           </p>
         </div>
+      </div>
+      
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <InputField
+          label="GST Identification Number (GSTIN)"
+          value={formData.gstNumber}
+          onChange={(e: any) => handleChange('gstNumber', e.target.value.toUpperCase())}
+          placeholder="07AABCU9603R1ZM"
+          error={errors.gstNumber}
+          icon={FileText}
+          hint="Format: 15 alphanumeric characters"
+        />
         
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Business Name
-          </label>
-          <input
-            type="text"
-            value={formData.businessName}
-            onChange={(e) => handleChange('businessName', e.target.value)}
-            className={`w-full border rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.businessName ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="Enter registered business name"
-          />
-          {errors.businessName && (
-            <p className="text-red-500 text-xs mt-1">{errors.businessName}</p>
-          )}
-        </div>
+        <InputField
+          label="Registered Business Name"
+          value={formData.businessName}
+          onChange={(e: any) => handleChange('businessName', e.target.value)}
+          placeholder="Acme Corp Pvt Ltd"
+          error={errors.businessName}
+          icon={Building2}
+        />
         
-        <div className="flex justify-end space-x-3 pt-4">
+        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200/60 mt-6">
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            className="px-5 py-2.5 border border-slate-200 text-slate-600 font-medium rounded-lg hover:bg-white hover:text-slate-800 hover:border-slate-300 transition-all duration-200"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-6 py-2.5 bg-slate-900 text-white font-medium rounded-lg hover:bg-black hover:shadow-lg hover:shadow-slate-900/20 active:scale-95 transition-all duration-200"
           >
-            Save GST Info
+            Save Details
           </button>
         </div>
       </form>

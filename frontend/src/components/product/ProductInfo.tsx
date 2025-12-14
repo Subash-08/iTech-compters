@@ -173,51 +173,63 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
       {/* Stock & Delivery Info */}
       <div className="space-y-4">
 
-        {/* Action Buttons */}
-      <div className="space-y-4">
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Add to Cart Button - Full width on mobile, 2/3 on desktop */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 font-bold py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!canAddToCart}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            Add to Cart
-          </motion.button>
-          
-          {/* Wishlist Button - Full width on mobile, 1/3 on desktop */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="sm:w-1/3 py-3.5 border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center justify-center gap-2"
-          >
-            <AddToWishlistButton
-              productId={productData._id}
-              variant={getVariantData()}
-              productType="product"
-              className="!w-5 !h-5"
-              size="sm"
-              showTooltip={false}
-            />
-            Wishlist
-          </motion.button>
-        </div>
+{/* Action Buttons */}
+<div className="space-y-4">
+  {/* Action Buttons */}
+  <div className="flex flex-col sm:flex-row gap-3">
+    {/* Add to Cart Button - Full width on mobile, 2/3 on desktop */}
+    <AddToCartButton
+      productId={productData._id}
+      product={productData} // Pass full product data
+      variant={getVariantData()}
+      className={`flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 font-bold py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+        !canAddToCart ? 'opacity-50 cursor-not-allowed' : ''
+      }`}
+      quantity={1}
+      disabled={!canAddToCart}
+      showIcon={true}
+    >
+      {/* Custom button content */}
+      <motion.div
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="flex items-center justify-center gap-2 w-full"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+        Add to Cart
+      </motion.div>
+    </AddToCartButton>
+    
+    {/* Wishlist Button */}
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="sm:w-1/3 py-3.5 border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center justify-center gap-2"
+    >
+      <AddToWishlistButton
+        productId={productData._id}
+        variant={getVariantData()}
+        productType="product"
+        className="!w-5 !h-5"
+        size="sm"
+        showTooltip={false}
+      />
+      Wishlist
+    </motion.button>
+  </div>
 
-        {/* Secure Transaction */}
-        <div className="text-center pt-2">
-          <p className="text-xs text-gray-500 flex items-center justify-center gap-1">
-            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            Secure transaction with easy returns • 30-day return policy
-          </p>
-        </div>
-      </div>
+  {/* Secure Transaction */}
+  <div className="text-center pt-2">
+    <p className="text-xs text-gray-500 flex items-center justify-center gap-1">
+      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+      Secure transaction with easy returns • 30-day return policy
+    </p>
+  </div>
+</div>
         {/* Warranty Info */}
         <div className="flex items-center text-sm text-gray-600">
           <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

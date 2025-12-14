@@ -738,10 +738,6 @@ exports.getPreBuiltPC = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Pre-built PC not found', 404));
         }
 
-        if (!preBuiltPC.isActive && req.user.role !== 'admin') {
-            return next(new ErrorHandler('Pre-built PC not found', 404));
-        }
-
         res.status(200).json({
             success: true,
             data: preBuiltPC
@@ -801,17 +797,13 @@ exports.deletePreBuiltPC = catchAsyncErrors(async (req, res, next) => {
     }
 });
 
-// Reactivate Pre-built PC
+// Reactivate Pre-built PC (Set isActive: true)
 exports.reactivatePreBuiltPC = catchAsyncErrors(async (req, res, next) => {
     try {
         const preBuiltPC = await PreBuiltPC.findByIdAndUpdate(
             req.params.id,
             { isActive: true },
-            {
-                new: true,
-                runValidators: true,
-                useFindAndModify: false
-            }
+            { new: true, runValidators: true, useFindAndModify: false }
         );
 
         if (!preBuiltPC) {
@@ -822,7 +814,28 @@ exports.reactivatePreBuiltPC = catchAsyncErrors(async (req, res, next) => {
             success: true,
             message: 'Pre-built PC activated successfully'
         });
+    } catch (error) {
+        return next(new ErrorHandler(error.message, 500));
+    }
+});
 
+// Deactivate Pre-built PC (Set isActive: false)
+exports.deactivatePreBuiltPC = catchAsyncErrors(async (req, res, next) => {
+    try {
+        const preBuiltPC = await PreBuiltPC.findByIdAndUpdate(
+            req.params.id,
+            { isActive: false },
+            { new: true, runValidators: true, useFindAndModify: false }
+        );
+
+        if (!preBuiltPC) {
+            return next(new ErrorHandler('Pre-built PC not found', 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Pre-built PC deactivated successfully'
+        });
     } catch (error) {
         return next(new ErrorHandler(error.message, 500));
     }

@@ -171,6 +171,11 @@ async createPreBuiltPC(formData: FormData) {
     throw new Error(errorMessage);
   }
 },
+// ✅ Status Management (Corrected: Only defined ONCE using PUT)
+  async reactivatePreBuiltPC(id: string) {
+    const response = await api.put(`/admin/prebuilt-pcs/${id}/reactivate`);
+    return response.data;
+  },
 
 // Update pre-built PC with better error handling
 async updatePreBuiltPC(id: string, formData: FormData) {
@@ -207,7 +212,7 @@ async updatePreBuiltPC(id: string, formData: FormData) {
 
   // Soft delete (deactivate) pre-built PC
   async deactivatePreBuiltPC(id: string) {
-    const response = await api.patch(`/admin/prebuilt-pcs/${id}/deactivate`);
+    const response = await api.put(`/admin/prebuilt-pcs/${id}/deactivate`);
     return response.data;
   },
 

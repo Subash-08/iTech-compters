@@ -15,7 +15,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   onRefresh
 }) => {
   const statusOptions = [
-    { value: '', label: 'All Statuses' },
+    { value: '', label: 'All Status' },
     { value: 'pending', label: 'Pending' },
     { value: 'confirmed', label: 'Confirmed' },
     { value: 'processing', label: 'Processing' },
@@ -25,7 +25,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   ];
 
   const paymentStatusOptions = [
-    { value: '', label: 'All Payment Statuses' },
+    { value: '', label: 'All Payment Status' },
     { value: 'pending', label: 'Pending' },
     { value: 'captured', label: 'Captured' },
     { value: 'failed', label: 'Failed' },
@@ -54,9 +54,9 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Search */}
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+        {/* Search - Takes 3 columns */}
+        <div className="lg:col-span-3">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Search Orders
           </label>
@@ -69,8 +69,8 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
           />
         </div>
 
-        {/* Status Filter */}
-        <div>
+        {/* Status Filter - Takes 2 columns */}
+        <div className="lg:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Order Status
           </label>
@@ -87,8 +87,8 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
           </select>
         </div>
 
-        {/* Payment Status Filter */}
-        <div>
+        {/* Payment Status Filter - Takes 2 columns */}
+        <div className="lg:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Payment Status
           </label>
@@ -105,42 +105,66 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
           </select>
         </div>
 
-        {/* Date Range */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+        {/* Date Range - Takes 4 columns (2+2 for dates) */}
+        <div className="lg:col-span-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Date Range
           </label>
-          <div className="flex space-x-2">
-            <input
-              type="date"
-              value={filters.startDate || ''}
-              onChange={(e) => handleDateChange('startDate', e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="date"
-              value={filters.endDate || ''}
-              onChange={(e) => handleDateChange('endDate', e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <input
+                type="date"
+                value={filters.startDate || ''}
+                onChange={(e) => handleDateChange('startDate', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Start Date"
+              />
+            </div>
+            <div>
+              <input
+                type="date"
+                value={filters.endDate || ''}
+                onChange={(e) => handleDateChange('endDate', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="End Date"
+              />
+            </div>
           </div>
+        </div>
+
+        {/* Action Buttons - Takes 1 column (for buttons stacked) */}
+        <div className="lg:col-span-1 flex flex-col justify-end space-y-2">
+          <button
+            onClick={onRefresh}
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-full"
+          >
+            Refresh
+          </button>
+          <button
+            onClick={clearFilters}
+            className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors w-full"
+          >
+            Clear
+          </button>
         </div>
       </div>
 
-      <div className="flex justify-between items-center mt-4">
-        <button
-          onClick={clearFilters}
-          className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-        >
-          Clear Filters
-        </button>
-        
-        <button
-          onClick={onRefresh}
-          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          Refresh
-        </button>
+      {/* Alternative layout for smaller screens */}
+      <div className="block lg:hidden mt-4">
+        <div className="flex justify-between space-x-2">
+          <button
+            onClick={clearFilters}
+            className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Clear Filters
+          </button>
+          <button
+            onClick={onRefresh}
+            className="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
     </div>
   );

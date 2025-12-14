@@ -18,7 +18,9 @@ const {
     getPerformanceStats,
     createPreBuiltPC,
     getAdminPreBuiltPCs,
-    getPreBuiltPCAnalytics
+    getPreBuiltPCAnalytics,
+    reactivatePreBuiltPC,
+    deactivatePreBuiltPC
 } = require('../controllers/preBuiltPCController');
 
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
@@ -41,7 +43,12 @@ router.get(
     authorizeRoles('admin'),
     getAdminPreBuiltPCs
 );
-
+router.get(
+    '/admin/prebuilt-pcs/:id',
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    getPreBuiltPC // Reusing the same controller, but now req.user will be populated!
+);
 // FIXED: Admin routes with file uploads - ADD handlePreBuiltPCUpload middleware
 router.post(
     '/admin/prebuilt-pcs',
@@ -53,7 +60,19 @@ router.post(
 );
 
 router.get('/admin/analytics/prebuilt-pcs', isAuthenticatedUser, authorizeRoles('admin'), getPreBuiltPCAnalytics);
+router.put(
+    '/admin/prebuilt-pcs/:id/reactivate',
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    reactivatePreBuiltPC
+);
 
+router.put(
+    '/admin/prebuilt-pcs/:id/deactivate',
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    deactivatePreBuiltPC
+);
 router.put(
     '/admin/prebuilt-pcs/:id',
     isAuthenticatedUser,

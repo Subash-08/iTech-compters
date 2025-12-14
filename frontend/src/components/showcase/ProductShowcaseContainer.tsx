@@ -1,9 +1,9 @@
 // src/components/showcase/ProductShowcaseContainer.tsx
-import React, { useState, useEffect } from 'react';
-import { ShowcaseSection } from './showcaseSection';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ShowcaseSection } from './showcaseSection'; // Ensure path is correct
 import ProductShowcaseSection from './ProductShowcaseSection';
 import { showcaseSectionService } from './showcaseSectionService';
-import { RefreshCw, AlertCircle, Package } from 'lucide-react';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 
 interface ProductShowcaseContainerProps {
   sections?: ShowcaseSection[];
@@ -23,78 +23,73 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchSections = async () => {
+  // Optimization: Memoize fetch function
+  const fetchSections = useCallback(async (isRefresh = false) => {
     try {
+      if (!isRefresh && !propSections) setLoading(true);
       setError(null);
-      if (!propSections) setLoading(true);
 
       const response = await showcaseSectionService.getActiveShowcaseSections({
         limit: maxSections,
         showOnHomepage: true
       });
 
-      const sectionsData = response.sections || response.data || [];
+      // Handle different API response structures
+      const sectionsData = Array.isArray(response) ? response : (response.sections || response.data || []);
       setSections(sectionsData);
     } catch (err: any) {
       console.error('Error fetching showcase sections:', err);
-      setError(err.response?.data?.message || 'Failed to load showcase sections');
-      setSections([]);
+      // Only set error if we don't have existing sections to show (better UX)
+      if (sections.length === 0) {
+        setError(err.response?.data?.message || 'Failed to load sections');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [maxSections, propSections, sections.length]);
 
+  // Initial Fetch
   useEffect(() => {
-    if (propSections) {
+    if (propSections && propSections.length > 0) {
       setSections(propSections);
+      setLoading(false);
       return;
     }
     fetchSections();
-  }, [propSections, maxSections]);
+  }, [propSections, fetchSections]);
 
+  // Auto Refresh Interval
   useEffect(() => {
     if (!autoRefresh || propSections) return;
-    const interval = setInterval(fetchSections, 30000);
+    const interval = setInterval(() => fetchSections(true), 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, propSections]);
+  }, [autoRefresh, propSections, fetchSections]);
 
   const handleRetry = () => {
     setRefreshing(true);
-    fetchSections();
+    fetchSections(true);
   };
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchSections();
-  };
-
-  // -------- Loading Skeleton --------
+  // --- Render Helpers ---
+  
   if (loading) {
     return (
-      <div className={`space-y-4 ${className}`}>
-        {[...Array(maxSections)].map((_, index) => (
-          <div key={index} className="animate-pulse">
-            <div className="bg-white rounded-xl p-4 border border-gray-200 h-64 flex flex-col">
-
-              <div className="flex items-center justify-between mb-4">
-                <div className="space-y-2">
-                  <div className="h-5 bg-gray-300 rounded w-40"></div>
-                  <div className="h-3 bg-gray-300 rounded w-24"></div>
+      <div className={`space-y-8 ${className}`}>
+        {[...Array(maxSections)].map((_, i) => (
+          <div key={i} className="animate-pulse bg-white rounded-xl p-6 border border-gray-100">
+            <div className="flex justify-between mb-6">
+              <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+              <div className="h-6 bg-gray-200 rounded w-20"></div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, j) => (
+                <div key={j} className="space-y-3">
+                  <div className="aspect-square bg-gray-200 rounded-lg"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                 </div>
-                <div className="h-7 bg-gray-300 rounded w-20"></div>
-              </div>
-
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
-                {[...Array(4)].map((_, productIndex) => (
-                  <div key={productIndex} className="bg-gray-100 rounded-lg p-2 space-y-1.5">
-                    <div className="aspect-square bg-gray-300 rounded-md"></div>
-                    <div className="h-2.5 bg-gray-300 rounded"></div>
-                    <div className="h-3 bg-gray-300 rounded w-3/4"></div>
-                    <div className="h-5 bg-gray-300 rounded"></div>
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
           </div>
         ))}
@@ -102,95 +97,42 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
     );
   }
 
-  // -------- Error State --------
   if (error && sections.length === 0) {
     return (
-      <div className={`flex flex-col items-center justify-center py-8 ${className}`}>
-        <div className="text-center max-w-sm">
-          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
-            <AlertCircle className="w-5 h-5 text-red-600" />
-          </div>
-
-          <h3 className="text-base font-semibold text-gray-900 mb-1">Unable to Load</h3>
-          <p className="text-gray-600 text-xs mb-3">{error}</p>
-
-          <button
-            onClick={handleRetry}
-            disabled={refreshing}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5 mx-auto text-sm"
-          >
-            {refreshing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-            {refreshing ? 'Retrying...' : 'Try Again'}
-          </button>
-        </div>
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <AlertCircle className="w-10 h-10 text-red-500 mb-3" />
+        <p className="text-gray-600 mb-4">{error}</p>
+        <button 
+          onClick={handleRetry}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
 
-  // -------- Empty State --------
-  if (!loading && sections.length === 0 && !error) {
-    return (
-      <div className={`flex flex-col items-center justify-center py-8 ${className}`}>
-        {/* <div className="text-center max-w-sm">
-          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
-            <Package className="w-5 h-5 text-gray-400" />
-          </div>
-
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1.5 mx-auto text-sm"
-          >
-            <RefreshCw className="w-3 h-3" />
-            Refresh
-          </button>
-        </div> */}
-      </div>
-    );
-  }
+  if (!loading && sections.length === 0) return null;
 
   return (
-    <div className={`relative ${className}`}>
- 
-
-      {/* Error Banner (Compact) */}
-      {error && sections.length > 0 && (
-        <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded flex items-center gap-1.5 text-xs">
-          <AlertCircle className="w-3 h-3 text-yellow-600 flex-shrink-0" />
-          <p className="flex-1 text-yellow-800">{error}</p>
-
-          <button
-            onClick={handleRetry}
-            disabled={refreshing}
-            className="text-yellow-800 hover:text-yellow-900 text-xs font-medium disabled:opacity-50"
-          >
-            {refreshing ? 'Retrying...' : 'Retry'}
-          </button>
-        </div>
-      )}
-
-      {/* Showcase Sections */}
-      <div className="space-y-4">
-        {sections.map((section, index) => (
-          <ProductShowcaseSection
-            key={section._id}
-            section={section}
-            className="animate-fade-in-up"
-            style={{ animationDelay: `${index * 100}ms` }}
-          />
-        ))}
-      </div>
-
-      {/* Refreshing Overlay (NO BLUR) */}
+    <div className={`relative space-y-8 ${className}`}>
+      {sections.map((section, index) => (
+        <ProductShowcaseSection
+          key={section._id || index}
+          section={section}
+          // Optimization: Add staggered animation
+          className="animate-fade-in"
+        />
+      ))}
+      
+      {/* Background Refetching Indicator (Subtle) */}
       {refreshing && (
-        <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 rounded-xl">
-          <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded shadow text-xs">
-            <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
-            <span className="text-gray-700 font-medium">Updating...</span>
-          </div>
+        <div className="absolute top-0 right-0 m-4">
+           <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />
         </div>
       )}
     </div>
   );
 };
 
-export default ProductShowcaseContainer;
+export default React.memo(ProductShowcaseContainer);

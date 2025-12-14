@@ -1,12 +1,13 @@
-// In ProductReviewsSection.tsx - COMPLETE REWORK with proper data flow
-import React, { useState, useEffect } from 'react';
+// src/components/review/ProductReviewsSection.tsx
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { RootState } from '../../redux/store';
 import { reviewActions } from '../../redux/actions/reviewActions';
 import ReviewsList from './ReviewsList';
 import ReviewForm from './ReviewForm';
-import { Star, MessageSquare, Plus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Star, MessageSquare, PenLine, Lock, BarChart3 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface ProductReviewsSectionProps {
   productId: string;
@@ -22,160 +23,226 @@ const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({
   product 
 }) => {
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.authState);
   const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.authState);
   
-  // 🎯 FIXED: Get reviews from Redux state directly (simpler approach)
-  const { reviews, loading, error, averageRating: reviewsRating, totalReviews: reviewsCount } = 
-    useSelector((state: RootState) => state.reviewState);
+  // 1️⃣ Access Data from the Correct Slice Path
+  const productReviewData = useSelector((state: RootState) => 
+    state.reviewState.productReviews?.[productId] || { reviews: [], averageRating: 0, totalReviews: 0 }
+  );
   
+  const { reviews } = productReviewData; // We rely on the array for live calc
   const [showReviewForm, setShowReviewForm] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // 🎯 FIXED: Use product data as primary source, reviews data as fallback
-  const averageRating = product?.averageRating || reviewsRating || 0;
-  const totalReviews = product?.totalReviews || reviewsCount || 0;
+  // 2️⃣ LIVE STATS CALCULATION (The "Immediate Update" Fix)
+  // Instead of waiting for backend 'averageRating', we calculate it from the loaded reviews
+  // This ensures that when you edit your review, the stars update instantly.
+  const liveStats = useMemo(() => {
+    const safeReviews = Array.isArray(reviews) ? reviews : [];
+    
+    // If no reviews loaded yet, fallback to Product props
+    if (safeReviews.length === 0) {
+      return {
+        averageRating: product?.averageRating || 0,
+        totalReviews: product?.totalReviews || 0,
+        distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+      };
+    }
 
-  // 🎯 FIXED: Only fetch when we have a valid productId
+    // Calculate Distribution & Sum
+    const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    let sum = 0;
+
+    safeReviews.forEach(review => {
+      const rating = Math.min(5, Math.max(1, Math.round(review.rating || 0)));
+      // @ts-ignore
+      distribution[rating]++;
+      sum += rating;
+    });
+
+    const average = sum / safeReviews.length;
+
+    return {
+      averageRating: average,
+      totalReviews: safeReviews.length,
+      distribution
+    };
+  }, [reviews, product]);
+
+  // Initial Fetch
   useEffect(() => {    
-    if (productId && productId !== 'undefined' && productId !== 'null') {
-      setIsInitialized(true);
+    if (productId && productId !== 'undefined') {
+      // @ts-ignore
       dispatch(reviewActions.getProductReviews(productId));
     }
   }, [dispatch, productId]);
 
-  const handleReviewSuccess = () => {
+  const handleReviewAction = () => {
     setShowReviewForm(false);
-    if (productId) {
-      dispatch(reviewActions.getProductReviews(productId));
-    }
+    // Silent refetch to ensure consistency with backend
+    // @ts-ignore
+    dispatch(reviewActions.getProductReviews(productId));
   };
 
-  const handleReviewDelete = () => {
-    if (productId) {
-      dispatch(reviewActions.getProductReviews(productId));
-    }
-  };
-
-  const renderRatingStars = (rating: number, size: number = 20) => {
-    return [1, 2, 3, 4, 5].map((star) => (
-      <Star
-        key={star}
-        size={size}
-        className={star <= Math.round(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}
-      />
-    ));
-  };
-
-  const getRatingSummary = () => {
-    if (averageRating >= 4.5) return 'Excellent';
-    if (averageRating >= 4.0) return 'Very Good';
-    if (averageRating >= 3.5) return 'Good';
-    if (averageRating >= 3.0) return 'Average';
-    if (averageRating >= 2.0) return 'Poor';
-    return 'Very Poor';
-  };
-
-  // 🎯 FIXED: Show loading state until initialized
-  if (!isInitialized) {
-    return (
-      <section className="border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto py-8 px-4">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  const renderStars = (rating: number) => (
+    <div className="flex text-yellow-400 gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          size={20}
+          className={`transition-colors ${star <= Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-100 text-gray-200'}`}
+        />
+      ))}
+    </div>
+  );
 
   return (
-    <section className="border-t border-gray-200 mt-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="w-full py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Customer Reviews
-              </h2>
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-3">
-                  <div className="text-3xl font-bold text-gray-900">
-                    {averageRating.toFixed(1)}
+    <section className="bg-white border-t border-gray-100 mt-16 pt-16 pb-20 font-sans">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <h2 className="text-2xl font-bold text-gray-900 mb-10 tracking-tight flex items-center gap-3">
+          Customer Reviews
+          <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            {liveStats.totalReviews}
+          </span>
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+          
+          {/* 📊 LEFT COLUMN: Rating Dashboard */}
+          <div className="lg:col-span-4 xl:col-span-3">
+             <div className="sticky top-28 space-y-8">
+                
+                {/* Score Card */}
+                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
+                  <div className="flex items-end gap-3 mb-4">
+                     <span className="text-6xl font-extrabold text-gray-900 leading-none tracking-tighter">
+                       {liveStats.averageRating.toFixed(1)}
+                     </span>
+                     <div className="mb-1.5">
+                        {renderStars(liveStats.averageRating)}
+                        <p className="text-sm text-gray-500 font-medium mt-1">out of 5 stars</p>
+                     </div>
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-1 mb-1">
-                      {renderRatingStars(averageRating)}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {getRatingSummary()} • {totalReviews} review{totalReviews !== 1 ? 's' : ''}
-                    </div>
+
+                  {/* Histogram */}
+                  <div className="space-y-2.5 pt-2">
+                     {[5, 4, 3, 2, 1].map((star) => {
+                        // @ts-ignore
+                        const count = liveStats.distribution[star];
+                        const total = liveStats.totalReviews || 1; 
+                        const percentage = (count / total) * 100;
+
+                        return (
+                          <div key={star} className="flex items-center gap-3 text-sm group">
+                             <div className="flex items-center gap-1 w-8 text-gray-600 font-medium">
+                               <span>{star}</span>
+                               <Star size={10} className="fill-gray-400 text-gray-400" />
+                             </div>
+                             <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${percentage}%` }}
+                                  transition={{ duration: 0.8, ease: "easeOut" }}
+                                  className="h-full bg-yellow-400 rounded-full group-hover:bg-yellow-500 transition-colors"
+                                />
+                             </div>
+                             <span className="w-8 text-right text-gray-400 text-xs tabular-nums group-hover:text-gray-600">
+                                {Math.round(percentage)}%
+                             </span>
+                          </div>
+                        );
+                     })}
                   </div>
                 </div>
-                
-                {user && (
-                  <div className="hidden sm:block">
-                    <button
-                      onClick={() => setShowReviewForm(true)}
-                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                    >
-                      <Plus size={16} />
-                      <span>Write a Review</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+
+                {/* Call to Action */}
+                <div className="hidden lg:block space-y-4">
+                   <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Share your thoughts</h3>
+                   <p className="text-sm text-gray-500">If you've used this product, share your thoughts with other customers.</p>
+                   
+                   {user ? (
+                     <button
+                       onClick={() => setShowReviewForm(true)}
+                       className="w-full py-3 px-4 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:border-gray-900 hover:text-gray-900 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                     >
+                       <PenLine size={16} />
+                       Write a Review
+                     </button>
+                   ) : (
+                     <button
+                       onClick={() => navigate('/login')}
+                       className="w-full py-3 px-4 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-gray-200"
+                     >
+                       <Lock size={16} />
+                       Sign in to Review
+                     </button>
+                   )}
+                </div>
+             </div>
+          </div>
+
+          {/* 📝 RIGHT COLUMN: Reviews List */}
+          <div className="lg:col-span-8 xl:col-span-9">
             
-            <div className="mt-4 sm:mt-0">
-              {user && (
-                <button
-                  onClick={() => setShowReviewForm(true)}
-                  className="sm:hidden flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium w-full justify-center"
-                >
-                  <Plus size={16} />
-                  <span>Write a Review</span>
-                </button>
-              )}
+            {/* Mobile CTA */}
+            <div className="lg:hidden mb-8">
+               {user ? (
+                 <button
+                   onClick={() => setShowReviewForm(true)}
+                   className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform flex items-center justify-center gap-2"
+                 >
+                   <PenLine size={18} /> Write a Review
+                 </button>
+               ) : (
+                 <button
+                   onClick={() => navigate('/login')}
+                   className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
+                 >
+                   <Lock size={18} /> Sign in to Review
+                 </button>
+               )}
+            </div>
+
+            {/* List Component */}
+            <div className="min-h-[400px]">
+               <ReviewsList 
+                 productId={productId} 
+                 // ✅ PASS REVIEWS AS PROP: Ensures the list uses the same data as our liveStats
+                 reviews={reviews || []}
+                 onReviewDelete={handleReviewAction}
+               />
+               
+               {(!reviews || reviews.length === 0) && (
+                 <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+                       <BarChart3 className="w-8 h-8 text-gray-300" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900">No reviews yet</h3>
+                    <p className="text-gray-500 mt-1 mb-6 text-center max-w-xs">
+                      There are no reviews for this product yet. Be the first to let others know what you think!
+                    </p>
+                    {user && (
+                      <button 
+                        onClick={() => setShowReviewForm(true)}
+                        className="text-blue-600 font-bold hover:text-blue-800 hover:underline"
+                      >
+                        Write the first review
+                      </button>
+                    )}
+                 </div>
+               )}
             </div>
           </div>
+
         </div>
 
-        {/* Reviews List */}
-        <div className="pb-8 px-4 sm:px-6 lg:px-8">
-          <ReviewsList 
-            productId={productId} 
-            onReviewDelete={handleReviewDelete}
-          />
-
-          {/* Call to action for non-logged in users */}
-          {!user && (
-            <div className="text-center py-8 border-t border-gray-200 mt-8">
-              <MessageSquare size={48} className="mx-auto text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Share Your Experience
-              </h3>
-              <p className="text-gray-600 mb-4 max-w-md mx-auto">
-                Help other customers make informed decisions by sharing your thoughts about {product?.name || 'this product'}.
-              </p>
-              <button
-                onClick={() => navigate('/login')} // 🎯 FIXED: Use navigate function properly
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                Sign In to Write a Review
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Review Form Modal */}
+        {/* Modal Form */}
         {showReviewForm && (
           <ReviewForm
             productId={productId}
             onClose={() => setShowReviewForm(false)}
-            onSuccess={handleReviewSuccess}
+            onSuccess={handleReviewAction}
           />
         )}
       </div>

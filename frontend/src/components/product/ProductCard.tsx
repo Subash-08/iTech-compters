@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppDispatch } from '../../redux/hooks';
 import { cartActions } from '../../redux/actions/cartActions';
@@ -274,6 +274,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const thumbnailUrl = getImageUrl(displayImages.thumbnail);
   const hoverImageUrl = displayImages.hover ? getImageUrl(displayImages.hover) : null;
 
+  // ✅ FIX: Use State for the Image Source to prevent React overwrite loops
+  const [currentImgSrc, setCurrentImgSrc] = useState<string>(thumbnailUrl);
+  const [hasImageError, setHasImageError] = useState(false);
+
+  // Sync state if product changes (e.g. pagination or filtering)
+  useEffect(() => {
+    setCurrentImgSrc(thumbnailUrl);
+    setHasImageError(false);
+  }, [thumbnailUrl]);
+
   const formatPrice = (price: number) => {
     if (!price || isNaN(price)) return '₹0';
     return new Intl.NumberFormat('en-IN', {
@@ -373,15 +383,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             {/* Thumbnail Image */}
             <div className={`absolute inset-0 transition-all duration-700 ease-out ${isHovering ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}>
               <img
-                src={thumbnailUrl}
+                src={currentImgSrc}
                 alt={displayImages.thumbnail?.altText || name}
                 width={400}
                 height={400}
                 className="w-full h-full object-contain"
                 onLoad={() => setImageLoaded(true)}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = '/placeholder-image.jpg';
+                onError={() => {
+                   // ✅ FIX: Only update state if we haven't already. This stops the loop.
+                   if (!hasImageError) {
+                     setHasImageError(true);
+                     setCurrentImgSrc('/placeholder-image.jpg'); 
+                     // Also mark as loaded so spinner disappears
+                     setImageLoaded(true);
+                   }
                 }}
               />
             </div>

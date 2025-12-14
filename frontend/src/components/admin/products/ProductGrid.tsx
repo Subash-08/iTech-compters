@@ -470,7 +470,7 @@ const getStockColor = (stock: number, hasVariants: boolean) => {
                         </svg>
                       </button>
                       
-                      <button
+                     {/* <button
                         onClick={() => handleDelete(product._id || product.id)}
                         disabled={deletingProducts[product._id || product.id]}
                         className="text-red-600 hover:text-red-900 font-medium text-sm flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -488,7 +488,7 @@ const getStockColor = (stock: number, hasVariants: boolean) => {
                             </svg>
                           </>
                         )}
-                      </button>
+                      </button> */}
                     </div>
                   </td>
                 </tr>

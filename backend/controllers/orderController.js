@@ -253,6 +253,68 @@ const updateOrderStatus = catchAsyncErrors(async (req, res, next) => {
 
     await order.save();
 
+    // ✅ ADD ORDER SHIPPED N8N TRIGGER HERE
+    if (status === Order.ORDER_STATUS.SHIPPED) {
+        try {
+            // 1. POPULATE USER (for name and email)
+            const populatedOrder = await Order.findById(orderId)
+                .populate('user', 'firstName lastName email');
+
+            const N8NService = require('../services/n8nService');
+            const user = populatedOrder?.user || {};
+
+            // 2. EXTRACT SHIPPING ADDRESS (contains phone!)
+            const shippingAddress = order.shippingAddress || {};
+
+            console.log('📦 SHIPPING ADDRESS FOR N8N:', shippingAddress);
+
+            // 3. SMART PHONE EXTRACTION - Use shipping address phone first
+            const customerPhone = shippingAddress.phone ||
+                shippingAddress.mobile ||
+                user.phone ||
+                user.mobile ||
+                '';
+
+            // 4. SEND N8N TRIGGER WITH COMPLETE DATA
+            await N8NService.run("orderShipped", {
+                event: "orderShipped",
+                orderId: order._id.toString(),
+                customerName: shippingAddress.firstName && shippingAddress.lastName
+                    ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim()
+                    : `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer',
+                customerEmail: shippingAddress.email || user.email || '',
+                customerPhone: customerPhone,
+                orderNumber: order.orderNumber,
+                trackingNumber: order.shippingMethod?.trackingNumber || '',
+                carrier: order.shippingMethod?.carrier || 'Standard Shipping',
+                shippingDate: new Date().toISOString(),
+                estimatedDelivery: order.estimatedDelivery ||
+                    new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+                items: order.items.map(item => ({
+                    name: item.name,
+                    quantity: item.quantity
+                })),
+                shippingAddress: {
+                    street: shippingAddress.addressLine1 || '',
+                    city: shippingAddress.city || '',
+                    state: shippingAddress.state || '',
+                    postalCode: shippingAddress.pincode || shippingAddress.postalCode || '',
+                    country: shippingAddress.country || 'India'
+                },
+                orderDate: order.createdAt.toISOString(),
+                trackingUrl: order.shippingMethod?.trackingUrl ||
+                    `https://track.${(order.shippingMethod?.carrier || 'standard').toLowerCase().replace(/\s+/g, '')}.com/${order.shippingMethod?.trackingNumber}`
+            });
+
+            console.log('✅ orderShipped N8N trigger sent with:', {
+                customer: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
+                email: shippingAddress.email || user.email,
+                phone: customerPhone
+            });
+        } catch (n8nError) {
+            console.error('❌ N8N trigger failed (non-critical):', n8nError.message);
+        }
+    }
     res.status(200).json({
         success: true,
         message: 'Order status updated successfully',

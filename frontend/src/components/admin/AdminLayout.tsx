@@ -297,13 +297,6 @@ const AdminLayout: React.FC = () => {
     icon: <Icons.Image className="w-5 h-5" />,
     path: '/admin/invoices'
   },
- 
-    {
-      id: 'users',
-      label: 'User Management',
-      icon: <Icons.Users className="w-5 h-5" />,
-      path: '/admin/users'
-    },
      {
         id: 'showcase-sections',
         label: 'Showcase Sections',
@@ -321,13 +314,13 @@ const AdminLayout: React.FC = () => {
           label: 'Orders',
           icon: <Icons.Orders className="w-4 h-4" />,
           path: '/admin/orders'
-        },
-        {
-          id: 'customers',
-          label: 'Customers',
-          icon: <Icons.Customers className="w-4 h-4" />,
-          path: '/admin/customers'
-        },
+        },   
+         {
+      id: 'users',
+      label: 'User Management',
+      icon: <Icons.Users className="w-5 h-5" />,
+      path: '/admin/users'
+    },
         {
           id: 'coupons',
           label: 'Coupons',

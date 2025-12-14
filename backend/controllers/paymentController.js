@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const catchAsyncErrors = require('../middlewares/catchAsyncError');
 const ErrorHandler = require('../utils/errorHandler');
 const InvoiceGenerator = require('../utils/invoiceGenerator');
+const N8NService = require('../services/n8nService');
 
 // @desc    Create Razorpay order for payment
 // @route   POST /api/payment/razorpay/create-order
@@ -440,6 +441,81 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
             );
         }
 
+        try {
+            // CRITICAL: Get fresh, populated order with all data
+            const populatedOrder = await Order.findById(orderId)
+                .populate('user', 'firstName lastName email phone');
+
+            if (!populatedOrder) {
+                console.error('❌ Could not find order for N8N trigger:', orderId);
+                // Don't fail the payment process
+                return;
+            }
+
+            console.log('📊 ORDER DATA FOR N8N:');
+            console.log('- Order Number:', populatedOrder.orderNumber);
+            console.log('- Total Amount:', populatedOrder.pricing?.total);
+            console.log('- Items:', populatedOrder.items?.length);
+            console.log('- User email:', populatedOrder.user?.email);
+            console.log('- Shipping address:', populatedOrder.shippingAddress);
+
+            // Extract customer info with shipping address priority
+            const shippingAddress = populatedOrder.shippingAddress || {};
+            const user = populatedOrder.user || {};
+
+            const customerInfo = {
+                name: shippingAddress.firstName && shippingAddress.lastName
+                    ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim()
+                    : `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer',
+                email: shippingAddress.email || user.email || '',
+                phone: shippingAddress.phone ||
+                    shippingAddress.mobile ||
+                    user.phone ||
+                    user.mobile ||
+                    ''
+            };
+
+            // Send to N8N with complete order data
+            await N8NService.run("paymentConfirmed", {
+                event: "paymentConfirmed",
+                workflowKey: "paymentConfirmed",
+                orderId: populatedOrder._id.toString(),
+                customerName: customerInfo.name,
+                customerEmail: customerInfo.email,
+                customerPhone: customerInfo.phone,
+                orderNumber: populatedOrder.orderNumber,
+                amountPaid: populatedOrder.pricing?.total || 0,
+                currency: '₹',
+                paymentMethod: populatedOrder.payment?.attempts?.[0]?.gatewayPaymentMethod || 'razorpay',
+                paymentId: razorpay_payment_id,
+                items: (populatedOrder.items || []).map(item => ({
+                    name: item.name || 'Product',
+                    quantity: item.quantity || 1,
+                    price: item.price || 0,
+                    total: (item.price || 0) * (item.quantity || 1)
+                })),
+                shippingAddress: {
+                    street: shippingAddress.addressLine1 || '',
+                    city: shippingAddress.city || '',
+                    state: shippingAddress.state || '',
+                    postalCode: shippingAddress.pincode || shippingAddress.postalCode || '',
+                    country: shippingAddress.country || 'India'
+                },
+                billingAddress: populatedOrder.billingAddress || shippingAddress.addressLine1 || '',
+                orderDate: populatedOrder.createdAt?.toISOString() || new Date().toISOString(),
+                paymentDate: new Date().toISOString(),
+                estimatedDelivery: populatedOrder.estimatedDelivery?.toISOString() ||
+                    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                trackingNumber: populatedOrder.shippingMethod?.trackingNumber || 'Will be assigned soon',
+                timestamp: new Date().toISOString(),
+                source: "backend"
+            });
+
+            console.log('✅ paymentConfirmed N8N trigger sent with complete data for order:', populatedOrder.orderNumber);
+        } catch (n8nError) {
+            console.error('❌ N8N paymentConfirmed trigger failed (non-critical):', n8nError.message);
+            // Don't fail payment process if N8N fails
+        }
         // 12. Send Success Response
         res.status(200).json({
             success: true,
