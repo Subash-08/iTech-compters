@@ -343,7 +343,7 @@ const CartItem: React.FC<CartItemProps> = ({
                 ) : (
                   <span className="flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5" />
-                    Component
+                    Product
                   </span>
                 )}
               </div>

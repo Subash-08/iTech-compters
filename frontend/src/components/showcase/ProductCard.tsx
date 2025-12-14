@@ -31,8 +31,9 @@ export interface Product {
   _id: string;
   name: string;
   slug: string;
-  // ✅ FIX: Added basePrice to support your data structure
+  // ✅ FIX: Added fields based on your console logs
   basePrice?: number; 
+  sellingPrice?: number; // Added from logs
   effectivePrice?: number;
   mrp?: number;
   offerPrice?: number;
@@ -112,8 +113,8 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           _id: productId,
           name: product?.name || 'Product',
           images: product?.images || [],
-          // ✅ FIX: Ensure price fallback works here too
-          effectivePrice: product?.effectivePrice || product?.basePrice || variant?.price || 0
+          // ✅ FIX: Ensure price fallback includes sellingPrice
+          effectivePrice: product?.effectivePrice || product?.sellingPrice || product?.basePrice || variant?.price || 0
         }
       };
       
@@ -163,7 +164,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
 // --- Main ProductCard Component ---
 interface ProductCardProps {
   product: Product;
-  cardStyle?: string; // Added to match your usage in ShowcaseSection
+  cardStyle?: string; 
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
@@ -172,7 +173,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     name,
     slug,
     effectivePrice,
-    basePrice, // ✅ FIX: Destructure basePrice
+    sellingPrice, // ✅ FIX: Added from logs
+    basePrice,
     mrp,
     offerPrice,
     stockQuantity,
@@ -186,20 +188,22 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const hasVariants = variants && variants.length > 0;
+  // Ensure variants is an array
+  const safeVariants = Array.isArray(variants) ? variants : [];
+  const hasVariants = safeVariants.length > 0;
 
   const getBaseVariant = () => {
     if (!hasVariants) return null;
     
-    const activeVariantWithStock = variants.find(v => 
+    const activeVariantWithStock = safeVariants.find(v => 
       v.isActive !== false && (v.stockQuantity || 0) > 0
     );
     if (activeVariantWithStock) return activeVariantWithStock;
     
-    const activeVariant = variants.find(v => v.isActive !== false);
+    const activeVariant = safeVariants.find(v => v.isActive !== false);
     if (activeVariant) return activeVariant;
     
-    return variants[0];
+    return safeVariants[0];
   };
 
   const baseVariant = getBaseVariant();
@@ -207,21 +211,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     ? (baseVariant.stockQuantity || 0) > 0
     : (stockQuantity || 0) > 0;
 
-  // ✅ FIX: Updated Price Logic to check basePrice
+  // ✅ FIX: Updated Price Logic to include sellingPrice (from logs)
   const getDisplayPrice = () => {
     if (hasVariants && baseVariant) {
       return baseVariant.offerPrice || baseVariant.price || 0;
     }
-    // Check offerPrice, then effectivePrice, then basePrice
-    return offerPrice || effectivePrice || basePrice || 0;
+    // Check offerPrice, then effectivePrice, then sellingPrice (API), then basePrice
+    return offerPrice || effectivePrice || sellingPrice || basePrice || 0;
   };
 
   const getDisplayMrp = () => {
     if (hasVariants && baseVariant) {
       return baseVariant.mrp || baseVariant.price || 0;
     }
-    // Use MRP if available, otherwise basePrice, otherwise effectivePrice
-    return mrp || basePrice || effectivePrice || 0;
+    return mrp || basePrice || effectivePrice || sellingPrice || 0;
   };
 
   const displayPrice = getDisplayPrice();
@@ -283,7 +286,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const thumbnailUrl = getImageUrl(displayImages.thumbnail);
   const hoverImageUrl = displayImages.hover ? getImageUrl(displayImages.hover) : null;
 
-  // Image State Logic (Prevents Infinite Loop)
   const [currentImgSrc, setCurrentImgSrc] = useState<string>(thumbnailUrl);
   const [hasImageError, setHasImageError] = useState(false);
 
@@ -294,8 +296,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const formatPrice = (price: number) => {
     if (!price || isNaN(price)) return '₹0';
-    // ✅ Note: Changed currency to INR based on previous conversation. 
-    // If you need ZAR, change 'en-IN' to 'en-ZA' and 'INR' to 'ZAR'.
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
@@ -303,7 +303,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }).format(price);
   };
 
-  // Product URL
   const getProductUrl = () => {
     if (hasVariants && baseVariant) {
       const variantSlug = baseVariant.slug || baseVariant.name?.toLowerCase().replace(/\s+/g, '-');
@@ -316,7 +315,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const productUrl = getProductUrl();
 
-  // Star Rating Component
+  // ✅ FIX: Construct Normalized Data for Wishlist
+  // This ensures 'price' is always present, even if the API sends 'basePrice' or 'sellingPrice'
+  const wishlistProductData = {
+    ...product,
+    price: displayPrice, // Explicitly set the calculated price
+    effectivePrice: displayPrice,
+    mrp: displayMrp,
+    // Ensure images are properly structured
+    images: product.images || (hasVariants && baseVariant ? baseVariant.images : {})
+  };
+
   const StarRating = ({ rating }: { rating: number }) => (
     <div className="flex items-center space-x-1">
       {[1, 2, 3, 4, 5].map((star) => (
@@ -338,7 +347,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      {/* Discount Badge */}
       {discount > 0 && (
         <div className="absolute top-4 left-4 z-20">
           <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg transform transition-transform duration-300 group-hover:scale-105">
@@ -347,7 +355,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
       )}
 
-      {/* Out of Stock Overlay */}
       {!inStock && (
         <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-[2px] flex items-center justify-center rounded-2xl">
           <div className="bg-gray-900/90 text-white px-4 py-2 rounded-lg transform -rotate-3 transition-transform duration-300 group-hover:rotate-0">
@@ -356,13 +363,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
       )}
 
-      {/* Image Container */}
       <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-gray-50 to-white">
         {/* Wishlist Button */}
         <div className="absolute top-4 right-4 z-20 transform transition-transform duration-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-2">
           <AddToWishlistButton 
             productId={_id}
-            product={product}
+            product={wishlistProductData} // ✅ FIX: Pass the normalized data here
             variant={hasVariants && baseVariant ? {
               variantId: baseVariant._id,
               name: baseVariant.name,
@@ -378,19 +384,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           />
         </div>
 
-        {/* Variant Options Badge */}
         {hasVariants && (
           <div className="absolute top-4 left-4 z-20 opacity-0 group-hover:opacity-100 transition-all duration-500">
             <span className="bg-blue-600/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg">
-              {variants.length} Options
+              {safeVariants.length} Options
             </span>
           </div>
         )}
 
-        {/* Product Images */}
         <Link to={productUrl} className="block w-full h-full">
           <div className="relative w-full h-full">
-            {/* Thumbnail Image */}
             <div className={`absolute inset-0 ${isHovering ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}>
               <img
                 src={currentImgSrc}
@@ -409,7 +412,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               />
             </div>
 
-            {/* Hover Image */}
             {hoverImageUrl && (
               <div className={`absolute inset-0 ${isHovering ? 'opacity-100 scale-105' : 'opacity-0 scale-100'}`}>
                 <img
@@ -425,7 +427,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               </div>
             )}
 
-            {/* Loading Skeleton */}
             {!imageLoaded && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-400 rounded-full animate-spin"></div>
@@ -435,38 +436,31 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </Link>
       </div>
 
-      {/* Product Details Section */}
       <div className="flex flex-col flex-1 p-6">
-        {/* Brand Name */}
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 transition-all duration-300 group-hover:text-blue-600">
           {brand?.name || 'Premium Brand'}
         </div>
 
-        {/* Product Name */}
         <Link to={productUrl} className="mb-3 block group/title">
           <h3 className="text-base font-semibold text-gray-900 leading-tight line-clamp-2 group-hover/title:text-blue-700 transition-colors duration-300">
             {baseVariant?.name || name}
           </h3>
         </Link>
 
-        {/* Rating */}
         {averageRating > 0 && (
           <div className="mb-4 transform transition-transform duration-300 group-hover:translate-x-1">
             <StarRating rating={averageRating} />
           </div>
         )}
 
-        {/* Price & Stock Info */}
         <div className="mt-auto pt-4 border-t border-gray-100">
           <div className="flex items-end justify-between mb-4">
             <div className="space-y-1">
-              {/* Current Price */}
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold text-gray-900 transition-all duration-300 group-hover:text-blue-700">
                   {formatPrice(displayPrice)}
                 </span>
                 
-                {/* Original Price */}
                 {discount > 0 && displayMrp && (
                   <span className="text-sm text-gray-400 line-through transition-all duration-300 group-hover:text-gray-500">
                     {formatPrice(displayMrp)}
@@ -474,7 +468,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 )}
               </div>
 
-              {/* Stock Status */}
               <div className="flex items-center">
                 <span className={`flex w-2 h-2 rounded-full mr-2 ${inStock ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
                 <span className={`text-xs font-medium ${inStock ? 'text-green-700' : 'text-red-600'}`}>
@@ -484,10 +477,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
           </div>
 
-          {/* Add to Cart Button */}
           <AddToCartButton
             productId={_id}
-            product={product}
+            product={wishlistProductData} // Use same normalized data here for consistency
             variant={hasVariants && baseVariant ? {
               variantId: baseVariant._id,
               name: baseVariant.name,
@@ -497,7 +489,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               stock: baseVariant.stockQuantity,
               attributes: baseVariant.identifyingAttributes || [],
               sku: baseVariant.sku,
-              slug: baseVariant.slug
             } : null}
             quantity={1}
             disabled={!inStock}
@@ -515,7 +506,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
       </div>
 
-      {/* Subtle Hover Border Effect */}
       <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-500/10 rounded-2xl pointer-events-none transition-all duration-500"></div>
     </div>
   );

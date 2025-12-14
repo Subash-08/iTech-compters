@@ -532,7 +532,7 @@ const Checkout: React.FC = () => {
           </motion.div>
 
           {/* Error Display */}
-          <AnimatePresence>
+          {/* <AnimatePresence>
             {(error || paymentError) && (
               <motion.div 
                 initial={{ opacity: 0, y: -10 }}
@@ -546,7 +546,7 @@ const Checkout: React.FC = () => {
                 </div>
               </motion.div>
             )}
-          </AnimatePresence>
+          </AnimatePresence> */}
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Main Content */}

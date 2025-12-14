@@ -12,7 +12,7 @@ export const showcaseSectionService = {
   }) => {
     try {
       const response = await api.get('/showcase-sections', { params });
-      return response.data;
+      return response.data;      
     } catch (error) {
       console.error('Error fetching showcase sections:', error);
       throw error;

@@ -10,15 +10,17 @@ import { useAppSelector } from "./redux/hooks";
 import { selectIsAuthenticated, selectAuthLoading, selectUser } from "./redux/selectors";
 import { HelmetProvider } from "react-helmet-async";
 
-// ✅ LAZY LOAD ALL PAGE COMPONENTS
-const Home = lazy(() => import("./components/home/Home"));
-const ProductList = lazy(() => import("./components/product/ProductList"));
-const ProductDisplay = lazy(() => import("./components/product/ProductDisplay"));
+// ✅ IMPORT CRITICAL PAGES NON-LAZY (HIGH PRIORITY)
+import Home from "./components/home/Home";
+import ProductList from "./components/product/ProductList";
+import ProductDisplay from "./components/product/ProductDisplay";
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import Cart from "./components/cart/Cart";
+import Profile from "./components/profile/Profile";
+
+// ✅ LAZY LOAD LESS CRITICAL PAGES ONLY
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
-const Login = lazy(() => import("./components/auth/Login"));
-const Register = lazy(() => import("./components/auth/Register"));
-const Profile = lazy(() => import("./components/profile/Profile"));
-const Cart = lazy(() => import("./components/cart/Cart"));
 const Wishlist = lazy(() => import("./components/wishlist/Wishlist"));
 const PreBuiltPCList = lazy(() => import("./components/prebuild/PreBuiltPCList"));
 const PreBuiltPCDetail = lazy(() => import("./components/prebuild/PreBuiltPCDetail"));
@@ -42,7 +44,7 @@ const ShippingDeliveryPolicy = lazy(() => import("./components/pages/ShippingDel
 const WarrantyPolicy = lazy(() => import("./components/pages/WarrantyPolicy"));
 const TermsConditions = lazy(() => import("./components/pages/TermsConditions"));
 
-// ✅ Root Layout - AuthInitializer at the top level
+// ✅ Root Layout
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <>
@@ -54,16 +56,14 @@ const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
-
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
-
   return null;
 };
 
-// ✅ Memoize Layout Components to prevent re-renders
-const PublicLayout = React.memo(({ children }: { children: React.ReactNode }) => {
+// ✅ Layout Components
+const PublicLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
       <Navbar />
@@ -73,58 +73,25 @@ const PublicLayout = React.memo(({ children }: { children: React.ReactNode }) =>
       <Footer />
     </>
   );
-});
+};
 
-PublicLayout.displayName = 'PublicLayout';
-
-const AuthLayout = React.memo(({ children }: { children: React.ReactNode }) => {
+const AuthLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <main className="min-h-screen bg-gray-50">
       {children}
     </main>
   );
-});
+};
 
-AuthLayout.displayName = 'AuthLayout';
-
-// ✅ Optimized Loading Component
+// ✅ Loading Component
 const PageLoading: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center">
     <LoadingSpinner />
   </div>
 );
 
-// ✅ Skeleton loading for better UX
-const RouteSkeleton: React.FC<{ type?: 'full' | 'content' }> = ({ type = 'full' }) => {
-  if (type === 'full') {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="animate-pulse">
-          {/* Navbar skeleton */}
-          <div className="h-16 bg-gray-200"></div>
-          {/* Content skeleton */}
-          <div className="max-w-7xl mx-auto px-4 py-8">
-            <div className="h-8 bg-gray-200 w-1/3 mb-6 rounded"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-64 bg-gray-200 rounded"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <LoadingSpinner />
-    </div>
-  );
-};
-
-// ✅ OPTIMIZED ProtectedRoute with React.memo and useMemo
-const ProtectedRoute = React.memo(({ 
+// ✅ FIXED ProtectedRoute - Simplified without React.memo
+const ProtectedRoute = ({ 
   children, 
   requireAuth = true,
   adminOnly = false
@@ -139,37 +106,29 @@ const ProtectedRoute = React.memo(({
 
   // Show loading while checking authentication
   if (authLoading) {
-    return <RouteSkeleton type="content" />;
+    return <PageLoading />;
   }
 
-  // Memoize the auth check logic
-  const shouldRedirect = React.useMemo(() => {
-    if (requireAuth && !isAuthenticated) return 'login';
-    if (requireAuth && adminOnly && user?.role !== 'admin') return 'home';
-    if (!requireAuth && isAuthenticated) return 'home';
-    return null;
-  }, [requireAuth, isAuthenticated, adminOnly, user?.role]);
-
-  if (shouldRedirect === 'login') {
+  if (requireAuth && !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
   
-  if (shouldRedirect === 'home') {
+  if (requireAuth && adminOnly && user?.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+   
+  // If route doesn't require auth but user is authenticated, redirect from auth pages
+  if (!requireAuth && isAuthenticated) {
     return <Navigate to="/" replace />;
   }
   
   return <>{children}</>;
-});
+};
 
-ProtectedRoute.displayName = 'ProtectedRoute';
-
-// ✅ Create a wrapper for Suspense boundaries
-const SuspenseWrapper: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({ 
-  children, 
-  fallback = <RouteSkeleton type="full" />
-}) => {
+// ✅ SIMPLIFIED Suspense Wrapper
+const LazyRoute = ({ children }: { children: React.ReactNode }) => {
   return (
-    <Suspense fallback={fallback}>
+    <Suspense fallback={<PageLoading />}>
       {children}
     </Suspense>
   );
@@ -181,7 +140,6 @@ const App: React.FC = () => {
       <BrowserRouter>
         <ScrollToTop />
         <RootLayout>
-          {/* React Toastify Container */}
           <ToastContainer
             position="bottom-center"
             autoClose={5000}
@@ -201,23 +159,23 @@ const App: React.FC = () => {
               path="/admin/*" 
               element={
                 <ProtectedRoute requireAuth={true} adminOnly={true}>
-                  <SuspenseWrapper>
+                  <LazyRoute>
                     <AdminLayout />
-                  </SuspenseWrapper>
+                  </LazyRoute>
                 </ProtectedRoute>
               } 
             />
             
-            {/* Auth Routes */}
+            {/* Auth Routes - NON-LAZY */}
             <Route 
               path="/login" 
               element={
                 <ProtectedRoute requireAuth={false}>
+                   <PublicLayout>
                   <AuthLayout>
-                    <SuspenseWrapper fallback={<RouteSkeleton type="content" />}>
-                      <Login />
-                    </SuspenseWrapper>
+                    <Login />
                   </AuthLayout>
+                  </PublicLayout>
                 </ProtectedRoute>
               } 
             />
@@ -226,11 +184,11 @@ const App: React.FC = () => {
               path="/register" 
               element={
                 <ProtectedRoute requireAuth={false}>
+                   <PublicLayout>
                   <AuthLayout>
-                    <SuspenseWrapper fallback={<RouteSkeleton type="content" />}>
-                      <Register />
-                    </SuspenseWrapper>
+                    <Register />
                   </AuthLayout>
+                  </PublicLayout>
                 </ProtectedRoute>
               } 
             />
@@ -239,11 +197,13 @@ const App: React.FC = () => {
               path="/forgot-password" 
               element={
                 <ProtectedRoute requireAuth={false}>
+                   <PublicLayout>
                   <AuthLayout>
-                    <SuspenseWrapper fallback={<RouteSkeleton type="content" />}>
+                    <LazyRoute>
                       <ForgotPassword />
-                    </SuspenseWrapper>
+                    </LazyRoute>
                   </AuthLayout>
+                  </PublicLayout>
                 </ProtectedRoute>
               } 
             />
@@ -252,11 +212,13 @@ const App: React.FC = () => {
               path="/reset-password" 
               element={
                 <ProtectedRoute requireAuth={false}>
+                   <PublicLayout>
                   <AuthLayout>
-                    <SuspenseWrapper fallback={<RouteSkeleton type="content" />}>
+                    <LazyRoute>
                       <ResetPassword />
-                    </SuspenseWrapper>
+                    </LazyRoute>
                   </AuthLayout>
+                  </PublicLayout>
                 </ProtectedRoute>
               } 
             />
@@ -267,9 +229,7 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <PublicLayout>
-                    <SuspenseWrapper>
-                      <Profile />
-                    </SuspenseWrapper>
+                    <Profile />
                   </PublicLayout>
                 </ProtectedRoute>
               } 
@@ -280,22 +240,21 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <PublicLayout>
-                    <SuspenseWrapper>
+                    <LazyRoute>
                       <Checkout />
-                    </SuspenseWrapper>
+                    </LazyRoute>
                   </PublicLayout>
                 </ProtectedRoute>
               } 
             />
-
             <Route 
               path="/account/orders" 
               element={
                 <ProtectedRoute>
                   <PublicLayout>
-                    <SuspenseWrapper>
+                    <LazyRoute>
                       <OrderList />
-                    </SuspenseWrapper>
+                    </LazyRoute>
                   </PublicLayout>
                 </ProtectedRoute>
               } 
@@ -306,9 +265,9 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <PublicLayout>
-                    <SuspenseWrapper>
+                    <LazyRoute>
                       <OrderDetails />
-                    </SuspenseWrapper>
+                    </LazyRoute>
                   </PublicLayout>
                 </ProtectedRoute>
               } 
@@ -319,35 +278,32 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <PublicLayout>
-                    <SuspenseWrapper>
+                    <LazyRoute>
                       <OrderTracking />
-                    </SuspenseWrapper>
+                    </LazyRoute>
                   </PublicLayout>
                 </ProtectedRoute>
               } 
             />
-            
             <Route 
               path="/order-confirmation/:orderNumber" 
               element={
                 <ProtectedRoute>
                   <PublicLayout>
-                    <SuspenseWrapper>
+                    <LazyRoute>
                       <OrderConfirmation />
-                    </SuspenseWrapper>
+                    </LazyRoute>
                   </PublicLayout>
                 </ProtectedRoute>
               } 
-            />
-            
-            {/* Public Routes */}
+            />          
+
+            {/* Public Routes - CRITICAL ONES NON-LAZY */}
             <Route 
               path="/" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
-                    <Home />
-                  </SuspenseWrapper>
+                  <Home />
                 </PublicLayout>
               } 
             />
@@ -356,86 +312,33 @@ const App: React.FC = () => {
               path="/cart" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
-                    <Cart />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
-
-            <Route 
-              path="/contact" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <ContactPage />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
-
-            <Route 
-              path="/privacy-policy" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <PrivacyPolicy />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
-
-            <Route 
-              path="/refund-policy" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <RefundReturnsPolicy />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
-
-            <Route 
-              path="/shipping-policy" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <ShippingDeliveryPolicy />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
-
-            <Route 
-              path="/warranty-policy" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <WarrantyPolicy />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
-
-            <Route 
-              path="/terms-conditions" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <TermsConditions />
-                  </SuspenseWrapper>
+                  <Cart />
                 </PublicLayout>
               } 
             />
             
             <Route 
+              path="/contact" 
+              element={
+                <PublicLayout>
+                  <LazyRoute>
+                    <ContactPage />
+                  </LazyRoute>
+                </PublicLayout>
+              } 
+            />
+
+            <Route path="/privacy-policy" element={<PublicLayout><LazyRoute><PrivacyPolicy /></LazyRoute></PublicLayout>} />
+            <Route path="/refund-policy" element={<PublicLayout><LazyRoute><RefundReturnsPolicy /></LazyRoute></PublicLayout>} />
+            <Route path="/shipping-policy" element={<PublicLayout><LazyRoute><ShippingDeliveryPolicy /></LazyRoute></PublicLayout>} />
+            <Route path="/warranty-policy" element={<PublicLayout><LazyRoute><WarrantyPolicy /></LazyRoute></PublicLayout>} />
+            <Route path="/terms-conditions" element={<PublicLayout><LazyRoute><TermsConditions /></LazyRoute></PublicLayout>} />
+            
+            <Route 
               path="/products" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
-                    <ProductList />
-                  </SuspenseWrapper>
+                  <ProductList />
                 </PublicLayout>
               } 
             />
@@ -444,9 +347,7 @@ const App: React.FC = () => {
               path="/products/category/:categoryName" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
-                    <ProductList />
-                  </SuspenseWrapper>
+                  <ProductList />
                 </PublicLayout>
               } 
             />
@@ -455,9 +356,9 @@ const App: React.FC = () => {
               path="/support" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
+                  <LazyRoute>
                     <SupportPage />
-                  </SuspenseWrapper>
+                  </LazyRoute>
                 </PublicLayout>
               } 
             />
@@ -466,9 +367,7 @@ const App: React.FC = () => {
               path="/products/brand/:brandName" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
-                    <ProductList />
-                  </SuspenseWrapper>
+                  <ProductList />
                 </PublicLayout>
               } 
             />
@@ -477,9 +376,7 @@ const App: React.FC = () => {
               path="/product/:slug" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
-                    <ProductDisplay />
-                  </SuspenseWrapper>
+                  <ProductDisplay />
                 </PublicLayout>
               } 
             />
@@ -489,9 +386,9 @@ const App: React.FC = () => {
               path="/prebuilt-pcs" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
+                  <LazyRoute>
                     <PreBuiltPCList />
-                  </SuspenseWrapper>
+                  </LazyRoute>
                 </PublicLayout>
               } 
             />
@@ -500,9 +397,9 @@ const App: React.FC = () => {
               path="/custom-pcs" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
+                  <LazyRoute>
                     <PCBuilder />
-                  </SuspenseWrapper>
+                  </LazyRoute>
                 </PublicLayout>
               } 
             />
@@ -511,9 +408,9 @@ const App: React.FC = () => {
               path="/prebuilt-pcs/:slug" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
+                  <LazyRoute>
                     <PreBuiltPCDetail />
-                  </SuspenseWrapper>
+                  </LazyRoute>
                 </PublicLayout>
               } 
             />
@@ -522,65 +419,24 @@ const App: React.FC = () => {
               path="/wishlist" 
               element={
                   <PublicLayout>
-                    <SuspenseWrapper>
+                    <LazyRoute>
                       <Wishlist />
-                    </SuspenseWrapper>
+                    </LazyRoute>
                   </PublicLayout>
               } 
             />
 
-            <Route 
-              path="/blogs" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <BlogList />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
-            
-            <Route 
-              path="/blog/tag/:tag" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <BlogTag />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
-            
-            <Route 
-              path="/blog/category/:category" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <BlogCategory />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
-            
-            <Route 
-              path="/blog/:slug" 
-              element={
-                <PublicLayout>
-                  <SuspenseWrapper>
-                    <SingleBlog />
-                  </SuspenseWrapper>
-                </PublicLayout>
-              } 
-            />
+            <Route path="/blogs" element={<PublicLayout><LazyRoute><BlogList /></LazyRoute></PublicLayout>} />
+            <Route path="/blog/tag/:tag" element={<PublicLayout><LazyRoute><BlogTag /></LazyRoute></PublicLayout>} />
+            <Route path="/blog/category/:category" element={<PublicLayout><LazyRoute><BlogCategory /></LazyRoute></PublicLayout>} />
+            <Route path="/blog/:slug" element={<PublicLayout><LazyRoute><SingleBlog /></LazyRoute></PublicLayout>} />
             
             {/* Search Route */}
             <Route 
               path="/search" 
               element={
                 <PublicLayout>
-                  <SuspenseWrapper>
-                    <ProductList />
-                  </SuspenseWrapper>
+                  <ProductList />
                 </PublicLayout>
               } 
             />
@@ -616,4 +472,4 @@ const App: React.FC = () => {
   );
 };
 
-export default React.memo(App);
+export default App;

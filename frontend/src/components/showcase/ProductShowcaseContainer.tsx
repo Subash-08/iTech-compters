@@ -33,6 +33,7 @@ const ProductShowcaseContainer: React.FC<ProductShowcaseContainerProps> = ({
         limit: maxSections,
         showOnHomepage: true
       });
+console.log(response);
 
       // Handle different API response structures
       const sectionsData = Array.isArray(response) ? response : (response.sections || response.data || []);
