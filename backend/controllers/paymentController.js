@@ -367,10 +367,8 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
         let invoiceData = null;
 
         try {
-            // Get the updated order - FIXED: Use correct field names from your Order schema
             const orderForInvoice = await Order.findById(orderId)
                 .populate('user', 'firstName lastName email phone');
-
             if (orderForInvoice) {
 
                 // Generate invoice automatically after payment verification
@@ -452,13 +450,6 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                 return;
             }
 
-            console.log('📊 ORDER DATA FOR N8N:');
-            console.log('- Order Number:', populatedOrder.orderNumber);
-            console.log('- Total Amount:', populatedOrder.pricing?.total);
-            console.log('- Items:', populatedOrder.items?.length);
-            console.log('- User email:', populatedOrder.user?.email);
-            console.log('- Shipping address:', populatedOrder.shippingAddress);
-
             // Extract customer info with shipping address priority
             const shippingAddress = populatedOrder.shippingAddress || {};
             const user = populatedOrder.user || {};
@@ -510,8 +501,6 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                 timestamp: new Date().toISOString(),
                 source: "backend"
             });
-
-            console.log('✅ paymentConfirmed N8N trigger sent with complete data for order:', populatedOrder.orderNumber);
         } catch (n8nError) {
             console.error('❌ N8N paymentConfirmed trigger failed (non-critical):', n8nError.message);
             // Don't fail payment process if N8N fails
@@ -549,8 +538,6 @@ const reduceStockForOrder = async (order) => {
     // Process each item in the order
     for (const item of order.items) {
         try {
-            console.log(`🔄 Processing stock reduction for: ${item.name} (${item.productType})`);
-
             if (item.productType === 'product') {
                 await reduceProductStock(item);
             } else if (item.productType === 'prebuilt-pc') {
@@ -566,8 +553,6 @@ const reduceStockForOrder = async (order) => {
                 quantity: item.quantity
             });
 
-            console.log(`✅ Stock reduced for: ${item.name}`);
-
         } catch (error) {
             console.error(`❌ Failed to reduce stock for ${item.name}:`, error.message);
             stockReductionResults.failed.push({
@@ -579,11 +564,6 @@ const reduceStockForOrder = async (order) => {
             });
         }
     }
-
-    // Log results
-    console.log('📊 Stock Reduction Summary:');
-    console.log(`✅ Successful: ${stockReductionResults.successful.length}`);
-    console.log(`❌ Failed: ${stockReductionResults.failed.length}`);
 
     if (stockReductionResults.failed.length > 0) {
         throw new Error(`Stock reduction failed for ${stockReductionResults.failed.length} items`);
@@ -636,9 +616,7 @@ const reduceVariantStock = async (product, item) => {
     }
 
     // Save the product
-    await product.save();
-
-    console.log(`✅ Variant stock reduced: ${variant.name} - New stock: ${variant.stockQuantity}`);
+    await product.save()
 };
 
 /**
@@ -660,7 +638,6 @@ const reduceMainProductStock = async (product, item) => {
     // Save the product
     await product.save();
 
-    console.log(`✅ Main product stock reduced: ${product.name} - New stock: ${product.stockQuantity}`);
 };
 
 /**
@@ -689,8 +666,6 @@ const reducePreBuiltPCStock = async (item) => {
 
     // Save the prebuilt PC
     await preBuiltPC.save();
-
-    console.log(`✅ PreBuilt PC stock reduced: ${preBuiltPC.name} - New stock: ${preBuiltPC.stockQuantity}`);
 };
 
 // @desc    Get payment status

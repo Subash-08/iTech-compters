@@ -947,7 +947,7 @@ const generateAutoInvoiceAdmin = catchAsyncErrors(async (req, res, next) => {
     if (!order) {
         return next(new ErrorHandler('Order not found', 404));
     }
-
+    console.log(order)
     try {
         const invoiceData = await InvoiceGenerator.generateAutoInvoice(order, order.user);
         order.invoices = order.invoices || {};

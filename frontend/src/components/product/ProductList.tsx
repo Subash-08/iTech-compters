@@ -28,9 +28,9 @@ import { useAuthErrorHandler } from '../hooks/useAuthErrorHandler';
 import ProductCardShimmer from './ProductCardShimmer';
 
 // --- Premium Shimmer Components ---
-const ProductCardShimmerGrid: React.FC<{ count?: number }> = ({ count = 12 }) => {
+const ProductCardShimmerGrid: React.FC<{ count?: number }> = ({ count = 8 }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 lg:gap-8">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
       {Array.from({ length: count }).map((_, index) => (
         <ProductCardShimmer key={index} />
       ))}
@@ -41,14 +41,14 @@ const ProductCardShimmerGrid: React.FC<{ count?: number }> = ({ count = 12 }) =>
 const FilterShimmer: React.FC = () => {
   return (
     <div className="space-y-8 animate-pulse">
-      {[1, 2, 3, 4].map((section) => (
-        <div key={section} className="border-b border-gray-100 pb-6">
-          <div className="h-5 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-3">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="flex items-center">
-                <div className="h-4 w-4 bg-gray-200 rounded-sm mr-3"></div>
-                <div className="h-3 bg-gray-100 rounded w-3/4"></div>
+      {[1, 2, 3].map((section) => (
+        <div key={section} className="border-b border-gray-100 pb-6 last:border-0">
+          <div className="h-4 bg-gray-200 rounded w-1/3 mb-5"></div>
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((item) => (
+              <div key={item} className="flex items-center justify-between">
+                <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                <div className="h-3 bg-gray-50 rounded w-4"></div>
               </div>
             ))}
           </div>
@@ -60,13 +60,11 @@ const FilterShimmer: React.FC = () => {
 
 const HeaderShimmer: React.FC = () => {
   return (
-    <div className="animate-pulse mb-8">
-      <div className="h-10 bg-gray-200 rounded w-64 mb-3"></div>
-      <div className="h-4 bg-gray-100 rounded w-48 mb-6"></div>
-      <div className="flex gap-3">
-        {[1, 2, 3].map((item) => (
-          <div key={item} className="h-8 bg-gray-200 rounded-full w-24"></div>
-        ))}
+    <div className="animate-pulse mb-5 border-b border-gray-100 pb-6">
+      <div className="h-8 bg-gray-200 rounded w-48 mb-4"></div>
+      <div className="flex gap-2">
+        <div className="h-8 bg-gray-100 rounded-full w-20"></div>
+        <div className="h-8 bg-gray-100 rounded-full w-24"></div>
       </div>
     </div>
   );
@@ -168,7 +166,7 @@ const ProductList: React.FC = () => {
       brandName: brandName?.replace(/-/g, ' '), 
       categoryName: categoryName?.replace(/-/g, ' ') 
     }));
-    toast.success('Filters cleared successfully');
+    toast.success('Filters cleared');
   }, [setSearchParams, dispatch, brandName, categoryName]);
 
   const removeFilter = useCallback((key: string) => {
@@ -181,13 +179,14 @@ const ProductList: React.FC = () => {
 
   const handlePageChange = useCallback((page: number) => {
     updateFilter('page', page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [updateFilter]);
 
   const getPageTitle = useCallback(() => {
     if (brandName) return `${brandName.replace(/-/g, ' ')}`;
     if (categoryName) return `${categoryName.replace(/-/g, ' ')}`;
-    if (lastSearchQuery) return `Results for "${lastSearchQuery}"`;
-    return 'All Products';
+    if (lastSearchQuery) return `"${lastSearchQuery}"`;
+    return 'Latest Arrivals';
   }, [brandName, categoryName, lastSearchQuery]);
 
   const shouldShowFilter = useCallback((filterType: 'brand' | 'category') => {
@@ -204,7 +203,7 @@ const ProductList: React.FC = () => {
       }));
     } catch (error: any) {
       if (handleAuthError(error)) return;
-      toast.error('Failed to load products. Please try again.');
+      toast.error('Failed to load products.');
     }
   }, [dispatch, filters, handleAuthError, brandName, categoryName]);
 
@@ -222,13 +221,11 @@ const ProductList: React.FC = () => {
   // --- Initial Loading State ---
   if (loading && products.length === 0) {
     return (
-      <div className="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-12 py-12">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 bg-white min-h-screen">
         <HeaderShimmer />
-        <div className="flex flex-col lg:flex-row gap-10 mt-8">
-          <div className="w-full lg:w-72 hidden lg:block">
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <FilterShimmer />
-            </div>
+        <div className="flex flex-col lg:flex-row gap-12">
+          <div className="w-full lg:w-64 hidden lg:block">
+            <FilterShimmer />
           </div>
           <div className="flex-1">
             <ProductCardShimmerGrid count={8} />
@@ -241,23 +238,19 @@ const ProductList: React.FC = () => {
   // --- Error State ---
   if (error && products.length === 0) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center bg-gray-50/50">
-        <div className="text-center p-12 max-w-lg">
-          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl">⚠️</div>
-          <h2 className="text-3xl font-bold text-gray-900 tracking-tight mb-3">Unable to Load Products</h2>
-          <p className="text-gray-500 mb-8 leading-relaxed">{error}</p>
-          <div className="flex items-center justify-center gap-4">
-            <button 
-              onClick={handleRetry}
-              className="px-6 py-2.5 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-all duration-300 shadow-lg shadow-gray-200"
-            >
+      <div className="min-h-[60vh] flex items-center justify-center bg-white">
+        <div className="text-center p-8 max-w-md">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-red-50 text-red-500 rounded-xl mb-6">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          </div>
+          <h2 className="text-xl font-medium text-gray-900 mb-2">Something went wrong</h2>
+          <p className="text-gray-500 mb-8 text-sm leading-relaxed">{error}</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button onClick={handleRetry} className="px-6 py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
               Try Again
             </button>
-            <Link 
-              to="/"
-              className="px-6 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-full font-medium hover:bg-gray-50 transition-all duration-300"
-            >
-              Go Home
+            <Link to="/" className="px-6 py-2.5 bg-gray-100 text-gray-900 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+              Return Home
             </Link>
           </div>
         </div>
@@ -267,200 +260,201 @@ const ProductList: React.FC = () => {
 
   // --- Main Content ---
   return (
-    <div className="min-h-screen bg-[#FDFDFD]">
-      <div className="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-12 py-10">
+    <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-900 selection:text-white">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         
-        {/* --- Header Section --- */}
-        <div className="flex flex-col gap-6 mb-10">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-            <div>
-              <div className="flex items-baseline gap-3">
-                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight capitalize">
-                  {getPageTitle()}
-                </h1>
-                <span className="text-gray-400 font-medium text-lg">
-                  {totalProducts}
+        {/* --- Header & Controls --- */}
+        <div className="flex flex-col gap-6 mb-10 md:mb-14">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            {/* Title Section */}
+            <div className="relative">
+               {/* Breadcrumb-ish / Overline */}
+              {(brandName || categoryName) && (
+                <span className="block text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">
+                   {brandName ? 'Brand' : 'Collection'}
                 </span>
-              </div>
-              <p className="text-gray-500 mt-2 text-lg">
-                Curated collection for you.
+              )}
+              <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-900 capitalize leading-tight">
+                {getPageTitle()}
+              </h1>
+              <p className="mt-2 text-gray-500 text-sm md:text-base font-normal">
+                {totalProducts} {totalProducts === 1 ? 'product' : 'products'} found
               </p>
             </div>
 
-            {/* Sort & Filter Mobile Toggle */}
-            <div className="flex items-center gap-3">
+            {/* Controls (Sort & Mobile Filter Trigger) */}
+            <div className="flex items-center gap-3 w-full md:w-auto">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="lg:hidden flex items-center px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all active:scale-95"
+                // Changed lg:hidden to xl:hidden so it shows on screens < 1280px
+                className="xl:hidden flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors active:scale-95"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
                 Filters
               </button>
 
-              <div className="relative group">
+              <div className="relative flex-1 md:flex-none md:min-w-[200px] group">
                 <select
                   value={filters.sortBy || 'featured'}
                   onChange={(e) => handleSortChange(e.target.value)}
-                  className="appearance-none bg-white border border-gray-200 rounded-full pl-5 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all cursor-pointer shadow-sm"
+                  className="w-full appearance-none bg-white border border-gray-200 rounded-lg pl-4 pr-10 py-2.5 text-sm font-medium text-gray-900 hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-colors cursor-pointer"
                   disabled={loading}
                 >
                   <option value="featured">Featured</option>
-                  <option value="newest">Newest Drops</option>
+                  <option value="newest">Newest Arrivals</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
-                  <option value="rating">Top Rated</option>
+                  <option value="rating">Highest Rated</option>
                 </select>
-                <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-gray-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-gray-600">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Active Filters Bar */}
           {(hasActiveFilters || lastSearchQuery) && (
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              
-              {/* Route Filters (Static) */}
-              {(brandName || categoryName) && (
-                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-black text-white shadow-md">
-                  {brandName ? `Brand: ${brandName.replace(/-/g, ' ')}` : `Category: ${categoryName?.replace(/-/g, ' ')}`}
-                </span>
-              )}
-
-              {/* Removable Filters */}
+            <div className="flex flex-wrap items-center gap-2 pt-2">
               {getRemovableActiveFilters().map(filter => (
                 <button
                   key={filter.key}
                   onClick={() => removeFilter(filter.key)}
-                  className="group inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-red-200 hover:text-red-600 transition-all shadow-sm"
+                  className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors"
                 >
-                  {filter.label}
-                  <svg className="ml-2 w-3 h-3 text-gray-400 group-hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <span className="text-gray-500 font-normal">{filter.label.split(':')[0]}:</span>
+                  <span>{filter.label.split(':')[1]}</span>
+                  <svg className="w-3 h-3 text-gray-400 group-hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               ))}
 
-              {/* Search Badge */}
               {lastSearchQuery && (
-                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                  "{lastSearchQuery}"
-                  <button onClick={clearSearch} className="ml-2 hover:text-blue-900">×</button>
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium bg-gray-900 text-white">
+                  Search: {lastSearchQuery}
+                  <button onClick={clearSearch} className="hover:text-gray-300">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
                 </span>
               )}
 
-              {/* Clear All */}
               {(hasRemovableFilters || lastSearchQuery) && (
                 <button
                   onClick={() => { clearFilters(); if(lastSearchQuery) clearSearch(); }}
-                  className="text-xs font-bold text-gray-400 hover:text-gray-900 uppercase tracking-wider ml-2 transition-colors"
+                  className="text-xs font-medium text-gray-500 hover:text-gray-900 hover:underline ml-2 transition-colors"
                 >
-                  Clear All
+                  Clear all
                 </button>
               )}
             </div>
           )}
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-14 relative">
+        {/* --- Main Layout: Changed lg to xl breakpoints --- */}
+        <div className="flex flex-col xl:flex-row gap-8 xl:gap-16 relative">
           
           {/* --- Sidebar Filters --- */}
+          {/* Changed lg:w-64 to xl:w-80 (Wider Sidebar)
+              Changed lg:block to xl:block (Hidden on 1200px) 
+          */}
           <div className={`
-            fixed inset-0 z-40 bg-white/95 backdrop-blur-md transform transition-transform duration-300 ease-in-out lg:relative lg:transform-none lg:bg-transparent lg:backdrop-blur-none lg:z-0 lg:w-72 lg:block
-            ${showFilters ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            fixed inset-0 z-50 transform transition-transform duration-300 ease-in-out
+            xl:relative xl:transform-none xl:z-0 xl:w-80 xl:block
+            ${showFilters ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'}
           `}>
-            {/* Mobile Close Button */}
-            <div className="lg:hidden p-6 flex justify-between items-center border-b border-gray-100">
-              <span className="text-lg font-bold">Filters</span>
-              <button onClick={() => setShowFilters(false)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
+             {/* Mobile Backdrop & Container */}
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm xl:hidden" onClick={() => setShowFilters(false)}></div>
+            
+            <div className="relative h-full w-[85%] max-w-xs bg-white xl:bg-transparent xl:w-full xl:max-w-none shadow-2xl xl:shadow-none overflow-hidden flex flex-col">
+              
+              {/* Mobile Header */}
+              <div className="xl:hidden px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white">
+                <span className="text-lg font-semibold text-gray-900">Filters</span>
+                <button onClick={() => setShowFilters(false)} className="p-2 -mr-2 text-gray-400 hover:text-gray-900">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
 
-            <div className="h-full overflow-y-auto lg:overflow-visible p-6 lg:p-0">
-               <ProductDetailFilters
-                  showFilters={true}
-                  availableFilters={availableFilters}
-                  currentFilters={filters}
-                  onUpdateFilter={updateFilter}
-                  onClearFilters={clearFilters}
-                  shouldShowFilter={shouldShowFilter}
-                  products={products}
-                />
+              {/* Filter Content */}
+              <div className="flex-1 overflow-y-auto p-6 xl:p-0 xl:sticky xl:top-24">
+                 <ProductDetailFilters
+                   showFilters={true}
+                   availableFilters={availableFilters}
+                   currentFilters={filters}
+                   onUpdateFilter={updateFilter}
+                   onClearFilters={clearFilters}
+                   shouldShowFilter={shouldShowFilter}
+                   products={products}
+                 />
+              </div>
+
+              {/* Mobile Footer Actions */}
+              <div className="xl:hidden p-6 border-t border-gray-100 bg-white">
+                <button 
+                  onClick={() => setShowFilters(false)}
+                  className="w-full py-3 bg-black text-white font-medium rounded-lg active:scale-95 transition-transform"
+                >
+                  Show {products.length} Results
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Backdrop for Mobile */}
-          {showFilters && (
-            <div 
-              className="fixed inset-0 bg-black/20 z-30 lg:hidden backdrop-blur-sm"
-              onClick={() => setShowFilters(false)}
-            />
-          )}
-
-          {/* --- Product Grid & Content --- */}
-          <div className="flex-1 relative min-h-[500px]">
+          {/* --- Product Grid Section --- */}
+          <div className="flex-1 min-h-[500px]">
             
-            {/* Loading Overlay (Glassmorphism) */}
+            {/* Soft Loading State Overlay */}
             {loading && products.length > 0 && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-start justify-center pt-32 transition-opacity duration-300">
-                <div className="bg-white px-6 py-3 rounded-full shadow-xl border border-gray-100 flex items-center gap-3">
-                   <div className="w-4 h-4 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
-                   <span className="text-sm font-medium text-gray-900">Updating Catalog...</span>
-                </div>
-              </div>
+              <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] z-10 transition-opacity duration-300" />
             )}
 
             {products.length === 0 && !loading ? (
               // --- Empty State ---
-              <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/50">
-                <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center mb-6 text-3xl">
-                  {lastSearchQuery ? '🔍' : '📦'}
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {lastSearchQuery ? 'No matches found' : 'Collection Empty'}
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No products found
                 </h3>
-                <p className="text-gray-500 max-w-md mx-auto mb-8 leading-relaxed">
+                <p className="text-gray-500 max-w-sm mx-auto mb-8 text-sm">
                   {lastSearchQuery 
-                    ? `We couldn't find anything matching "${lastSearchQuery}". Try using broader terms.`
-                    : 'We are currently restocking this collection. Check back later for new drops.'
+                    ? `We couldn't find any matches for "${lastSearchQuery}". Try adjusting your keywords.`
+                    : 'Try adjusting your filters to find what you are looking for.'
                   }
                 </p>
-                <div className="flex gap-4">
-                  {hasRemovableFilters && (
-                    <button
-                      onClick={clearFilters}
-                      className="px-6 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl font-semibold hover:border-gray-400 transition-colors"
-                    >
-                      Clear Filters
-                    </button>
-                  )}
-                  <Link 
-                    to="/products"
-                    className="px-6 py-2.5 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200"
+                {hasRemovableFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-black transition-all"
                   >
-                    View All Products
-                  </Link>
-                </div>
+                    Clear all filters
+                  </button>
+                )}
               </div>
             ) : (
               // --- Products Grid ---
-              <div className="animate-fade-in-up">
-<div className="grid gap-6 lg:gap-8"
-     style={{
-       gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))"
-     }}>
-  {products.map((product) => (
-    <ProductCard key={product._id} product={product} />
-  ))}
-</div>
-
+              <div className="animate-fade-in">
+                {/* Layout Rules:
+                  1. items-stretch: Forces equal height for all cards.
+                  2. grid-cols-4: Default desktop columns.
+                  3. gap-4 md:gap-6: Standardized gap.
+                */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 items-stretch">
+                  {products.map((product) => (
+                    <ProductCard key={product._id} product={product} />
+                  ))}
+                </div>
 
                 {totalPages > 1 && (
-                  <div className="mt-16 pt-8 border-t border-gray-100">
+                  <div className="mt-20 border-t border-gray-100 pt-10">
                     <ProductPagination
                       currentPage={currentPage}
                       totalPages={totalPages}

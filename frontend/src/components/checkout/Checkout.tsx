@@ -100,21 +100,16 @@ const Checkout: React.FC = () => {
     setMounted(true);
     return () => setMounted(false);
   }, []);
-
-  // Debug effect
   useEffect(() => {
-    console.log('💰 Checkout Amount Debug:', {
-      total,
-      subtotal,
-      shipping,
-      tax,
-      discount,
-      cartItems: cartItems?.length,
-      createdOrderId,
-      currentStep
-    });
-  }, [total, createdOrderId, currentStep]);
+    if (document.getElementById("razorpay-sdk")) return;
 
+    const script = document.createElement("script");
+    script.id = "razorpay-sdk";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+
+    document.body.appendChild(script);
+  }, []);
   const handleUpdateAddress = async (addressId: string, addressData: any, setAsDefault = false) => {
     try {
       setPaymentError('');

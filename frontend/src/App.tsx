@@ -1,11 +1,11 @@
-import React, { useEffect, lazy, Suspense } from "react";
+import React, { useEffect, lazy, Suspense, useState, memo } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
-import 'react-toastify/dist/ReactToastify.css';
+// Removed eager ToastContainer import
+import 'react-toastify/dist/ReactToastify.css'; 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import LoadingSpinner from "./components/admin/common/LoadingSpinner";
-import AuthInitializer from "./components/AuthInitializer";
+// Removed eager AuthInitializer import
 import { useAppSelector } from "./redux/hooks";
 import { selectIsAuthenticated, selectAuthLoading, selectUser } from "./redux/selectors";
 import { HelmetProvider } from "react-helmet-async";
@@ -19,7 +19,7 @@ import Register from "./components/auth/Register";
 import Cart from "./components/cart/Cart";
 import Profile from "./components/profile/Profile";
 
-// ✅ LAZY LOAD LESS CRITICAL PAGES ONLY
+// ✅ LAZY LOAD LESS CRITICAL PAGES
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
 const Wishlist = lazy(() => import("./components/wishlist/Wishlist"));
 const PreBuiltPCList = lazy(() => import("./components/prebuild/PreBuiltPCList"));
@@ -44,33 +44,62 @@ const ShippingDeliveryPolicy = lazy(() => import("./components/pages/ShippingDel
 const WarrantyPolicy = lazy(() => import("./components/pages/WarrantyPolicy"));
 const TermsConditions = lazy(() => import("./components/pages/TermsConditions"));
 
-// ✅ Root Layout
+// ✅ FIX 1: Lazy Import AuthInitializer as a Component
+const AuthInitializerLazy = lazy(() => import("./components/AuthInitializer"));
+
+// ✅ Lazy Load ToastContainer
+const ToastContainerLazy = lazy(() =>
+  import("react-toastify").then(m => ({ default: m.ToastContainer }))
+);
+
+// ✅ Memoize Navbar & Footer
+const NavbarMemo = memo(Navbar);
+const FooterMemo = memo(Footer);
+
+// ✅ FIX 1 (Implementation): Defer AuthInitializer logic safely using React State
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [showAuth, setShowAuth] = useState(false);
+
+  useEffect(() => {
+    // Use requestIdleCallback if available to defer until main thread is free
+    const idleCallback = (window as any).requestIdleCallback || ((cb: Function) => setTimeout(cb, 1));
+    
+    idleCallback(() => {
+      setShowAuth(true);
+    });
+  }, []);
+
   return (
     <>
-      <AuthInitializer />
+      {/* Conditionally mount the component so hooks run correctly */}
+      {showAuth && (
+        <Suspense fallback={null}>
+          <AuthInitializerLazy />
+        </Suspense>
+      )}
       {children}
     </>
   );
 };
 
+// ✅ Optimize ScrollToTop
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => {
-    window.scrollTo(0, 0);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
   }, [pathname]);
   return null;
 };
 
-// ✅ Layout Components
+// ✅ Update PublicLayout to use Memoized components
 const PublicLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
-      <Navbar />
+      <NavbarMemo />
       <main className="min-h-screen bg-gray-50">
         {children}
       </main>
-      <Footer />
+      <FooterMemo />
     </>
   );
 };
@@ -83,14 +112,23 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// ✅ Loading Component
+// Loading Component
 const PageLoading: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center">
     <LoadingSpinner />
   </div>
 );
 
-// ✅ FIXED ProtectedRoute - Simplified without React.memo
+// ✅ Lighter Suspense Fallback
+const LazyRoute = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <Suspense fallback={<div className="min-h-[60vh] animate-pulse bg-gray-50/50" />}>
+      {children}
+    </Suspense>
+  );
+};
+
+// ✅ FIX 2: ProtectedRoute Logic Fixed
 const ProtectedRoute = ({ 
   children, 
   requireAuth = true,
@@ -104,54 +142,62 @@ const ProtectedRoute = ({
   const authLoading = useAppSelector(selectAuthLoading);
   const user = useAppSelector(selectUser);
 
-  // Show loading while checking authentication
-  if (authLoading) {
+  // ❌ OLD: if (authLoading) return <PageLoading />; 
+  // This blocked public pages.
+  
+  // ✅ NEW: Only block if this specific route REQUIRES auth
+  if (requireAuth && authLoading) {
     return <PageLoading />;
   }
 
+  // If auth is required and user is NOT logged in
   if (requireAuth && !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
   
+  // Admin check
   if (requireAuth && adminOnly && user?.role !== 'admin') {
     return <Navigate to="/" replace />;
   }
    
-  // If route doesn't require auth but user is authenticated, redirect from auth pages
-  if (!requireAuth && isAuthenticated) {
+  // Redirect logged-in users away from Login/Register pages
+  // Note: We check !authLoading here to prevent premature redirects
+  if (!requireAuth && isAuthenticated && !authLoading) {
     return <Navigate to="/" replace />;
   }
   
   return <>{children}</>;
 };
 
-// ✅ SIMPLIFIED Suspense Wrapper
-const LazyRoute = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <Suspense fallback={<PageLoading />}>
-      {children}
-    </Suspense>
-  );
-};
-
 const App: React.FC = () => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <HelmetProvider>
       <BrowserRouter>
         <ScrollToTop />
         <RootLayout>
-          <ToastContainer
-            position="bottom-center"
-            autoClose={5000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="light"
-          />
+          {/* ✅ Load ToastContainer only after mount */}
+          {mounted && (
+            <Suspense fallback={null}>
+              <ToastContainerLazy
+                position="bottom-center"
+                autoClose={5000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+              />
+            </Suspense>
+          )}
           
           <Routes>
             {/* Admin Routes */}
@@ -171,10 +217,10 @@ const App: React.FC = () => {
               path="/login" 
               element={
                 <ProtectedRoute requireAuth={false}>
-                   <PublicLayout>
-                  <AuthLayout>
-                    <Login />
-                  </AuthLayout>
+                  <PublicLayout>
+                    <AuthLayout>
+                      <Login />
+                    </AuthLayout>
                   </PublicLayout>
                 </ProtectedRoute>
               } 
@@ -184,10 +230,10 @@ const App: React.FC = () => {
               path="/register" 
               element={
                 <ProtectedRoute requireAuth={false}>
-                   <PublicLayout>
-                  <AuthLayout>
-                    <Register />
-                  </AuthLayout>
+                  <PublicLayout>
+                    <AuthLayout>
+                      <Register />
+                    </AuthLayout>
                   </PublicLayout>
                 </ProtectedRoute>
               } 
@@ -197,12 +243,12 @@ const App: React.FC = () => {
               path="/forgot-password" 
               element={
                 <ProtectedRoute requireAuth={false}>
-                   <PublicLayout>
-                  <AuthLayout>
-                    <LazyRoute>
-                      <ForgotPassword />
-                    </LazyRoute>
-                  </AuthLayout>
+                  <PublicLayout>
+                    <AuthLayout>
+                      <LazyRoute>
+                        <ForgotPassword />
+                      </LazyRoute>
+                    </AuthLayout>
                   </PublicLayout>
                 </ProtectedRoute>
               } 
@@ -212,12 +258,12 @@ const App: React.FC = () => {
               path="/reset-password" 
               element={
                 <ProtectedRoute requireAuth={false}>
-                   <PublicLayout>
-                  <AuthLayout>
-                    <LazyRoute>
-                      <ResetPassword />
-                    </LazyRoute>
-                  </AuthLayout>
+                  <PublicLayout>
+                    <AuthLayout>
+                      <LazyRoute>
+                        <ResetPassword />
+                      </LazyRoute>
+                    </AuthLayout>
                   </PublicLayout>
                 </ProtectedRoute>
               } 

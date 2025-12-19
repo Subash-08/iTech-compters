@@ -30,11 +30,11 @@ const App: React.FC = () => {
       <VideoSectionsPage />
        <section className="py-12">
         <div className="container mx-auto px-4">
-          <InstagramReels 
+          {/* <InstagramReels 
             autoPlay={true}
             showThumbnails={true}
             className="rounded-xl shadow-2xl"
-          />
+          /> */}
         </div>
       </section>
       <TrustedBrandsSection />

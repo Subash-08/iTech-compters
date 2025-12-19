@@ -21,75 +21,94 @@
         width: 210mm;
         margin: 0 auto;
         padding: 20mm 15mm;
+        min-height: 297mm; /* A4 Height */
       }
 
-      /* HEADER - FULL WIDTH */
+      /* HEADER */
       .header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        padding-bottom: 15px;
+        padding-bottom: 20px;
         border-bottom: 3px solid #0056b3;
-        margin-bottom: 20px;
+        margin-bottom: 30px;
       }
-      .company-info {
+
+      /* LOGO & COMPANY INFO WRAPPER */
+      .brand-section {
+        display: flex;
+        align-items: flex-start; /* Aligns logo with top of text */
+        gap: 15px; /* Space between logo and text */
         flex: 1;
       }
+      .company-logo {
+        width: 80px; /* Adjust logo size here */
+        height: auto;
+        object-fit: contain;
+      }
+      .company-details {
+        display: flex;
+        flex-direction: column;
+      }
+
       .company-name {
         font-size: 28px;
         font-weight: 700;
         color: #0056b3;
         margin-bottom: 5px;
+        line-height: 1;
       }
       .company-tagline {
         font-size: 14px;
         color: #666;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
       }
       .company-contact {
-        font-size: 12px;
-        color: #555;
-      }
-      .invoice-title {
-        text-align: right;
-      }
-      .invoice-title h1 {
-        font-size: 24px;
-        color: #28a745;
-        margin-bottom: 8px;
-      }
-      .invoice-meta {
         font-size: 13px;
         color: #555;
-      }
-      .invoice-meta div {
-        margin-bottom: 2px;
+        line-height: 1.5;
       }
 
-      /* INFO SECTION - COMPACT */
+      .invoice-title {
+        text-align: right;
+        min-width: 200px;
+      }
+      .invoice-title h1 {
+        font-size: 32px;
+        color: #333;
+        margin-bottom: 10px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .invoice-meta {
+        font-size: 14px;
+        color: #555;
+        text-align: right;
+      }
+      .invoice-meta div {
+        margin-bottom: 4px;
+      }
+
+      /* INFO SECTION (BILL TO) */
       .info-section {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        margin-bottom: 25px;
+        margin-bottom: 30px;
       }
       .info-card {
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 15px;
-        background: #f9f9f9;
+        width: 60%; /* Slightly wider to accommodate long addresses */
+        border-left: 4px solid #ddd;
+        padding-left: 15px;
       }
       .info-card h3 {
         font-size: 16px;
-        color: #333;
-        margin-bottom: 12px;
-        padding-bottom: 5px;
-        border-bottom: 1px solid #ccc;
+        color: #0056b3;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        font-weight: 700;
       }
       .info-row {
         display: flex;
-        margin-bottom: 6px;
-        font-size: 13px;
+        margin-bottom: 5px;
+        font-size: 14px;
       }
       .info-label {
         width: 80px;
@@ -101,54 +120,33 @@
         color: #222;
         font-weight: 500;
       }
-      .status-badge {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-      }
-      .status-paid {
-        background: #d4edda;
-        color: #155724;
-      }
-      .status-pending {
-        background: #fff3cd;
-        color: #856404;
-      }
 
-      /* PRODUCTS TABLE - COMPACT */
-      .section-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: #333;
-        margin: 20px 0 10px 0;
-        padding-bottom: 5px;
-        border-bottom: 1px solid #ddd;
-      }
+      /* PRODUCTS TABLE */
       .products-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 13px;
-        margin-bottom: 20px;
+        margin-bottom: 10px;
       }
       .products-table thead {
-        background: #0056b3;
-        color: white;
+        background: #f4f4f4;
+        color: #333;
+        border-bottom: 2px solid #ddd;
       }
       .products-table th {
-        padding: 10px 8px;
+        padding: 12px 10px;
         text-align: left;
-        font-weight: 600;
-        border: none;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 12px;
       }
       .products-table td {
-        padding: 8px;
+        padding: 12px 10px;
         border-bottom: 1px solid #eee;
+        vertical-align: top;
       }
       .products-table tbody tr:hover {
-        background: #f8f9fa;
+        background: #fafafa;
       }
       .text-right {
         text-align: right;
@@ -157,92 +155,76 @@
         text-align: center;
       }
 
-      /* TABLE TOTALS */
+      /* TABLE INTERMEDIATE TOTALS */
       .table-totals {
         width: 100%;
-        margin-top: 10px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
       }
       .table-total-row {
         display: flex;
         justify-content: flex-end;
-        padding: 5px 0;
+        padding: 4px 10px;
         font-size: 13px;
       }
       .table-total-label {
         width: 120px;
         text-align: right;
-        padding-right: 15px;
+        padding-right: 20px;
         color: #666;
       }
       .table-total-value {
-        width: 100px;
+        width: 120px;
         text-align: right;
         font-weight: 500;
       }
-      .table-grand-total {
-        border-top: 2px solid #333;
-        padding-top: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        color: #222;
+
+      /* SUMMARY & NOTES SECTION */
+      .summary-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-top: 30px;
+        gap: 30px;
       }
 
-      /* SUMMARY SECTION */
-      .summary-section {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 20px;
-        margin-top: 25px;
-      }
-      .notes-card,
-      .final-summary {
-        border: 1px solid #ddd;
-        border-radius: 5px;
+      /* Notes Styling */
+      .notes-card {
+        flex: 1;
+        border: 1px solid #eee;
+        background: #fcfcfc;
         padding: 15px;
-        background: #f9f9f9;
+        border-radius: 4px;
       }
-      .notes-card h3,
-      .final-summary h3 {
-        font-size: 16px;
+      .notes-card h3 {
+        font-size: 14px;
         color: #333;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
+        font-weight: 700;
+        border-bottom: 1px solid #ddd;
         padding-bottom: 5px;
-        border-bottom: 1px solid #ccc;
       }
       .notes-content {
         font-size: 13px;
         color: #555;
         line-height: 1.5;
-        margin-bottom: 15px;
-        min-height: 60px;
-      }
-      .terms-list {
-        font-size: 12px;
-        color: #666;
-      }
-      .terms-list ul {
-        list-style: none;
-        padding-left: 0;
-      }
-      .terms-list li {
-        margin-bottom: 4px;
-        padding-left: 15px;
-        position: relative;
-      }
-      .terms-list li:before {
-        content: "•";
-        position: absolute;
-        left: 5px;
-        color: #0056b3;
       }
 
-      /* FINAL TOTALS */
+      /* Summary Box Styling */
+      .final-summary {
+        width: 350px;
+        background: #f9f9f9;
+        padding: 20px;
+        border-radius: 4px;
+        margin-left: auto;
+      }
       .summary-row {
         display: flex;
         justify-content: space-between;
         padding: 6px 0;
-        font-size: 13px;
-        border-bottom: 1px dashed #ccc;
+        font-size: 14px;
+        border-bottom: 1px dashed #ddd;
       }
       .summary-row:last-child {
         border-bottom: none;
@@ -251,72 +233,87 @@
         color: #666;
       }
       .summary-value {
-        font-weight: 500;
-        color: #222;
+        font-weight: 600;
+        color: #333;
       }
       .grand-total-row {
-        margin-top: 10px;
+        margin-top: 15px;
         padding-top: 10px;
-        border-top: 2px solid #0056b3;
-        font-size: 14px;
+        border-top: 2px solid #333;
       }
       .grand-total-row .summary-label {
-        font-weight: 600;
-        color: #222;
+        font-size: 16px;
+        font-weight: 700;
+        color: #000;
       }
       .grand-total-row .summary-value {
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 700;
-        color: #28a745;
+        color: #0056b3;
       }
 
       /* FOOTER */
       .footer {
-        margin-top: 30px;
-        padding-top: 15px;
-        border-top: 2px solid #ddd;
+        margin-top: 50px;
+        padding-top: 20px;
+        border-top: 1px solid #ddd;
         text-align: center;
-        font-size: 12px;
-        color: #666;
+        color: #888;
       }
       .thank-you {
-        font-size: 13px;
-        color: #28a745;
-        font-weight: 500;
-        margin-bottom: 8px;
+        font-size: 14px;
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 5px;
       }
       .footer-contact {
-        font-size: 11px;
-        color: #777;
-        line-height: 1.4;
+        font-size: 12px;
       }
 
-      /* PRINT */
+      /* PRINT OPTIMIZATION */
       @media print {
         body {
           padding: 0;
           margin: 0;
         }
         .invoice {
-          padding: 15mm 10mm;
+          width: 100%;
+          padding: 10mm;
+          border: none;
+        }
+        .notes-card,
+        .final-summary {
+          background: none !important;
+          border: 1px solid #ddd;
+        }
+        .products-table thead {
+          background: #eee !important;
+          -webkit-print-color-adjust: exact;
         }
       }
     </style>
   </head>
   <body>
     <div class="invoice">
-      <!-- HEADER -->
       <div class="header">
-        <div class="company-info">
-          <div class="company-name">iTech Computers</div>
-          <div class="company-tagline">Professional Computer Solutions</div>
-          <div class="company-contact">
-            Contact: +91 98765 43210 | Email: info@itechcomputers.shop<br />
-            Address: 123 Tech Street, City, State - 560001
+        <div class="brand-section">
+          <img
+            src="../public/logo.png"
+            alt="Company Logo"
+            class="company-logo"
+          />
+          <div class="company-details">
+            <div class="company-name">iTech Computers</div>
+            <div class="company-tagline">Professional Computer Solutions</div>
+            <div class="company-contact">
+              Address: 123 Tech Street, City, State - 560001<br />
+              Email: info@itechcomputers.shop | Phone: +91 98765 43210
+            </div>
           </div>
         </div>
+
         <div class="invoice-title">
-          <h1>TAX INVOICE</h1>
+          <h1>INVOICE</h1>
           <div class="invoice-meta">
             <div><strong>Invoice #:</strong> {{invoiceNumber}}</div>
             <div><strong>Date:</strong> {{invoiceDate}}</div>
@@ -325,7 +322,6 @@
         </div>
       </div>
 
-      <!-- CUSTOMER & PAYMENT INFO -->
       <div class="info-section">
         <div class="info-card">
           <h3>Bill To</h3>
@@ -353,49 +349,24 @@
             <div class="info-label">Address:</div>
             <div class="info-value">{{customerAddress}}</div>
           </div>
-          {{/if}}
+          {{/if}} {{#if customerGSTIN}}
           <div class="info-row">
             <div class="info-label">GSTIN:</div>
             <div class="info-value">{{customerGSTIN}}</div>
-          </div>
-        </div>
-
-        <div class="info-card">
-          <h3>Payment Details</h3>
-          <div class="info-row">
-            <div class="info-label">Status:</div>
-            <div class="info-value">
-              <span
-                class="status-badge {{#if paymentPaid}}status-paid{{else}}status-pending{{/if}}"
-              >
-                {{paymentStatus}}
-              </span>
-            </div>
-          </div>
-          <div class="info-row">
-            <div class="info-label">Method:</div>
-            <div class="info-value">{{paymentMethod}}</div>
-          </div>
-          {{#if transactionId}}
-          <div class="info-row">
-            <div class="info-label">Txn ID:</div>
-            <div class="info-value">{{transactionId}}</div>
           </div>
           {{/if}}
         </div>
       </div>
 
-      <!-- PRODUCTS TABLE -->
-      <div class="section-title">Products & Services</div>
       <table class="products-table">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Description</th>
-            <th class="text-center">Qty</th>
-            <th class="text-right">Unit Price</th>
-            <th class="text-center">GST %</th>
-            <th class="text-right">Total</th>
+            <th style="width: 5%">#</th>
+            <th style="width: 45%">Description</th>
+            <th class="text-center" style="width: 10%">Qty</th>
+            <th class="text-right" style="width: 15%">Unit Price</th>
+            <th class="text-center" style="width: 10%">GST</th>
+            <th class="text-right" style="width: 15%">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -403,74 +374,64 @@
         </tbody>
       </table>
 
-      <!-- TABLE TOTALS -->
       <div class="table-totals">
         <div class="table-total-row">
-          <div class="table-total-label">Products Total:</div>
+          <div class="table-total-label">Subtotal:</div>
           <div class="table-total-value">₹{{productsSubtotal}}</div>
         </div>
         <div class="table-total-row">
           <div class="table-total-label">Total GST:</div>
           <div class="table-total-value">₹{{productsTotalGst}}</div>
         </div>
-        <div class="table-total-row table-grand-total">
-          <div class="table-total-label">Subtotal:</div>
-          <div class="table-total-value">₹{{subtotal}}</div>
-        </div>
       </div>
 
-      <!-- SUMMARY & NOTES -->
       <div class="summary-section">
+        {{#if notes}}
         <div class="notes-card">
           <h3>Notes</h3>
           <div class="notes-content">{{notes}}</div>
-          <div class="terms-list">
-            <h3>Terms & Conditions</h3>
-            <ul>
-              <li>Payment is due within 30 days of invoice date</li>
-              <li>Late payments subject to 1.5% monthly interest</li>
-              <li>All prices include GST as applicable</li>
-              <li>Warranty as per manufacturer guidelines</li>
-              <li>Returns accepted within 7 days with original packaging</li>
-            </ul>
-          </div>
         </div>
+        {{/if}}
 
         <div class="final-summary">
-          <h3>Invoice Summary</h3>
           <div class="summary-row">
-            <span class="summary-label">Subtotal:</span>
+            <span class="summary-label">Subtotal</span>
             <span class="summary-value">₹{{subtotal}}</span>
           </div>
+          {{#if discount}}
           <div class="summary-row">
-            <span class="summary-label">Discount:</span>
-            <span class="summary-value">-₹{{discount}}</span>
+            <span class="summary-label">Discount</span>
+            <span class="summary-value" style="color: #d9534f"
+              >-₹{{discount}}</span
+            >
           </div>
+          {{/if}} {{#if shipping}}
           <div class="summary-row">
-            <span class="summary-label">Shipping:</span>
+            <span class="summary-label">Shipping</span>
             <span class="summary-value">₹{{shipping}}</span>
           </div>
+          {{/if}}
           <div class="summary-row">
-            <span class="summary-label">Total GST:</span>
+            <span class="summary-label">Total GST</span>
             <span class="summary-value">₹{{totalGst}}</span>
           </div>
+          {{#if roundOff}}
           <div class="summary-row">
-            <span class="summary-label">Round Off:</span>
+            <span class="summary-label">Round Off</span>
             <span class="summary-value">₹{{roundOff}}</span>
           </div>
+          {{/if}}
           <div class="summary-row grand-total-row">
-            <span class="summary-label">GRAND TOTAL:</span>
+            <span class="summary-label">Total Due</span>
             <span class="summary-value">₹{{grandTotal}}</span>
           </div>
         </div>
       </div>
 
-      <!-- FOOTER -->
       <div class="footer">
         <div class="thank-you">Thank you for your business!</div>
         <div class="footer-contact">
           This is a computer-generated invoice. No signature required.<br />
-          Contact: +91 98765 43210 | Email: info@itechcomputers.shop<br />
           © iTech Computers. All rights reserved.
         </div>
       </div>
