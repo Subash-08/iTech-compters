@@ -1,7 +1,8 @@
 // src/components/products/ProductList.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { Helmet } from 'react-helmet-async'; // ✅ SEO Import
 
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -90,6 +91,84 @@ const ProductList: React.FC = () => {
   const activeFilters = useAppSelector(selectActiveFilters);
   const hasActiveFilters = useAppSelector(selectHasActiveFilters);
   const lastSearchQuery = useAppSelector(selectLastSearchQuery);
+
+  // --- SEO LOGIC START ---
+  const siteUrl = "https://itechcomputers.shop"; // Replace with real domain
+  const canonicalPath = categoryName 
+    ? `/products/category/${categoryName}`
+    : brandName 
+      ? `/products/brand/${brandName}` 
+      : '/products';
+  
+  const canonicalUrl = `${siteUrl}${canonicalPath}${currentPage > 1 ? `?page=${currentPage}` : ''}`;
+
+  // Ideally, your API should return the 'category' or 'brand' object with metadata separately.
+  // Assuming 'products[0].category' or similar might hold populated data, or we fallback to defaults.
+  // Since you store SEO data in the Category/Brand collection, ensure your getProducts API populates it.
+  
+  // Dynamic Title & Description Construction
+  const getSEOTitle = () => {
+    if (categoryName) {
+      // Use the actual category name formatted nicely
+      const cleanName = categoryName.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return `Buy ${cleanName} Online | Best Prices in Salem | iTech Computers`;
+    }
+    if (brandName) {
+      const cleanName = brandName.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return `${cleanName} Products | Official Dealer Salem | iTech Computers`;
+    }
+    if (lastSearchQuery) {
+      return `Search Results for "${lastSearchQuery}" | iTech Computers`;
+    }
+    return "Shop Computer Parts & Laptops | iTech Computers Salem";
+  };
+
+  const getSEODescription = () => {
+    if (categoryName) {
+      const cleanName = categoryName.replace(/-/g, ' ');
+      return `Shop the best range of ${cleanName} at iTech Computers. We offer competitive prices, genuine products, and expert support in Salem.`;
+    }
+    if (brandName) {
+      const cleanName = brandName.replace(/-/g, ' ');
+      return `Browse our collection of ${cleanName} products. Laptops, desktops, and accessories available at iTech Computers Salem.`;
+    }
+    return "Your one-stop shop for custom PCs, laptops, and computer accessories in Salem. Best deals on top tech brands.";
+  };
+
+  // Structured Data (Breadcrumb + Collection)
+  const structuredData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": siteUrl },
+        { "@type": "ListItem", "position": 2, "name": "Products", "item": `${siteUrl}/products` },
+        (categoryName || brandName) && { 
+          "@type": "ListItem", 
+          "position": 3, 
+          "name": (categoryName || brandName)?.replace(/-/g, ' '), 
+          "item": canonicalUrl 
+        }
+      ].filter(Boolean)
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "name": getSEOTitle(),
+      "description": getSEODescription(),
+      "url": canonicalUrl,
+      "mainEntity": {
+        "@type": "ItemList",
+        "itemListElement": products.map((product, index) => ({
+          "@type": "ListItem",
+          "position": index + 1,
+          "url": `${siteUrl}/product/${product.slug}`,
+          "name": product.name
+        }))
+      }
+    }
+  ];
+  // --- SEO LOGIC END ---
   
   const isRouteFilter = useCallback((key: string) => {
     return (key === 'category' && categoryName) || (key === 'brand' && brandName);
@@ -261,6 +340,29 @@ const ProductList: React.FC = () => {
   // --- Main Content ---
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-gray-900 selection:text-white">
+      {/* ✅ SEO: Metadata Injection */}
+      <Helmet>
+        <title>{getSEOTitle()}</title>
+        <meta name="description" content={getSEODescription()} />
+        <link rel="canonical" href={canonicalUrl} />
+        
+        {/* Open Graph */}
+        <meta property="og:title" content={getSEOTitle()} />
+        <meta property="og:description" content={getSEODescription()} />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:type" content="website" />
+        
+        {/* Don't index search result pages to avoid crawl budget waste */}
+        {lastSearchQuery && <meta name="robots" content="noindex, follow" />}
+
+        {/* Structured Data */}
+        {structuredData.map((schema, index) => (
+          <script key={index} type="application/ld+json">
+            {JSON.stringify(schema)}
+          </script>
+        ))}
+      </Helmet>
+
       <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         
         {/* --- Header & Controls --- */}

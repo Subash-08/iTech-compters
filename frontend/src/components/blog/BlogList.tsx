@@ -1,6 +1,7 @@
 // src/components/blog/BlogList.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async'; // ✅ Added for SEO
 import { blogService, Blog } from '../admin/services/blogService';
 import { BlogCardSkeleton } from './Skeleton';
 import { getImageUrl, getPlaceholderImage } from '../utils/imageUtils';
@@ -41,6 +42,46 @@ const BlogList: React.FC<BlogListProps> = ({
   const [categories, setCategories] = useState<Array<{ _id: string; count: number }>>([]);
   const [tags, setTags] = useState<Array<{ _id: string; count: number }>>([]);
   const [recentPosts, setRecentPosts] = useState<Blog[]>([]);
+
+  // --- SEO HELPER LOGIC START ---
+  const siteUrl = "https://itechcomputers.shop";
+  const currentUrl = `${siteUrl}${location.pathname}${location.search}`;
+  
+  // Dynamic Title Construction
+  let pageTitle = "Tech Blog, PC Build Guides & Reviews | iTech Computers";
+  let pageDescription = "Explore the latest insights on custom PC building, hardware reviews, and technology trends. Expert advice from iTech Computers Salem.";
+
+  if (selectedCategory) {
+    pageTitle = `${selectedCategory} Blogs & Articles | iTech Computers`;
+    pageDescription = `Read our latest articles and guides about ${selectedCategory}. Expert insights and tutorials.`;
+  } else if (selectedTag) {
+    pageTitle = `Posts tagged "${selectedTag}" | iTech Computers Blog`;
+    pageDescription = `Browse all our tech articles tagged with ${selectedTag}.`;
+  }
+
+  // Add pagination to title to prevent duplicate title SEO issues
+  if (page > 1) {
+    pageTitle = `${pageTitle} - Page ${page}`;
+  }
+
+  // Structured Data (CollectionPage + ItemList)
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "headline": pageTitle,
+    "description": pageDescription,
+    "url": currentUrl,
+    "mainEntity": {
+      "@type": "ItemList",
+      "itemListElement": blogs.map((blog, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "url": `${siteUrl}/blog/${blog.slug || blog.Slug}`,
+        "name": blog.title || blog.Title
+      }))
+    }
+  };
+  // --- SEO HELPER LOGIC END ---
 
   // Fetch filter options on mount
   useEffect(() => {
@@ -195,6 +236,27 @@ const BlogList: React.FC<BlogListProps> = ({
 
   return (
     <div className="min-h-screen bg-white py-12">
+      {/* ✅ SEO Injection */}
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <link rel="canonical" href={currentUrl} />
+        
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        <meta property="og:url" content={currentUrl} />
+        
+        {/* Robots: Don't index search result pages to save crawl budget */}
+        {searchQuery && <meta name="robots" content="noindex, follow" />}
+        
+        {/* Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      </Helmet>
+
       <div className="max-w-[85rem] mx-auto px-6 sm:px-8 lg:px-12">
         {/* Main Content Area */}
         <div className="flex flex-col lg:flex-row gap-12">
@@ -213,8 +275,6 @@ const BlogList: React.FC<BlogListProps> = ({
                  'Discover insights, tutorials, and industry news'}
               </p>
             </div>
-
-
 
             {/* Error Message - Minimal */}
             {error && (
@@ -420,26 +480,27 @@ const BlogList: React.FC<BlogListProps> = ({
           {/* Right Sidebar - EXACTLY like reference image */}
           <div className="lg:w-1/4">
             <div className="sticky top-8">
-                          {/* Search - Simplified */}
-            <div className="mb-12">
-              <form onSubmit={handleSearch} className="max-w-md">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search blog posts..."
-                    className="flex-1 px-2 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 text-base"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-gray-900 text-white px-6 py-1 rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium"
-                  >
-                    Search
-                  </button>
-                </div>
-              </form>
-            </div>
+              {/* Search - Simplified */}
+              <div className="mb-12">
+                <form onSubmit={handleSearch} className="max-w-md">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search blog posts..."
+                      className="flex-1 px-2 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 text-base"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-gray-900 text-white px-6 py-1 rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium"
+                    >
+                      Search
+                    </button>
+                  </div>
+                </form>
+              </div>
+
               {/* Recent Posts Widget */}
               <div className="mb-10">
                 <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6">

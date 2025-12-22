@@ -1,4 +1,5 @@
 import React from 'react';
+import { Helmet } from 'react-helmet-async'; // ✅ Added SEO Import
 import { motion, Variants } from 'framer-motion';
 import { 
   ChevronRight, 
@@ -7,7 +8,6 @@ import {
   Phone,
   Mail
 } from 'lucide-react';
-// Assuming you have these constants defined elsewhere, keeping imports as is
 import { BRAND, OFFERINGS, TRUST_POINTS } from './constants';
 import about from '../../assets/about-bg.avif' 
 import { useNavigate } from 'react-router-dom';
@@ -35,7 +35,7 @@ const MainContent: React.FC = () => {
         <div className="absolute inset-0 z-0">
           <img 
             src={about} 
-            alt="High-end Computing Workspace" 
+            alt="High-end Computing Workspace - iTech Computers Facility" 
             className="w-full h-full object-cover object-center scale-105 opacity-80"
           />
           
@@ -63,7 +63,7 @@ const MainContent: React.FC = () => {
             {/* Badge */}
             <motion.div variants={itemVariants} className="mb-8">
               <span className="inline-flex items-center px-4 py-2 text-[11px] font-bold tracking-[0.2em] text-blue-400 uppercase bg-blue-900/20 backdrop-blur-md border border-blue-500/20 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.2)]">
-                Professional Tech Solutions
+                Professional Tech Solutions in Salem
               </span>
             </motion.div>
 
@@ -101,7 +101,7 @@ const MainContent: React.FC = () => {
                 <div className="flex -space-x-4">
                   {[44, 45, 46].map((id) => (
                     <div key={id} className="w-10 h-10 rounded-full border-2 border-black overflow-hidden relative z-0 hover:z-10 transition-all hover:scale-110">
-                        <img src={`https://i.pravatar.cc/100?u=${id}`} className="w-full h-full object-cover" alt="Client" />
+                        <img src={`https://i.pravatar.cc/100?u=${id}`} className="w-full h-full object-cover" alt="Happy Client" />
                     </div>
                   ))}
                 </div>
@@ -131,7 +131,7 @@ const MainContent: React.FC = () => {
             <div className="aspect-[4/5] rounded-[2rem] overflow-hidden shadow-2xl shadow-blue-900/10 border border-slate-100">
               <img 
                 src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop" 
-                alt="Our Tech Excellence" 
+                alt="Our Tech Excellence in Custom PC Building" 
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-1000 ease-out"
               />
             </div>
@@ -199,14 +199,14 @@ const MainContent: React.FC = () => {
                 whileHover={{ y: -5 }}
                 className="group bg-white p-8 lg:p-10 rounded-[2rem] border border-slate-100 shadow-[0_5px_30px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_40px_-10px_rgba(37,99,235,0.1)] hover:border-blue-100  transition-all duration-300"
               >
-<div className="w-14 h-14 bg-slate-50 text-slate-900 rounded-2xl flex items-center justify-center mb-8 
-  group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300"
->
-  {React.cloneElement(item.icon as React.ReactElement, {
-    size: 24,
-    className: "text-current"
-  })}
-</div>
+                <div className="w-14 h-14 bg-slate-50 text-slate-900 rounded-2xl flex items-center justify-center mb-8 
+                  group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300"
+                >
+                  {React.cloneElement(item.icon as React.ReactElement, {
+                    size: 24,
+                    className: "text-current"
+                  })}
+                </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-3">{item.title}</h3>
                 <p className="text-slate-500 text-sm leading-relaxed">{item.description}</p>
               </motion.div>
@@ -260,7 +260,7 @@ const MainContent: React.FC = () => {
             <img 
               src="https://images.unsplash.com/photo-1531297484001-80022131f5a1?q=80&w=2020&auto=format&fit=crop" 
               className="w-full h-full object-cover opacity-60 transition-transform duration-[1.5s] group-hover:scale-110" 
-              alt="Store Interior"
+              alt="iTech Computers Store Interior"
             />
           </div>
 
@@ -290,16 +290,16 @@ const MainContent: React.FC = () => {
                 </div>
               </div>
             </div>
-<a
-  href="https://www.google.com/maps?ll=11.667667,78.135905&z=15&t=m&hl=en-US&gl=US&cid=5146045816583805650"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="flex items-center space-x-3 text-zinc-400 hover:text-white transition-colors group"
->
-            <button className="group/btn flex items-center gap-3 text-white font-bold bg-white/10 hover:bg-white hover:text-black border border-white/20 px-8 py-4 rounded-full transition-all duration-300 backdrop-blur-sm">
-              View on Google Maps
-              <ArrowRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
-            </button>
+            <a
+              href="https://www.google.com/maps?ll=11.667667,78.135905&z=15&t=m&hl=en-US&gl=US&cid=5146045816583805650"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-3 text-zinc-400 hover:text-white transition-colors group"
+            >
+              <button className="group/btn flex items-center gap-3 text-white font-bold bg-white/10 hover:bg-white hover:text-black border border-white/20 px-8 py-4 rounded-full transition-all duration-300 backdrop-blur-sm">
+                View on Google Maps
+                <ArrowRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
+              </button>
             </a>
           </div>
         </div>
@@ -350,7 +350,7 @@ const MainContent: React.FC = () => {
   );
 };
 
-// Simple Icon Wrappers to fix type compatibility if needed
+// Simple Icon Wrappers
 const PhoneIcon = ({ className }: { className?: string }) => (
   <Phone className={className} />
 );
@@ -360,8 +360,55 @@ const MailIcon = ({ className }: { className?: string }) => (
 );
 
 const About: React.FC = () => {
+  // ✅ SEO Strings
+  const pageTitle = "About iTech Computers | Custom PC Experts in Salem";
+  const pageDesc = "Learn about iTech Computers Salem. We specialize in high-end custom gaming PCs, workstations, and authentic computer parts with expert support.";
+  const canonicalUrl = "https://itechcomputers.shop/about";
+
+  // ✅ AboutPage Schema
+  const aboutSchema = {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    "name": pageTitle,
+    "description": pageDesc,
+    "url": canonicalUrl,
+    "mainEntity": {
+      "@type": "ComputerStore",
+      "name": "iTech Computers",
+      "image": "https://itechcomputers.shop/og-home-banner.jpg",
+      "telephone": BRAND.phone, 
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "RBT Mall, Meyyanur Bypass Rd, opp. to iplanet",
+        "addressLocality": "Salem",
+        "addressRegion": "Tamil Nadu",
+        "postalCode": "636004",
+        "addressCountry": "IN"
+      }
+    }
+  };
+
   return (
-    <MainContent />
+    <>
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDesc} />
+        <link rel="canonical" href={canonicalUrl} />
+        
+        {/* Open Graph */}
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDesc} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={canonicalUrl} />
+        
+        {/* JSON-LD */}
+        <script type="application/ld+json">
+          {JSON.stringify(aboutSchema)}
+        </script>
+      </Helmet>
+      
+      <MainContent />
+    </>
   );
 };
 

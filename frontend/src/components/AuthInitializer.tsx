@@ -1,11 +1,11 @@
-// components/AuthInitializer.tsx - UPDATED WITH WISHLIST (SAFE)
+// components/AuthInitializer.tsx
 import { useEffect, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { initializeAuth } from '../redux/slices/authSlice';
 import { selectToken, selectUser, selectIsAuthenticated } from '../redux/selectors';
 import { loadCompleteUserProfile } from '../redux/actions/authActions';
 import { cartActions } from '../redux/actions/cartActions';
-import { wishlistActions } from '../redux/actions/wishlistActions'; // Add this import
+import { wishlistActions } from '../redux/actions/wishlistActions';
 import { useAuthErrorHandler } from '../components/hooks/useAuthErrorHandler';
 
 const AuthInitializer: React.FC = () => {
@@ -15,71 +15,75 @@ const AuthInitializer: React.FC = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const { handleAuthError } = useAuthErrorHandler();
   
-  // Use refs to track sync state
   const hasAttemptedSync = useRef(false);
   const syncInProgress = useRef(false);
 
+  // 1. Sync Initialization (Fastest)
   useEffect(() => {
     dispatch(initializeAuth());
   }, [dispatch]);
 
+  // 2. Load User Profile (Critical for Auth)
   useEffect(() => {
-    const loadUserData = async () => {
-      if (!token) {
-        return;
-      }
+    if (!token || existingUser) return;
 
+    const loadUserData = async () => {
       try {
         await dispatch(loadCompleteUserProfile());
         
-        
-        // ✅ OPTIONAL: You can enable automatic sync here if needed
-        // But for now, we'll let the Cart/Wishlist components handle sync modals
-        
-        if (isAuthenticated && !hasAttemptedSync.current && !syncInProgress.current) {
+        // Handle Sync AFTER user loads
+        if (!hasAttemptedSync.current && !syncInProgress.current) {
           syncInProgress.current = true;
           hasAttemptedSync.current = true;
           
-          try {
-            // Sync both cart and wishlist
-            await Promise.all([
-              dispatch(cartActions.syncGuestCart()),
-              dispatch(wishlistActions.syncGuestWishlist())
-            ]);
-          } catch (error) {
-            console.error('❌ AuthInitializer: Automatic sync failed:', error);
-          } finally {
-            syncInProgress.current = false;
-          }
+          // 🔥 PERFORMANCE FIX: Stagger Sync Logic
+          // Don't sync cart/wishlist immediately. Wait for the UI to settle.
+          setTimeout(async () => {
+             try {
+                await Promise.all([
+                  dispatch(cartActions.syncGuestCart()),
+                  dispatch(wishlistActions.syncGuestWishlist())
+                ]);
+             } catch (error) {
+                console.error('Background sync failed:', error);
+             } finally {
+                syncInProgress.current = false;
+             }
+          }, 1000); // 1 second delay after profile load
         }
-        
-        
       } catch (error: any) {
-        if (handleAuthError(error)) {
-          return;
-        }
+        if (handleAuthError(error)) return;
         console.error('Failed to load user profile:', error.message);
       }
     };
 
-    // Load data if we have token but no user data
-    if (token && !existingUser) {
-      loadUserData();
-    }
-  }, [token, existingUser, isAuthenticated, dispatch, handleAuthError]);
+    loadUserData();
+  }, [token, existingUser, dispatch, handleAuthError]);
 
-  // Load guest data when not authenticated
+  // 3. Guest Data (Non-Critical - Staggered)
   useEffect(() => {
     if (!isAuthenticated && !token) {
-      dispatch(cartActions.fetchCart());
-      dispatch(wishlistActions.fetchWishlist()); // Add wishlist fetch
+      // 🔥 PERFORMANCE FIX: Delay guest fetches
+      const timer = setTimeout(() => {
+        dispatch(cartActions.fetchCart());
+        // Wishlist is even less critical, fetch it slightly after cart
+        setTimeout(() => {
+            dispatch(wishlistActions.fetchWishlist());
+        }, 500); 
+      }, 500); // 500ms delay after mount
+
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, token, dispatch]);
 
-  // ✅ NEW: Load wishlist when user becomes authenticated
+  // 4. Authenticated Data Refresh
   useEffect(() => {
     if (isAuthenticated && token) {
-      dispatch(wishlistActions.fetchWishlist());
+       // Stagger this too
+       const timer = setTimeout(() => {
+          dispatch(wishlistActions.fetchWishlist());
+       }, 1500);
+       return () => clearTimeout(timer);
     }
   }, [isAuthenticated, token, dispatch]);
 

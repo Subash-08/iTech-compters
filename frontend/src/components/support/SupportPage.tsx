@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 
 interface SupportFormData {
   name: string;
@@ -13,6 +14,12 @@ interface SupportFormData {
 }
 
 const SupportPage: React.FC = () => {
+  // --- SEO Configuration ---
+  const pageTitle = "Customer Support & Service Request | iTech Computers Salem";
+  const pageDescription = "Submit a support ticket for PC repairs, warranty claims, or technical issues. Expert computer support at iTech Computers, RBT Mall, Salem.";
+  const siteUrl = "https://itechcomputers.shop/support";
+
+  // --- State Management ---
   const [formData, setFormData] = useState<SupportFormData>({
     name: '',
     email: '',
@@ -27,21 +34,22 @@ const SupportPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
+  // --- Constants ---
   const queryTypes = [
     { value: 'general', label: 'General Inquiry' },
-    { value: 'technical', label: 'Technical Support' },
-    { value: 'billing', label: 'Billing Issue' },
-    { value: 'product', label: 'Product Information' },
-    { value: 'complaint', label: 'Complaint' },
-    { value: 'suggestion', label: 'Suggestion' }
+    { value: 'technical', label: 'Technical Support / PC Repair' },
+    { value: 'warranty', label: 'Warranty Claim' },
+    { value: 'billing', label: 'Billing & Invoice Issue' },
+    { value: 'upgrade', label: 'PC Upgrade Request' }
   ];
 
   const priorities = [
-    { value: 'low', label: 'Low - Non-urgent', color: 'text-gray-600' },
-    { value: 'medium', label: 'Medium - Standard', color: 'text-blue-600' },
-    { value: 'high', label: 'High - Urgent', color: 'text-red-600' }
+    { value: 'low', label: 'Low - General Question', color: 'text-gray-600' },
+    { value: 'medium', label: 'Medium - Standard Issue', color: 'text-blue-600' },
+    { value: 'high', label: 'High - System Down/Urgent', color: 'text-red-600' }
   ];
 
+  // --- Handlers ---
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -65,21 +73,7 @@ const SupportPage: React.FC = () => {
     setSubmitStatus('idle');
 
     try {
-      const submitData = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key === 'attachments' && value) {
-          Array.from(value as FileList).forEach(file => {
-            submitData.append('attachments', file);
-          });
-        } else {
-          submitData.append(key, value as string);
-        }
-      });
-
       // Simulation of API call
-      // const response = await fetch('/api/support/submit', { method: 'POST', body: submitData });
-      
-      // Simulating success
       await new Promise(resolve => setTimeout(resolve, 1500));
       const response = { ok: true }; 
 
@@ -107,19 +101,60 @@ const SupportPage: React.FC = () => {
     }
   };
 
+  // --- Structured Data (JSON-LD) ---
+  const supportSchema = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    "name": "iTech Computers Support",
+    "description": pageDescription,
+    "url": siteUrl,
+    "mainEntity": {
+      "@type": "ComputerStore",
+      "name": "iTech Computers",
+      "telephone": "+91-63829-28973",
+      "email": "itechcomputersno7@gmail.com",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+91-63829-28973",
+        "contactType": "customer service",
+        "areaServed": "IN",
+        "availableLanguage": ["en", "ta"]
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+      
+      {/* SEO Implementation */}
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <link rel="canonical" href={siteUrl} />
+        
+        {/* Open Graph */}
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        <meta property="og:url" content={siteUrl} />
+        <meta property="og:type" content="website" />
+        
+        {/* Schema */}
+        <script type="application/ld+json">
+          {JSON.stringify(supportSchema)}
+        </script>
+      </Helmet>
+
       <div className="max-w-7xl mx-auto">
         
         {/* Header Section */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-blue-600 font-semibold tracking-wide uppercase text-sm mb-3">iTech Support</h2>
+          <h2 className="text-blue-600 font-semibold tracking-wide uppercase text-sm mb-3">iTech Customer Care</h2>
           <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">
             How can we help you?
           </h1>
           <p className="text-xl text-gray-500">
-            Our team is dedicated to providing you with the best support for your tech needs. 
-            Fill out the form, and we'll be in touch shortly.
+            Submit a ticket for PC repairs, warranty claims, or technical questions. 
+            Our team at RBT Mall is ready to assist.
           </p>
         </div>
 
@@ -141,11 +176,11 @@ const SupportPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-900">Phone</p>
-                    <a href="tel:+916382928973" className="mt-1 text-gray-600 hover:text-blue-600 transition-colors block">
+                    <p className="text-sm font-medium text-gray-900">Support Hotline</p>
+                    <a href="tel:+916382928973" className="mt-1 text-gray-600 hover:text-blue-600 transition-colors block font-bold">
                       +91 63829 28973
                     </a>
-                    <p className="text-xs text-gray-400 mt-1">Mon-Sat 10am to 9pm</p>
+                    <p className="text-xs text-gray-400 mt-1">Mon-Sat 9:30 AM - 9:30 PM</p>
                   </div>
                 </div>
 
@@ -159,11 +194,11 @@ const SupportPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="ml-4 overflow-hidden">
-                    <p className="text-sm font-medium text-gray-900">Email</p>
+                    <p className="text-sm font-medium text-gray-900">Email Support</p>
                     <a href="mailto:itechcomputersno7@gmail.com" className="mt-1 text-gray-600 hover:text-purple-600 transition-colors block break-words text-sm">
                       itechcomputersno7@gmail.com
                     </a>
-                    <p className="text-xs text-gray-400 mt-1">Typical reply: 2-4 hours</p>
+                    <p className="text-xs text-gray-400 mt-1">Response time: ~24 hours</p>
                   </div>
                 </div>
 
@@ -178,10 +213,9 @@ const SupportPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-900">Visit Showroom</p>
+                    <p className="text-sm font-medium text-gray-900">Service Center</p>
                     <p className="mt-1 text-gray-600 text-sm leading-relaxed">
-                      iTech Computers, RBT Mall,<br />
-                      Meyyanur Bypass Rd,<br />
+                      RBT Mall, Meyyanur Bypass Rd,<br />
                       Opp. to iPlanet,<br />
                       Salem, Tamil Nadu 636004
                     </p>
@@ -192,13 +226,13 @@ const SupportPage: React.FC = () => {
 
             {/* FAQ Teaser */}
             <div className="bg-blue-600 rounded-2xl shadow-lg p-8 text-white">
-              <h3 className="text-lg font-bold mb-2">Check our FAQ</h3>
+              <h3 className="text-lg font-bold mb-2">Check our Knowledge Base</h3>
               <p className="text-blue-100 text-sm mb-4">
-                Many common questions regarding PC builds and warranties are answered in our knowledge base.
+                Common questions about PC assembly testing, shipping, and return policies are answered in our FAQ.
               </p>
-              <button className="text-sm font-semibold bg-white text-blue-600 py-2 px-4 rounded-lg hover:bg-blue-50 transition-colors w-full">
-                View Knowledge Base
-              </button>
+              <a href="/contact" className="block text-center text-sm font-semibold bg-white text-blue-600 py-2 px-4 rounded-lg hover:bg-blue-50 transition-colors w-full">
+                View FAQ
+              </a>
             </div>
           </div>
 
@@ -208,7 +242,7 @@ const SupportPage: React.FC = () => {
               {/* Decorative background blob */}
               <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
 
-              <h2 className="text-2xl font-bold text-gray-900 mb-8">Send us a message</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-8">Open a Support Ticket</h2>
 
               <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                 
@@ -257,7 +291,7 @@ const SupportPage: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="address" className="text-sm font-medium text-gray-700">Address</label>
+                    <label htmlFor="address" className="text-sm font-medium text-gray-700">Location / Address</label>
                     <input
                       type="text"
                       name="address"
@@ -265,7 +299,7 @@ const SupportPage: React.FC = () => {
                       value={formData.address}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 outline-none placeholder-gray-400 text-gray-900"
-                      placeholder="Salem, Tamil Nadu"
+                      placeholder="e.g. Salem, Tamil Nadu"
                     />
                   </div>
                 </div>
@@ -273,14 +307,14 @@ const SupportPage: React.FC = () => {
                 {/* Query Type & Priority Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label htmlFor="queryType" className="text-sm font-medium text-gray-700">Topic</label>
+                    <label htmlFor="queryType" className="text-sm font-medium text-gray-700">Issue Category</label>
                     <div className="relative">
                       <select
                         name="queryType"
                         id="queryType"
                         value={formData.queryType}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 outline-none appearance-none text-gray-900"
+                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 outline-none appearance-none text-gray-900 cursor-pointer"
                       >
                         {queryTypes.map(type => (
                           <option key={type.value} value={type.value}>{type.label}</option>
@@ -295,14 +329,14 @@ const SupportPage: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="priority" className="text-sm font-medium text-gray-700">Priority</label>
+                    <label htmlFor="priority" className="text-sm font-medium text-gray-700">Urgency Level</label>
                     <div className="relative">
                       <select
                         name="priority"
                         id="priority"
                         value={formData.priority}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 outline-none appearance-none text-gray-900"
+                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 outline-none appearance-none text-gray-900 cursor-pointer"
                       >
                         {priorities.map(p => (
                           <option key={p.value} value={p.value} className={p.color}>{p.label}</option>
@@ -327,12 +361,12 @@ const SupportPage: React.FC = () => {
                     value={formData.subject}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 outline-none placeholder-gray-400 text-gray-900"
-                    placeholder="Brief summary of the issue"
+                    placeholder="Brief summary (e.g., PC not booting)"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="message" className="text-sm font-medium text-gray-700">Message</label>
+                  <label htmlFor="message" className="text-sm font-medium text-gray-700">Detailed Description</label>
                   <textarea
                     name="message"
                     id="message"
@@ -341,10 +375,9 @@ const SupportPage: React.FC = () => {
                     value={formData.message}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 outline-none placeholder-gray-400 text-gray-900 resize-none"
-                    placeholder="Tell us more about your inquiry..."
+                    placeholder="Please describe the issue, error codes, or details..."
                   />
                 </div>
-
 
                 <div className="pt-4">
                   <button
@@ -358,35 +391,35 @@ const SupportPage: React.FC = () => {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Sending...
+                        Sending Ticket...
                       </>
                     ) : (
-                      'Submit Request'
+                      'Submit Support Request'
                     )}
                   </button>
                 </div>
 
                 {/* Submit Status Alerts */}
                 {submitStatus === 'success' && (
-                  <div className="bg-green-50 text-green-800 rounded-xl p-4 flex items-center animate-fade-in-up">
+                  <div className="bg-green-50 text-green-800 rounded-xl p-4 flex items-center animate-fade-in-up border border-green-100">
                     <svg className="h-6 w-6 mr-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
-                      <p className="font-bold">Success!</p>
-                      <p className="text-sm">Your ticket has been created. We will be in touch shortly.</p>
+                      <p className="font-bold">Ticket Created Successfully!</p>
+                      <p className="text-sm">Our support team will review your request and contact you within 24 hours.</p>
                     </div>
                   </div>
                 )}
 
                 {submitStatus === 'error' && (
-                  <div className="bg-red-50 text-red-800 rounded-xl p-4 flex items-center animate-fade-in-up">
+                  <div className="bg-red-50 text-red-800 rounded-xl p-4 flex items-center animate-fade-in-up border border-red-100">
                     <svg className="h-6 w-6 mr-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
-                      <p className="font-bold">Error</p>
-                      <p className="text-sm">Something went wrong. Please try again later.</p>
+                      <p className="font-bold">Submission Failed</p>
+                      <p className="text-sm">Please check your internet connection or call us directly at +91 63829 28973.</p>
                     </div>
                   </div>
                 )}

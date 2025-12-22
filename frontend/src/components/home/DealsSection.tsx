@@ -1,7 +1,7 @@
 import React from 'react';
 // Make sure this path is correct relative to this file
-import Peripherals from '../../assets/Peripherals.png'; 
-import gpu from '../../assets/gpu.png'; 
+import Peripherals from '../../assets/Peripherals.jpg'; 
+import gpu from '../../assets/gpu.jpg'; 
 
 const deals = [
   {

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { 
-  Phone, Mail, MapPin, Clock, 
+  Phone, Mail, MapPin, 
   RefreshCw, Wrench, Headphones, 
   ShoppingBag, ChevronDown, ChevronUp, 
-  MessageCircleMore, Navigation, Send, 
-  CheckCircle, AlertCircle
+  Send, CheckCircle, AlertCircle, Shield 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -17,23 +17,30 @@ const ContactPage = () => {
     subject: '',
     message: ''
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [expandedFaq, setExpandedFaq] = useState(null);
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
   // --- Company Information ---
   const companyDetails = {
     name: "iTech Computers",
     phone: "6382928973",
+    displayPhone: "+91 63829 28973",
     email: "itechcomputersno7@gmail.com",
-    address: "iTech Computers, RBT Mall, Meyyanur Bypass Rd, opp. to iplanet, Meyyanur, Salem, Tamil Nadu 636004",
-    mapLink: "https://share.google/MplrTsc7xLxMCO0Z4" // General link or specific place ID
+    address: "RBT Mall, Meyyanur Bypass Rd, opp. to iplanet, Meyyanur, Salem, Tamil Nadu 636004",
+    // Link for the button action
+    mapLink: "https://www.google.com/maps/place/RBT+Mall/@11.6663,78.1465,17z" 
   };
+
+  // --- SEO Constants ---
+  const pageTitle = "Contact iTech Computers | Best PC Shop in Salem, Tamil Nadu";
+  const pageDescription = "Contact iTech Computers in RBT Mall, Salem. Call +91 63829 28973 for custom PC builds, laptop service, and tech support. Open Mon-Sat.";
+  const siteUrl = "https://itechcomputers.shop/contact";
 
   // --- Validation Logic ---
   const validateForm = () => {
-    const newErrors = {};
+    const newErrors: Record<string, string> = {};
     if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
@@ -51,7 +58,7 @@ const ContactPage = () => {
   };
 
   // --- Handlers ---
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length === 0) {
@@ -68,7 +75,7 @@ const ContactPage = () => {
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
@@ -80,10 +87,10 @@ const ContactPage = () => {
       id: 1,
       type: "phone",
       title: "Call Us",
-      value: `+91 ${companyDetails.phone}`,
+      value: companyDetails.displayPhone,
       icon: Phone,
       action: `tel:+91${companyDetails.phone}`,
-      subtitle: "Mon-Sat: 10AM - 9PM",
+      subtitle: "Mon-Sat: 9:30AM - 9:30PM",
       color: "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"
     },
     {
@@ -100,7 +107,7 @@ const ContactPage = () => {
       id: 3,
       type: "address",
       title: "Visit Showroom",
-      value: "RBT Mall, Meyyanur Bypass Rd, Salem",
+      value: "RBT Mall, Meyyanur, Salem",
       icon: MapPin,
       action: companyDetails.mapLink,
       subtitle: "Get Directions",
@@ -109,23 +116,22 @@ const ContactPage = () => {
   ];
 
   const supportCategories = [
-    { id: 1, title: "Order Tracking", icon: ShoppingBag, desc: "Check delivery status", link: "/orders" },
-    { id: 2, title: "Service Request", icon: Wrench, desc: "Book a repair/service", link: "/service" },
-    { id: 3, title: "Warranty Claims", icon: RefreshCw, desc: "Register or claim warranty", link: "/warranty" },
+    { id: 1, title: "Order Tracking", icon: ShoppingBag, desc: "Check delivery status", link: "/account/orders" },
+    { id: 2, title: "Privacy Policy", icon: Shield , desc: "Book a repair/service", link: "/privacy-policy" },
+    { id: 3, title: "Warranty Claims", icon: RefreshCw, desc: "Register or claim warranty", link: "/warranty-policy" },
     { id: 4, title: "Tech Support", icon: Headphones, desc: "Troubleshooting help", link: "/support" }
   ];
 
   const faqs = [
-{
-  id: 1,
-  question: "Do you test the PC before delivery?",
-  answer: "Yes. Every PC undergoes full assembly testing, thermal checks, and basic stress tests to ensure stable performance before dispatch."
-},
-
+    {
+      id: 1,
+      question: "Do you test the PC before delivery?",
+      answer: "Yes. Every PC undergoes full assembly testing, thermal checks, and basic stress tests to ensure stable performance before dispatch from our Salem store."
+    },
     {
       id: 2,
       question: "Do you provide on-site service for desktops and laptops?",
-      answer: "Yes, we provide on-site support for business clients and home users within a 10km radius of our Meyyanur showroom."
+      answer: "Yes, we provide on-site support for business clients and home users within a 10km radius of our Meyyanur showroom in Salem."
     },
     {
       id: 3,
@@ -134,10 +140,93 @@ const ContactPage = () => {
     }
   ];
 
+  // --- JSON-LD Structured Data ---
+  const schemas = [
+    // 1. ContactPage Schema
+    {
+      "@context": "https://schema.org",
+      "@type": "ContactPage",
+      "name": pageTitle,
+      "description": pageDescription,
+      "url": siteUrl,
+      "mainEntity": {
+        "@type": "ComputerStore",
+        "name": companyDetails.name,
+        "image": "https://itechcomputers.shop/og-home-banner.jpg",
+        "telephone": `+91-${companyDetails.phone}`,
+        "email": companyDetails.email,
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "RBT Mall, Meyyanur Bypass Rd, opp. to iplanet",
+          "addressLocality": "Salem",
+          "addressRegion": "Tamil Nadu",
+          "postalCode": "636004",
+          "addressCountry": "IN"
+        },
+        "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": "11.6663",
+            "longitude": "78.1465"
+        },
+        "openingHoursSpecification": [
+            {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+              "opens": "09:30",
+              "closes": "21:30"
+            },
+            {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": ["Sunday"],
+                "opens": "09:30",
+                "closes": "17:00"
+              }
+          ]
+      }
+    },
+    // 2. FAQ Schema (Boosts 'People Also Ask' visibility)
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": faqs.map(faq => ({
+        "@type": "Question",
+        "name": faq.question,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": faq.answer
+        }
+      }))
+    }
+  ];
+
   // --- Render ---
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
-      
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <link rel="canonical" href={siteUrl} />
+        
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        <meta property="og:url" content={siteUrl} />
+        <meta property="og:site_name" content="iTech Computers" />
+        
+        {/* Local Business Tags */}
+        <meta property="business:contact_data:street_address" content="RBT Mall, Meyyanur Bypass Rd" />
+        <meta property="business:contact_data:locality" content="Salem" />
+        <meta property="business:contact_data:postal_code" content="636004" />
+        <meta property="business:contact_data:country_name" content="India" />
+
+        {/* Structured Data Injection */}
+        {schemas.map((schema, index) => (
+          <script key={index} type="application/ld+json">
+            {JSON.stringify(schema)}
+          </script>
+        ))}
+      </Helmet>
       {/* Header Section */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20 text-center">
