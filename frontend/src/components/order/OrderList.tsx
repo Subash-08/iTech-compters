@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { orderService } from '../admin/services/orderService';
 import { Order } from '../admin/types/order';
+import { getImageUrl } from '../utils/imageUtils';
 
 interface OrdersResponse {
   orders: Order[];
@@ -104,25 +105,6 @@ const OrderList: React.FC = () => {
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
           </select>
-
-          <select
-            value={filters.sortBy}
-            onChange={(e) => setFilters(prev => ({ ...prev, sortBy: e.target.value, page: 1 }))}
-            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="createdAt">Order Date</option>
-            <option value="pricing.total">Total Amount</option>
-            <option value="status">Status</option>
-          </select>
-
-          <select
-            value={filters.sortOrder}
-            onChange={(e) => setFilters(prev => ({ ...prev, sortOrder: e.target.value as 'asc' | 'desc', page: 1 }))}
-            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="desc">Newest First</option>
-            <option value="asc">Oldest First</option>
-          </select>
         </div>
 
         <div className="text-sm text-gray-500">
@@ -185,33 +167,33 @@ const OrderList: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Order Items Preview */}
-                      <div className="mt-4 flex items-center space-x-2">
-                        {order.items.slice(0, 3).map((item, index) => (
-                          <div key={index} className="flex items-center space-x-2 text-sm text-gray-500">
-                            <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
-                              {item.image ? (
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  className="w-8 h-8 object-cover rounded"
-                                />
-                              ) : (
-                                <span className="text-xs">📦</span>
-                              )}
-                            </div>
-                            <span>{item.quantity}x {item.name}</span>
-                            {index < Math.min(3, order.items.length) - 1 && (
-                              <span className="text-gray-300">•</span>
-                            )}
-                          </div>
-                        ))}
-                        {order.items.length > 3 && (
-                          <span className="text-sm text-gray-500">
-                            +{order.items.length - 3} more
-                          </span>
-                        )}
-                      </div>
+    {/* Order Items Preview */}
+<div className="mt-4 flex items-center space-x-2">
+  {order.items.slice(0, 3).map((item, index) => (
+    <div key={index} className="flex items-center space-x-2 text-sm text-gray-500">
+      <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+        {item.image ? (
+          <img
+            src={getImageUrl(item.image)} // ✅ Using utility function
+            alt={item.name}
+            className="w-8 h-8 object-cover rounded"
+          />
+        ) : (
+          <span className="text-xs">📦</span>
+        )}
+      </div>
+      <span className="truncate max-w-[150px]">{item.quantity}x {item.name}</span>
+      {index < Math.min(3, order.items.length) - 1 && (
+        <span className="text-gray-300">•</span>
+      )}
+    </div>
+  ))}
+  {order.items.length > 3 && (
+    <span className="text-sm text-gray-500 font-medium">
+      +{order.items.length - 3} more
+    </span>
+  )}
+</div>
                     </div>
 
                     {/* Actions */}

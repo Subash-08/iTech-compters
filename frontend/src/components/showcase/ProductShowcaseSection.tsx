@@ -86,7 +86,7 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
         <div className="flex items-center gap-4">
           {showViewAll && (
             <Link 
-              to={viewAllLink || `/section/${_id}`}
+              to={viewAllLink || `/products`}
               className="group flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors duration-300"
             >
               <span>View All</span>

@@ -11,6 +11,7 @@ import {
   selectSearchQuery,
 } from '../../redux/selectors/productSelector';
 import { clearSearchResults, updateSearchQuery } from '../../redux/slices/productSlice';
+import { getImageUrl } from '../utils/imageUtils'; // Import the utility function
 
 const SearchBar: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,13 +146,15 @@ const SearchBar: React.FC = () => {
                     onClick={() => handleSuggestionClick(product)}
                     className="w-full text-left p-3 hover:bg-gray-50 rounded-md transition-colors flex items-center space-x-3"
                   >
-                    {product.images?.thumbnail?.url && (
-                      <img
-                        src={product.images.thumbnail.url}
-                        alt={product.name}
-                        className="w-10 h-10 object-cover rounded border"
-                      />
-                    )}
+                    {/* Updated Image Handling with getImageUrl */}
+                    <img
+                      src={getImageUrl(product.images?.thumbnail || product.images?.[0])}
+                      alt={product.name}
+                      className="w-10 h-10 object-contain rounded border bg-white"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://placehold.co/40x40?text=No+Img";
+                      }}
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {product.name}

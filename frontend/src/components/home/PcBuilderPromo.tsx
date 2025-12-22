@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, Cpu, Settings, ShieldCheck } from 'lucide-react';
 import customPC from '../../assets/10068.png'
+import { useNavigate } from 'react-router-dom';
 
 // --- Configuration ---
 const ASSETS = {
@@ -90,6 +91,7 @@ const FeaturePillar = ({ icon: Icon, title, desc }: { icon: any, title: string, 
 
 // --- Main Component ---
 const CustomPCSection = () => {
+  const navigate = useNavigate();
   return (
     <section className="relative w-full min-h-[100vh] flex items-center justify-center overflow-hidden bg-slate-50 py-12 md:py-24">
       <BackgroundGrid />
@@ -151,23 +153,27 @@ const CustomPCSection = () => {
             </motion.div>
 
             {/* Start Building Button - Absolute positioned below PC */}
-            <motion.div 
-              variants={itemVariants} 
-              className="absolute -bottom-4 md:-bottom-8 left-1/3 transform -translate-x-1/2 z-20"
-              whileHover={{ scale: 1.05 }} 
-              whileTap={{ scale: 0.95 }}
-            >
-              <button 
-                className={`group relative inline-flex items-center gap-2 px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-bold text-white bg-gradient-to-r ${ACCENT_GRADIENT} rounded-full overflow-hidden shadow-xl shadow-indigo-600/30 transition-all hover:shadow-indigo-600/50`}
-              >
-                <span className="relative z-10">Start Building</span>
-                <ChevronRight className="relative z-10 group-hover:translate-x-1 transition-transform" />
-                {/* Button Glow Overlay */}
-                <div className="absolute inset-0 h-full w-full scale-0 rounded-full transition-all duration-300 group-hover:scale-100 group-hover:bg-white/20"></div>
-                {/* Enhanced glow effect */}
-                <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-blue-600/20 via-indigo-500/20 to-purple-600/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
-              </button>
-            </motion.div>
+<motion.div 
+  variants={itemVariants} 
+  className="absolute -bottom-4 md:-bottom-8 left-1/3 transform -translate-x-1/2 z-20"
+  whileHover={{ scale: 1.05 }} 
+  whileTap={{ scale: 0.95 }}
+>
+  <button
+    onClick={() => navigate('/prebuilt-pcs')}
+    className={`group relative inline-flex items-center gap-2 px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-bold text-white bg-gradient-to-r ${ACCENT_GRADIENT} rounded-full overflow-hidden shadow-xl shadow-indigo-600/30 transition-all hover:shadow-indigo-600/50`}
+  >
+    <span className="relative z-10">Start Building</span>
+    <ChevronRight className="relative z-10 group-hover:translate-x-1 transition-transform" />
+
+    {/* Button Glow Overlay */}
+    <div className="absolute inset-0 h-full w-full scale-0 rounded-full transition-all duration-300 group-hover:scale-100 group-hover:bg-white/20" />
+
+    {/* Enhanced glow effect */}
+    <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-blue-600/20 via-indigo-500/20 to-purple-600/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
+  </button>
+</motion.div>
+
           </motion.div>
 
           {/* Feature Pillars */}

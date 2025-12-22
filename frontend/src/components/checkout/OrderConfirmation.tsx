@@ -4,6 +4,8 @@ import { CheckCircle2, Package, ArrowRight, Home, Printer, MapPin, CreditCard, S
 import { motion } from 'framer-motion';
 // Import your axios instance
 import api from '../config/axiosConfig';
+// Import the image utility
+import { getImageUrl } from '../utils/imageUtils'; 
 
 interface OrderDetails {
   _id: string;
@@ -148,7 +150,11 @@ const OrderConfirmation: React.FC = () => {
                   <div className="flex gap-5">
                     <div className="h-20 w-20 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0 border border-slate-200 shadow-sm">
                       {item.image ? (
-                        <img src={item.image} alt={item.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img 
+                          src={getImageUrl(item.image)} 
+                          alt={item.name} 
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                        />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-slate-400 text-xs font-medium">No Image</div>
                       )}

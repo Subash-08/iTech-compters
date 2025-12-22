@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { heroSectionService, HeroSection } from '../services/heroSectionService';
+import { getImageUrl } from '../../utils/imageUtils';
 
 // Safe icon fallbacks
 const SafeIcons = {
@@ -222,21 +223,23 @@ const SlideManagement: React.FC = () => {
                 <div className="flex-shrink-0 cursor-grab active:cursor-grabbing p-2 hover:bg-gray-100 rounded-lg">
                   <SafeIcons.GripVertical className="w-5 h-5 text-gray-400" />
                 </div>
+<div className="flex-shrink-0 w-20 h-20 bg-gray-200 rounded-lg overflow-hidden">
+  {slide.image ? (
+    <img
+      src={getImageUrl(slide.image)}
+      alt={slide.title}
+      className="w-full h-full object-cover"
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
+      }}
+    />
+  ) : (
+    <div className="w-full h-full flex items-center justify-center text-gray-400">
+      <SafeIcons.Image className="w-8 h-8" />
+    </div>
+  )}
+</div>
 
-                {/* Slide Image */}
-                <div className="flex-shrink-0 w-20 h-20 bg-gray-200 rounded-lg overflow-hidden">
-                  {slide.image ? (
-                    <img
-                      src={slide.image}
-                      alt={slide.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      <SafeIcons.Image className="w-8 h-8" />
-                    </div>
-                  )}
-                </div>
 
                 {/* Slide Details */}
                 <div className="flex-1 min-w-0">

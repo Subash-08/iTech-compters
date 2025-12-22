@@ -184,7 +184,7 @@ const HomePage: React.FC = () => {
             className="
               w-24 h-24 
               object-contain 
-              grayscale 
+              grayscale-80
               group-hover:grayscale-0 
               transition-all 
               duration-300

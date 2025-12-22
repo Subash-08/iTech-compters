@@ -18,6 +18,7 @@ import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import Cart from "./components/cart/Cart";
 import Profile from "./components/profile/Profile";
+import About from "./components/about/About";
 
 // ✅ LAZY LOAD LESS CRITICAL PAGES
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
@@ -404,6 +405,16 @@ const App: React.FC = () => {
                 <PublicLayout>
                   <LazyRoute>
                     <SupportPage />
+                  </LazyRoute>
+                </PublicLayout>
+              } 
+            />
+             <Route 
+              path="/about" 
+              element={
+                <PublicLayout>
+                  <LazyRoute>
+                    <About />
                   </LazyRoute>
                 </PublicLayout>
               } 

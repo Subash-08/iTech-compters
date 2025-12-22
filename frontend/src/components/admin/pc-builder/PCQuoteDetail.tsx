@@ -471,20 +471,6 @@ const PCQuoteDetail: React.FC = () => {
                   Call Customer
                 </a>
               )}
-              <button
-                onClick={() => {/* Generate PDF */}}
-                className="flex items-center justify-center w-full px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Generate PDF Quote
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="flex items-center justify-center w-full px-4 py-2.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Quote
-              </button>
             </div>
           </div>
         </div>

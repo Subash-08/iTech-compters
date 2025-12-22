@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { heroSectionService, HeroSection } from '../services/heroSectionService';
+import { getImageUrl } from '../../utils/imageUtils';
 
 // Safe icon fallbacks
 const SafeIcons = {
@@ -204,22 +205,29 @@ const SlideForm: React.FC = () => {
           <h3 className="text-lg font-medium text-gray-900 mb-4">Slide Image</h3>
           <div className="flex items-start space-x-6">
             {/* Image Preview */}
-            <div className="flex-shrink-0">
-              <div className="w-48 h-32 bg-gray-200 rounded-lg overflow-hidden border-2 border-dashed border-gray-300 flex items-center justify-center">
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Slide preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center text-gray-400">
-                    <SafeIcons.Image className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm">No image</p>
-                  </div>
-                )}
-              </div>
-            </div>
+<div className="flex-shrink-0">
+  <div className="w-48 h-32 bg-gray-200 rounded-lg overflow-hidden border-2 border-dashed border-gray-300 flex items-center justify-center">
+    {imagePreview ? (
+      <img
+        src={
+          imagePreview.startsWith('blob:')
+            ? imagePreview                 // File preview
+            : getImageUrl(imagePreview)    // Saved image
+        }
+        alt="Slide preview"
+        className="w-full h-full object-cover"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
+        }}
+      />
+    ) : (
+      <div className="text-center text-gray-400">
+        <SafeIcons.Image className="w-8 h-8 mx-auto mb-2" />
+        <p className="text-sm">No image</p>
+      </div>
+    )}
+  </div>
+</div>
 
             {/* Upload Controls */}
             <div className="flex-1">

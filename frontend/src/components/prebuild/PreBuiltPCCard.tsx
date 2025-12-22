@@ -1,51 +1,53 @@
-// components/prebuilt/PreBuiltPCCard.tsx - ENHANCED VERSION
-import React from 'react';
+// components/prebuilt/PreBuiltPCCard.tsx
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PreBuiltPC } from '../../redux/types/preBuiltPCTypes';
-import AddToWishlistButton from '../product/AddToWishlistButton';
-import { useAppSelector } from '../../redux/hooks';
-import { selectIsAuthenticated } from '../../redux/selectors';
-import { Star, Shield, Cpu, TrendingUp, Zap, Monitor } from 'lucide-react';
 import { baseURL } from '../config/config';
 import PreBuiltPCAddToCartButton from './PreBuiltPCAddToCartButton';
 import PreBuiltPCAddToWishlistButton from './PreBuiltPCAddToWishlistButton';
 
-  const getImageUrl = (url: string): string => {
-    if (!url) return 'https://placehold.co/300x300?text=No+Image';
+// Utility to resolve image URLs
+const getImageUrl = (url: string): string => {
+  if (!url) return 'https://placehold.co/300x300?text=No+Image';
+  if (url.startsWith('http')) return url;
+  const baseUrl = process.env.NODE_ENV === 'production' ? '' : baseURL;
+  return `${baseUrl}${url.startsWith('/') ? url : '/' + url}`;
+};
 
-    // Already full URL (e.g., Cloudinary)
-    if (url.startsWith('http')) return url;
-
-    // Serve relative to backend (same server)
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? ''  // 👈 relative path
-      : baseURL; // 👈 local backend
-
-    return `${baseUrl}${url.startsWith('/') ? url : '/' + url}`;
-  };
 interface PreBuiltPCCardProps {
-  pc?: PreBuiltPC; // Make optional to prevent crashes
+  pc?: PreBuiltPC;
   className?: string;
 }
 
 const PreBuiltPCCard: React.FC<PreBuiltPCCardProps> = ({ pc, className = '' }) => {
-  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const [isHovering, setIsHovering] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
+  const [currentImgSrc, setCurrentImgSrc] = useState<string>('');
 
-  // 🛑 CRITICAL: Safe access with fallbacks
+  // Initial setup for image
+  useEffect(() => {
+    if (pc?.images && pc.images.length > 0) {
+      setCurrentImgSrc(getImageUrl(pc.images[0]?.url));
+    } else {
+      setCurrentImgSrc('https://placehold.co/300x300?text=No+Image');
+    }
+    setHasImageError(false);
+  }, [pc]);
+
   if (!pc) {
     return (
       <div className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse ${className}`}>
-        <div className="h-48 bg-gray-200"></div>
-        <div className="p-4">
-          <div className="h-4 bg-gray-200 rounded mb-2"></div>
-          <div className="h-6 bg-gray-200 rounded mb-3"></div>
-          <div className="h-8 bg-gray-200 rounded"></div>
+        <div className="h-64 bg-gray-100"></div>
+        <div className="p-5 space-y-3">
+          <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+          <div className="h-6 bg-gray-100 rounded w-1/2"></div>
         </div>
       </div>
     );
   }
 
-  // Safe data extraction with comprehensive fallbacks
+  // Safe data extraction
   const safePC = {
     _id: pc._id || 'unknown',
     name: pc.name || 'Pre-built PC',
@@ -54,276 +56,146 @@ const PreBuiltPCCard: React.FC<PreBuiltPCCardProps> = ({ pc, className = '' }) =
     offerPrice: pc.offerPrice || pc.discountPrice || pc.totalPrice || pc.basePrice || 0,
     discountPercentage: pc.discountPercentage || 0,
     images: pc.images || [],
-    components: pc.components || [],
     category: pc.category || 'Gaming PC',
-    condition: pc.condition || 'New',
     stockQuantity: pc.stockQuantity || 0,
     averageRating: pc.averageRating || 0,
-    totalReviews: pc.totalReviews || 0,
-    performanceRating: pc.performanceRating || 0,
-    featured: pc.featured || false,
-    isTested: pc.isTested || false,
-    warranty: pc.warranty || '1 Year',
-    performanceSummary: pc.performanceSummary,
-    benchmarkTests: pc.benchmarkTests || []
   };
 
-  // Calculate pricing
+  // Pricing Logic
   const basePrice = safePC.basePrice;
   const offerPrice = safePC.offerPrice;
   const discountPercentage = safePC.discountPercentage > 0 
     ? safePC.discountPercentage 
     : (offerPrice < basePrice ? Math.round(((basePrice - offerPrice) / basePrice) * 100) : 0);
-  
-  const hasDiscount = discountPercentage > 0;
-  const savings = basePrice - offerPrice;
+  const discount = discountPercentage;
+  const inStock = safePC.stockQuantity > 0;
 
-  // Get main image safely
-  const mainImage = safePC.images.length > 0 
-    ? getImageUrl(safePC.images[0]?.url)
-    : getImageUrl('/uploads/default-pc.jpg');
+  const productUrl = `/prebuilt-pcs/${safePC.slug}`;
 
-  // Get key components
-  const cpuComponent = safePC.components.find(comp => comp.partType === 'CPU');
-  const gpuComponent = safePC.components.find(comp => comp.partType === 'GPU');
-  const ramComponent = safePC.components.find(comp => comp.partType === 'RAM');
-  const mainComponents = [cpuComponent, gpuComponent, ramComponent].filter(Boolean);
-
-  // Performance indicators
-  const performanceLevel = Math.min(Math.floor(safePC.performanceRating / 2), 5);
-  const isInStock = safePC.stockQuantity > 0;
-  const isLowStock = safePC.stockQuantity > 0 && safePC.stockQuantity <= 5;
+  const formatPrice = (price: number) => {
+    if (!price || isNaN(price)) return '₹0';
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
 
   return (
-    <div className={`group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:border-blue-200 transition-all duration-300 ${className}`}>
+    <div 
+      className={`group relative flex flex-col h-full bg-white rounded-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:border-gray-300 hover:shadow-xl hover:shadow-gray-200/50 ${className}`}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
       
-      {/* Image Section with Overlays */}
-      <div className="relative overflow-hidden">
-        <Link to={`/prebuilt-pcs/${safePC.slug}`}>
-          <img
-            src={mainImage}
-            alt={safePC.name}
-            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = getImageUrl('/uploads/default-pc.jpg');
-            }}
-          />
-          <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-        </Link>
+      {/* --- Image Section (Aspect 4:3 for Tech) --- */}
+      <div className="relative aspect-[4/3] bg-gray-50 overflow-hidden p-6">
         
-        {/* Top Left Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-2">
-          {safePC.featured && (
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-              <Zap className="w-3 h-3" />
-              Featured
+        {/* Badges - Top Left */}
+        <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5">
+          {discount > 0 && (
+            <span className="inline-block bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider shadow-sm">
+              -{discount}%
             </span>
           )}
-          {hasDiscount && (
-            <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs px-3 py-1.5 rounded-full shadow-lg">
-              {discountPercentage}% OFF
-            </span>
-          )}
-          {safePC.isTested && (
-            <span className="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />
-              Benchmarked
+          {!inStock && (
+            <span className="inline-block bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider shadow-sm">
+              Sold Out
             </span>
           )}
         </div>
 
-        {/* Top Right Condition */}
-        <div className="absolute top-3 right-3">
-          <span className={`text-xs font-medium px-3 py-1.5 rounded-full backdrop-blur-sm ${
-            safePC.condition === 'New' 
-              ? 'bg-green-500/90 text-white'
-              : safePC.condition === 'Refurbished'
-              ? 'bg-yellow-500/90 text-white'
-              : 'bg-gray-500/90 text-white'
-          }`}>
-            {safePC.condition}
-          </span>
+        {/* Wishlist - Top Right */}
+        <div className="absolute top-3 right-3 z-20">
+          <PreBuiltPCAddToWishlistButton 
+            pcId={safePC._id}
+            pcData={safePC}
+            className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+            size="sm"
+          />
         </div>
 
-        {/* Bottom Left Performance */}
-        <div className="absolute bottom-3 left-3">
-          <div className="bg-black/80 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm flex items-center gap-1.5">
-            <Monitor className="w-3 h-3" />
-            <span>Perf: {safePC.performanceRating}/10</span>
+        {/* Image Display */}
+        <Link to={productUrl} className="block w-full h-full relative z-10">
+          <div className="w-full h-full flex items-center justify-center">
+            <img
+              src={currentImgSrc}
+              alt={safePC.name}
+              className="max-w-full max-h-full object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-105"
+              onLoad={() => setImageLoaded(true)}
+              onError={() => {
+                if (!hasImageError) {
+                   setHasImageError(true);
+                   setCurrentImgSrc('https://placehold.co/300x300?text=No+Image');
+                   setImageLoaded(true);
+                }
+              }}
+            />
           </div>
-        </div>
-
-<div className="absolute bottom-3 right-3">
-<div className="absolute bottom-3 right-3">
-  <PreBuiltPCAddToWishlistButton 
-    pcId={safePC._id}
-    pcData={safePC} // ✅ Pass full PC data
-    className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-lg"
-    size="sm"
-  />
-</div>
-</div>
-
-        {/* Stock Overlay */}
-        {!isInStock && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <span className="bg-white/90 text-gray-900 px-4 py-2 rounded-lg font-semibold backdrop-blur-sm">
-              Out of Stock
-            </span>
-          </div>
-        )}
+        </Link>
       </div>
 
-      {/* Content Section */}
-      <div className="p-5">
-        {/* Category & Rating Row */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full uppercase tracking-wide">
-            {safePC.category}
-          </span>
-          
-          {(safePC.averageRating > 0) && (
-            <div className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-full">
-              <Star className="w-3.5 h-3.5 text-yellow-400 fill-current" />
-              <span className="text-sm font-semibold text-gray-900">
-                {safePC.averageRating.toFixed(1)}
-              </span>
-              <span className="text-xs text-gray-500">
-                ({safePC.totalReviews})
-              </span>
-            </div>
-          )}
+      {/* --- Details Section --- */}
+      <div className="flex flex-col flex-1 p-5">
+        
+        {/* Category / Brand Label */}
+        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 truncate">
+          {safePC.category}
         </div>
 
-        {/* Name */}
-        <Link to={`/prebuilt-pcs/${safePC.slug}`}>
-          <h3 className="font-bold text-lg text-gray-900 mb-3 hover:text-blue-600 transition-colors line-clamp-2 leading-tight">
+        {/* Title */}
+        <Link to={productUrl} className="block group/title mb-1">
+          <h3 className="text-[15px] font-medium text-gray-900 leading-[1.35] line-clamp-2 min-h-[2.5rem] group-hover/title:text-blue-600 transition-colors">
             {safePC.name}
           </h3>
         </Link>
 
-        {/* Key Components */}
-        <div className="mb-4 space-y-2">
-          {mainComponents.map((component, index) => (
-            component && (
-              <div key={index} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 font-medium">{component.partType}:</span>
-                <span className="text-gray-900 font-semibold text-right truncate ml-2">
-                  {component.name}
+
+        {/* --- Footer (Price Top, Button Bottom) --- */}
+        <div className="mt-auto pt-2 border-t border-dashed border-gray-100">
+          
+          {/* Price Block */}
+          <div className="mb-3">
+             <div className="flex items-baseline gap-2">
+                <span className="text-lg font-bold text-gray-900">
+                  {formatPrice(offerPrice)}
                 </span>
-              </div>
-            )
-          ))}
-          
-          {safePC.components.length > 3 && (
-            <div className="text-xs text-blue-600 font-medium pt-1">
-              +{safePC.components.length - 3} more components
-            </div>
-          )}
-        </div>
-
-        {/* Performance Stars */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={`w-4 h-4 ${
-                  star <= performanceLevel
-                    ? 'text-blue-500 fill-current'
-                    : 'text-gray-300'
-                }`}
-              />
-            ))}
-          </div>
-          <span className="text-sm text-gray-600 font-medium">
-            {safePC.performanceRating}/10 Rating
-          </span>
-        </div>
-
-        {/* Pricing Section */}
-        <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-blue-100">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-gray-900">
-                Rs {offerPrice.toLocaleString()}
-              </span>
-              {hasDiscount && (
-                <span className="text-lg text-gray-500 line-through">
-                  Rs {basePrice.toLocaleString()}
-                </span>
-              )}
-            </div>
-            
-            {/* Stock Status */}
-            <div className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-              isInStock 
-                ? isLowStock
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-green-100 text-green-800'
-                : 'bg-red-100 text-red-800'
-            }`}>
-              {isInStock 
-                ? (isLowStock ? `Only ${safePC.stockQuantity} left` : 'In Stock')
-                : 'Out of Stock'
-              }
-            </div>
+                {discount > 0 && basePrice > offerPrice && (
+                  <span className="text-xs text-gray-400 line-through">
+                    {formatPrice(basePrice)}
+                  </span>
+                )}
+             </div>
+             {inStock && (
+                <div className="text-[10px] text-green-600 font-medium mt-0.5">
+                   In Stock
+                </div>
+             )}
           </div>
 
-          {/* Savings */}
-          {hasDiscount && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-green-600">
-                You save Rs {savings.toLocaleString()}
-              </span>
-              <span className="text-xs text-gray-500">
-                {discountPercentage}% off
-              </span>
-            </div>
-          )}
+          {/* Button Block - Full Width & Below Price */}
+          <PreBuiltPCAddToCartButton
+            pcId={safePC._id}
+            product={safePC}
+            disabled={!inStock}
+            className={`w-full py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide shadow-sm flex items-center justify-center gap-2 ${
+              inStock 
+                ? 'bg-black text-white hover:bg-gray-800 hover:shadow-md' 
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {inStock ? (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                <span>Add to Cart</span>
+              </>
+            ) : 'Sold Out'}
+          </PreBuiltPCAddToCartButton>
+          
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 mb-4">
-<PreBuiltPCAddToCartButton
-  pcId={safePC._id}
-  product={safePC} // ✅ PASS PRODUCT DATA FOR GUEST USERS
-  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-4 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-  disabled={!isInStock}
->
-  {!isInStock ? 'Out of Stock' : 'Add to Cart'}
-</PreBuiltPCAddToCartButton>
-          
-<Link
-    to={`/prebuilt-pcs/${safePC.slug}`}
-    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 py-3 px-4 rounded-lg font-semibold text-center transition-all duration-200 border border-gray-200 hover:border-gray-300"
-  >
-    View Details
-  </Link>
-        </div>
-
-        {/* Quick Specs Footer */}
-        <div className="pt-3 border-t border-gray-200">
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-blue-500" />
-              <span>Warranty</span>
-            </div>
-            <span className="font-semibold text-gray-900">{safePC.warranty}</span>
-          </div>
-          
-          {safePC.isTested && safePC.benchmarkTests.length > 0 && (
-            <div className="flex items-center justify-between text-sm text-gray-600 mt-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-green-500" />
-                <span>Benchmarks</span>
-              </div>
-              <span className="font-semibold text-gray-900">
-                {safePC.benchmarkTests.length} tests
-              </span>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

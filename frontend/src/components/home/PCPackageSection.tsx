@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import gamingPC from '../../assets/10016.webp'
+import { useNavigate } from 'react-router-dom';
 
 // --- Types ---
 interface ProductCardProps {
@@ -14,18 +15,21 @@ interface ProductCardProps {
   isWide?: boolean;
 }
 
-// --- Components ---
+const ShopButton: React.FC = () => {
+  const navigate = useNavigate(); // ✅ CORRECT PLACE
 
-const ShopButton: React.FC = () => (
-  <motion.button
-    whileHover={{ scale: 1.05 }}
-    whileTap={{ scale: 0.95 }}
-    className="bg-white text-black px-6 py-2.5 rounded-md font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] z-30"
-  >
-    Shop Now
-    <ChevronRight className="w-4 h-4 text-brand-orange" />
-  </motion.button>
-);
+  return (
+    <motion.button
+      onClick={() => navigate('/custom-pcs')}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className="bg-white text-black px-6 py-2.5 rounded-md font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] z-30"
+    >
+      Shop Now
+      <ChevronRight className="w-4 h-4 text-brand-orange" />
+    </motion.button>
+  );
+};
 
 const ProductCard: React.FC<ProductCardProps> = ({ 
   category, 
@@ -106,7 +110,7 @@ const PreBuildSection: React.FC = () => {
           <ProductCard
             category="Fast Performance"
             title="Gaming PC"
-            price="Starting ₹59999"
+            price="Starting ₹39999"
             image="https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?q=80&w=1000&auto=format&fit=crop" 
             delay={0.1}
           />
@@ -117,7 +121,7 @@ const PreBuildSection: React.FC = () => {
           <ProductCard
             category="Creative Power"
             title="Content Creation"
-            price="Starting ₹129999"
+            price="Starting ₹49999"
             image="https://images.unsplash.com/photo-1598550476439-6847785fcea6?q=80&w=1000&auto=format&fit=crop"
             delay={0.2}
             isWide={true}
@@ -129,7 +133,7 @@ const PreBuildSection: React.FC = () => {
           <ProductCard
             category="Effortless Work"
             title="Workstation"
-            price="Starting ₹89999"
+            price="Starting ₹49999"
             image="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000&auto=format&fit=crop"
             delay={0.3}
           />

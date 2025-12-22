@@ -154,7 +154,7 @@ const RefundReturnsPolicy = () => {
             <div className="space-y-4">
               <div className="bg-white p-4 rounded-lg">
                 <p className="font-semibold text-gray-900">iTech Computers</p>
-                <p className="text-gray-700 mt-1">📞 Phone / WhatsApp: 9876543210</p>
+                <p className="text-gray-700 mt-1">📞 Phone / WhatsApp: 6382928973</p>
                 <p className="text-gray-700">📧 Email: itechcomputersno7@gmail.com</p>
                 <p className="text-gray-700 mt-2">
                   iTech Computers, RBT Mall, Meyyanur Bypass Rd, opp. to iplanet, 

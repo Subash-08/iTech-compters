@@ -222,7 +222,7 @@ const WarrantyPolicy = () => {
                 <div className="bg-white p-4 rounded-lg">
                   <p className="font-semibold text-gray-900">iTech Computers Warranty Department</p>
                   <div className="mt-3 space-y-2">
-                    <p className="text-gray-700">📞 Phone / WhatsApp: <strong>9876543210</strong></p>
+                    <p className="text-gray-700">📞 Phone / WhatsApp: <strong>6382928973</strong></p>
                     <p className="text-gray-700">📧 Email: <strong>itechcomputersno7@gmail.com</strong></p>
                   </div>
                   <p className="text-gray-700 mt-3">

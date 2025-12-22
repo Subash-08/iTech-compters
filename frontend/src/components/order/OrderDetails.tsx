@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { orderService } from '../admin/services/orderService';
 import { Order, InvoiceResponse } from '../admin/types/order';
-
+import { getImageUrl } from '../utils/imageUtils';
 const OrderDetails: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
@@ -229,7 +229,7 @@ const OrderDetails: React.FC = () => {
                       <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
                         {item.image ? (
                           <img
-                            src={item.image}
+                            src={getImageUrl(item.image)} // ✅ Using getImageUrl here
                             alt={item.name}
                             className="w-16 h-16 object-cover rounded"
                           />

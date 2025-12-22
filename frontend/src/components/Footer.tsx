@@ -30,7 +30,6 @@ const Footer = () => {
   // Customer Service - Updated with correct paths
   const customerService = [
     { label: "Contact Us", href: "/contact", icon: <Headphones className="w-3 h-3" /> },
-    { label: "FAQ", href: "/faq", icon: <Users className="w-3 h-3" /> },
     { label: "Shipping Policy", href: "/shipping-policy", icon: <Truck className="w-3 h-3" /> },
     { label: "Return Policy", href: "/refund-policy", icon: <Shield className="w-3 h-3" /> },
     { label: "Warranty", href: "/warranty-policy", icon: <Award className="w-3 h-3" /> },
@@ -66,11 +65,9 @@ const Footer = () => {
   ];
 
   const socialLinks = [
-    { name: "Facebook", icon: Facebook, href: "https://facebook.com", color: "hover:bg-blue-600" },
-    { name: "Twitter", icon: Twitter, href: "https://twitter.com", color: "hover:bg-sky-400" },
-    { name: "Instagram", icon: Instagram, href: "https://instagram.com", color: "hover:bg-pink-500" },
+    { name: "Facebook", icon: Facebook, href: "https://www.facebook.com/prithiv.raj.262802?mibextid=ZbWKwL", color: "hover:bg-blue-600" },
+    { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/iteckno7?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==", color: "hover:bg-pink-500" },
     { name: "YouTube", icon: Youtube, href: "https://youtube.com", color: "hover:bg-red-600" },
-    { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com", color: "hover:bg-blue-500" },
   ];
 
   return (
@@ -121,7 +118,7 @@ const Footer = () => {
               <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
                 <Truck className="w-8 h-8 text-blue-400 mx-auto mb-2" />
                 <p className="text-sm font-medium">Free Shipping</p>
-                <p className="text-xs text-zinc-400">Above ₹9999</p>
+                <p className="text-xs text-zinc-400">Above ₹999</p>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
                 <Shield className="w-8 h-8 text-green-400 mx-auto mb-2" />
@@ -161,24 +158,31 @@ const Footer = () => {
               </p>
 
               <div className="space-y-4">
-                <a href="tel:+911234567890" className="flex items-center space-x-3 text-zinc-400 hover:text-white transition-colors group">
+                <a href="tel:+916382928973" className="flex items-center space-x-3 text-zinc-400 hover:text-white transition-colors group">
                   <div className="p-2 bg-white/5 rounded-full group-hover:bg-blue-500/10 transition-colors">
                     <Phone className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
                   </div>
-                  <span>+91 12345 67890</span>
+                  <span>+91 63829 28973</span>
                 </a>
-                <a href="mailto:support@itechcomputers.com" className="flex items-center space-x-3 text-zinc-400 hover:text-white transition-colors group">
+                <a href="mailto:itechcomputersno7@gmail.com" className="flex items-center space-x-3 text-zinc-400 hover:text-white transition-colors group">
                   <div className="p-2 bg-white/5 rounded-full group-hover:bg-purple-500/10 transition-colors">
                     <Mail className="w-4 h-4 group-hover:text-purple-400 transition-colors" />
                   </div>
-                  <span>support@itechcomputers.com</span>
+                  <span>itechcomputersno7@gmail.com</span>
                 </a>
-                <div className="flex items-center space-x-3 text-zinc-400">
-                  <div className="p-2 bg-white/5 rounded-full">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                  <span>123 Tech Street, Bangalore, India</span>
-                </div>
+<a
+  href="https://www.google.com/maps?ll=11.667667,78.135905&z=15&t=m&hl=en-US&gl=US&cid=5146045816583805650"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="flex items-center space-x-3 text-zinc-400 hover:text-white transition-colors group"
+>
+  <div className="p-2 bg-white/5 rounded-full group-hover:bg-green-500/10 transition-colors">
+    <MapPin className="w-4 h-4 group-hover:text-green-400 transition-colors" />
+  </div>
+  <span>
+    RBT Mall, Meyyanur Bypass Rd, opp. to iPlanet, Meyyanur, Salem, Tamil Nadu
+  </span>
+</a>
               </div>
             </div>
 

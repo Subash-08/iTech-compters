@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { NavItem } from '../../types';
 import ChevronDownIcon from './icons/ChevronDownIcon';
 import SearchIcon from './icons/SearchIcon';
@@ -34,7 +34,7 @@ import {
 import { baseURL } from './config/config';
 import SearchBar from './home/SearchBar';
 import api from '../components/config/axiosConfig';
-import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ChevronDown, ChevronRight, LogOut } from 'lucide-react';
 
 // Types for fetched data
 interface Category {
@@ -85,6 +85,8 @@ const AuthenticatedUserSection: React.FC<{ closeMobileMenu: () => void }> = ({ c
   
   const [imageError, setImageError] = useState(false);
   
+const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for modal
+  
   const displayUser = profile || user;
   const displayAvatar = profileAvatar || user?.avatar;
   const avatarUrl = getAvatarUrl(displayAvatar);
@@ -94,6 +96,20 @@ const AuthenticatedUserSection: React.FC<{ closeMobileMenu: () => void }> = ({ c
   }, [avatarUrl]);
 
   const userInitials = `${displayUser?.firstName?.charAt(0) || 'U'}${displayUser?.lastName?.charAt(0) || ''}`;
+
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    dispatch(logout());
+    setShowLogoutConfirm(false);
+    closeMobileMenu();
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
   return (
     <div className="p-4 border-t border-gray-100 bg-gray-50">
       <div className="flex items-center justify-between">
@@ -139,7 +155,7 @@ const AuthenticatedUserSection: React.FC<{ closeMobileMenu: () => void }> = ({ c
             <UserIcon className="w-5 h-5" />
           </Link>
 
-          {/* Admin Dashboard - Only for admins */}
+{/* Admin Dashboard - Only for admins */}
           {displayUser?.role === 'admin' && (
             <Link
               to="/admin"
@@ -156,20 +172,48 @@ const AuthenticatedUserSection: React.FC<{ closeMobileMenu: () => void }> = ({ c
           
           {/* Sign Out Button */}
           <button
-            onClick={() => {
-              dispatch(logout());
-              closeMobileMenu();
-            }}
+            onClick={handleLogoutClick}
             className="flex items-center justify-center w-9 h-9 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-sm"
             aria-label="Sign out"
             title="Sign Out"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <LogOut className="w-5 h-5" />
           </button>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal (Mobile) */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Sign Out?</h3>
+              <p className="text-sm text-gray-500">
+                Are you sure you want to sign out of your account? You will need to sign in again to access your profile.
+              </p>
+            </div>
+            <div className="bg-gray-50 px-4 py-3 flex gap-3 sm:px-6">
+              <button
+                type="button"
+                className="flex-1 inline-flex justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+                onClick={cancelLogout}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="flex-1 inline-flex justify-center rounded-lg border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                onClick={confirmLogout}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -179,7 +223,7 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
   const isCategories = item.label === 'Categories';
   const isBrands = item.label === 'Brands';
   const isMegaMenu = isCategories || isBrands;
-
+  const navigate = useNavigate();
   // Logic: Group items into columns
   let groupedItems: NavItem[][] = [];
   if (isMegaMenu && hasChildren) {
@@ -274,11 +318,11 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
                       {isCategories ? "New Arrivals" : "Official Partners"}
                     </p>
                     <h4 className="text-white font-semibold text-xl mb-4 leading-tight">
-                      {isCategories ? "Next-Gen Performance." : "Top Tier Gear."}
+                    {isCategories ? "Premium Laptops." : "Custom PC Builder."}
                     </h4>
                     
-                    <button className="flex items-center gap-2 text-white text-xs font-semibold backdrop-blur-md bg-white/20 hover:bg-white/30 border border-white/30 px-4 py-2.5 rounded-lg transition-all w-fit group-hover/ad:gap-3">
-                      {isCategories ? "Shop Categories" : "View All Brands"}
+                    <button   onClick={() => navigate(isCategories ? '/products/category/laptops' : '/custom-pcs')} className="flex items-center gap-2 text-white text-xs font-semibold backdrop-blur-md bg-white/20 hover:bg-white/30 border border-white/30 px-4 py-2.5 rounded-lg transition-all w-fit group-hover/ad:gap-3">
+                     {isCategories ? "Shop Laptops" : "Start Building"}
                       <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
@@ -393,7 +437,6 @@ const MobileNavLink: React.FC<MobileNavLinkProps> = ({ item, closeMenu }) => {
 const getUserMenuItems = (userRole?: string) => [
   { label: 'My Profile', href: '/profile', icon: 'user' },
   { label: 'My Orders', href: '/account/orders', icon: 'orders' },
-  { label: 'Wishlist', href: '/wishlist', icon: 'heart' },
   ...(userRole === 'admin' ? [{ label: 'Admin Dashboard', href: '/admin', icon: 'admin' }] : []),
 ];
 
@@ -420,10 +463,11 @@ const getAvatarUrl = (avatarPath?: string): string | null => {
   return `${cleanBaseUrl}${cleanAvatarPath}`;
 };
 
-// User Dropdown Component
 const UserDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for modal
+  
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
@@ -447,6 +491,9 @@ const UserDropdown: React.FC = () => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Don't close if clicking inside the modal
+      if (showLogoutConfirm) return;
+      
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
@@ -456,11 +503,20 @@ const UserDropdown: React.FC = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [showLogoutConfirm]); // Added dependency
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setIsOpen(false); // Close dropdown first
+    setShowLogoutConfirm(true); // Open modal
+  };
+
+  const confirmLogout = () => {
     dispatch(logout());
-    setIsOpen(false);
+    setShowLogoutConfirm(false);
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   const toggleDropdown = () => {
@@ -486,101 +542,128 @@ const UserDropdown: React.FC = () => {
   const userInitials = `${displayUser?.firstName?.charAt(0) || 'U'}${displayUser?.lastName?.charAt(0) || ''}`;
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      {/* User Avatar Button */}
-      <button
-        onClick={toggleDropdown}
-        className="flex items-center space-x-2 text-black hover:text-[#544D89] transition-colors duration-200 focus:outline-none px-2 py-2 rounded-md group"
-        aria-label="User menu"
-        aria-expanded={isOpen}
-      >
-        <div className="flex items-center space-x-2">
-          {/* User Avatar */}
-          {avatarUrl && !imageError ? (
-            <img
-              className="h-8 w-8 rounded-full object-cover border border-gray-200 group-hover:border-[#544D89] transition-colors"
-              src={avatarUrl}
-              alt={`${displayUser?.firstName || 'User'} avatar`}
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="h-8 w-8 rounded-full bg-[#544D89] flex items-center justify-center border border-gray-200">
-              <span className="text-white text-xs font-bold">
-                {userInitials}
-              </span>
+    <>
+      <div className="relative" ref={dropdownRef}>
+        {/* User Avatar Button */}
+        <button
+          onClick={toggleDropdown}
+          className="flex items-center space-x-2 text-black hover:text-[#544D89] transition-colors duration-200 focus:outline-none px-2 py-2 rounded-md group"
+          aria-label="User menu"
+          aria-expanded={isOpen}
+        >
+          <div className="flex items-center space-x-2">
+            {/* User Avatar */}
+            {avatarUrl && !imageError ? (
+              <img
+                className="h-8 w-8 rounded-full object-cover border border-gray-200 group-hover:border-[#544D89] transition-colors"
+                src={avatarUrl}
+                alt={`${displayUser?.firstName || 'User'} avatar`}
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-[#544D89] flex items-center justify-center border border-gray-200">
+                <span className="text-white text-xs font-bold">
+                  {userInitials}
+                </span>
+              </div>
+            )}
+            
+            {/* User Name (visible on larger screens) */}
+            <span className="hidden md:block text-sm font-medium text-black max-w-24 truncate">
+              {displayUser?.firstName || 'User'}
+            </span>
+            
+            {/* Chevron Icon */}
+            <ChevronDownIcon className={`w-4 h-4 text-black transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          </div>
+        </button>
+        
+        {/* Dropdown Menu */}
+        {isOpen && (
+          <div className="absolute right-0 top-full mt-2 w-60 bg-white shadow-2xl rounded-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5">
+            {/* User Info Section */}
+            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+              <p className="text-sm font-bold text-gray-900 truncate">
+                {displayUser?.firstName} {displayUser?.lastName}
+              </p>
+              <p className="text-xs text-gray-500 truncate mt-0.5">
+                {displayUser?.email}
+              </p>
             </div>
-          )}
-          
-          {/* User Name (visible on larger screens) */}
-          <span className="hidden md:block text-sm font-medium text-black max-w-24 truncate">
-            {displayUser?.firstName || 'User'}
-          </span>
-          
-          {/* Chevron Icon */}
-          <ChevronDownIcon className={`w-4 h-4 text-black transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-        </div>
-      </button>
-      
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-60 bg-white shadow-2xl rounded-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5">
-          {/* User Info Section */}
-          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-            <p className="text-sm font-bold text-gray-900 truncate">
-              {displayUser?.firstName} {displayUser?.lastName}
-            </p>
-            <p className="text-xs text-gray-500 truncate mt-0.5">
-              {displayUser?.email}
-            </p>
-          </div>
-          
-          {/* Menu Items */}
-          <div className="py-2">
-            {userMenuItems.map((item) => (
-              <Link 
-                key={item.label}
-                to={item.href} 
-                className="flex items-center px-5 py-2.5 text-sm text-gray-700 hover:bg-[#544D89]/5 hover:text-[#544D89] transition-colors duration-200 group"
-                onClick={() => setIsOpen(false)}
-              >
-                {item.icon === 'user' && <UserIcon className="w-4 h-4 mr-3 text-gray-400 group-hover:text-[#544D89]" />}
-                {item.icon === 'orders' && (
-                  <svg className="w-4 h-4 mr-3 text-gray-400 group-hover:text-[#544D89]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                )}
-                {item.icon === 'heart' && <HeartIcon className="w-4 h-4 mr-3 text-gray-400 group-hover:text-[#544D89]" />}
-                {item.icon === 'settings' && (
-                  <svg className="w-4 h-4 mr-3 text-gray-400 group-hover:text-[#544D89]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
-                {item.icon === 'admin' && (
-                  <svg className="w-4 h-4 mr-3 text-gray-400 group-hover:text-[#544D89]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  </svg>
-                )}
-                {item.label}
-              </Link>
-            ))}
-          </div>
+            
+            {/* Menu Items */}
+            <div className="py-2">
+              {userMenuItems.map((item) => (
+                <Link 
+                  key={item.label}
+                  to={item.href} 
+                  className="flex items-center px-5 py-2.5 text-sm text-gray-700 hover:bg-[#544D89]/5 hover:text-[#544D89] transition-colors duration-200 group"
+                  onClick={() => setIsOpen(false)}
+                >
+                  {item.icon === 'user' && <UserIcon className="w-4 h-4 mr-3 text-gray-400 group-hover:text-[#544D89]" />}
+                  {item.icon === 'orders' && (
+                    <svg className="w-4 h-4 mr-3 text-gray-400 group-hover:text-[#544D89]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                  )}
+                  {item.icon === 'heart' && <HeartIcon className="w-4 h-4 mr-3 text-gray-400 group-hover:text-[#544D89]" />}
+                  {item.icon === 'admin' && (
+                    <svg className="w-4 h-4 mr-3 text-gray-400 group-hover:text-[#544D89]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    </svg>
+                  )}
+                  {item.label}
+                </Link>
+              ))}
+            </div>
 
-          {/* Logout Button */}
-          <div className="border-t border-gray-100 p-2">
-            <button
-              onClick={handleLogout}
-              className="flex items-center w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md transition-colors duration-200"
-            >
-              <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Sign Out
-            </button>
+            {/* Logout Button */}
+            <div className="border-t border-gray-100 p-2">
+              <button
+                onClick={handleLogoutClick}
+                className="flex items-center w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md transition-colors duration-200"
+              >
+                <LogOut className="w-4 h-4 mr-3" />
+                Sign Out
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Logout Confirmation Modal (Desktop) */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Sign Out?</h3>
+              <p className="text-sm text-gray-500">
+                Are you sure you want to sign out?
+              </p>
+            </div>
+            <div className="bg-gray-50 px-4 py-3 flex gap-3 sm:px-6">
+              <button
+                type="button"
+                className="flex-1 inline-flex justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+                onClick={cancelLogout}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="flex-1 inline-flex justify-center rounded-lg border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                onClick={confirmLogout}
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
