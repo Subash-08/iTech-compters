@@ -13,6 +13,9 @@ import { HelmetProvider } from "react-helmet-async";
 import Home from "./components/home/Home";
 // Keep Login eager if it's a high-traffic entry point, otherwise lazy it too.
 import Login from "./components/auth/Login"; 
+import ChatBot from "./components/home/ChatBot";
+import CallButton from "./components/home/CallButton";
+import CallActionButton from "./components/home/CallButton";
 
 // 🔥 FIX 1: AGGRESSIVE LAZY LOADING
 // These were previously eager, causing the "Monolithic Bundle" issue.
@@ -57,18 +60,33 @@ const ToastContainerLazy = lazy(() =>
 const NavbarMemo = memo(Navbar);
 const FooterMemo = memo(Footer);
 
-// ✅ FIX 2: Strict Delay for Auth/Cart Logic (Prevents API waterfall on load)
 const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [showAuth, setShowAuth] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [showCallDock, setShowCallDock] = useState(false);
 
   useEffect(() => {
-    // Wait 2.5s before loading ANY auth/cart logic.
-    // This gives the browser pure CPU time to paint the Home LCP.
-    const timer = setTimeout(() => {
-        setShowAuth(true);
-    }, 2500); 
-
+    const timer = setTimeout(() => setShowAuth(true), 2500);
     return () => clearTimeout(timer);
+  }, []);
+
+  // 👇 HERO VISIBILITY OBSERVER
+  useEffect(() => {
+    const hero = document.getElementById("home-hero");
+    if (!hero) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Show dock ONLY when hero is NOT visible
+        setShowCallDock(!entry.isIntersecting);
+      },
+      {
+        threshold: 0.2, // hero must be mostly out of view
+      }
+    );
+
+    observer.observe(hero);
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -78,10 +96,24 @@ const RootLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <AuthInitializerLazy />
         </Suspense>
       )}
+
       {children}
+
+      <Suspense fallback={null}>
+        {/* Show dock ONLY after hero AND when chat is closed */}
+        {showCallDock && !chatOpen && (
+          <CallActionButton onOpenChat={() => setChatOpen(true)} />
+        )}
+
+        <ChatBot
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+        />
+      </Suspense>
     </>
   );
 };
+
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();

@@ -121,8 +121,9 @@ const App: React.FC = () => {
       </Helmet>
 
       {/* Main Content */}
+      <section id="home-hero">
       <HeroSection />
-      
+      </section>
       <main>
         <ProductShowcaseContainer
             className="container mx-auto px-4"

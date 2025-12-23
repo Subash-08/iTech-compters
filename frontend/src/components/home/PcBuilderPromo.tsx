@@ -93,7 +93,7 @@ const FeaturePillar = ({ icon: Icon, title, desc }: { icon: any, title: string, 
 const CustomPCSection = () => {
   const navigate = useNavigate();
   return (
-    <section className="relative w-full min-h-[100vh] flex items-center justify-center overflow-hidden bg-slate-50 py-12 md:py-24">
+    <section className="relative w-full flex items-center justify-center overflow-hidden bg-slate-50 py-12 md:py-24">
       <BackgroundGrid />
       
       {/* Floating atmospheric particles */}

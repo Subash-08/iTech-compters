@@ -27,10 +27,10 @@ const HeroSkeleton: React.FC = () => {
   return (
     <div className="relative w-full mx-auto p-3 md:p-4 lg:p-6 max-w-[1600px]">
       <div className="flex flex-col md:flex-row w-full h-[500px] md:h-[450px] lg:h-[500px] gap-3 md:gap-4 lg:gap-6">
-        <div className="w-full md:w-2/3 lg:w-3/4 h-full rounded-2xl bg-gray-200 animate-pulse" />
+        <div className="w-full md:w-2/3 lg:w-3/4 h-full rounded-lg bg-gray-200 animate-pulse" />
         <div className="flex flex-col w-full md:w-1/3 lg:w-1/4 gap-4 md:gap-6">
-          <div className="flex-1 rounded-2xl bg-gray-200 animate-pulse" />
-          <div className="flex-1 rounded-2xl bg-gray-200 animate-pulse delay-75" />
+          <div className="flex-1 rounded-lg bg-gray-200 animate-pulse" />
+          <div className="flex-1 rounded-lg bg-gray-200 animate-pulse delay-75" />
         </div>
       </div>
     </div>
@@ -74,7 +74,7 @@ const HeroSectionItem: React.FC<HeroSectionItemProps> = ({
 
   return (
     <div 
-      className="group relative w-full h-full rounded-2xl overflow-hidden bg-gray-50 shadow-sm border border-gray-100/50 hover:shadow-xl transition-shadow duration-500"
+      className="group relative w-full h-full rounded-lg overflow-hidden bg-gray-50 shadow-sm border border-gray-100/50 hover:shadow-xl transition-shadow duration-500"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -130,8 +130,8 @@ const HeroSectionItem: React.FC<HeroSectionItemProps> = ({
                     height={589}
                     
                     className={`
-                      w-full h-full object-cover transform transition-transform duration-[1200ms]
-                      ${isActive ? 'scale-100 group-hover:scale-105' : 'scale-105'}
+                      w-full h-full object-cover transform transition-transform duration-[300ms]
+                      ${isActive ? 'scale-100 group-hover:scale-100' : 'scale-100'}
                     `}
                   />
                 ) : (

@@ -136,14 +136,14 @@ const HomePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="bg-white text-gray-900 mb-16">
 
 
 
       {/* CATEGORIES SECTION — unchanged */}
       {categories.length > 0 && (
 <section className="py-12">
-  <div className="max-w-8xl mx-auto px-4 lg:px-12">
+  <div className="max-w-[1400px] mx-auto px-4 lg:px-12">
 
     <SectionHeader
       title="Curated Categories"
@@ -221,7 +221,7 @@ const HomePage: React.FC = () => {
 
       {brands.length > 0 && (
         <section className="py-24 bg-white border-t border-gray-100">
-          <div className="max-w-8xl mx-auto px-6 lg:px-12">
+          <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
 
             <SectionHeader
               title="Shop by Brands"

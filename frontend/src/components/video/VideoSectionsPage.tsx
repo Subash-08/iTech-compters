@@ -158,7 +158,7 @@ const VideoSectionsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <div>
       {sections.map((section, index) => (
         <motion.div
           key={section._id}
