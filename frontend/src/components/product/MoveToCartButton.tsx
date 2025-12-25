@@ -43,12 +43,7 @@ const MoveToCartButton: React.FC<MoveToCartButtonProps> = ({
 
 const handleMoveToCart = async () => {
   try {
-    console.log('🔄 Moving to cart:', {
-      itemId: item._id,
-      originalProduct: item.product, // Check what we have
-      variant: item.variant
-    });
-    
+   
     // Remove from wishlist first
     await dispatch(wishlistActions.removeFromWishlist({ 
       itemId: item._id
@@ -80,8 +75,6 @@ const handleMoveToCart = async () => {
         stockQuantity: item.variant?.stock || item.product.stockQuantity || 0
       };
       
-      console.log('📦 Prepared product data for cart:', productData);
-      
       await dispatch(cartActions.addToCart({ 
         productId: item.product._id,
         variantId: item.variant?.variantId,
@@ -101,7 +94,6 @@ const handleMoveToCart = async () => {
       }));
     }
     
-    console.log('✅ Successfully moved to cart');
   } catch (error) {
     console.error('❌ Failed to move to cart:', error);
   }

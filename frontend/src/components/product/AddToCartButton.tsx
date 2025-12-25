@@ -46,14 +46,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
     e.stopPropagation();
 
     if (loading || disabled) return;
-    
-    console.log('🛒 AddToCart Clicked:', { 
-      productId, 
-      productName: product?.name,
-      hasProductData: !!product,
-      hasVariantData: !!variant 
-    });
-    
+
     setLoading(true);
     try {
       if (productType === 'prebuilt-pc') {
@@ -80,8 +73,6 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           quantity,
           product: productData
         };
-        
-        console.log('🛒 Cart payload:', cartPayload);
         await dispatch(cartActions.addToCart(cartPayload));
       }
     } catch (error) {

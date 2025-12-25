@@ -53,14 +53,6 @@ const Dashboard: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<string>('30d');
 
-  console.log(quickStats);
-  console.log(orderStats);
-  console.log(salesChartData);
-  console.log(productAnalytics);
-  console.log(userAnalytics);
-  console.log(pcAnalytics);
-  console.log(couponAnalytics);
-  
 
   const fetchDashboardData = async () => {
     try {

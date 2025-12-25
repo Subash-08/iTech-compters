@@ -265,11 +265,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const productUrl = getProductUrl();
 
   return (
-    <div 
-      className="group relative flex flex-col h-full bg-white rounded-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:border-gray-300 hover:shadow-xl hover:shadow-gray-200/50"
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-    >
+<div 
+  className="group relative flex flex-col h-full bg-white rounded-lg border overflow-hidden transition-all duration-300 
+  /* Key Changes Here: Crisper border, standard deeper shadow */
+  border-gray-400/60 shadow-lg 
+  /* Hover states */
+  hover:border-gray-500/60 hover:shadow-xl"
+  onMouseEnter={() => setIsHovering(true)}
+  onMouseLeave={() => setIsHovering(false)}
+>
       
       {/* --- Image Section (Aspect 4:3 for Tech) --- */}
       <div className="relative aspect-[4/3] bg-gray-50 overflow-hidden p-6">

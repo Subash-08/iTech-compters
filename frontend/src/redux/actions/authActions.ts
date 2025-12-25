@@ -92,14 +92,8 @@ export const login = (email: string, password: string) => {
                 // ✅ Load complete user profile after login
                 const profileResult = await dispatch(loadCompleteUserProfile());
                 
-                if (profileResult.success) {
-                    toast.success(response.data.message || 'Login successful!');
-                    return { success: true };
-                } else {
-                    // Login succeeded but profile loading failed
-                    toast.error('Login successful but failed to load profile data');
-                    return { success: false, error: profileResult.error };
-                }
+toast.success(response.data.message || 'Login successful!');
+                return { success: true }
             } else {
                 toast.error(response.data.message || 'Login failed');
                 dispatch(loginFailure(response.data.message || 'Login failed'));

@@ -75,7 +75,7 @@ const BrandForm: React.FC = () => {
         
         // Test if the image loads
         const testImage = new Image();
-        testImage.onload = () => console.log('Preview image loaded successfully');
+        testImage.onload = () => console.log('');
         testImage.onerror = () => {
           console.error('Preview image failed to load');
           // Fallback to placeholder if image fails to load

@@ -337,9 +337,6 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
                 paidAmount: 0
             };
         }
-
-        console.log('Creating invoice with data:', invoiceData);
-
         const invoice = await Invoice.create(invoiceData);
 
         res.status(201).json({

@@ -83,14 +83,6 @@ exports.getMyCart = catchAsyncErrors(async (req, res, next) => {
 // controllers/cartController.js - IMPROVED addToCart
 exports.addToCart = catchAsyncErrors(async (req, res, next) => {
     const { productId, variantId, quantity = 1 } = req.body;
-
-    console.log('🛒 Backend received:', {
-        productId,
-        variantId,
-        quantity,
-        body: req.body
-    });
-
     if (!productId) {
         return next(new ErrorHandler('Product ID is required', 400));
     }

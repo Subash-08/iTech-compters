@@ -26,10 +26,8 @@ class VideoOptimizer {
                 .audioBitrate('128k')
                 .fps(30)
                 .on('progress', (progress) => {
-                    console.log(`Processing: ${progress.percent}% done`);
                 })
                 .on('end', () => {
-                    console.log('Video optimization completed');
                     resolve(outputPath);
                 })
                 .on('error', (err) => {

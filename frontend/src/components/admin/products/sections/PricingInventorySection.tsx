@@ -19,12 +19,10 @@ const PricingInventorySection: React.FC<PricingInventorySectionProps> = ({
   const pricingDisabled = hasVariants;
 
 const handleInputChange = (field: string, value: any) => {
-  console.log(`🔍 handleInputChange called:`, { field, value, type: typeof value });
   
   // Make sure taxRate is parsed as a number
   if (field === 'taxRate') {
     const numValue = parseFloat(value);
-    console.log(`💰 taxRate parsed:`, numValue);
     updateFormData({ [field]: numValue });
   } else {
     updateFormData({ [field]: value });
@@ -33,7 +31,6 @@ const handleInputChange = (field: string, value: any) => {
 
 const handleTaxRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const value = parseFloat(e.target.value) || 0;
-  console.log(`📊 Tax Rate changed to:`, value);
   updateFormData({ taxRate: value });
 };
 
@@ -91,20 +88,6 @@ const handleTaxRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       handleInputChange('sku', newSku);
     }
   };
-
-    useEffect(() => {
-    console.log('=== DEBUG: PricingInventorySection ===');
-    console.log('formData in pricing section:', {
-      basePrice: formData.basePrice,
-      mrp: formData.mrp,
-      offerPrice: formData.offerPrice,
-      discountPercentage: formData.discountPercentage,
-      taxRate: formData.taxRate,
-      sku: formData.sku,
-      barcode: formData.barcode,
-      stockQuantity: formData.stockQuantity
-    });
-  }, [formData]);
 
   useEffect(() => {
     if (!isEditing && formData.name && (!formData.sku || formData.sku === '')) {

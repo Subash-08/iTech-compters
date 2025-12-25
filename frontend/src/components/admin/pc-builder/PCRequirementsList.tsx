@@ -133,12 +133,6 @@ const PCRequirementsList: React.FC = () => {
       year: 'numeric'
     });
   };
-
-  const exportToCSV = () => {
-    // Implement CSV export logic
-    console.log('Exporting requirements to CSV');
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -146,15 +140,6 @@ const PCRequirementsList: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">PC Requirements</h1>
           <p className="text-gray-600 mt-1">Manage customer PC requirement submissions</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={exportToCSV}
-            className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </button>
         </div>
       </div>
 

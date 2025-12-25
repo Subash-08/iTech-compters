@@ -53,9 +53,6 @@ export const invoiceService = {
         status: 'draft',
         invoiceNumber: `INV-${Date.now().toString().slice(-6)}`
       };
-
-      console.log('Sending invoice data:', completeInvoiceData);
-      
       const response = await api.post('/admin/invoices', completeInvoiceData);
       return response.data;
       
@@ -130,11 +127,6 @@ export const invoiceService = {
 export const productSearchService = {
   async searchProducts(query: string, categorySlug?: string) {
     try {
-      // First, let's understand your API structure by making a test call
-      console.log('=== PRODUCT SEARCH START ===');
-      console.log('Query:', query);
-      console.log('Category Slug:', categorySlug);
-      
       const params: any = {
         limit: 12,
         page: 1
@@ -152,41 +144,26 @@ export const productSearchService = {
         // params.categorySlug = categorySlug;
         // params.categoryName = categorySlug;
       }
-      
-      console.log('Request params:', params);
-      
       const response = await api.get('/products', { params });
-      console.log('API Response:', response.data);
       
-      // Debug: Log the full response structure
-      console.log('Response keys:', Object.keys(response.data));
-      if (response.data.data) {
-        console.log('Data keys:', Object.keys(response.data.data));
-      }
-      
+
       let products = [];
       
       // Try different response structures
       if (response.data.data?.products && Array.isArray(response.data.data.products)) {
         products = response.data.data.products;
-        console.log('Found products in data.products:', products.length);
       } else if (response.data.products && Array.isArray(response.data.products)) {
         products = response.data.products;
-        console.log('Found products in products:', products.length);
       } else if (Array.isArray(response.data)) {
         products = response.data;
-        console.log('Found products in root array:', products.length);
       } else if (response.data.data && Array.isArray(response.data.data)) {
         products = response.data.data;
-        console.log('Found products in data array:', products.length);
       } else {
-        console.log('No products found in response');
         return [];
       }
       
       // If category is selected, filter on frontend as backup
       if (categorySlug && products.length > 0) {
-        console.log('Filtering by category on frontend:', categorySlug);
         const filteredProducts = products.filter((product: any) => {
           // Check various ways category might be stored
           const productCategories = product.categories || [];
@@ -203,24 +180,12 @@ export const productSearchService = {
             productCategory?.toLowerCase() === categorySlug.toLowerCase()
           );
         });
-        
-        console.log('After filtering:', filteredProducts.length, 'products');
         products = filteredProducts;
       }
       
       // Transform products
       const transformedProducts = products.map((product: any) => {
-        // Debug individual product
-        console.log('Product structure:', {
-          id: product._id,
-          name: product.name,
-          categories: product.categories,
-          category: product.category,
-          price: product.price,
-          basePrice: product.basePrice,
-          salePrice: product.salePrice
-        });
-        
+       
         return {
           _id: product._id,
           name: product.name,
@@ -256,10 +221,6 @@ export const productSearchService = {
           sku: product.sku || product._id?.substring(0, 8) || `SKU-${Math.random().toString(36).substr(2, 6)}`
         };
       });
-      
-      console.log('=== PRODUCT SEARCH END ===');
-      console.log('Transformed products count:', transformedProducts.length);
-      
       return transformedProducts;
       
     } catch (error: any) {
@@ -290,10 +251,7 @@ export const categoryService = {
   // Get all categories
   async getCategories() {
     try {
-      console.log('=== FETCHING CATEGORIES ===');
-      const response = await api.get('/categories');
-      console.log('Categories API response:', response.data);
-      
+      const response = await api.get('/categories');      
       let categories = [];
       
       // Handle different response structures
@@ -306,11 +264,7 @@ export const categoryService = {
       } else if (response.data.data && Array.isArray(response.data.data)) {
         categories = response.data.data;
       }
-      
-      console.log('Extracted categories:', categories.length);
-      
-      // Transform categories to ensure they have slug
-      const transformedCategories = categories.map((cat: any) => ({
+          const transformedCategories = categories.map((cat: any) => ({
         _id: cat._id,
         name: cat.name,
         slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-'),

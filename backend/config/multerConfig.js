@@ -606,24 +606,6 @@ const blogUpload = multer({
     }
 });
 
-// NEW: Debug middleware to see what Multer is processing
-const debugMulterUpload = (req, res, next) => {
-
-    // Log specific form fields
-    const importantFields = ['name', 'category', 'description', 'components', 'tags', 'totalPrice'];
-    importantFields.forEach(field => {
-        if (req.body[field]) {
-            console.log(`✅ ${field}:`, typeof req.body[field] === 'string' ?
-                req.body[field].substring(0, 100) + '...' : 'EXISTS');
-        } else {
-            console.log(`❌ ${field}: MISSING`);
-        }
-    });
-
-    console.log('🔍 === MULTER DEBUG END ===');
-    next();
-};
-
 // ========== EXPORT EVERYTHING ==========
 
 module.exports = {
@@ -645,7 +627,6 @@ module.exports = {
     generateComponentFields,
     simplePreBuiltPCFields,
     handleDynamicFields,
-    debugMulterUpload,
 
     // NEW: Video upload exports (ADD THESE)
     uploadVideoWithThumbnail,

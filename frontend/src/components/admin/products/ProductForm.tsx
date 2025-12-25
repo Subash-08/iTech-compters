@@ -288,7 +288,6 @@ const cleanedVariants = formData.variants.map(variant => {
   return cleanedVariant;
 });
 
-console.log("Cleaned variants:", cleanedVariants);
 const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   setSubmitLoading(true);
@@ -470,7 +469,6 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 
     // 🆕 CRITICAL FIX: Stringify variants PROPERLY
     const variantsString = JSON.stringify(cleanedVariants);
-    console.log("🔄 Variants JSON being sent:", variantsString.substring(0, 200) + "...");
     fd.append("variants", variantsString);
 
     // Append variantConfiguration
@@ -537,23 +535,6 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     fd.append("features", JSON.stringify(formData.features || []));
     fd.append("dimensions", JSON.stringify(formData.dimensions || {}));
     fd.append("weight", JSON.stringify(formData.weight || {}));
-
-    // Debug: Log what we're sending
-    console.log("📋 FormData being sent:");
-    for (let [key, value] of fd.entries()) {
-      if (typeof value === 'string') {
-        if (key === 'variants') {
-          console.log(`  ${key}: JSON string (${value.length} chars)`);
-          console.log(`  First 200 chars: ${value.substring(0, 200)}...`);
-        } else if (value.length > 100) {
-          console.log(`  ${key}: ${value.substring(0, 100)}...`);
-        } else {
-          console.log(`  ${key}: ${value}`);
-        }
-      } else if (value instanceof File) {
-        console.log(`  ${key}: File - ${value.name} (${value.type}, ${value.size} bytes)`);
-      }
-    }
 
     // Clean up blob URLs before submitting
     const cleanupBlobUrls = () => {

@@ -244,10 +244,7 @@ const InvoiceGenerator: React.FC = () => {
         notes: notes || '',
         status: paymentStatus === 'paid' ? 'paid' : 'draft',
       };
-
-      console.log('Creating invoice with data:', invoiceData);
-      
-      const result = await invoiceService.createInvoice(invoiceData);
+  const result = await invoiceService.createInvoice(invoiceData);
       
       if (result.success) {
         toast.success('Invoice created successfully!');

@@ -531,8 +531,6 @@ orderSchema.pre("save", async function (next) {
         const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
         const random = Math.random().toString(36).substring(2, 7).toUpperCase();
         this.orderNumber = `ORD-${dateStr}-${random}`;
-
-        console.log('✅ Generated order number:', this.orderNumber);
     }
 
     // Set amount due if not set
@@ -625,7 +623,6 @@ orderSchema.methods.updatePaymentAttempt = function (attemptId, updates) {
 
     // Prevent double capture
     if (attempt.status === PAYMENT_STATUS.CAPTURED && updates.status === PAYMENT_STATUS.CAPTURED) {
-        console.log(`Attempt ${attemptId} already captured, skipping update`);
         return this;
     }
 

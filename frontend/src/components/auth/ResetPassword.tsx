@@ -35,9 +35,7 @@ const ResetPassword: React.FC = () => {
             }
 
             try {
-                console.log('Verifying token:', token.substring(0, 20) + '...');
                 const response = await publicApi.get(`/password/reset/verify?token=${token}`);
-                console.log('Token verification response:', response.data);
                 setTokenValid(true);
             } catch (error: any) {
                 console.error('Token verification failed:', error.response?.data);
@@ -114,18 +112,10 @@ const ResetPassword: React.FC = () => {
         setLoading(true);
 
         try {
-            console.log('Sending reset request:', {
-                token: token.substring(0, 20) + '...',
-                passwordLength: password.length
-            });
-            
             const response = await publicApi.put('/password/reset', {
                 token,
                 password
             });
-            
-            console.log('Reset successful:', response.data);
-            
             if (response.data.success) {
                 setSuccess(true);
                 toast.success(response.data.message || 'Password reset successfully!');

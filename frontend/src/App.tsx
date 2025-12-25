@@ -16,6 +16,7 @@ import Login from "./components/auth/Login";
 import ChatBot from "./components/home/ChatBot";
 import CallButton from "./components/home/CallButton";
 import CallActionButton from "./components/home/CallButton";
+import UsedLaptopsPage from "./components/pages/UsedLaptopsPage";
 
 // 🔥 FIX 1: AGGRESSIVE LAZY LOADING
 // These were previously eager, causing the "Monolithic Bundle" issue.
@@ -195,18 +196,20 @@ const App: React.FC = () => {
         <RootLayout>
           {mounted && (
             <Suspense fallback={null}>
-              <ToastContainerLazy
-                position="bottom-center"
-                autoClose={5000}
-                hideProgressBar={false}
-                newestOnTop={false}
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-                theme="light"
-              />
+<ToastContainerLazy
+        position="bottom-center"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+        // 🛑 PREVENT FULL SCREEN STACKING:
+        limit={3} 
+      />
             </Suspense>
           )}
           
@@ -251,6 +254,7 @@ const App: React.FC = () => {
             
             {/* 🔥 NOW LAZY LOADED */}
             <Route path="/products" element={<PublicLayout><LazyRoute><ProductList /></LazyRoute></PublicLayout>} />
+            <Route path="/used-laptops" element={<PublicLayout><LazyRoute><UsedLaptopsPage /></LazyRoute></PublicLayout>} />
             <Route path="/products/category/:categoryName" element={<PublicLayout><LazyRoute><ProductList /></LazyRoute></PublicLayout>} />
             <Route path="/products/brand/:brandName" element={<PublicLayout><LazyRoute><ProductList /></LazyRoute></PublicLayout>} />
             <Route path="/product/:slug" element={<PublicLayout><LazyRoute><ProductDisplay /></LazyRoute></PublicLayout>} />

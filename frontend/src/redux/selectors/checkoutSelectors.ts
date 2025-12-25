@@ -148,15 +148,6 @@ export const selectTaxAmount = createSelector(
   [selectCurrentPricing, selectSubtotal],
   (pricing, subtotal) => {
     const backendTax = pricing?.tax || 0;
-    
-    if (subtotal > 0) {
-      console.log('📊 Actual Tax Rate:', {
-        subtotal,
-        backendTax,
-        actualTaxRate: ((backendTax / subtotal) * 100).toFixed(2) + '%'
-      });
-    }
-    
     return backendTax >= 0 ? backendTax : 0;
   }
 );

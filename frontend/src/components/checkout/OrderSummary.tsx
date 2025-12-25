@@ -51,15 +51,6 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
     }).format(amount);
   };
 
-  // Debug effect
-  useEffect(() => {
-    if (debugMode) {
-      console.group('💰 ORDER SUMMARY DEBUG');
-      console.log('📊 Pricing Breakdown:', { subtotal, shipping, tax, discount, total, itemCount });
-      console.groupEnd();
-    }
-  }, [subtotal, shipping, tax, discount, total, itemCount, debugMode]);
-
   const freeShippingThreshold = 1000;
   const amountForFreeShipping = freeShippingThreshold - subtotal;
   const qualifiesForFreeShipping = subtotal >= freeShippingThreshold;

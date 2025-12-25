@@ -17,30 +17,13 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   categories,
   isEditMode = false
 }) => {
-  // 🆕 ADD: Debug logging
-  useEffect(() => {
-    console.log('=== DEBUG: BasicInfoSection ===');
-    console.log('formData received:', {
-      name: formData.name,
-      brand: formData.brand,
-      brandType: typeof formData.brand,
-      categories: formData.categories,
-      categoriesType: typeof formData.categories,
-      status: formData.status,
-      hsn: formData.hsn,
-      description: formData.description ? `${formData.description.substring(0, 50)}...` : 'Empty'
-    });
-    console.log('brands available:', brands?.length || 0);
-    console.log('categories available:', categories?.length || 0);
-  }, [formData, brands, categories]);
+
 
   const handleInputChange = (field: string, value: any) => {
-    console.log(`DEBUG: Changing ${field} to:`, value);
     updateFormData({ [field]: value });
   };
 
   const handleArrayChange = (field: string, value: string[]) => {
-    console.log(`DEBUG: Changing ${field} array to:`, value);
     updateFormData({ [field]: value });
   };
 
@@ -79,7 +62,6 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   };
 
   useEffect(() => {
-    console.log('DEBUG: BasicInfoSection status changed:', formData.status);
   }, [formData.status]);
 
   const getSelectedCategoryNames = () => {
@@ -123,41 +105,6 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           </span>
         )}
       </div>
-
-      {/* 🆕 ADD: Debug Info Bar */}
-      {isEditMode && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-sm font-medium text-blue-800">Debug Info</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                console.log('=== DEBUG: BasicInfoSection State ===');
-                console.log('formData:', formData);
-                console.log('Selected brand:', {
-                  value: formData.brand,
-                  display: getSelectedBrandName(),
-                  type: typeof formData.brand
-                });
-                console.log('Selected categories:', {
-                  values: formData.categories,
-                  display: getSelectedCategoryNames(),
-                  type: typeof formData.categories
-                });
-              }}
-              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded border border-blue-300 hover:bg-blue-200"
-            >
-              Log State
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Variant Warning */}
       {hasVariants && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -272,7 +219,6 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                 value={getSelectedCategoryValues()}
                 onChange={(e) => {
                   const selected = Array.from(e.target.selectedOptions, option => option.value);
-                  console.log('DEBUG: Selected categories:', selected);
                   handleInputChange('categories', selected);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-32"
@@ -433,7 +379,6 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               value={formData.status || 'Draft'}
               onChange={(e) => {
                 const newStatus = e.target.value;
-                console.log('DEBUG: Changing status to:', newStatus);
                 handleInputChange('status', newStatus);
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

@@ -20,9 +20,6 @@ const OrderAnalytics: React.FC = () => {
       setLoading(false);
     }
   };
-
-  console.log('Analytics Data:', analytics);
-
   useEffect(() => {
     fetchAnalytics();
   }, [days]);

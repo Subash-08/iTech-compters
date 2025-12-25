@@ -282,7 +282,12 @@ const ProductDetailFilters: React.FC<ProductDetailFiltersProps> = ({
   const effectiveMaxPosition = Math.max(0, Math.min(100, isNaN(maxPosition) ? 100 : maxPosition));
 
   return (
-    <div className="w-full lg:w-80 bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-fit lg:sticky lg:top-6 transform transition-all duration-300 hover:shadow-xl">
+<div className="w-full lg:w-80 bg-white rounded-2xl p-6 h-fit lg:sticky transform transition-all duration-300
+  /* Key Changes: distinct border, minimal shadow */
+  border border-gray-300/80 shadow-sm
+  /* Hover state */
+  hover:border-gray-400 hover:shadow-md"
+>
       {/* Header */}
       <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
         <div className="flex items-center space-x-3">

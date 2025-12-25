@@ -40,10 +40,7 @@ export const productAPI = {
       };
       
       params.sort = sortMap[filters.sortBy || 'featured'] || 'newest';
-
-      console.log('🔄 Unified API Request:', params);
-
-      const response = await api.get<ProductsResponse>('/products', { params });
+     const response = await api.get<ProductsResponse>('/products', { params });
       
       return response.data;
       

@@ -37,9 +37,6 @@ const UserDetailPage: React.FC = () => {
   useEffect(() => {
     fetchUserDetails();
   }, [id]);
-  console.log(user);
-  
-
   const fetchUserDetails = async () => {
     try {
       setLoading(true);

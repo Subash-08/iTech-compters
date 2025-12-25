@@ -13,9 +13,6 @@ const SectionList: React.FC = () => {
   const [reordering, setReordering] = useState(false);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
 
-  console.log(sections);
-  
-
   useEffect(() => {
     fetchSections();
   }, []);

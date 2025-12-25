@@ -61,15 +61,8 @@ const LinkedProductsSection: React.FC<LinkedProductsSectionProps> = ({
       if (isEditMode && currentProductId) {
         queryParams.append('excludeId', currentProductId);
       }
-
-      console.log('Fetching products with params:', queryParams.toString());
-
       const response = await api.get(`/admin/products?${queryParams}`);
       const productsData = response.data;
-
-      console.log('Products API response:', productsData);
-
-      // Handle different API response structures
       let products: Product[] = [];
       if (productsData.success) {
         products = productsData.products || productsData.data || [];
@@ -106,9 +99,7 @@ const LinkedProductsSection: React.FC<LinkedProductsSectionProps> = ({
       const productDetails = await Promise.all(
         formData.linkedProducts.map(async (productId) => {
           try {
-            // 🆕 FIX: Use the correct endpoint - singular /admin/product/:id
             const response = await api.get(`/admin/product/${productId}`);
-            console.log('Product detail response:', response.data);
             
             // Handle different response structures
             return response.data.product || response.data;
@@ -190,9 +181,6 @@ const LinkedProductsSection: React.FC<LinkedProductsSectionProps> = ({
     updateFormData({ linkedProducts: updatedLinkedProducts });
     setSelectedProducts(prev => [...prev, product]);
     toast.success('Product linked successfully');
-    
-    console.log('Added product to linked products:', product._id);
-    console.log('Updated linked products:', updatedLinkedProducts);
   };
 
   // Remove product from linked products
@@ -201,9 +189,6 @@ const LinkedProductsSection: React.FC<LinkedProductsSectionProps> = ({
     updateFormData({ linkedProducts: updatedLinkedProducts });
     setSelectedProducts(prev => prev.filter(p => p._id !== productId));
     toast.info('Product unlinked');
-    
-    console.log('Removed product from linked products:', productId);
-    console.log('Updated linked products:', updatedLinkedProducts);
   };
 
   // Handle filter change

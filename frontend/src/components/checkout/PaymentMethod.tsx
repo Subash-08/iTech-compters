@@ -70,8 +70,6 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
         paymentAttempts === 0 &&
         !isPaymentOpenRef.current &&
         amount > 0) {
-      
-      console.log('🔄 Auto-opening Razorpay for order:', { orderId, amount });
       setAutoOpened(true);
       isPaymentOpenRef.current = true;
       initializeRazorpayPayment();
@@ -96,9 +94,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
     }
   ];
 
-  const initializeRazorpayPayment = async (): Promise<void> => {
-    console.log('🟡 Initializing Razorpay payment:', { orderId, amount });
-    
+  const initializeRazorpayPayment = async (): Promise<void> => {    
     if (!orderId) {
       onPaymentError('Order not found. Please try creating the order again.');
       return;

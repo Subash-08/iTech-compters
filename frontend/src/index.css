@@ -156,3 +156,30 @@ a {
   );
   mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
 }
+/* ✅ FIX 3: Custom Styling for Mobile */
+:root {
+  --toastify-toast-width: 320px; /* Default desktop width */
+}
+
+/* Override default mobile style */
+.Toastify__toast-container {
+  width: var(--toastify-toast-width) !important;
+  max-width: 85vw; /* Ensure it doesn't overflow small screens */
+  padding: 0 !important;
+}
+
+/* Position adjustment for mobile if needed */
+@media only screen and (max-width: 480px) {
+  .Toastify__toast-container {
+    left: 50% !important;
+    transform: translateX(-50%);
+    bottom: 20px !important;
+    width: 90vw !important; /* On very small phones, 90% width is good */
+    margin: 0;
+  }
+
+  .Toastify__toast {
+    margin-bottom: 10px;
+    border-radius: 8px; /* Softer look on mobile */
+  }
+}

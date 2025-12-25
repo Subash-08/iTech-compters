@@ -35,10 +35,8 @@ const { id } = useParams<{ id: string }>();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
 
-  console.log('InvoiceDetails mounted with ID:', id); // Debug log
 
   useEffect(() => {
-    console.log('useEffect triggered with ID:', id); // Debug log
     if (id) {
       loadInvoice();
     }
@@ -46,10 +44,8 @@ const { id } = useParams<{ id: string }>();
 
   const loadInvoice = async () => {
     try {
-      console.log('Loading invoice with ID:', id); // Debug log
       setLoading(true);
       const response = await invoiceService.getInvoice(id!);
-      console.log('Invoice API response:', response); // Debug log
       setInvoice(response.invoice);
     } catch (error) {
       console.error('Failed to load invoice:', error); // Debug log

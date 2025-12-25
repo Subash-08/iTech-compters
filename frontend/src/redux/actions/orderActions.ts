@@ -44,20 +44,13 @@ export const processPaymentSuccess = createAsyncThunk(
   }, { dispatch, rejectWithValue }) => {
     try {
       dispatch(processPaymentStart());
-      
-      console.log('🟡 Processing payment success for order:', paymentData.orderId);
-
-      // Call the new payment success endpoint
-      const response = await api.post(`/orders/${paymentData.orderId}/payment-success`, {
+     const response = await api.post(`/orders/${paymentData.orderId}/payment-success`, {
         razorpayPaymentId: paymentData.razorpay_payment_id,
         razorpayOrderId: paymentData.razorpay_order_id,
         razorpaySignature: paymentData.razorpay_signature
       });
 
       if (response.data.success) {
-        console.log('✅ Payment success processed, cart cleared:', response.data.data.cartCleared);
-        
-        // Update local cart state
         dispatch(clearCartSuccess());
         
         dispatch(processPaymentSuccess({ order: response.data.data.order }));

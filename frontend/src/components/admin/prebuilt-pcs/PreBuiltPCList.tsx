@@ -254,9 +254,6 @@ const PreBuiltPCList: React.FC = () => {
     page: 1,
     limit: 12
   });
-console.log(preBuiltPCs);
-
-  // Debounce the filters to prevent too many API calls
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
   
   // Use useMemo for derived values

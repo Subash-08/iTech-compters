@@ -24,8 +24,6 @@ const Wishlist: React.FC = () => {
   const isGuestWishlist = useAppSelector(selectIsGuestWishlist);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
-console.log(wishlistItems);
-
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [hasCheckedSync, setHasCheckedSync] = useState(false);
 

@@ -265,10 +265,6 @@ const updateOrderStatus = catchAsyncErrors(async (req, res, next) => {
 
             // 2. EXTRACT SHIPPING ADDRESS (contains phone!)
             const shippingAddress = order.shippingAddress || {};
-
-            console.log('📦 SHIPPING ADDRESS FOR N8N:', shippingAddress);
-
-            // 3. SMART PHONE EXTRACTION - Use shipping address phone first
             const customerPhone = shippingAddress.phone ||
                 shippingAddress.mobile ||
                 user.phone ||
@@ -304,12 +300,6 @@ const updateOrderStatus = catchAsyncErrors(async (req, res, next) => {
                 orderDate: order.createdAt.toISOString(),
                 trackingUrl: order.shippingMethod?.trackingUrl ||
                     `https://track.${(order.shippingMethod?.carrier || 'standard').toLowerCase().replace(/\s+/g, '')}.com/${order.shippingMethod?.trackingNumber}`
-            });
-
-            console.log('✅ orderShipped N8N trigger sent with:', {
-                customer: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
-                email: shippingAddress.email || user.email,
-                phone: customerPhone
             });
         } catch (n8nError) {
             console.error('❌ N8N trigger failed (non-critical):', n8nError.message);
@@ -947,7 +937,6 @@ const generateAutoInvoiceAdmin = catchAsyncErrors(async (req, res, next) => {
     if (!order) {
         return next(new ErrorHandler('Order not found', 404));
     }
-    console.log(order)
     try {
         const invoiceData = await InvoiceGenerator.generateAutoInvoice(order, order.user);
         order.invoices = order.invoices || {};

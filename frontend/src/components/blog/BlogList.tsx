@@ -135,8 +135,6 @@ const BlogList: React.FC<BlogListProps> = ({
         search: searchQuery || undefined,
         sort: sortBy
       };
-
-      console.log('Loading blogs with filters:', filters);
       const response = await blogService.getPublishedBlogs(filters);
       
       if (response.success) {

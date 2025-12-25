@@ -14,7 +14,6 @@ const publicApi = axios.create({
 // Optional: Add request interceptor for debugging
 publicApi.interceptors.request.use(
     (config) => {
-        console.log('Public API request to:', config.url);
         return config;
     },
     (error) => Promise.reject(error)

@@ -48,7 +48,6 @@ class N8NService {
                     },
                 }
             );
-
             console.log(`n8n workflow executed → ${workflowKey} (${status})`);
             return { success: true, status, data };
         } catch (err) {

@@ -231,14 +231,6 @@ exports.getComponentsByCategory = catchAsyncErrors(async (req, res, next) => {
 });
 
 exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
-    console.log('=== QUOTE REQUEST RECEIVED ===');
-    console.log('Total components:', req.body.components?.length);
-    console.log('Customer:', {
-        name: req.body.customer?.name,
-        email: req.body.customer?.email,
-        phone: req.body.customer?.phone
-    });
-
     const { customer, components, metadata = {} } = req.body;
 
     // Validate required fields
@@ -280,8 +272,6 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
     let totalPrice = 0;
 
     for (const [index, component] of components.entries()) {
-        console.log(`\n=== Processing component ${index + 1}/${components.length} ===`);
-
         // Basic component validation
         if (!component.category || !component.categorySlug) {
             return next(new ErrorHandler(`Component at index ${index} must have category and categorySlug`, 400));
@@ -296,19 +286,11 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
             required: !!component.required,
             sortOrder: component.sortOrder || index
         };
-
-        // Only validate product if it's selected and has an ID
         if (component.selected && component.productId) {
-            console.log('Processing selected component:', {
-                index,
-                category: component.category,
-                productId: component.productId,
-                selected: component.selected
-            });
+
 
             // Check for duplicate products
             if (seenProducts.has(component.productId)) {
-                console.log('Duplicate product found:', component.productId);
                 return next(new ErrorHandler(`Duplicate product selected: ${component.productId}`, 400));
             }
             seenProducts.add(component.productId);
@@ -318,15 +300,7 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
                     .select('name basePrice mrp images slug stockStatus isActive status')
                     .lean();
 
-                console.log('Fetched product:', {
-                    productId: component.productId,
-                    productName: product?.name,
-                    isActive: product?.isActive,
-                    status: product?.status
-                });
-
                 if (!product) {
-                    console.log('Product not found:', component.productId);
                     return next(new ErrorHandler(`Product with ID ${component.productId} not found`, 404));
                 }
 
@@ -334,18 +308,9 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
                 const isAvailable = product.isActive !== false &&
                     (product.status === 'Published' || product.status === 'Active' || product.status === 'published');
 
-                console.log('Availability check:', {
-                    isActive: product.isActive,
-                    status: product.status,
-                    isAvailable
-                });
-
                 if (!isAvailable) {
-                    console.log('Product not available');
                     return next(new ErrorHandler(`Product ${product.name} is not available`, 400));
                 }
-
-                console.log('Product is available, adding to quote...');
                 enrichedComponent.productName = product.name;
                 enrichedComponent.productPrice = product.basePrice || 0;
                 enrichedComponent.productImage = product.images?.thumbnail?.url || '';
@@ -353,7 +318,6 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
 
                 // Add to total price
                 totalPrice += enrichedComponent.productPrice;
-                console.log(`Added price ${enrichedComponent.productPrice} to total, new total: ${totalPrice}`);
 
             } catch (error) {
                 console.error('Error fetching product:', error);
@@ -363,11 +327,7 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
 
         enrichedComponents.push(enrichedComponent);
     }
-
-    // Check for minimum components (at least one selected)
     const selectedComponents = enrichedComponents.filter(comp => comp.selected);
-    console.log('\nSelected components count:', selectedComponents.length);
-
     if (selectedComponents.length === 0) {
         return next(new ErrorHandler('At least one component must be selected', 400));
     }
@@ -386,11 +346,6 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         userAgent: req.get('User-Agent'),
         source: metadata.source || 'web'
     });
-
-    console.log('\n=== QUOTE CREATED SUCCESSFULLY ===');
-    console.log('Quote ID:', pcQuote._id);
-    console.log('Total Estimated:', pcQuote.totalEstimated);
-    console.log('Components count:', pcQuote.components.filter(c => c.selected).length);
 
     // Trigger N8N workflow asynchronously
     N8NService.run("pcQuoteGenerated", {
@@ -417,7 +372,6 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         } else if (result.skipped) {
             console.warn('N8N pcQuoteGenerated skipped:', result.reason);
         } else {
-            console.log('N8N pcQuoteGenerated triggered successfully');
         }
     }).catch(err => {
         console.error('Unexpected error triggering N8N:', err);
@@ -448,7 +402,6 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         } else if (result.skipped) {
             console.warn('N8N pcQuoteConfirmation skipped:', result.reason);
         } else {
-            console.log('N8N pcQuoteConfirmation triggered successfully');
         }
     }).catch(err => {
         console.error('Unexpected error triggering N8N:', err);
@@ -469,7 +422,6 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         }).catch(err => console.error("N8N pcRequirementsConfirmation failed:", err));
     }
 
-    console.log('=== SENDING RESPONSE ===');
     const responseData = {
         success: true,
         message: 'Your PC quote request has been submitted successfully! We will contact you within 24 hours.',
@@ -477,7 +429,6 @@ exports.createPCQuote = catchAsyncErrors(async (req, res, next) => {
         totalEstimated: pcQuote.totalEstimated
         // Removed expiresIn and quoteExpiry fields
     };
-    console.log('Response data:', responseData);
 
     res.status(201).json(responseData);
 });

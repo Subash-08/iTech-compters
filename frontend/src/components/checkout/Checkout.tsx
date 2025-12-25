@@ -194,15 +194,11 @@ const Checkout: React.FC = () => {
         billingAddressId: billingAddress?._id || billingAddress?.id,
         paymentMethod: paymentMethod
       };
-
-      console.log('🟡 Creating order with payload:', orderPayload);
-
       const result = await dispatch(checkoutActions.createOrder(orderPayload)).unwrap();
       const newOrderId = result.orderId || result.order?._id || result.orderNumber;
       
       if (newOrderId) {
         setCreatedOrderId(newOrderId);
-        console.log('✅ Order created successfully:', newOrderId);
       } else {
         throw new Error('Failed to create order - no order ID returned');
       }
@@ -216,7 +212,6 @@ const Checkout: React.FC = () => {
 
   // Enhanced payment success handler
   const handlePaymentSuccess = async (paymentData: any) => {
-    console.log('🎯 Payment successful, processing...', paymentData);
     setPaymentError('');
     setPaymentCompleted(true); // ADD THIS LINE - Set payment completed to true
     
@@ -632,7 +627,6 @@ const Checkout: React.FC = () => {
                           addresses={addresses}
                           selectedAddress={shippingAddressId}
                           onSelectAddress={(addressId) => {
-                            console.log('Selecting address:', addressId);
                             dispatch(setShippingAddress(addressId));
                           }}
                           onAddNewAddress={() => setShowAddressForm(true)}

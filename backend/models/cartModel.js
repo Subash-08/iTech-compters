@@ -91,8 +91,6 @@ cartSchema.index({ lastUpdated: 1 });
 
 // models/Cart.js - FIXED addItem method
 cartSchema.methods.addItem = async function (productId, variantData = null, quantity = 1, price = 0, productType = 'product') {
-    console.log('🛒 addItem called with:', { productId, variantData, quantity, price, productType });
-
     if (quantity < 1 || quantity > 100) {
         throw new Error('Quantity must be between 1 and 100');
     }
@@ -103,12 +101,10 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
     // If variantData is just a string (variantId), convert to object
     if (typeof variantData === 'string') {
         actualVariantData = { variantId: variantData };
-        console.log('🛒 Converted string variantId to object:', actualVariantData);
     }
 
     // Backward compatibility handling
     if (typeof productId === 'object' && productId.productType) {
-        console.log('🛒 Using new format with productType');
         productType = productId.productType;
         actualVariantData = productId.variantData;
         quantity = productId.quantity;
@@ -134,16 +130,6 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
             const variantMatch = actualVariantData ?
                 itemVariantId === targetVariantId :
                 !itemVariantId;
-
-            console.log('🛒 FIXED Item comparison:', {
-                itemProductId,
-                targetProductId,
-                itemVariantId,
-                targetVariantId,
-                productMatch,
-                variantMatch
-            });
-
             return productMatch && variantMatch;
         } else if (productType === 'prebuilt-pc') {
             const itemPCId = item.preBuiltPC?._id?.toString() || item.preBuiltPC?.toString();
@@ -153,15 +139,12 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
         return false;
     });
 
-    console.log('🛒 Existing item index:', existingItemIndex);
-
     if (existingItemIndex > -1) {
         const newQuantity = this.items[existingItemIndex].quantity + quantity;
         if (newQuantity > 100) {
             throw new Error('Total quantity cannot exceed 100');
         }
         this.items[existingItemIndex].quantity = newQuantity;
-        console.log('🛒 Updated existing item quantity to:', newQuantity);
     } else {
         if (this.items.length >= 50) {
             throw new Error('Cart cannot have more than 50 items');
@@ -188,14 +171,12 @@ cartSchema.methods.addItem = async function (productId, variantData = null, quan
                     attributes: actualVariantData.attributes,
                     sku: actualVariantData.sku
                 };
-                console.log('🛒 Added variant data to new item:', newItem.variant);
             }
         } else if (productType === 'prebuilt-pc') {
             newItem.preBuiltPC = productId;
         }
 
         this.items.push(newItem);
-        console.log('🛒 Added new item to cart');
     }
 
     return this.save();
@@ -233,14 +214,6 @@ cartSchema.methods.updateQuantity = async function (productId, variantId = null,
 // models/Cart.js - SIMPLIFIED removeItem
 cartSchema.methods.removeItem = async function (productId, variantId = null, productType = 'product') {
     const initialLength = this.items.length;
-
-    console.log('🛒 Cart removeItem called:', {
-        productId,
-        variantId,
-        productType,
-        initialItems: this.items.length
-    });
-
     const searchProductId = productId.toString();
     const searchVariantId = variantId ? variantId.toString() : null;
 
@@ -265,12 +238,6 @@ cartSchema.methods.removeItem = async function (productId, variantId = null, pro
 
         return true;
     });
-
-    console.log('🛒 After removal:', {
-        remainingItems: this.items.length,
-        removed: initialLength - this.items.length
-    });
-
     if (this.items.length === initialLength) {
         throw new Error(`Item not found in cart. Product: ${productId}, Variant: ${variantId}, Type: ${productType}`);
     }

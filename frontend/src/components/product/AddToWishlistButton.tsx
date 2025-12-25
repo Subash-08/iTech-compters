@@ -48,16 +48,7 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
 
   const handleWishlistToggle = async () => {
     if (loading) return;
-      console.log('❤️ AddToWishlistButton Debug:', {
-    productId,
-    product, // Check if this exists
-    hasProduct: !!product,
-    productName: product?.name,
-    productImages: product?.images,
-    variant,
-    variantId: variant?.variantId
-  });
-  
+
     setLoading(true);
     
     try {

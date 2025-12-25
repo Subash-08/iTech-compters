@@ -214,7 +214,6 @@ export const localStorageUtils = {
       }));
       
       localStorage.setItem(LocalStorageKeys.GUEST_CART, JSON.stringify(validatedCart));
-      console.log('💾 Guest cart saved:', validatedCart.length, 'items');
     } catch (error) {
       console.error('❌ Error saving guest cart to localStorage:', error);
     }
@@ -252,7 +251,6 @@ export const localStorageUtils = {
 
   clearGuestCart: (): void => {
     localStorage.removeItem(LocalStorageKeys.GUEST_CART);
-    console.log('🧹 Guest cart cleared');
   },
 
   // Get cart item count
@@ -318,20 +316,7 @@ getGuestWishlist: (): GuestWishlistItem[] => {
   try {
     const wishlist = localStorage.getItem(LocalStorageKeys.GUEST_WISHLIST);
     const parsedWishlist = wishlist ? JSON.parse(wishlist) : [];
-    
-    console.log('🔍 Parsed guest wishlist:', {
-      count: parsedWishlist.length,
-      items: parsedWishlist.map((item: any) => ({
-        productId: item.productId,
-        productType: item.productType,
-        hasProductData: !!item.productData,
-        productName: item.productData?.name,
-        hasVariant: !!item.variant
-      }))
-    });
-    
-    // ✅ ENHANCED: Transform data structure for prebuilt PCs
-    return parsedWishlist.map(item => {
+      return parsedWishlist.map(item => {
       // If this is a prebuilt PC and has productData
       if (item.productType === 'prebuilt-pc' && item.productData) {
         return {
@@ -374,12 +359,6 @@ saveCompleteWishlistItem: (itemData: {
   addedAt: string;
 }): boolean => {
   try {
-    console.log('💾 Saving complete wishlist item:', {
-      productId: itemData.productId,
-      productName: itemData.productData?.name,
-      productType: itemData.productType
-    });
-    
     const currentWishlist = localStorageUtils.getGuestWishlist();
     
     // Find if item already exists
@@ -400,7 +379,6 @@ saveCompleteWishlistItem: (itemData: {
         variant: itemData.variant,
         addedAt: itemData.addedAt
       };
-      console.log('📝 Updated existing item in wishlist');
     } else {
       // Add new item
       updatedWishlist = [...currentWishlist, {
@@ -412,7 +390,6 @@ saveCompleteWishlistItem: (itemData: {
         addedAt: itemData.addedAt,
         originalProductId: itemData.productId.includes('_') ? itemData.productId.split('_')[0] : itemData.productId
       }];
-      console.log('➕ Added new item to wishlist');
     }
     
     // Save to localStorage
@@ -439,16 +416,6 @@ saveGuestWishlist: (wishlist: GuestWishlistItem[]): void => {
     }));
     
     localStorage.setItem(LocalStorageKeys.GUEST_WISHLIST, JSON.stringify(validatedWishlist));
-    
-    console.log('💾 Saved guest wishlist:', {
-      count: validatedWishlist.length,
-      items: validatedWishlist.map(item => ({
-        productId: item.productId,
-        productName: item.productData?.name || 'No name',
-        hasProductData: !!item.productData,
-        hasVariant: !!item.variant
-      }))
-    });
   } catch (error) {
     console.error('❌ Error saving guest wishlist to localStorage:', error);
   }
@@ -516,14 +483,4 @@ addToGuestWishlist: (
     localStorage.removeItem(LocalStorageKeys.GUEST_WISHLIST);
   },
 
-  // Debug utilities
-  debugGuestCart: (): void => {
-    const cart = localStorageUtils.getGuestCart();
-    console.group('🛒 Guest Cart Debug');
-    console.log('Total items:', cart.length);
-    console.log('Total quantity:', cart.reduce((sum, item) => sum + item.quantity, 0));
-    console.log('Total value:', localStorageUtils.getGuestCartTotal());
-    console.log('Items:', cart);
-    console.groupEnd();
-  }
 };

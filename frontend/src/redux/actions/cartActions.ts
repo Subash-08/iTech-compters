@@ -25,8 +25,8 @@ const cartAPI = {
           }
         };
       }
-      const errorMessage = error.response?.data?.message || 'Failed to fetch cart';
-      throw new Error(errorMessage);
+     
+      throw error;
     }
   },
 
@@ -45,7 +45,6 @@ addToCart: async (cartData: AddToCartData): Promise<{ data: any; message: string
     }
     
     const response = await api.post('/cart', payload);
-    toast.success('Product added to cart successfully');
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 401) {
@@ -142,7 +141,6 @@ removeFromCart: async (removeData: RemoveFromCartData): Promise<{ data: any; mes
     const response = await api.delete('/cart', { 
       data: payload
     });
-    toast.success('Product removed from cart successfully');
     return response.data;
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || 'Failed to remove product from cart';
@@ -155,7 +153,6 @@ updateCartQuantity: async (updateData: UpdateCartQuantityData): Promise<{ data: 
   // This should only be called for authenticated users now
   try {
     const response = await api.put('/cart', updateData);
-    toast.success('Cart updated successfully');
     return response.data;
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || 'Failed to update cart';
@@ -170,7 +167,6 @@ clearCart: async (): Promise<{ message: string }> => {
   // Guest users are handled in the action itself
   try {
     const response = await api.delete('/cart/clear');
-    toast.success('Cart cleared successfully');
     return response.data;
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || 'Failed to clear cart';
@@ -183,7 +179,6 @@ clearCart: async (): Promise<{ message: string }> => {
   syncGuestCart: async (items: GuestCartItem[]): Promise<{ data: any; message: string }> => {
     try {
       const response = await api.post('/cart/sync', { items });
-      toast.success('Cart synchronized successfully');
       return response.data;
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to sync cart';
@@ -636,18 +631,9 @@ const addPreBuiltPCToCart = (cartData: { pcId: string; quantity?: number; produc
   return async (dispatch: any, getState: any) => {
     try {
       dispatch({ type: 'cart/updateCartStart' });
-      
       const state = getState();
       const isGuest = !state.authState.isAuthenticated;
-      
-      console.log('🛒 Adding Prebuilt PC to cart:', {
-        pcId: cartData.pcId,
-        quantity: cartData.quantity,
-        isGuest,
-        hasProductData: !!cartData.product,
-        productData: cartData.product
-      });
-      
+    
       if (isGuest) {
         // ✅ Try to get product data from wishlist state if not provided
         let productData = cartData.product;
@@ -663,7 +649,6 @@ const addPreBuiltPCToCart = (cartData: { pcId: string; quantity?: number; produc
           
           if (wishlistItem?.product) {
             productData = wishlistItem.product;
-            console.log('🔍 Found product data in wishlist:', productData.name);
           }
         }
         
@@ -728,13 +713,6 @@ const addPreBuiltPCToCart = (cartData: { pcId: string; quantity?: number; produc
 
         // Save to localStorage
         localStorageUtils.saveGuestCart(updatedCart);
-        
-        console.log('💾 Saved PC to guest cart:', {
-          count: updatedCart.length,
-          item: updatedCart.find(item => item.productId === cartData.pcId)
-        });
-        
-        // Dispatch success
         dispatch({
           type: 'cart/updateCartSuccess',
           payload: {
@@ -793,22 +771,14 @@ const removePreBuiltPCFromCart = (pcId: string) => async (dispatch: any, getStat
     if (!pcId || pcId === 'undefined') {
       throw new Error('Invalid PC ID');
     }
-
-    console.log('🗑️ Removing Prebuilt PC from cart:', { pcId, isGuest });
-
     if (isGuest) {
       // Handle guest cart removal locally
       const guestCart = localStorageUtils.getGuestCart();
-      
-      console.log('🔍 Guest cart before removal:', guestCart);
       
       // ✅ FIXED: Use productId, not pcId
       const updatedCart = guestCart.filter(item =>
         !(item.productType === 'prebuilt-pc' && item.productId === pcId)
       );
-
-      console.log('🔍 Guest cart after removal:', updatedCart);
-      
       localStorageUtils.saveGuestCart(updatedCart);
       
       dispatch({
