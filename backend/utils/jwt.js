@@ -16,7 +16,6 @@ const sendToken = (user, statusCode, res, message = 'Success') => {
             success: true,
             token,
             message
-            // ✅ Correct: No user data in response
         });
 }
 

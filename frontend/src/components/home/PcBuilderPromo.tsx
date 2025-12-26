@@ -155,7 +155,8 @@ const CustomPCSection = () => {
             {/* Start Building Button - Absolute positioned below PC */}
 <motion.div 
   variants={itemVariants} 
-  className="absolute -bottom-4 md:-bottom-8 left-1/3 transform -translate-x-1/2 z-20"
+  className="absolute -bottom-4 md:-bottom-8 left-1/2 z-20"
+  style={{ x: "-50%" }}
   whileHover={{ scale: 1.05 }} 
   whileTap={{ scale: 0.95 }}
 >

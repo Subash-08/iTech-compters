@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Helmet } from 'react-helmet-async'; // ✅ SEO Import
+import { Helmet } from 'react-helmet-async'; 
 
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -93,7 +93,7 @@ const ProductList: React.FC = () => {
   const lastSearchQuery = useAppSelector(selectLastSearchQuery);
 
   // --- SEO LOGIC START ---
-  const siteUrl = "https://itechcomputers.shop"; // Replace with real domain
+  const siteUrl = "https://itechcomputers.shop"; 
   const canonicalPath = categoryName 
     ? `/products/category/${categoryName}`
     : brandName 
@@ -102,14 +102,8 @@ const ProductList: React.FC = () => {
   
   const canonicalUrl = `${siteUrl}${canonicalPath}${currentPage > 1 ? `?page=${currentPage}` : ''}`;
 
-  // Ideally, your API should return the 'category' or 'brand' object with metadata separately.
-  // Assuming 'products[0].category' or similar might hold populated data, or we fallback to defaults.
-  // Since you store SEO data in the Category/Brand collection, ensure your getProducts API populates it.
-  
-  // Dynamic Title & Description Construction
   const getSEOTitle = () => {
     if (categoryName) {
-      // Use the actual category name formatted nicely
       const cleanName = categoryName.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       return `Buy ${cleanName} Online | Best Prices in Salem | iTech Computers`;
     }
@@ -135,7 +129,6 @@ const ProductList: React.FC = () => {
     return "Your one-stop shop for custom PCs, laptops, and computer accessories in Salem. Best deals on top tech brands.";
   };
 
-  // Structured Data (Breadcrumb + Collection)
   const structuredData = [
     {
       "@context": "https://schema.org",
@@ -174,10 +167,25 @@ const ProductList: React.FC = () => {
     return (key === 'category' && categoryName) || (key === 'brand' && brandName);
   }, [categoryName, brandName]);
 
+  // ✅ 1. INITIAL CLEANUP: Prevent showing stale (Used) products from other pages
+  useEffect(() => {
+    dispatch(productActions.clearProducts());
+    
+    // Optional: Also ensure filters start clean to avoid carrying over 'Used' from other pages
+    // before the URL logic kicks in.
+    return () => {
+      dispatch(productActions.clearProducts());
+    };
+  }, [dispatch]);
+
   // Handle URL Params
   useEffect(() => {
     const urlFilters: any = {};
+    
     searchParams.forEach((value, key) => {
+      // 🔒 SECURITY: If user manually types ?condition=Used, ignore it
+      if (key === 'condition' && value.toLowerCase().includes('used')) return;
+      
       if ((key === 'category' && categoryName) || (key === 'brand' && brandName)) return;
       
       if (['minPrice', 'maxPrice', 'rating', 'page', 'limit'].includes(key)) {
@@ -197,12 +205,26 @@ const ProductList: React.FC = () => {
         urlFilters[key] = value;
       }
     });
+
+    // 🔒 DEFAULT: If no condition is selected (or we stripped 'Used'), force New & Refurbished
+    if (!urlFilters.condition) {
+       urlFilters.condition = 'New,Refurbished';
+    }
+
     dispatch(productActions.updateFilters(urlFilters));
   }, [searchParams, dispatch, brandName, categoryName]);
 
   // Fetch Products
   useEffect(() => {
     const fetchProductsWithAuth = async () => {
+      
+      // ✅ 2. GUARD CLAUSE: Strict Check
+      // If the filters are empty (initial load) OR if they contain 'Used' (stale state),
+      // DO NOT FETCH. Wait for the URL useEffect to set 'New,Refurbished'.
+      if (!filters.condition || filters.condition.includes('Used')) {
+         return;
+      }
+
       try {
         await dispatch(productActions.fetchProducts(filters, { 
           brandName: brandName?.replace(/-/g, ' '), 
@@ -212,6 +234,7 @@ const ProductList: React.FC = () => {
         if (handleAuthError(error)) return;
       }
     };
+
     if (categoryName || brandName || (!categoryName && !brandName)) {
       fetchProductsWithAuth();
     }
@@ -238,14 +261,25 @@ const ProductList: React.FC = () => {
     updateFilter('sortBy', sortBy);
   }, [updateFilter]);
 
+  // ✅ 3. CLEAR FILTERS FIX: Force condition immediately
   const clearFilters = useCallback(() => {
     const newParams = new URLSearchParams();
     setSearchParams(newParams);
-    dispatch(productActions.clearFilters({ 
-      brandName: brandName?.replace(/-/g, ' '), 
-      categoryName: categoryName?.replace(/-/g, ' ') 
+    
+    // We manually update Redux *immediately* to prevent a flash of "All Products"
+    // while the URL params are being processed.
+    dispatch(productActions.updateFilters({
+      minPrice: 0,
+      maxPrice: 0,
+      rating: 0,
+      inStock: false,
+      search: '',
+      page: 1,
+      brand: brandName ? brandName.replace(/-/g, ' ') : '',
+      category: categoryName ? categoryName.replace(/-/g, ' ') : '',
+      condition: 'New,Refurbished' // 🔒 Lock it down
     }));
-    toast.success('Filters cleared');
+
   }, [setSearchParams, dispatch, brandName, categoryName]);
 
   const removeFilter = useCallback((key: string) => {
@@ -268,9 +302,10 @@ const ProductList: React.FC = () => {
     return 'Latest Arrivals';
   }, [brandName, categoryName, lastSearchQuery]);
 
-  const shouldShowFilter = useCallback((filterType: 'brand' | 'category') => {
+  const shouldShowFilter = useCallback((filterType: string) => {
     if (filterType === 'brand' && brandName) return false;
     if (filterType === 'category' && categoryName) return false;
+    // ✅ ALLOW 'condition' to return true here so the UI shows up
     return true;
   }, [brandName, categoryName]);
 
@@ -319,11 +354,11 @@ const ProductList: React.FC = () => {
     return (
       <div className="min-h-[60vh] flex items-center justify-center bg-white">
         <div className="text-center p-8 max-w-md">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-red-50 text-red-500 rounded-xl mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-red-50 text-red-500 rounded-xl mb-2">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
           </div>
           <h2 className="text-xl font-medium text-gray-900 mb-2">Something went wrong</h2>
-          <p className="text-gray-500 mb-8 text-sm leading-relaxed">{error}</p>
+          <p className="text-gray-500 mb-4 text-sm leading-relaxed">{error}</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button onClick={handleRetry} className="px-6 py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
               Try Again
@@ -363,11 +398,11 @@ const ProductList: React.FC = () => {
         ))}
       </Helmet>
 
-      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         
         {/* --- Header & Controls --- */}
-        <div className="flex flex-col gap-6 mb-10 md:mb-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="flex flex-col gap-4 mb-6 md:mb-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             {/* Title Section */}
             <div className="relative">
                {/* Breadcrumb-ish / Overline */}
@@ -486,7 +521,10 @@ const ProductList: React.FC = () => {
               <div className="flex-1 overflow-y-auto p-6 xl:p-0 xl:sticky xl:top-24">
                  <ProductDetailFilters
                    showFilters={true}
-                   availableFilters={availableFilters}
+                   availableFilters={{
+                    ...availableFilters,
+                    conditions: ['New', 'Refurbished'] 
+                   }}
                    currentFilters={filters}
                    onUpdateFilter={updateFilter}
                    onClearFilters={clearFilters}
@@ -518,7 +556,7 @@ const ProductList: React.FC = () => {
             {products.length === 0 && !loading ? (
               // --- Empty State ---
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                   <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
@@ -526,7 +564,7 @@ const ProductList: React.FC = () => {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   No products found
                 </h3>
-                <p className="text-gray-500 max-w-sm mx-auto mb-8 text-sm">
+                <p className="text-gray-500 max-w-sm mx-auto mb-4 text-sm">
                   {lastSearchQuery 
                     ? `We couldn't find any matches for "${lastSearchQuery}". Try adjusting your keywords.`
                     : 'Try adjusting your filters to find what you are looking for.'
@@ -549,7 +587,7 @@ const ProductList: React.FC = () => {
                   2. grid-cols-4: Default desktop columns.
                   3. gap-4 md:gap-6: Standardized gap.
                 */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 items-stretch">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-4 items-stretch">
                   {products.map((product) => (
                     <ProductCard key={product._id} product={product} />
                   ))}

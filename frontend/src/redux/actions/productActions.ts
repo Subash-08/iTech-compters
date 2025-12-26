@@ -387,4 +387,7 @@ export const productActions = {
   clearError: () => ({
     type: 'products/clearError',
   }),
+  clearProducts: () => ({
+    type: 'products/clearProducts',
+  }),
 };

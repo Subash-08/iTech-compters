@@ -1,3 +1,4 @@
+// src/components/products/ProductDetailFilters.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -140,7 +141,7 @@ const ProductDetailFilters: React.FC<ProductDetailFiltersProps> = ({
     applyPriceFilter();
   }, [applyPriceFilter]);
 
-  // --- FIXED: Filter Toggle Logic ---
+  // --- Filter Toggle Logic ---
   const toggleFilterItem = useCallback((currentValue: string | string[] | undefined, newItem: string) => {
     let arr: string[] = [];
     
@@ -156,12 +157,10 @@ const ProductDetailFilters: React.FC<ProductDetailFiltersProps> = ({
     return [...arr, newItem];
   }, []);
 
-  // ✅ FIXED: Properly handle empty arrays - pass null instead of empty array
   const handleBrandChange = useCallback((brand: string) => {
     const currentBrands = currentFilters.brand;
     const newBrands = toggleFilterItem(currentBrands, brand);
     
-    // KEY FIX: Pass null when array becomes empty instead of empty array
     if (newBrands.length === 0) {
       onUpdateFilter('brand', null);
     } else {
@@ -169,7 +168,6 @@ const ProductDetailFilters: React.FC<ProductDetailFiltersProps> = ({
     }
   }, [currentFilters.brand, onUpdateFilter, toggleFilterItem]);
 
-  // ✅ FIXED: Same fix for categories
   const handleCategoryChange = useCallback((category: string) => {
     const currentCategories = currentFilters.category;
     const newCategories = toggleFilterItem(currentCategories, category);
@@ -189,7 +187,6 @@ const ProductDetailFilters: React.FC<ProductDetailFiltersProps> = ({
     return availableFilters.availableCategories || [];
   }, [availableFilters.availableCategories]);
   
-  // ✅ FIXED: Checkers handle comma-separated URL strings
   const isBrandSelected = useCallback((brand: string) => {
     if (!currentFilters.brand) return false;
     
@@ -214,11 +211,6 @@ const ProductDetailFilters: React.FC<ProductDetailFiltersProps> = ({
     return selectedCategories.includes(category);
   }, [currentFilters.category]);
 
-  const handleRatingChange = useCallback((rating: number) => {
-    onUpdateFilter('rating', currentFilters.rating === rating ? null : rating);
-  }, [currentFilters.rating, onUpdateFilter]);
-
-  // ✅ FIXED: Handle condition filter with same logic
   const handleConditionChange = useCallback((condition: string) => {
     const currentConditions = currentFilters.condition;
     const newConditions = toggleFilterItem(currentConditions, condition);
@@ -491,9 +483,8 @@ const ProductDetailFilters: React.FC<ProductDetailFiltersProps> = ({
           </div>
         )}
 
-
-        {/* 🔧 Condition Filter */}
-        {availableFilters.conditions && availableFilters.conditions.length > 0 && (
+        {/* 🔧 Condition Filter - WRAPPED IN shouldShowFilter CHECK */}
+        {shouldShowFilter('condition') && availableFilters.conditions && availableFilters.conditions.length > 0 && (
           <div className="border-b border-gray-100 pb-8">
             <h3 className="text-sm font-semibold text-gray-900 mb-6 uppercase tracking-wider flex items-center">
               <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -555,7 +546,7 @@ const ProductDetailFilters: React.FC<ProductDetailFiltersProps> = ({
         </div>
 
         {/* Results Summary */}
-        <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border border-gray-100 shadow-sm">
+        <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-3 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-sm font-medium text-gray-900">

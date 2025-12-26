@@ -98,7 +98,11 @@ const productSlice = createSlice({
       state.filters.search = action.payload;
       state.lastSearchQuery = action.payload;
     },
-
+clearProducts: (state) => {
+      state.products = [];        // Clear the array
+      state.loading = true;       // Set loading true so Shimmer appears
+      state.error = null;         // Clear any previous errors
+    },
     clearFilters: (state, action) => {
       
       const routeParams = action.payload;
@@ -154,6 +158,7 @@ export const {
   fetchProductsStart,
   fetchProductsSuccess,
   fetchProductsFailure,
+  clearProducts,
   updateFilters,
   clearFilters,
   setCurrentPage,

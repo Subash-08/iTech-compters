@@ -68,43 +68,16 @@ const PcRow = React.memo(({ pc, getImageUrl, handleToggleStatus, handleDelete }:
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="text-sm text-gray-900">
-          ${pc.discountPrice || pc.totalPrice}
+          ₹{pc.discountPrice || pc.totalPrice}
         </div>
         {pc.discountPrice && pc.discountPrice !== pc.totalPrice && (
           <div className="text-sm text-gray-500 line-through">
-            ${pc.totalPrice}
+            ₹{pc.totalPrice}
           </div>
         )}
       </td>
+
       
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">
-          ${pc.basePrice || pc.totalPrice}
-        </div>
-      </td>
-      
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">
-          ${pc.offerPrice || pc.discountPrice || pc.totalPrice}
-        </div>
-        {pc.offerPrice && pc.offerPrice < (pc.basePrice || pc.totalPrice) && (
-          <div className="text-xs text-green-600 font-medium">
-            Save ${((pc.basePrice || pc.totalPrice) - pc.offerPrice).toFixed(2)}
-          </div>
-        )}
-      </td>
-      
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          pc.condition === 'New' 
-            ? 'bg-green-100 text-green-800'
-            : pc.condition === 'Refurbished'
-            ? 'bg-yellow-100 text-yellow-800'
-            : 'bg-gray-100 text-gray-800'
-        }`}>
-          {pc.condition || 'New'}
-        </span>
-      </td>
       
       <td className="px-6 py-4 whitespace-nowrap">
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -117,18 +90,7 @@ const PcRow = React.memo(({ pc, getImageUrl, handleToggleStatus, handleDelete }:
           {pc.stockQuantity || 0} in stock
         </span>
       </td>
-      
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center">
-          <Star className="w-4 h-4 text-yellow-400 fill-current" />
-          <span className="ml-1 text-sm text-gray-900">
-            {pc.averageRating || 0}
-          </span>
-          <span className="ml-1 text-sm text-gray-500">
-            ({pc.totalReviews || 0})
-          </span>
-        </div>
-      </td>
+
       
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center space-x-2">
@@ -464,19 +426,7 @@ const handleToggleStatus = useCallback(async (id: string, currentStatus: boolean
                   Price
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Base Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Offer Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Condition
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Stock
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rating
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status

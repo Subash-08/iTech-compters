@@ -55,12 +55,7 @@ exports.registerUser = catchAsyncError(async (req, res, next) => {
     }
 
     try {
-        // Check if user exists
-        const existingUser = await User.findByEmail(email);
 
-        if (existingUser) {
-            return next(new ErrorHandler('User already exists with this email', 400));
-        }
 
         // Generate username from first and last name
         const baseUsername = User.generateUsername(firstName, lastName);
@@ -79,9 +74,6 @@ exports.registerUser = catchAsyncError(async (req, res, next) => {
             userData.avatar = `/uploads/users/${req.file.filename}`;
         }
         const user = await User.create(userData);
-
-        // Generate verification token
-        const verificationToken = user.generateEmailVerificationToken();
         await user.save();
 
         // ✅ FIX: Use sendToken instead of manual response

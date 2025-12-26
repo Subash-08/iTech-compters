@@ -5,7 +5,7 @@ import { baseURL } from '../config/config';
 
 // --- Icons --- //
 const ArrowRightIcon = () => (
-  <svg className="w-4 h-4 ml-2 transition-transform duration-300 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <svg className="w-4 h-4 ml-2 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
   </svg>
 );
@@ -170,8 +170,8 @@ const HomePage: React.FC = () => {
             items-center 
             justify-center 
             transition-all 
-            duration-300
-            opacity-80 
+            duration-200
+            opacity-100 
             hover:opacity-100 
             hover:scale-105
           "
@@ -187,7 +187,7 @@ const HomePage: React.FC = () => {
               grayscale-80
               group-hover:grayscale-0 
               transition-all 
-              duration-300
+              duration-200
             "
             fallback={<BoxIcon />}
           />
@@ -247,7 +247,7 @@ const HomePage: React.FC = () => {
                     hover:grayscale-0 
                     hover:scale-105 
                     transition-all 
-                    duration-300
+                    duration-200
                   "
                   style={{ transitionDelay: `${idx * 40}ms` }}
                 >

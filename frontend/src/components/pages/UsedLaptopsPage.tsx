@@ -1,3 +1,5 @@
+// src/pages/products/UsedLaptopsPage.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -75,9 +77,7 @@ const UsedLaptopsPage: React.FC = () => {
   const currentPage = useAppSelector(selectCurrentPage);
   const activeFilters = useAppSelector(selectActiveFilters);
 
-  // --- 1. CRITICAL CONFIGURATION FIX ---
-  // Using 'laptops' based on your successful API test:
-  // url: ...category=laptops&condition=Used...
+  // --- 1. CONFIGURATION ---
   const BASE_CATEGORY_SLUG = 'laptops'; 
   const BASE_CONDITION = 'Used'; 
 
@@ -88,9 +88,18 @@ const UsedLaptopsPage: React.FC = () => {
   const seoTitle = "Buy Used Laptops | Certified Refurbished | iTech Computers";
   const seoDescription = "Shop high-performance used and refurbished laptops at iTech Computers Salem. Quality tested, warranty backed, and best prices guaranteed.";
 
-// --- 3. FILTER LOGIC ---
+  // --- 3. INITIALIZATION & CLEANUP (The Fix) ---
   useEffect(() => {
-    // We explicitly set ALL filter keys to null/defaults to overwrite any stale Redux state
+    // ✅ CRITICAL: Clear old products immediately so users don't see "New" products flash
+    dispatch(productActions.clearProducts()); 
+
+    return () => {
+      dispatch(productActions.clearProducts());
+    };
+  }, [dispatch]);
+
+  // --- 4. FILTER LOGIC ---
+  useEffect(() => {
     const urlFilters: any = {
       category: BASE_CATEGORY_SLUG, 
       condition: BASE_CONDITION,    
@@ -99,7 +108,7 @@ const UsedLaptopsPage: React.FC = () => {
       search: '',                   
       sortBy: 'newest',
       
-      // 🛑 CRITICAL: Explicitly clear potential stale filters
+      // Explicitly clear potentially stale filters
       brand: null,
       minPrice: null,
       maxPrice: null,
@@ -129,9 +138,17 @@ const UsedLaptopsPage: React.FC = () => {
     });
     dispatch(productActions.updateFilters(urlFilters));
   }, [searchParams, dispatch]);
-  // Fetch Data
+
+  // --- 5. FETCH DATA (With Guard Clause) ---
   useEffect(() => {
     const fetchUsedLaptops = async () => {
+      
+      // ✅ CRITICAL GUARD: Do not fetch if Redux hasn't updated to 'Used' yet.
+      // This prevents the "All Products" API call race condition.
+      if (filters.condition !== BASE_CONDITION || filters.category !== BASE_CATEGORY_SLUG) {
+         return; 
+      }
+
       try {
         await dispatch(productActions.fetchProducts(filters, { 
           categoryName: 'laptops' // UI Label
@@ -143,8 +160,7 @@ const UsedLaptopsPage: React.FC = () => {
     fetchUsedLaptops();
   }, [filters, dispatch, handleAuthError]);
 
-  // --- 4. EVENT HANDLERS ---
-
+  // --- 6. EVENT HANDLERS ---
   const updateFilter = useCallback((key: string, value: string | number | boolean | null) => {
     // Prevent user from removing the core logic of this page
     if (key === 'condition' || key === 'category') return;
@@ -178,7 +194,6 @@ const UsedLaptopsPage: React.FC = () => {
   }, [updateFilter]);
 
   // Hide the Category filter AND Condition filter from the sidebar
-  // to prevent the user from untoggling 'Used'
   const shouldShowFilter = useCallback((filterType: string) => {
     if (filterType === 'category') return false; 
     if (filterType === 'condition') return false; 
@@ -191,7 +206,7 @@ const UsedLaptopsPage: React.FC = () => {
 
   const hasRemovableFilters = getRemovableActiveFilters().length > 0;
 
-  // --- 5. LOADING STATE ---
+  // --- 7. LOADING STATE ---
   if (loading && products.length === 0) {
     return (
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-4 py-8 md:py-6 bg-white min-h-screen">
@@ -204,7 +219,7 @@ const UsedLaptopsPage: React.FC = () => {
     );
   }
 
-  // --- 6. RENDER ---
+  // --- 8. RENDER ---
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
       <Helmet>

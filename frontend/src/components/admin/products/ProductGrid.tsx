@@ -372,7 +372,7 @@ const getStockColor = (stock: number, hasVariants: boolean) => {
     {product.priceRange?.hasRange ? (
       // Show price range for products with variants
       <div className="text-sm font-medium text-gray-900">
-        ₹{product.priceRange.min.toFixed(2)} - ${product.priceRange.max.toFixed(2)}
+        ₹{product.priceRange.min.toFixed(2)} - ₹{product.priceRange.max.toFixed(2)}
       </div>
     ) : (
       // Show single price for products without variants
@@ -399,7 +399,7 @@ const getStockColor = (stock: number, hasVariants: boolean) => {
     {/* 🆕 Backward compatibility - show old pricing if virtual fields not available */}
     {!product.displayMrp && product.offerPrice > 0 && product.offerPrice < product.basePrice && (
       <div className="text-sm text-green-600 font-medium">
-        ${product.offerPrice.toFixed(2)}
+        ₹{product.offerPrice.toFixed(2)}
         <span className="text-xs text-red-600 ml-1">
           (-{Math.round(((product.basePrice - product.offerPrice) / product.basePrice) * 100)}%)
         </span>

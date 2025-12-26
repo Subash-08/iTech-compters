@@ -546,7 +546,7 @@ const Checkout: React.FC = () => {
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.1 }}
-                className="bg-white rounded-2xl border border-slate-200/50 shadow-sm p-6 mb-4"
+                className="bg-white rounded-2xl border border-slate-200/50 shadow-sm p-4 mb-4"
               >
                 <div className="flex items-center justify-between max-w-md mx-auto">
                   {['address', 'payment'].map((step, index) => (
@@ -571,7 +571,7 @@ const Checkout: React.FC = () => {
                         )}
                       </motion.div>
                       
-                      <div className="ml-3">
+                      <div className="ml-2">
                         <p className={`text-sm font-medium ${
                           currentStep === step
                             ? 'text-slate-900'
@@ -586,7 +586,7 @@ const Checkout: React.FC = () => {
                       
                       {index < 1 && (
                         <motion.div 
-                          className={`mx-6 w-16 h-0.5 ${
+                          className={`w-12 h-0.5 ${
                             currentStep === 'payment' 
                               ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
                               : 'bg-gradient-to-r from-slate-200 to-slate-300'
@@ -609,7 +609,7 @@ const Checkout: React.FC = () => {
               >
                 {/* Address Step */}
                 {currentStep === 'address' && (
-                  <div className="p-8">
+                  <div className="p-2">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="p-2 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg">
                         <MapPin className="w-5 h-5 text-indigo-600" />
@@ -750,103 +750,110 @@ const Checkout: React.FC = () => {
                 )}
 
                 {/* Payment Step */}
-                {currentStep === 'payment' && (
-                  <div className="p-8">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg">
-                        <CreditCard className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-semibold text-slate-900">Payment Method</h2>
-                      </div>
-                    </div>
+{currentStep === 'payment' && (
+  // 1. Changed p-8 to p-4 md:p-8 for better mobile spacing
+  <div className="p-4 md:p-8">
+    <div className="flex items-center gap-3 mb-6">
+      <div className="p-2 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg">
+        <CreditCard className="w-5 h-5 text-indigo-600" />
+      </div>
+      <div>
+        <h2 className="text-xl font-semibold text-slate-900">Payment Method</h2>
+      </div>
+    </div>
 
-                    <div className="space-y-8">
-                      {/* Payment Method Component */}
-                      <PaymentMethod
-                        selectedMethod={paymentMethod}
-                        onSelectMethod={(method) => dispatch(setPaymentMethod(method))}
-                        orderId={createdOrderId}
-                        amount={total}
-                        currency="INR"
-                        onPaymentSuccess={handlePaymentSuccess}
-                        onPaymentError={(error) => {
-                          console.error('Payment error:', error);
-                          setPaymentError(error);
-                        }}
-                        userData={{
-                          name: `${shippingAddress?.firstName} ${shippingAddress?.lastName}`,
-                          email: shippingAddress?.email || '',
-                          contact: shippingAddress?.phone || ''
-                        }}
-                      />
+    <div className="space-y-8">
+      {/* Payment Method Component */}
+      <PaymentMethod
+        selectedMethod={paymentMethod}
+        onSelectMethod={(method) => dispatch(setPaymentMethod(method))}
+        orderId={createdOrderId}
+        amount={total}
+        currency="INR"
+        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentError={(error) => {
+          console.error('Payment error:', error);
+          setPaymentError(error);
+        }}
+        userData={{
+          name: `${shippingAddress?.firstName} ${shippingAddress?.lastName}`,
+          email: shippingAddress?.email || '',
+          contact: shippingAddress?.phone || ''
+        }}
+      />
 
-                      {/* Navigation Buttons */}
-                      {!createdOrderId && !processingOrder && (
-                        <div className="flex justify-between items-center pt-8 border-t border-slate-100">
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handlePrevStep}
-                            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-b from-white to-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all duration-300"
-                          >
-                            <ArrowLeft className="w-4 h-4" />
-                            Back to Address
-                          </motion.button>
-                          
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handlePlaceOrder}
-                            disabled={!paymentMethod || !isCheckoutValid || total <= 0}
-                            className={`px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-3 ${
-                              paymentMethod && isCheckoutValid && total > 0
-                                ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white hover:shadow-lg hover:from-emerald-600 hover:to-teal-500'
-                                : 'bg-gradient-to-b from-slate-200 to-slate-300 text-slate-500 cursor-not-allowed'
-                            }`}
-                          >
-                            {processingOrder ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                Creating Order...
-                              </>
-                            ) : (
-                              <>
-                                <span>Pay ₹{total.toLocaleString()}</span>
-                                <ChevronRight className="w-4 h-4" />
-                              </>
-                            )}
-                          </motion.button>
-                        </div>
-                      )}
+      {/* Navigation Buttons */}
+      {!createdOrderId && !processingOrder && (
+        // 2. Changed layout to column-reverse on mobile, row on desktop
+        <div className="flex flex-col-reverse gap-4 pt-6 border-t border-slate-100 md:flex-row md:justify-between md:items-center md:pt-8">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handlePrevStep}
+            // 3. Added w-full md:w-auto and justify-center
+            className="flex w-full items-center justify-center gap-2 px-5 py-3 bg-gradient-to-b from-white to-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all duration-300 md:w-auto"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Address
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handlePlaceOrder}
+            disabled={!paymentMethod || !isCheckoutValid || total <= 0}
+            // 3. Added w-full md:w-auto and justify-center
+            className={`flex w-full items-center justify-center gap-3 px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 md:w-auto ${
+              paymentMethod && isCheckoutValid && total > 0
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white hover:shadow-lg hover:from-emerald-600 hover:to-teal-500'
+                : 'bg-gradient-to-b from-slate-200 to-slate-300 text-slate-500 cursor-not-allowed'
+            }`}
+          >
+            {processingOrder ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Creating Order...
+              </>
+            ) : (
+              <>
+                <span>Pay ₹{total.toLocaleString()}</span>
+                <ChevronRight className="w-4 h-4" />
+              </>
+            )}
+          </motion.button>
+        </div>
+      )}
 
-                      {/* Back button if order is created */}
-                      {createdOrderId && (
-                        <div className="flex justify-between items-center pt-8 border-t border-slate-100">
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handlePrevStep}
-                            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-b from-white to-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all duration-300"
-                          >
-                            <ArrowLeft className="w-4 h-4" />
-                            Back to Address
-                          </motion.button>
-                          
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => dispatch(setPaymentMethod('razorpay'))}
-                            className="px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-400 text-white rounded-xl font-semibold hover:shadow-lg hover:from-amber-600 hover:to-orange-500 transition-all duration-300 flex items-center gap-2"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                            Retry Payment
-                          </motion.button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+      {/* Back button if order is created */}
+      {createdOrderId && (
+        // 2. Applied same responsive layout fix here
+        <div className="flex flex-col-reverse gap-4 pt-6 border-t border-slate-100 md:flex-row md:justify-between md:items-center md:pt-8">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handlePrevStep}
+            // 3. Added w-full md:w-auto and justify-center
+            className="flex w-full items-center justify-center gap-2 px-5 py-3 bg-gradient-to-b from-white to-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all duration-300 md:w-auto"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Address
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => dispatch(setPaymentMethod('razorpay'))}
+            // 3. Added w-full md:w-auto and justify-center
+            className="flex w-full items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-400 text-white rounded-xl font-semibold hover:shadow-lg hover:from-amber-600 hover:to-orange-500 transition-all duration-300 md:w-auto"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry Payment
+          </motion.button>
+        </div>
+      )}
+    </div>
+  </div>
+)}
               </motion.div>
             </div>
 
