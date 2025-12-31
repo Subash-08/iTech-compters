@@ -7,9 +7,9 @@ export const getConfig = () => {
   
   // Fallback to build-time environment variables
   return {
-    API_URL: process.env.REACT_APP_API_URL || '/api/v1',
-    UPLOADS_URL: process.env.REACT_APP_UPLOADS_URL || '/uploads'
+    API_URL: process.env.REACT_APP_API_URL || 'http://72.61.246.162/api/v1',
+    UPLOADS_URL: process.env.REACT_APP_UPLOADS_URL || 'http://72.61.246.162/uploads'
   };
 };
 
-export const baseURL = '';
+export const baseURL = 'http://72.61.246.162';

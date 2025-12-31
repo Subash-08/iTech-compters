@@ -38,6 +38,7 @@ const allowedOrigins = [
     'http://127.0.0.1:3000',
     'http://localhost:5000',
     'http://127.0.0.1:5000',
+    'https://merry-gecko-b150d8.netlify.app',
     'https://itech-compters.onrender.com',
     'https://www.itech-compters.onrender.com'
 ];
@@ -129,33 +130,14 @@ app.get('/api/v1/test-static', (req, res) => {
     }
 });
 
-// Serve frontend in production
-if (process.env.NODE_ENV === 'production') {
-    // Serve static files from build folder
-    app.use(express.static(path.join(__dirname, '../frontend/dist'), {
-        index: false,
-        maxAge: '1d'
-    }));
+// Root route (backend only)
+app.get('/', (req, res) => {
+    res.json({
+        success: true,
+        message: 'iTech Backend API running',
+    });
+});
 
-    // Serve index.html for all other routes (SPA)
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
-    });
-} else {
-    // In development, just serve a basic response for root
-    app.get('/', (req, res) => {
-        res.json({
-            message: 'Backend server is running',
-            endpoints: {
-                health: '/api/v1/health',
-                testStatic: '/api/v1/test-static',
-                brands: '/api/v1/brands',
-                products: '/api/v1/products',
-                categories: '/api/v1/categories'
-            }
-        });
-    });
-}
 
 // Error handling middleware (MUST BE LAST)
 app.use(errorMiddleware);

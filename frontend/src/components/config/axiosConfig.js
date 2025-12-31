@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/api/v1',
+    baseURL: import.meta.env.VITE_API_URL || 'http://72.61.246.162/api/v1',
     timeout: 30000,
     withCredentials: true,
 });
