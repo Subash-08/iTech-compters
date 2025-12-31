@@ -66,7 +66,7 @@ app.use(cookieParser());
 // Serve static files - FIXED PATH
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(cleanupTempFiles);
 // Alternative: Serve entire public folder
 // app.use(express.static(path.join(__dirname, 'public')));
