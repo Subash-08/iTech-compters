@@ -7,11 +7,11 @@ const { v4: uuidv4 } = require('uuid');
 // Ensure upload directories exist
 const createDirectories = () => {
     const dirs = [
-        'uploads/videos',
-        'uploads/videos/original',
-        'uploads/videos/optimized',
-        'uploads/thumbnails',
-        'uploads/temp'
+        'public/uploads/videos',
+        'public/uploads/videos/original',
+        'public/uploads/videos/optimized',
+        'public/uploads/thumbnails',
+        'public/uploads/temp'
     ];
 
     dirs.forEach(dir => {
@@ -27,7 +27,7 @@ createDirectories();
 // Configure storage for original videos
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const destPath = path.join(__dirname, '..', 'uploads/videos/original');
+        const destPath = path.join(__dirname, '..', 'public/uploads/videos/original');
         cb(null, destPath);
     },
     filename: function (req, file, cb) {
@@ -85,7 +85,7 @@ const uploadMultiple = multer({
 // Generate thumbnail from video using ffmpeg
 const generateThumbnail = async (videoPath, outputFilename) => {
     return new Promise((resolve, reject) => {
-        const thumbnailPath = path.join(__dirname, '..', 'uploads/thumbnails', outputFilename);
+        const thumbnailPath = path.join(__dirname, '..', 'public/uploads/thumbnails', outputFilename);
 
         ffmpeg(videoPath)
             .on('end', () => {
@@ -192,7 +192,7 @@ const optimizeVideo = async (inputPath, outputPath, quality = 'medium') => {
 // Clean up temporary files
 const cleanupTempFiles = async (req, res, next) => {
     try {
-        const tempDir = path.join(__dirname, '..', 'uploads/temp');
+        const tempDir = path.join(__dirname, '..', 'public/uploads/temp');
         if (fs.existsSync(tempDir)) {
             const files = fs.readdirSync(tempDir);
             const now = Date.now();
@@ -282,9 +282,9 @@ const handleMulterErrors = (err, req, res, next) => {
 // Ensure upload directories exist
 const ensureUploadDirs = () => {
     const dirs = [
-        'uploads/videos/original',
-        'uploads/thumbnails',
-        'uploads/videos/optimized'
+        'public/uploads/videos/original',
+        'public/uploads/thumbnails',
+        'public/uploads/videos/optimized'
     ];
 
     dirs.forEach(dir => {
@@ -301,11 +301,11 @@ ensureUploadDirs();
 const videoStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         if (file.fieldname === 'video') {
-            cb(null, 'uploads/videos/original');
+            cb(null, 'public/uploads/videos/original');
         } else if (file.fieldname === 'thumbnail') {
-            cb(null, 'uploads/thumbnails');
+            cb(null, 'public/uploads/thumbnails');
         } else if (file.fieldname === 'videos') {
-            cb(null, 'uploads/videos/original');
+            cb(null, 'public/uploads/videos/original');
         } else if (file.fieldname === 'thumbnails') {
             cb(null, 'uploads/thumbnails');
         }

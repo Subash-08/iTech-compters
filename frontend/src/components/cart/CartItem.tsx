@@ -156,9 +156,7 @@ const CartItem: React.FC<CartItemProps> = ({
     }
     
     if (url.startsWith('/')) {
-      const baseURL_fetched = process.env.NODE_ENV === 'production' 
-        ? 'https://itech-compters.onrender.com' 
-        : baseURL;
+      const baseURL_fetched = baseURL;
       return `${baseURL_fetched}${url}`;
     }
     

@@ -88,7 +88,7 @@ const HomePage: React.FC = () => {
     const value = typeof url === "string" ? url : url.url;
     if (!value) return "";
     if (value.startsWith("http")) return value;
-    const prefix = process.env.NODE_ENV === "production" ? "" : baseURL;
+    const prefix = baseURL;
     return `${prefix}${value.startsWith("/") ? value : "/" + value}`;
   };
 

@@ -37,7 +37,7 @@ class VideoController {
             const thumbnailPath = await generateThumbnail(req.file.path, thumbnailFilename);
 
             // No optimization - just use original file
-            const videoUrl = `/uploads/videos/original/${req.file.filename}`;
+            const videoUrl = `public/uploads/videos/original/${req.file.filename}`;
 
             // Parse tags from request
             let tags = [];
@@ -62,7 +62,7 @@ class VideoController {
                 path: req.file.path,
                 url: videoUrl,
                 thumbnail: thumbnailPath,
-                thumbnailUrl: `/uploads/thumbnails/${thumbnailFilename}`,
+                thumbnailUrl: `/public/uploads/thumbnails/${thumbnailFilename}`,
                 optimizedUrl: videoUrl, // Same as original since no optimization
                 duration: metadata.duration,
                 size: metadata.size,
@@ -124,11 +124,11 @@ class VideoController {
                     const metadata = await videoOptimizer.getVideoMetadata(file.path);
 
                     const thumbnailFilename = `thumb_${path.basename(file.filename, path.extname(file.filename))}.jpg`;
-                    const thumbnailPath = path.join('uploads/thumbnails', thumbnailFilename);
+                    const thumbnailPath = path.join('public/uploads/thumbnails', thumbnailFilename);
                     await videoOptimizer.generateThumbnail(file.path, thumbnailPath);
 
                     const optimizedFilename = `optimized_${file.filename}`;
-                    const optimizedPath = path.join('uploads/videos/optimized', optimizedFilename);
+                    const optimizedPath = path.join('public/uploads/videos/optimized', optimizedFilename);
                     await videoOptimizer.optimizeVideo(file.path, optimizedPath, 'medium');
 
                     const video = new Video({
@@ -137,10 +137,10 @@ class VideoController {
                         title: req.body.titles?.[index] || path.parse(file.originalname).name,
                         description: req.body.descriptions?.[index] || '',
                         path: file.path,
-                        url: `/uploads/videos/original/${file.filename}`,
+                        url: `/public/uploads/videos/original/${file.filename}`,
                         thumbnail: thumbnailPath,
-                        thumbnailUrl: `/uploads/thumbnails/${thumbnailFilename}`,
-                        optimizedUrl: `/uploads/videos/optimized/${optimizedFilename}`,
+                        thumbnailUrl: `/public/uploads/thumbnails/${thumbnailFilename}`,
+                        optimizedUrl: `/public/uploads/videos/optimized/${optimizedFilename}`,
                         duration: metadata.duration,
                         size: metadata.size,
                         format: metadata.format,
@@ -345,7 +345,7 @@ class VideoController {
             const filesToDelete = [
                 video.path,
                 video.thumbnail,
-                video.optimizedUrl ? `uploads/videos/optimized/${path.basename(video.optimizedUrl)}` : null
+                video.optimizedUrl ? `public/uploads/videos/optimized/${path.basename(video.optimizedUrl)}` : null
             ].filter(Boolean);
 
             filesToDelete.forEach(filePath => {

@@ -230,9 +230,7 @@ const PreBuiltPCList: React.FC = () => {
 
     if (url.startsWith('http')) return url;
 
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? ''
-      : baseURL;
+    const baseUrl = baseURL;
 
     return `${baseUrl}${url.startsWith('/') ? url : '/' + url}`;
   }, []);

@@ -39,9 +39,7 @@ const PreBuiltPCForm: React.FC = () => {
     }
 
     // Serve relative to backend (same server)
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? ''  // 👈 relative path in production
-      : baseURL; // 👈 local backend in development
+    const baseUrl =  baseURL; 
 
     // Remove leading slash if present to avoid double slashes
     const cleanUrl = url.startsWith('/') ? url.substring(1) : url;

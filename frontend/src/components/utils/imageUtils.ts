@@ -9,7 +9,7 @@ export const getBaseURL = (): string => {
 
   return isLocal
     ? "http://localhost:5000"
-    : "https://itech-compters.onrender.com";
+    : "https://api.itechcomputers.shop";
 };
 
 /**
@@ -35,37 +35,24 @@ export const getPlaceholderImage = (
 export const getImageUrl = (image: any): string => {
   if (!image) return getPlaceholderImage("No Image");
 
-  let url: string = "";
+  let url = "";
 
-  if (typeof image === "string") {
-    url = image;
-  } else if (typeof image === "object") {
-    url = image.url || image.path || image.src || image.thumbnail || "";
-  }
+  if (typeof image === "string") url = image;
+  else if (typeof image === "object") url = image.url || "";
 
-  if (!url || url.trim() === "") return getPlaceholderImage("No Image");
+  if (!url) return getPlaceholderImage("No Image");
 
-  // Full remote URL / blob / base64
+  // Absolute URLs / blob / base64 → return as-is
   if (
     url.startsWith("http://") ||
     url.startsWith("https://") ||
     url.startsWith("blob:") ||
     url.startsWith("data:")
   ) {
-    const isProduction =
-      typeof window !== "undefined" &&
-      window.location.hostname !== "localhost" &&
-      window.location.hostname !== "127.0.0.1";
-
-    // Fix localhost URL when live
-    if (isProduction && url.includes("localhost:5000")) {
-      const path = url.replace(/^https?:\/\/[^/]+/, "");
-      return `${getBaseURL()}${path}`;
-    }
     return url;
   }
 
-  // Relative path → prepend base URL
+  // Relative path → backend storage
   return `${getBaseURL()}${url.startsWith("/") ? url : "/" + url}`;
 };
 
@@ -95,6 +82,7 @@ export const getImagePathForStorage = (url: string): string => {
   }
   return url.startsWith("/") ? url : `/uploads/products/${url}`;
 };
+
 
 /**
  * Validate file before upload

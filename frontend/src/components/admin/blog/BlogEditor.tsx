@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { blogService, Blog, BlogFormData } from '../services/blogService';
 import { toast } from 'react-toastify';
 import api from '../../config/axiosConfig';
-import { getImageUrl } from '../../utils/imageUtils';
+import { getImageUrl, getPlaceholderImage } from '../../utils/imageUtils';
 
 interface BlogEditorProps {
   isEdit?: boolean;

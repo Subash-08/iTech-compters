@@ -10,7 +10,7 @@ import PreBuiltPCAddToWishlistButton from './PreBuiltPCAddToWishlistButton';
 const getImageUrl = (url: string): string => {
   if (!url) return 'https://placehold.co/300x300?text=No+Image';
   if (url.startsWith('http')) return url;
-  const baseUrl = process.env.NODE_ENV === 'production' ? '' : baseURL;
+  const baseUrl = baseURL;
   return `${baseUrl}${url.startsWith('/') ? url : '/' + url}`;
 };
 
