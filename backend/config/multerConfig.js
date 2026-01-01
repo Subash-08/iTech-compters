@@ -131,11 +131,11 @@ const uploadVideoWithThumbnail = multer({
             try {
                 let uploadPath;
                 if (file.fieldname === 'video') {
-                    uploadPath = path.join(__dirname, '../uploads/videos/original');
+                    uploadPath = path.join(__dirname, '../public/uploads/videos/original');
                 } else if (file.fieldname === 'thumbnail') {
-                    uploadPath = path.join(__dirname, '../uploads/thumbnails');
+                    uploadPath = path.join(__dirname, '../public/uploads/thumbnails');
                 } else {
-                    uploadPath = path.join(__dirname, '../uploads/videos');
+                    uploadPath = path.join(__dirname, '../public/uploads/videos');
                 }
                 ensureUploadDir(uploadPath);
                 cb(null, uploadPath);
@@ -177,11 +177,11 @@ const uploadMultipleVideos = multer({
             try {
                 let uploadPath;
                 if (file.fieldname === 'videos') {
-                    uploadPath = path.join(__dirname, '../uploads/videos/original');
+                    uploadPath = path.join(__dirname, '../public/uploads/videos/original');
                 } else if (file.fieldname === 'thumbnails') {
-                    uploadPath = path.join(__dirname, '../uploads/thumbnails');
+                    uploadPath = path.join(__dirname, '../public/uploads/thumbnails');
                 } else {
-                    uploadPath = path.join(__dirname, '../uploads/videos');
+                    uploadPath = path.join(__dirname, '../public/uploads/videos');
                 }
                 ensureUploadDir(uploadPath);
                 cb(null, uploadPath);
@@ -221,7 +221,7 @@ const uploadThumbnail = multer({
     storage: multer.diskStorage({
         destination: function (req, file, cb) {
             try {
-                const uploadPath = path.join(__dirname, '../uploads/thumbnails');
+                const uploadPath = path.join(__dirname, '../public/uploads/thumbnails');
                 ensureUploadDir(uploadPath);
                 cb(null, uploadPath);
             } catch (error) {
@@ -248,7 +248,7 @@ const uploadVideo = multer({
     storage: multer.diskStorage({
         destination: function (req, file, cb) {
             try {
-                const uploadPath = path.join(__dirname, '../uploads/videos/original');
+                const uploadPath = path.join(__dirname, '../public/uploads/videos/original');
                 ensureUploadDir(uploadPath);
                 cb(null, uploadPath);
             } catch (error) {

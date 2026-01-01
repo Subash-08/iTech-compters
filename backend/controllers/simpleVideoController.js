@@ -16,11 +16,11 @@ class SimpleVideoController {
     generateThumbnail = (videoPath, videoId) => {
         return new Promise((resolve, reject) => {
             const thumbnailName = `thumb_${videoId}_${Date.now()}.jpg`;
-            const thumbnailPath = path.join(__dirname, '../uploads/thumbnails', thumbnailName);
-            const thumbnailUrl = `/uploads/thumbnails/${thumbnailName}`;
+            const thumbnailPath = path.join(__dirname, '../public/uploads/thumbnails', thumbnailName);
+            const thumbnailUrl = `/public/uploads/thumbnails/${thumbnailName}`;
 
             // Ensure thumbnails directory exists
-            const thumbDir = path.join(__dirname, '../uploads/thumbnails');
+            const thumbDir = path.join(__dirname, '../public/uploads/thumbnails');
             if (!fs.existsSync(thumbDir)) {
                 fs.mkdirSync(thumbDir, { recursive: true });
             }
@@ -53,7 +53,7 @@ class SimpleVideoController {
 
             const thumbFileName = `thumb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`;
             const thumbFullPath = path.join(__dirname, '../public/uploads/thumbnails', thumbFileName);
-            const thumbnailUrl = `/uploads/thumbnails/${thumbFileName}`;
+            const thumbnailUrl = `/public/uploads/thumbnails/${thumbFileName}`;
 
             // Ensure thumbnails directory exists
             const thumbDir = path.join(__dirname, '../public/uploads/thumbnails');
@@ -296,11 +296,11 @@ class SimpleVideoController {
                     title: title,
                     description: description,
                     path: videoFile.path,
-                    url: `/uploads/videos/original/${videoFile.filename}`,
+                    url: `/public/uploads/videos/original/${videoFile.filename}`,
                     thumbnail: thumbnailData ? thumbnailData.path : '',
                     thumbnailUrl: thumbnailData ? thumbnailData.url : '',
                     hasCustomThumbnail: hasCustomThumbnail,
-                    optimizedUrl: `/uploads/videos/original/${videoFile.filename}`,
+                    optimizedUrl: `/public/uploads/videos/original/${videoFile.filename}`,
                     duration: 0,
                     size: videoFile.size,
                     sizeFormatted: this.formatFileSize(videoFile.size),
@@ -507,10 +507,10 @@ class SimpleVideoController {
                 title: req.body.title || path.parse(req.file.originalname).name,
                 description: req.body.description || '',
                 path: req.file.path,
-                url: `/uploads/videos/${req.file.filename}`,
+                url: `/public/uploads/videos/${req.file.filename}`,
                 thumbnail: '',
                 thumbnailUrl: '',
-                optimizedUrl: `/uploads/videos/${req.file.filename}`,
+                optimizedUrl: `/public/uploads/videos/${req.file.filename}`,
                 duration: 0,
                 size: req.file.size,
                 sizeFormatted: this.formatFileSize(req.file.size),
@@ -602,10 +602,10 @@ class SimpleVideoController {
                     title: path.parse(file.originalname).name,
                     description: '',
                     path: file.path,
-                    url: `/uploads/videos/${file.filename}`,
+                    url: `/public/uploads/videos/${file.filename}`,
                     thumbnail: '',
                     thumbnailUrl: '',
-                    optimizedUrl: `/uploads/videos/${file.filename}`,
+                    optimizedUrl: `/public/uploads/videos/${file.filename}`,
                     duration: 0,
                     size: file.size,
                     sizeFormatted: this.formatFileSize(file.size),
