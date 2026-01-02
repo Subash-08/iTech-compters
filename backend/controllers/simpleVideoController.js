@@ -46,59 +46,38 @@ class SimpleVideoController {
         });
     }
 
-    // In your SimpleVideoController.js, update the processThumbnail method:
     processThumbnail = async (thumbnailFile) => {
         try {
             if (!thumbnailFile) return null;
 
-            const thumbFileName = `thumb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`;
-            const thumbFullPath = path.join(__dirname, '../public/uploads/thumbnails', thumbFileName);
-            const thumbnailUrl = `/public/uploads/thumbnails/${thumbFileName}`;
-
-            // Ensure thumbnails directory exists
             const thumbDir = path.join(__dirname, '../public/uploads/thumbnails');
             if (!fs.existsSync(thumbDir)) {
                 fs.mkdirSync(thumbDir, { recursive: true });
             }
+
+            const thumbFileName = `thumb-${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`;
+            const thumbFullPath = path.join(thumbDir, thumbFileName);
+
             await sharp(thumbnailFile.path)
-                .resize(320, 240, {
-                    fit: 'cover',
-                    position: 'center'
-                })
-                .jpeg({
-                    quality: 80,
-                    mozjpeg: true
-                })
+                .resize(320, 240, { fit: 'cover', position: 'center' })
+                .jpeg({ quality: 80 })
                 .toFile(thumbFullPath);
+
+            // OPTIONAL cleanup (safe)
             try {
-                if (fs.existsSync(thumbnailFile.path)) {
-                    // Wait a moment before deleting (Windows sometimes locks files)
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    fs.unlinkSync(thumbnailFile.path);
-                }
-            } catch (deleteError) {
-                console.warn('Could not delete original file:', deleteError.message);
-                // Don't throw error, continue with processed thumbnail
-            }
+                fs.unlinkSync(thumbnailFile.path);
+            } catch { }
 
             return {
-                path: thumbFullPath,
-                url: thumbnailUrl
+                url: `/uploads/thumbnails/${thumbFileName}`
             };
-        } catch (error) {
-            console.error('Thumbnail processing error:', error);
-            // Clean up on error - but don't crash if we can't delete
-            try {
-                if (thumbnailFile && fs.existsSync(thumbnailFile.path)) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    fs.unlinkSync(thumbnailFile.path);
-                }
-            } catch (cleanupError) {
-                console.warn('Cleanup error:', cleanupError.message);
-            }
+
+        } catch (err) {
+            console.error('Thumbnail processing error:', err);
             return null;
         }
     };
+
 
     // Helper for auto-generating thumbnail (fallback)
     generateAutoThumbnail = async (videoPath, videoId) => {
@@ -135,14 +114,18 @@ class SimpleVideoController {
                 }
             }
 
-            // Process thumbnail if provided
-            let thumbnailData = null;
+            let thumbnailUrl = '';
             let hasCustomThumbnail = false;
 
             if (thumbnailFile) {
-                thumbnailData = await this.processThumbnail(thumbnailFile);
-                hasCustomThumbnail = !!thumbnailData;
+                const thumb = await this.processThumbnail(thumbnailFile);
+
+                if (thumb?.url) {
+                    thumbnailUrl = thumb.url;
+                    hasCustomThumbnail = true;
+                }
             }
+
 
 
             const videoData = {
@@ -153,21 +136,17 @@ class SimpleVideoController {
                 path: videoFile.path,
                 url: `/uploads/videos/original/${videoFile.filename}`,
 
-                thumbnail: thumbnailFile
-                    ? `/uploads/thumbnails/${thumbnailFile.filename}`
-                    : '',
+                thumbnail: thumbnailUrl,
+                thumbnailUrl: thumbnailUrl,
+                hasCustomThumbnail,
 
-                thumbnailUrl: thumbnailFile
-                    ? `/uploads/thumbnails/${thumbnailFile.filename}`
-                    : '',
-
-                hasCustomThumbnail: !!thumbnailFile,
                 optimizedUrl: `/uploads/videos/original/${videoFile.filename}`,
                 size: videoFile.size,
                 format: path.extname(videoFile.originalname).slice(1),
                 tags,
                 isUsed: false
             };
+
 
 
             const video = new Video(videoData);
