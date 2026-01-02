@@ -152,8 +152,14 @@ class SimpleVideoController {
                 description: req.body.description || '',
                 path: videoFile.path,
                 url: `/uploads/videos/original/${videoFile.filename}`,
-                thumbnail: thumbnailData ? thumbnailData.path : '',
-                thumbnailUrl: thumbnailData ? thumbnailData.url : '',
+                thumbnail: thumbnailData
+                    ? `/uploads/thumbnails/${thumbnailFile.filename}`
+                    : '',
+
+                thumbnailUrl: thumbnailData
+                    ? `/uploads/thumbnails/${thumbnailFile.filename}`
+                    : '',
+
                 hasCustomThumbnail: hasCustomThumbnail,
                 optimizedUrl: `/uploads/videos/original/${videoFile.filename}`,
                 duration: 0,
@@ -297,8 +303,14 @@ class SimpleVideoController {
                     description: description,
                     path: videoFile.path,
                     url: `/uploads/videos/original/${videoFile.filename}`,
-                    thumbnail: thumbnailData ? thumbnailData.path : '',
-                    thumbnailUrl: thumbnailData ? thumbnailData.url : '',
+                    thumbnail: thumbnailData
+                        ? `/uploads/thumbnails/${thumbnailFile.filename}`
+                        : '',
+
+                    thumbnailUrl: thumbnailData
+                        ? `/uploads/thumbnails/${thumbnailFile.filename}`
+                        : '',
+
                     hasCustomThumbnail: hasCustomThumbnail,
                     optimizedUrl: `/uploads/videos/original/${videoFile.filename}`,
                     duration: 0,

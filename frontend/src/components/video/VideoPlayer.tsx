@@ -219,7 +219,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   return (
-    <div ref={containerRef} className={`relative overflow-hidden rounded-lg ${className}`}>
+    <div ref={containerRef} className={`relative overflow-hidden  ${className}`}>
       {/* Video element with lazy loading */}
       <video
         ref={videoRef}

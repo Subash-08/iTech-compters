@@ -134,7 +134,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               <div className="shrink-0">
                 <button
                   onClick={() => handleEditClick(category.slug)}
-                  className={`w-full md:w-auto px-5 py-2 rounded-xl font-medium text-xs transition-all flex items-center justify-center gap-2
+                  className={`w-full md:w-auto px-5 py-2 rounded-md font-medium text-xs transition-all flex items-center justify-center gap-2
                     ${selectedProduct 
                       ? 'bg-white text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-300' 
                       : 'bg-slate-900 text-white hover:bg-black'

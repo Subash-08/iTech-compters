@@ -151,7 +151,7 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
           loop={video.settings?.loop || true}
           muted={video.settings?.muted || true}
           controls={video.settings?.controls || false}
-          className="h-[70vh] max-h-[800px] rounded-2xl overflow-hidden shadow-2xl"
+          className="h-[70vh] max-h-[900px] overflow-hidden shadow-2xl"
         />
         {/* Overlay content */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-8 md:p-12">
