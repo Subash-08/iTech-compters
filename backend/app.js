@@ -27,6 +27,8 @@ const videoRoutes = require('./routes/videoRoutes');
 const sectionRoutes = require('./routes/sectionRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const reelRoutes = require('./routes/reels');
+const navbarSettingRoutes = require('./routes/navbarSetting');
+
 const { cleanupTempFiles } = require('./middlewares/uploadVideo');
 
 const app = express();
@@ -88,6 +90,7 @@ app.use('/api/v1', userRoutes);
 app.use('/api/v1', reviewRoutes);
 app.use('/api/v1', wishlistRoutes);
 app.use('/api/v1', cartRoutes);
+app.use('/api/v1', navbarSettingRoutes);
 app.use('/api/v1', heroSectionRoutes);
 app.use('/api/v1', showcaseSectionRoutes);
 app.use('/api/v1', preBuiltPCRoutes)

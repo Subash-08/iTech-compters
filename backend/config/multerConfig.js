@@ -513,7 +513,34 @@ const handleMulterError = (error, req, res, next) => {
     }
     next();
 };
-
+const navbarUpload = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            try {
+                const uploadPath = path.join(__dirname, '../public/uploads/logo');
+                ensureUploadDir(uploadPath);
+                cb(null, uploadPath);
+            } catch (error) {
+                cb(new Error(`Failed to create upload directory for logo: ${error.message}`), null);
+            }
+        },
+        filename: function (req, file, cb) {
+            try {
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const fileExtension = path.extname(file.originalname);
+                const filename = `logo-${uniqueSuffix}${fileExtension}`;
+                cb(null, filename);
+            } catch (error) {
+                cb(new Error(`Failed to generate filename for logo: ${error.message}`), null);
+            }
+        }
+    }),
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 2 * 1024 * 1024, // 2MB for logos
+        files: 1
+    }
+});
 // Field configuration helpers for pre-built PCs
 const preBuiltPCFields = [
     { name: 'images', maxCount: 5 }, // Main PC images
@@ -625,6 +652,7 @@ module.exports = {
     blogUpload,
     variantImagesUpload,
     preBuiltPCFields,
+    navbarUpload,
     generateComponentFields,
     simplePreBuiltPCFields,
     handleDynamicFields,

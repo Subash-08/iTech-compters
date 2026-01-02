@@ -62,6 +62,7 @@ import SectionDetail from './sections/SectionDetail';
 import InvoiceList from './invoice/InvoiceList';
 import InvoiceGenerator from './invoice/InvoiceGenerator';
 import InvoiceDetails from './invoice/InvoiceDetails';
+import NavbarSettings from './navbar/NavbarSettings';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -340,7 +341,13 @@ const AdminLayout: React.FC = () => {
       label: 'blogs',
       icon: <Icons.Shipping className="w-5 h-5" />,
       path: '/admin/blogs'
-    },    {
+    },   {
+      id: 'nav',
+      label: 'Navbar Settings',
+      icon: <Icons.Shipping className="w-5 h-5" />,
+      path: '/admin/navbar-settings'
+    }, 
+       {
       id: 'Vidoes',
       label: 'Videos',
       icon: <Icons.Shipping className="w-5 h-5" />,
@@ -522,6 +529,8 @@ const AdminLayout: React.FC = () => {
         <Route path="/invoices" element={<InvoiceList />} />
         <Route path="/invoices/new" element={<InvoiceGenerator />} />
         <Route path="/invoices/:id" element={<InvoiceDetails />} />
+
+        <Route path="/navbar-settings" element={<NavbarSettings />} />
             </Routes>
           </div>
         </main>

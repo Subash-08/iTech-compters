@@ -11,7 +11,8 @@ import XIcon from './icons/XIcon';
 import logo from '../assets/logo.png'
 import nav1 from '../assets/10014.webp';
 import nav2 from '../assets/10016.webp';
-
+import { navbarSettingService } from './admin/services/navbarSettingService';
+import LogoSection from './home/LogoSection'; // Adjust path as needed
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { logout } from '../redux/actions/authActions';
@@ -673,7 +674,23 @@ const Navbar: React.FC = () => {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [navbarSettings, setNavbarSettings] = useState<any>(null);
+
+// Add this useEffect to fetch navbar settings
+useEffect(() => {
+  const fetchNavbarSettings = async () => {
+    try {
+      const response = await navbarSettingService.getNavbarSettings();
+      if (response.success && response.settings) {
+        setNavbarSettings(response.settings);
+      }
+    } catch (error) {
+      console.error('Error fetching navbar settings:', error);
+    }
+  };
   
+  fetchNavbarSettings();
+}, []);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
   const cartCount = useAppSelector(selectCartItemsCount);
@@ -773,27 +790,14 @@ const Navbar: React.FC = () => {
         <div className="container mx-auto px-4 lg:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 items-center pb-4 gap-4">
             
-            {/* 1. Logo Section */}
-            <div className="flex-shrink-0 w-full lg:w-auto flex justify-center lg:justify-start">
-              <Link to="/" className="flex items-center gap-3 group">
-                {/* Logo */}
-                <img 
-                  src={logo} 
-                  alt="iTech Computers Logo"
-                  className="w-12 h-12 object-contain group-hover:scale-105 transition-transform"
-                />
-
-                {/* Text Block */}
-                <div className="flex flex-col leading-tight">
-                  <span className="text-2xl font-extrabold text-[#2c2358] tracking-tight uppercase">
-                    iTech Computers
-                  </span>
-                  <span className="text-[10px] text-gray-700 tracking-widest uppercase font-medium">
-                    Premium Electronics
-                  </span>
-                </div>
-              </Link>
-            </div>
+{/* 1. Logo Section */}
+<div className="flex-shrink-0 w-full lg:w-auto flex justify-center lg:justify-start">
+  <LogoSection 
+    variant="desktop"
+    logoSize="md"
+    showTagline={true}
+  />
+</div>
 
             {/* 2. Search Bar (Center - Big) */}
             <div className="flex justify-center">
@@ -867,15 +871,14 @@ const Navbar: React.FC = () => {
                 <MenuIcon className="w-6 h-6" />
               </button>
 
-              {/* Logo */}
-              <div className="flex-shrink-0">
-                <Link to="/" className="flex items-center gap-2">
-                  <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
-                  <span className="text-lg font-bold text-[#2c2358] hover:text-[#433d6e] transition-colors truncate max-w-[140px] sm:max-w-none">
-                    iTech Computers
-                  </span>
-                </Link>
-              </div>
+{/* Logo */}
+<div className="flex-shrink-0">
+  <LogoSection 
+    variant="mobile"
+    logoSize="sm"
+    showTagline={false}
+  />
+</div>
             </div>
             
             {/* Right: Icons with real counts */}
@@ -940,20 +943,32 @@ const Navbar: React.FC = () => {
           className={`absolute top-0 left-0 h-full w-[85%] max-w-sm bg-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
           <div className="flex flex-col h-full">
-            {/* Header */}
-            <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-[#2c2358] text-white shrink-0">
-              <div className="flex items-center gap-2">
-                 <img src={logo} alt="Logo" className="w-8 h-8 object-contain bg-white rounded-full p-0.5" />
-                 <h2 className="text-lg font-bold">Menu</h2>
-              </div>
-              <button
-                onClick={closeMobileMenu}
-                className="p-2 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors"
-                aria-label="Close navigation menu"
-              >
-                <XIcon className="w-6 h-6" />
-              </button>
-            </div>
+{/* Header */}
+<div className="flex justify-between items-center p-4 border-b border-gray-100 bg-[#2c2358] text-white shrink-0">
+  <div className="flex items-center gap-2">
+    {/* Use LogoSection for consistency */}
+    <div className="flex items-center gap-2">
+      <img 
+        src={navbarSettings?.logo?.url || logo} 
+        alt={navbarSettings?.logo?.altText || "Logo"} 
+        className="w-8 h-8 object-contain bg-white rounded-full p-0.5"
+        onError={(e) => {
+          const target = e.target as HTMLImageElement;
+          target.onerror = null;
+          target.src = logo;
+        }}
+      />
+      <h2 className="text-lg font-bold">Menu</h2>
+    </div>
+  </div>
+  <button
+    onClick={closeMobileMenu}
+    className="p-2 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+    aria-label="Close navigation menu"
+  >
+    <XIcon className="w-6 h-6" />
+  </button>
+</div>
             
             {/* Navigation Links - Scrollable area */}
             <nav className="flex-1 overflow-y-auto">
