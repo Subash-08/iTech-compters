@@ -135,16 +135,22 @@ const PCBuilder: React.FC = () => {
       return newSet;
     });
   }, []);
-
-  const tabs = {
-    overview: (
-      <OverviewTab 
-        selectedComponents={selectedComponents} 
-        onComponentSelect={handleComponentSelect}
-        config={config}
-        onTabChange={setActiveTab}
-      />
-    ),
+const handleNavigateToCategory = useCallback((categorySlug: string) => {
+  // You might need to set the active category in the target tab
+  // This depends on how your other tabs handle category selection
+  // For now, we'll just switch to the appropriate tab
+  // The actual category selection will be handled in each tab
+}, []);
+const tabs = {
+  overview: (
+    <OverviewTab 
+      selectedComponents={selectedComponents} 
+      onComponentSelect={handleComponentSelect}
+      config={config}
+      onTabChange={setActiveTab}
+      onNavigateToCategory={handleNavigateToCategory}
+    />
+  ),
     components: (
       <ComponentsTab 
         selectedComponents={selectedComponents}

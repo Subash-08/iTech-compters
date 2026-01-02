@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Settings, Wifi, Wind, Wrench, Check, Circle, AlertCircle } from 'lucide-react';
+import { Settings, Wifi, Wind, Wrench, Check, Circle, AlertCircle, Package } from 'lucide-react';
 import CategorySection from '../CategorySection';
 import { SelectedComponents, Product, PCBuilderConfig } from '../types/pcBuilder';
 
@@ -16,11 +16,9 @@ const ExtrasTab: React.FC<ExtrasTabProps> = ({
 }) => {
   const [activeSlug, setActiveSlug] = useState<string>('');
 
-  // Filter specific categories for the "Extras" tab
+  // Filter categories that are NOT peripherals
   const extrasCategories = useMemo(() => 
-    config.optional.filter(cat => 
-      ['assembly', 'case-fans', 'wifi-adapters', 'accessories', 'software', 'services'].includes(cat.slug)
-    ), 
+    config.optional.filter(cat => cat.isPeripheral === false), 
   [config]);
 
   // Set the first category as active on load
@@ -32,17 +30,14 @@ const ExtrasTab: React.FC<ExtrasTabProps> = ({
 
   const activeCategory = extrasCategories.find(c => c.slug === activeSlug);
 
-  // Helper to get total price of ALL selected components (Main + Extras)
-  const totalPrice = Object.values(selectedComponents).reduce(
-    (acc, product) => acc + (product?.price || 0), 0
-  );
-
   const getCategoryIcon = (slug: string) => {
     switch(slug) {
-        case 'assembly': return <Wrench size={24} />;
-        case 'case-fans': return <Wind size={24} />;
-        case 'wifi-adapters': return <Wifi size={24} />;
-        default: return <Settings size={24} />;
+      case 'assembly': return <Wrench size={24} />;
+      case 'case-fans': return <Wind size={24} />;
+      case 'wifi-adapters': return <Wifi size={24} />;
+      case 'cables': return <Package size={24} />;
+      case 'adapter': return <Package size={24} />;
+      default: return <Settings size={24} />;
     }
   };
 
@@ -62,7 +57,7 @@ const ExtrasTab: React.FC<ExtrasTabProps> = ({
                <span>Optional Extras</span>
             </h2>
             <p className="text-xs text-gray-500 mt-1">
-               Enhance your build with cooling, wifi, and professional assembly.
+               Enhance your build with cooling, wifi, cables, and professional assembly.
             </p>
           </div>
 
@@ -123,7 +118,7 @@ const ExtrasTab: React.FC<ExtrasTabProps> = ({
           {activeCategory ? (
             <div className="p-4 max-w-5xl mx-auto h-full">
                <CategorySection
-                  key={activeSlug} // Forces reset when switching categories
+                  key={activeSlug}
                   category={activeCategory}
                   selectedComponents={selectedComponents}
                   onComponentSelect={onComponentSelect}
@@ -138,8 +133,6 @@ const ExtrasTab: React.FC<ExtrasTabProps> = ({
           )}
         </main>
       </div>
-
-
     </div>
   );
 };

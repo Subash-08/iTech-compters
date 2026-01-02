@@ -454,7 +454,7 @@ const preBuiltPCUpload = multer({
 });
 
 const preBuiltPCComponentUpload = multer({
-    storage: createStorage('prebuilt-pc-components'),
+    storage: createStorage('prebuilt-pcs'),
     fileFilter: fileFilter,
     limits: {
         fileSize: 5 * 1024 * 1024, // 5MB per component image
@@ -465,7 +465,7 @@ const preBuiltPCComponentUpload = multer({
 // Dynamic upload for multiple component images with field name pattern
 const createComponentUpload = (maxComponents = 15) => {
     return multer({
-        storage: createStorage('prebuilt-pc-components'),
+        storage: createStorage('prebuilt-pcs'),
         fileFilter: fileFilter,
         limits: {
             fileSize: 5 * 1024 * 1024, // 5MB per component image

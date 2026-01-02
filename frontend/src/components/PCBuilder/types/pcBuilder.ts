@@ -34,12 +34,17 @@ export interface Category {
   _id: string;
   name: string;
   slug: string;
-  description: string;
-  image?: string;
+  description?: string;
+  image?: {
+    url: string;
+    altText?: string;
+  };
   required: boolean;
   sortOrder: number;
-  status?: string;
+  isPeripheral?: boolean;
+  parentCategory?: string; // Add this if not present
 }
+
 
 export interface SelectedComponents {
   [key: string]: Product | null;

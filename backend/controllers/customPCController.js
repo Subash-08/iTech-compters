@@ -6,44 +6,93 @@ const Category = require('../models/categoryModel');
 const PCRequirements = require('../models/PCRequirements');
 const N8NService = require('../services/n8nService');
 
-// Get PC builder configuration
 exports.getPCBuilderConfig = catchAsyncErrors(async (req, res, next) => {
-    const requiredCategories = [
-        'chassis', 'cpu', 'motherboard', 'memory', 'graphics-card',
-        'psu', 'ssd', 'operating-system'
+    // Define the REQUIRED component slugs (hardcoded as per requirement)
+    const REQUIRED_COMPONENT_SLUGS = [
+        'cabinet', 'cpu', 'cooler', 'motherboard', 'memory',
+        'graphics-card', 'psu', 'ssd'
     ];
 
-    const optionalCategories = [
-        'cpu-cooler', 'hdd', 'assembly', 'case-fans', 'wifi-adapters',
-        'accessories', 'monitors', 'mouse', 'keyboard', 'mouse-pad',
-        'controller', 'headset', 'microphone', 'speakers', 'webcam'
-    ];
+    // Define parent category slugs
+    const COMPONENTS_PARENT_SLUG = 'computer-components';
+    const PERIPHERALS_PARENT_SLUG = 'peripherals';
 
-    const categories = await Category.find({
-        slug: { $in: [...requiredCategories, ...optionalCategories] }
-    }).select('name slug description image').lean();
+    const [componentsParent, peripheralsParent] = await Promise.all([
+        Category.findOne({ slug: COMPONENTS_PARENT_SLUG, status: 'active' }),
+        Category.findOne({ slug: PERIPHERALS_PARENT_SLUG, status: 'active' })
+    ]);
 
-    // Organize categories with required flag and sort order
+    // Step 2: Get REQUIRED components (hardcoded list - regardless of parent)
+    const requiredCategories = await Category.find({
+        slug: { $in: REQUIRED_COMPONENT_SLUGS },
+        status: 'active'
+    }).select('name slug description image parentCategory').lean();
+
+    // Step 3: Get ALL children of COMPONENTS parent (these will be EXTRAS)
+    let extraCategories = [];
+    if (componentsParent) {
+        extraCategories = await Category.find({
+            parentCategory: componentsParent._id,
+            status: 'active'
+        }).select('name slug description image').lean();
+
+
+    } else {
+
+    }
+
+    // Step 4: Get ALL children of PERIPHERALS parent
+    let peripheralCategories = [];
+    if (peripheralsParent) {
+        peripheralCategories = await Category.find({
+            parentCategory: peripheralsParent._id,
+            status: 'active'
+        }).select('name slug description image').lean();
+
+    }
+
+    // Step 5: Organize the configuration
+    // Required components are separate from extras
     const config = {
-        required: categories
-            .filter(cat => requiredCategories.includes(cat.slug))
-            .map((cat, index) => ({
-                ...cat,
-                required: true,
-                sortOrder: index
-            })),
-        optional: categories
-            .filter(cat => optionalCategories.includes(cat.slug))
-            .map((cat, index) => ({
+        required: requiredCategories.map((cat, index) => ({
+            ...cat,
+            required: true,
+            sortOrder: index,
+            isPeripheral: false
+        })),
+        optional: [
+            // Peripherals come first
+            ...peripheralCategories.map((cat, index) => ({
                 ...cat,
                 required: false,
-                sortOrder: index
+                sortOrder: index,
+                isPeripheral: true
+            })),
+            // Extras come after peripherals
+            ...extraCategories.map((cat, index) => ({
+                ...cat,
+                required: false,
+                sortOrder: index + peripheralCategories.length,
+                isPeripheral: false
             }))
+        ]
     };
 
     res.status(200).json({
         success: true,
-        config
+        config,
+        metadata: {
+            message: 'PC Builder configuration loaded successfully',
+            counts: {
+                required: config.required.length,
+                peripherals: config.optional.filter(c => c.isPeripheral).length,
+                extras: config.optional.filter(c => !c.isPeripheral).length
+            },
+            parentCategories: {
+                components: COMPONENTS_PARENT_SLUG,
+                peripherals: PERIPHERALS_PARENT_SLUG
+            }
+        }
     });
 });
 

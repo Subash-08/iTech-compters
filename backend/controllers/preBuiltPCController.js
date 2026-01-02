@@ -345,7 +345,7 @@ exports.updatePreBuiltPC = catchAsyncErrors(async (req, res, next) => {
                     if (!isNaN(index) && updateData.components[index] && file) {
                         updateData.components[index].image = {
                             public_id: file.filename,
-                            url: `/uploads/prebuilt-pc-components/${file.filename}`
+                            url: `/uploads/prebuilt-pcs/${file.filename}`
                         };
                     }
                 }

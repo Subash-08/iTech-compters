@@ -759,9 +759,10 @@ useEffect(() => {
       },
       { label: 'Pre-Built PC', href: '/prebuilt-pcs' },
       { label: 'Custom Pc', href: '/custom-pcs' },
-      { label: 'Blogs', href: '/blogs' },
       // { label: 'Support', href: '/support' },
+      { label: 'New Laptops', href: '/products/category/laptops' },
       { label: 'Used Laptops', href: '/used-laptops' },
+      { label: 'Blogs', href: '/blogs' },
       { label: 'About', href: '/about' },
       { label: 'Contact', href: '/contact' },
     ];
@@ -787,7 +788,7 @@ useEffect(() => {
     <div className="font-sans">
       {/* Desktop View (lg and above) */}
       <header className="hidden lg:block pt-4 pb-0 relative shadow-md z-40 bg-white">
-        <div className="container mx-auto px-4 lg:px-6">
+        <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 items-center pb-4 gap-4">
             
 {/* 1. Logo Section */}

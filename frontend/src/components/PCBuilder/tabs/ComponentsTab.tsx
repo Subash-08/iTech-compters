@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Cpu, CircuitBoard, LayoutGrid, Monitor, HardDrive, 
-  Zap, Box, Fan, Mouse, Keyboard, Headphones, Speaker 
+  Zap, Box, Fan
 } from 'lucide-react';
 import CategorySection from '../CategorySection';
-import { SelectedComponents, Product, PCBuilderConfig, Category } from '../types/pcBuilder';
+import { SelectedComponents, Product, PCBuilderConfig } from '../types/pcBuilder';
 
 interface ComponentsTabProps {
   selectedComponents: SelectedComponents;
@@ -17,37 +17,32 @@ const ComponentsTab: React.FC<ComponentsTabProps> = ({
   onComponentSelect,
   config
 }) => {
-  // 1. State to track which category is currently visible
   const [activeSlug, setActiveSlug] = useState<string>('');
 
-  // 2. Combine all categories for the sidebar list
-  const allCategories = useMemo(() => 
-    [...config.required, ...config.optional], 
+  // Only show REQUIRED categories in Components tab
+  const requiredCategories = useMemo(() => 
+    config.required, 
   [config]);
 
-  // 3. Set default active category on load
+  // Set default active category on load
   useEffect(() => {
-    if (allCategories.length > 0 && !activeSlug) {
-      setActiveSlug(allCategories[0].slug);
+    if (requiredCategories.length > 0 && !activeSlug) {
+      setActiveSlug(requiredCategories[0].slug);
     }
-  }, [allCategories, activeSlug]);
+  }, [requiredCategories, activeSlug]);
 
-  // Helper to find the active category object
-  const activeCategory = allCategories.find(c => c.slug === activeSlug);
+  const activeCategory = requiredCategories.find(c => c.slug === activeSlug);
 
-  // Helper to get icons based on slug
   const getIcon = (slug: string) => {
     const s = slug.toLowerCase();
-    if (s.includes('cpu')) return <Cpu size={24} />;
+    if (s.includes('cpu') || s.includes('processor')) return <Cpu size={24} />;
     if (s.includes('motherboard')) return <CircuitBoard size={24} />;
     if (s.includes('memory') || s.includes('ram')) return <LayoutGrid size={24} />;
-    if (s.includes('gpu') || s.includes('card')) return <Monitor size={24} />;
-    if (s.includes('storage') || s.includes('ssd') || s.includes('hdd')) return <HardDrive size={24} />;
-    if (s.includes('power') || s.includes('psu')) return <Zap size={24} />;
-    if (s.includes('case') || s.includes('chassis')) return <Box size={24} />;
+    if (s.includes('graphics') || s.includes('gpu') || s.includes('card')) return <Monitor size={24} />;
+    if (s.includes('ssd') || s.includes('hard-drive') || s.includes('storage')) return <HardDrive size={24} />;
+    if (s.includes('psu') || s.includes('power')) return <Zap size={24} />;
+    if (s.includes('cabinet') || s.includes('chassis') || s.includes('case')) return <Box size={24} />;
     if (s.includes('cooler')) return <Fan size={24} />;
-    if (s.includes('mouse')) return <Mouse size={24} />;
-    if (s.includes('keyboard')) return <Keyboard size={24} />;
     return <Box size={24} />;
   };
 
@@ -56,55 +51,70 @@ const ComponentsTab: React.FC<ComponentsTabProps> = ({
       
       {/* --- LEFT SIDEBAR (Category List) --- */}
       <aside className="w-full md:w-80 bg-white border-r border-gray-200 overflow-y-auto flex-shrink-0">
+        <div className="p-5 border-b border-gray-100 bg-gray-50">
+          <h2 className="font-bold text-gray-800 flex items-center gap-2">
+            <Cpu className="text-orange-500" size={20} />
+            <span>Core Components</span>
+          </h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Select required components for your PC build.
+          </p>
+        </div>
+        
         <div className="py-2">
-          {allCategories.map((category) => {
-            const isSelected = activeSlug === category.slug;
-            const hasSelection = !!selectedComponents[category.slug];
-            const selectedItemName = selectedComponents[category.slug]?.name;
+          {requiredCategories.length > 0 ? (
+            requiredCategories.map((category) => {
+              const isSelected = activeSlug === category.slug;
+              const hasSelection = !!selectedComponents[category.slug];
+              const selectedItemName = selectedComponents[category.slug]?.name;
 
-            return (
-              <button
-                key={category.slug}
-                onClick={() => setActiveSlug(category.slug)}
-                className={`w-full text-left p-4 flex items-start gap-4 transition-all border-l-4 hover:bg-gray-50
-                  ${isSelected 
-                    ? 'border-l-orange-500 bg-orange-50/20' 
-                    : 'border-l-transparent text-gray-600'
-                  }`}
-              >
-                {/* Icon */}
-                <div className={`mt-1 ${isSelected ? 'text-orange-600' : 'text-gray-400'}`}>
-                  {getIcon(category.slug)}
-                </div>
+              return (
+                <button
+                  key={category.slug}
+                  onClick={() => setActiveSlug(category.slug)}
+                  className={`w-full text-left p-4 flex items-start gap-4 transition-all border-l-4 hover:bg-gray-50
+                    ${isSelected 
+                      ? 'border-l-orange-500 bg-orange-50/20' 
+                      : 'border-l-transparent text-gray-600'
+                    }`}
+                >
+                  {/* Icon */}
+                  <div className={`mt-1 ${isSelected ? 'text-orange-600' : 'text-gray-400'}`}>
+                    {getIcon(category.slug)}
+                  </div>
 
-                {/* Text Content */}
-                <div className="flex-1 min-w-0">
-                  <div className={`font-bold text-base ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
-                    {category.name}
+                  {/* Text Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-bold text-base ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                      {category.name}
+                    </div>
+                    
+                    {/* Selection Status */}
+                    <div className="mt-1 text-xs font-medium uppercase truncate">
+                      {hasSelection ? (
+                        <span className="text-green-600 flex items-center gap-1">
+                          ✓ {selectedItemName}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Please Select</span>
+                      )}
+                    </div>
                   </div>
-                  
-                  {/* Selection Status */}
-                  <div className="mt-1 text-xs font-medium uppercase truncate">
-                    {hasSelection ? (
-                      <span className="text-green-600 flex items-center gap-1">
-                         ✓ {selectedItemName}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">Please Select</span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })
+          ) : (
+            <div className="p-8 text-center text-gray-400">
+              <p className="text-sm">No required components found.</p>
+              <p className="text-xs mt-1">Check backend configuration.</p>
+            </div>
+          )}
         </div>
       </aside>
 
       {/* --- RIGHT MAIN CONTENT (Product List) --- */}
       <main className="flex-1 overflow-hidden bg-gray-100 relative flex flex-col">
         {activeCategory ? (
-          // We use key={activeSlug} to force React to reset the state 
-          // (search filters, scroll position) when switching categories.
           <CategorySection 
             key={activeSlug}
             category={activeCategory}
@@ -113,7 +123,9 @@ const ComponentsTab: React.FC<ComponentsTabProps> = ({
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400">
-            Select a category to view products
+            {requiredCategories.length > 0 
+              ? 'Select a category to view products' 
+              : 'No components categories available'}
           </div>
         )}
       </main>

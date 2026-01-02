@@ -1,19 +1,20 @@
 import React, { useMemo } from 'react';
 import { 
-  Plus, Edit2, AlertTriangle, CheckCircle, 
-  ArrowRight, Cpu, Monitor, HardDrive, 
+  Plus, Edit2, 
+  Cpu, Monitor, HardDrive, 
   LayoutGrid, CircuitBoard, Box, Fan, Mouse, Keyboard,
-  Zap, Headphones, Speaker
+  Zap, Headphones, Speaker,
+  Video,
+  Printer
 } from 'lucide-react';
-import { Category, SelectedComponents, PCBuilderConfig } from '../types/pcBuilder';
+import { SelectedComponents, PCBuilderConfig } from '../types/pcBuilder';
 import { getImageUrl } from '../../utils/imageUtils';
 
 interface OverviewTabProps {
   selectedComponents: SelectedComponents;
   config: PCBuilderConfig;
   onTabChange: (tab: string) => void;
-  // Make sure to implement this navigate handler in your parent component
-  onNavigateToCategory?: (categorySlug: string) => void; 
+  onNavigateToCategory?: (categorySlug: string) => void;
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({ 
@@ -22,133 +23,145 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   onTabChange,
   onNavigateToCategory
 }) => {
-  const allCategories: Category[] = useMemo(() => 
-    [...config.required, ...config.optional], 
-  [config]);
+  const coreComponentSlugs = useMemo(() => 
+    config.required.map(cat => cat.slug), 
+  [config.required]);
 
-  // Calculate Progress (Count only)
-  const totalRequired = config.required.length;
-  const selectedRequiredCount = config.required.filter(cat => selectedComponents[cat.slug]).length;
-  const progress = Math.round((selectedRequiredCount / totalRequired) * 100);
-  const isBuildComplete = progress === 100;
+  const coreCategories = useMemo(() => config.required, [config.required]);
+
+  const selectedExtraCategories = useMemo(() => {
+    const allCategories = [...config.required, ...config.optional];
+    return allCategories.filter(cat => 
+      !coreComponentSlugs.includes(cat.slug) && selectedComponents[cat.slug]
+    );
+  }, [config, selectedComponents, coreComponentSlugs]);
+
+  const categoriesToDisplay = [...coreCategories, ...selectedExtraCategories];
 
   const handleEditClick = (categorySlug: string) => {
-    onTabChange('components');
-    if (onNavigateToCategory) {
-        onNavigateToCategory(categorySlug);
+    const category = [...config.required, ...config.optional].find(cat => cat.slug === categorySlug);
+    if (!category) return;
+    
+    if (config.required.some(cat => cat.slug === categorySlug)) {
+      onTabChange('components');
+    } else if (category.isPeripheral === true) {
+      onTabChange('peripherals');
+    } else {
+      onTabChange('extras');
     }
+    
+    if (onNavigateToCategory) onNavigateToCategory(categorySlug);
   };
 
   const getIcon = (slug: string) => {
     const s = slug.toLowerCase();
-    if (s.includes('cpu')) return <Cpu size={20} />;
-    if (s.includes('motherboard')) return <CircuitBoard size={20} />;
-    if (s.includes('ram') || s.includes('memory')) return <LayoutGrid size={20} />;
-    if (s.includes('gpu') || s.includes('card')) return <Monitor size={20} />;
-    if (s.includes('storage')) return <HardDrive size={20} />;
-    if (s.includes('power') || s.includes('psu')) return <Zap size={20} />;
-    if (s.includes('case') || s.includes('chassis')) return <Box size={20} />;
-    if (s.includes('cooler')) return <Fan size={20} />;
-    if (s.includes('mouse')) return <Mouse size={20} />;
-    if (s.includes('keyboard')) return <Keyboard size={20} />;
-    if (s.includes('headphone')) return <Headphones size={20} />;
-    if (s.includes('speaker')) return <Speaker size={20} />;
-    return <Box size={20} />;
+    const props = { size: 20, strokeWidth: 1.5 };
+    if (s.includes('cpu') || s === 'processor') return <Cpu {...props} />;
+    if (s.includes('motherboard')) return <CircuitBoard {...props} />;
+    if (s.includes('memory') || s === 'ram') return <LayoutGrid {...props} />;
+    if (s.includes('graphic') || s.includes('gpu')) return <Monitor {...props} />;
+    if (s.includes('ssd') || s.includes('storage')) return <HardDrive {...props} />;
+    if (s.includes('psu') || s.includes('power')) return <Zap {...props} />;
+    if (s.includes('cabinet') || s.includes('case')) return <Box {...props} />;
+    if (s.includes('cooler')) return <Fan {...props} />;
+    if (s.includes('mouse')) return <Mouse {...props} />;
+    if (s.includes('keyboard')) return <Keyboard {...props} />;
+    if (s.includes('headphone')) return <Headphones {...props} />;
+    if (s.includes('speaker')) return <Speaker {...props} />;
+    if (s.includes('monitor')) return <Monitor {...props} />;
+    if (s.includes('webcam')) return <Video {...props} />;
+    if (s.includes('printer')) return <Printer {...props} />;
+    return <Box {...props} />;
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y- pb-10">
+    <div className="max-w-6xl mx-auto space-y-3 pb-12 px-4">
+      {categoriesToDisplay.map((category) => {
+        const selectedProduct = selectedComponents[category.slug];
 
-      {/* --- COMPONENT LIST --- */}
-      <div className="space-y-3">
-        {allCategories.map((category) => {
-          const selectedProduct = selectedComponents[category.slug];
-          const isRequired = config.required.some(cat => cat.slug === category.slug);
-          const isMissing = isRequired && !selectedProduct;
+        return (
+          <div 
+            key={category.slug}
+            className="group relative bg-white rounded-lg border border-slate-300 transition-all duration-300 hover:shadow-sm hover:border-slate-400"
+          >
+            <div className="flex flex-col md:flex-row md:items-center p-4 md:p-5 gap-6">
+              
+              {/* 1. Category Label */}
+              <div className="flex items-center gap-4 w-full md:w-48 shrink-0">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors
+                  ${selectedProduct ? 'bg-slate-50 text-slate-600' : 'bg-slate-50 text-slate-300'}`}>
+                  {getIcon(category.slug)}
+                </div>
+                <h3 className="font-medium text-slate-800 text-sm tracking-tight">{category.name}</h3>
+              </div>
 
-          return (
-            <div 
-                key={category.slug}
-                className={`group bg-white border rounded-lg p-4 transition-all hover:shadow-md
-                    ${isMissing 
-                        ? 'border-l-4 border-l-blue-500 border-y-red-100 border-r-red-100 bg-red-50/10' 
-                        : 'border-gray-200 border-l-4 border-l-blue-500'}
-                `}
-            >
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                
-                {/* 1. Category Icon/Info */}
-                <div className="flex items-center gap-4 w-full sm:w-64 flex-shrink-0">
-                    <div className={`p-3 rounded-lg ${selectedProduct ? 'bg-gray-100 text-gray-600' : 'bg-gray-100 text-gray-500'}`}>
-                        {getIcon(category.slug)}
+              {/* 2. Product Information */}
+              <div className="flex-1 flex items-center min-w-0">
+                {selectedProduct ? (
+                  <div className="flex items-center gap-4 w-full">
+                    <div className="w-12 h-12 bg-white rounded-lg p-1 shrink-0 border border-slate-50 flex items-center justify-center">
+                      <img 
+                        src={getImageUrl(selectedProduct.image)} 
+                        alt="" 
+                        className="max-w-full max-h-full object-contain grayscale-[0.2] group-hover:grayscale-0 transition-all"
+                        onError={(e) => e.currentTarget.src = "https://placehold.co/100x100?text=..."} 
+                      />
                     </div>
-                    <div>
-                        <h3 className="font-bold text-gray-800">{category.name}</h3>
-                        {isRequired ? (
-                            <span className="text-[10px] uppercase font-bold text-blue-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">Required</span>
-                        ) : (
-                            <span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">Optional</span>
-                        )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">
+                        {selectedProduct.name}
+                      </p>
+                      {selectedProduct.brand && (
+                        <p className="text-[11px] text-slate-400 mt-0.5 font-medium tracking-wide uppercase">
+                          {selectedProduct.brand}
+                        </p>
+                      )}
                     </div>
-                </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg border border-dashed border-slate-200 flex items-center justify-center bg-slate-50/30">
+                      <Plus size={16} className="text-slate-300" />
+                    </div>
+                    <span className="text-sm text-slate-400 font-light italic">
+                      No selection made
+                    </span>
+                  </div>
+                )}
+              </div>
 
-                {/* 2. Selected Product Info (NO PRICE) */}
-                <div className="flex-1 w-full min-w-0 border-t sm:border-t-0 border-gray-100 pt-3 sm:pt-0 sm:border-l sm:pl-6">
-                    {selectedProduct ? (
-                        <div className="flex items-center gap-4">
-                            {/* Thumbnail */}
-                            <div className="w-12 h-12 bg-white border border-gray-200 rounded p-1 flex-shrink-0 flex items-center justify-center">
-                                <img 
-                                    src={getImageUrl(selectedProduct.image)} 
-                                    alt="" 
-                                    className="max-w-full max-h-full object-contain"
-                                    onError={(e) => e.currentTarget.src = "https://placehold.co/100x100?text=..."} 
-                                />
-                            </div>
-                            <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                <div className="font-semibold text-gray-900 truncate text-base" title={selectedProduct.name}>
-                                    {selectedProduct.name}
-                                </div>
-                                <div className="flex gap-2 mt-1">
-                                    {selectedProduct.brand && (
-                                        <span className="text-xs text-gray-500 bg-gray-100 px-1.5 rounded">
-                                            {selectedProduct.brand}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2 text-gray-400 italic h-12">
-                            {isMissing && <AlertTriangle size={16} className="text-red-400" />}
-                            <span>{isMissing ? 'Please select a component' : 'No component selected'}</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* 3. Action Button */}
-                <div className="w-full sm:w-auto pt-3 sm:pt-0 flex justify-end">
-                    <button
-                        onClick={() => handleEditClick(category.slug)}
-                        className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-colors border
-                            ${selectedProduct 
-                                ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400' 
-                                : 'bg-blue-600 border-transparent text-white hover:bg-blue-700'
-                            }`}
-                    >
-                        {selectedProduct ? (
-                            <> <Edit2 size={14} /> Change </>
-                        ) : (
-                            <> <Plus size={14} /> Add </>
-                        )}
-                    </button>
-                </div>
-
+              {/* 3. Action */}
+              <div className="shrink-0">
+                <button
+                  onClick={() => handleEditClick(category.slug)}
+                  className={`w-full md:w-auto px-5 py-2 rounded-xl font-medium text-xs transition-all flex items-center justify-center gap-2
+                    ${selectedProduct 
+                      ? 'bg-white text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-300' 
+                      : 'bg-slate-900 text-white hover:bg-black'
+                    }`}
+                >
+                  {selectedProduct ? (
+                    <> <Edit2 size={12} /> <span>Change</span> </>
+                  ) : (
+                    <> <Plus size={12} /> <span>Configure</span> </>
+                  )}
+                </button>
               </div>
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
+
+      {selectedExtraCategories.length === 0 && (
+        <div className="mt-6 p-8 rounded-2xl border border-dashed border-slate-200 text-center">
+          <p className="text-slate-400 text-sm font-light italic">
+            Ready to expand? Browse through{' '}
+            <button onClick={() => onTabChange('extras')} className="text-slate-600 font-medium hover:text-slate-900 mx-1">Extras</button>
+            or
+            <button onClick={() => onTabChange('peripherals')} className="text-slate-600 font-medium hover:text-slate-900 mx-1">Peripherals</button>
+          </p>
+        </div>
+      )}
     </div>
   );
 };

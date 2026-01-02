@@ -75,7 +75,7 @@ const ComponentsSection: React.FC<{ components: any[] }> = ({ components }) => {
                       <img 
                         src={componentImage} 
                         alt={component.partType}
-                        className="w-6 h-6 object-contain"
+                        className="w-full h-full object-contain"
                         loading="lazy"
                         width="24"
                         height="24"

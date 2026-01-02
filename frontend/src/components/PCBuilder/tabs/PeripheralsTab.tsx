@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Monitor, Mouse, Keyboard, Headphones, Mic, 
-  Volume2, Video, Gamepad2, Check, Circle, AlertCircle 
+  Volume2, Video, Gamepad2, Check, Circle, AlertCircle, 
+  Fan
 } from 'lucide-react';
 import CategorySection from '../CategorySection';
 import { SelectedComponents, Product, PCBuilderConfig } from '../types/pcBuilder';
@@ -19,14 +20,9 @@ const PeripheralsTab: React.FC<PeripheralsTabProps> = ({
 }) => {
   const [activeSlug, setActiveSlug] = useState<string>('');
 
-  // Filter specific categories for Peripherals
+  // Filter categories with isPeripheral flag (from backend)
   const peripheralsCategories = useMemo(() => 
-    config.optional.filter(cat => 
-      [
-        'monitors', 'mouse', 'keyboard', 'mouse-pad', 'controller',
-        'headset', 'microphone', 'speakers', 'webcam'
-      ].includes(cat.slug)
-    ), 
+    config.optional.filter(cat => cat.isPeripheral === true), 
   [config]);
 
   // Set initial active category
@@ -38,11 +34,6 @@ const PeripheralsTab: React.FC<PeripheralsTabProps> = ({
 
   const activeCategory = peripheralsCategories.find(c => c.slug === activeSlug);
 
-  // Calculate Total Price
-  const totalPrice = Object.values(selectedComponents).reduce(
-    (acc, product) => acc + (product?.price || 0), 0
-  );
-
   const getCategoryIcon = (slug: string) => {
     switch(slug) {
       case 'monitors': return <Monitor size={24} />;
@@ -53,6 +44,8 @@ const PeripheralsTab: React.FC<PeripheralsTabProps> = ({
       case 'speakers': return <Volume2 size={24} />;
       case 'webcam': return <Video size={24} />;
       case 'controller': return <Gamepad2 size={24} />;
+      case 'cooler': return <Fan size={24} />;
+      case 'cables': return <Video size={24} />; // Note: cables might be in extras or peripherals
       default: return <Monitor size={24} />;
     }
   };
@@ -134,7 +127,7 @@ const PeripheralsTab: React.FC<PeripheralsTabProps> = ({
           {activeCategory ? (
             <div className="p-4 max-w-5xl mx-auto h-full">
                <CategorySection
-                  key={activeSlug} // Forces reset when switching categories
+                  key={activeSlug}
                   category={activeCategory}
                   selectedComponents={selectedComponents}
                   onComponentSelect={onComponentSelect}
@@ -149,7 +142,6 @@ const PeripheralsTab: React.FC<PeripheralsTabProps> = ({
           )}
         </main>
       </div>
-
     </div>
   );
 };
