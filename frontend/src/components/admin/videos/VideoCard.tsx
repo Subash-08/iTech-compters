@@ -1,8 +1,8 @@
 // src/components/admin/VideoCard.tsx
-import React from 'react';
+import React, { useState } from 'react'; // Import useState
 import { Link } from 'react-router-dom';
 import { Video } from '../types/video';
-import { getImageUrl } from '../../utils/imageUtils'; // Adjust the import path
+import { getImageUrl } from '../../utils/imageUtils'; 
 
 interface VideoCardProps {
   video: Video;
@@ -17,8 +17,13 @@ const VideoCard: React.FC<VideoCardProps> = ({
   showActions = true,
   compact = false 
 }) => {
+  // 1. Initialize State for image errors
+  const [imageError, setImageError] = useState(false);
+
   const getResolutionLabel = () => {
-    const { width, height } = video.resolution;
+    // 2. Safety check: Ensure resolution exists before destructuring
+    const { width, height } = video.resolution || { width: 0, height: 0 };
+    
     if (width === 0 || height === 0) return 'Unknown';
     if (width >= 1920) return 'Full HD';
     if (width >= 1280) return 'HD';
@@ -26,10 +31,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
     return 'Low';
   };
 
-  // Get the proper thumbnail URL
   const thumbnailUrl = getImageUrl(video.thumbnailUrl || video.thumbnail);
 
-  // Custom placeholder for video
   const getVideoPlaceholder = (title: string) => {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300 p-4">
@@ -49,49 +52,39 @@ const VideoCard: React.FC<VideoCardProps> = ({
     }`}>
       {/* Thumbnail */}
       <div className="relative mb-3">
-        <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-          {thumbnailUrl && !thumbnailUrl.includes('placeholder') ? (
+        <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden relative">
+          {/* 3. Logic Update: Check imageError here */}
+          {thumbnailUrl && !thumbnailUrl.includes('placeholder') && !imageError ? (
             <img
               src={thumbnailUrl}
               alt={video.title}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                // Fallback to placeholder if image fails to load
-                e.currentTarget.parentElement!.innerHTML = '';
-                e.currentTarget.parentElement!.appendChild(
-                  document.createRange().createContextualFragment(
-                    getVideoPlaceholder(video.title).props.children
-                  )
-                );
-              }}
+              // 4. Fix: Use state instead of manual DOM manipulation
+              onError={() => setImageError(true)}
             />
           ) : (
             getVideoPlaceholder(video.title)
           )}
         </div>
         
-        {/* Duration badge */}
         {video.durationFormatted && (
           <div className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded">
             {video.durationFormatted}
           </div>
         )}
         
-        {/* Optimized badge */}
         {video.optimized && (
           <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
             Optimized
           </div>
         )}
         
-        {/* Used badge */}
         {video.isUsed && (
           <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
             In Use
           </div>
         )}
         
-        {/* Custom Thumbnail Badge */}
         {video.hasCustomThumbnail && (
           <div className="absolute top-2 left-10 bg-purple-500 text-white text-xs px-2 py-1 rounded">
             Custom
@@ -125,7 +118,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                 <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                {video.sizeFormatted || formatFileSize(video.size)}
+                {/* 5. Safety Check: video.size might be undefined initially */}
+                {video.sizeFormatted || formatFileSize(video.size || 0)}
               </div>
               <div className="flex items-center">
                 <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,7 +154,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
           compact ? 'mt-2' : 'mt-4'
         }`}>
           <span className="text-xs text-gray-500">
-            {new Date(video.createdAt).toLocaleDateString()}
+            {video.createdAt ? new Date(video.createdAt).toLocaleDateString() : 'N/A'}
           </span>
           
           <div className="flex space-x-2">
@@ -189,7 +183,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
 // Helper function to format file size
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
+  if (!bytes || bytes === 0) return '0 Bytes'; // Handle undefined/null bytes
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));

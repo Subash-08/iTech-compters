@@ -102,7 +102,8 @@ const videoAndImageFileFilter = (req, file, cb) => {
         'image/jpg',
         'image/png',
         'image/gif',
-        'image/webp'
+        'image/webp',
+        'image/avif'
     ];
 
     // Check if it's a video file

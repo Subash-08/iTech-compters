@@ -7,11 +7,11 @@ const { v4: uuidv4 } = require('uuid');
 // Ensure upload directories exist
 const createDirectories = () => {
     const dirs = [
-        'public/uploads/videos',
-        'public/uploads/videos/original',
-        'public/uploads/videos/optimized',
-        'public/uploads/thumbnails',
-        'public/uploads/temp'
+        'uploads/videos',
+        'uploads/videos/original',
+        'uploads/videos/optimized',
+        'uploads/thumbnails',
+        'uploads/temp'
     ];
 
     dirs.forEach(dir => {
@@ -27,7 +27,7 @@ createDirectories();
 // Configure storage for original videos
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const destPath = path.join(__dirname, '..', 'public/uploads/videos/original');
+        const destPath = path.join(__dirname, '..', 'uploads/videos/original');
         cb(null, destPath);
     },
     filename: function (req, file, cb) {
@@ -282,9 +282,9 @@ const handleMulterErrors = (err, req, res, next) => {
 // Ensure upload directories exist
 const ensureUploadDirs = () => {
     const dirs = [
-        'public/uploads/videos/original',
-        'public/uploads/thumbnails',
-        'public/uploads/videos/optimized'
+        'uploads/videos/original',
+        'uploads/thumbnails',
+        'uploads/videos/optimized'
     ];
 
     dirs.forEach(dir => {
@@ -301,11 +301,11 @@ ensureUploadDirs();
 const videoStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         if (file.fieldname === 'video') {
-            cb(null, 'public/uploads/videos/original');
+            cb(null, 'uploads/videos/original');
         } else if (file.fieldname === 'thumbnail') {
-            cb(null, 'public/uploads/thumbnails');
+            cb(null, 'uploads/thumbnails');
         } else if (file.fieldname === 'videos') {
-            cb(null, 'public/uploads/videos/original');
+            cb(null, 'uploads/videos/original');
         } else if (file.fieldname === 'thumbnails') {
             cb(null, 'uploads/thumbnails');
         }

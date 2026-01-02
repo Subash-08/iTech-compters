@@ -16,11 +16,11 @@ class SimpleVideoController {
     generateThumbnail = (videoPath, videoId) => {
         return new Promise((resolve, reject) => {
             const thumbnailName = `thumb_${videoId}_${Date.now()}.jpg`;
-            const thumbnailPath = path.join(__dirname, '../public/uploads/thumbnails', thumbnailName);
-            const thumbnailUrl = `/public/uploads/thumbnails/${thumbnailName}`;
+            const thumbnailPath = path.join(__dirname, '../uploads/thumbnails', thumbnailName);
+            const thumbnailUrl = `/uploads/thumbnails/${thumbnailName}`;
 
             // Ensure thumbnails directory exists
-            const thumbDir = path.join(__dirname, '../public/uploads/thumbnails');
+            const thumbDir = path.join(__dirname, '../uploads/thumbnails');
             if (!fs.existsSync(thumbDir)) {
                 fs.mkdirSync(thumbDir, { recursive: true });
             }
@@ -52,11 +52,11 @@ class SimpleVideoController {
             if (!thumbnailFile) return null;
 
             const thumbFileName = `thumb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`;
-            const thumbFullPath = path.join(__dirname, '../public/uploads/thumbnails', thumbFileName);
-            const thumbnailUrl = `/public/uploads/thumbnails/${thumbFileName}`;
+            const thumbFullPath = path.join(__dirname, '../uploads/thumbnails', thumbFileName);
+            const thumbnailUrl = `/uploads/thumbnails/${thumbFileName}`;
 
             // Ensure thumbnails directory exists
-            const thumbDir = path.join(__dirname, '../public/uploads/thumbnails');
+            const thumbDir = path.join(__dirname, '../uploads/thumbnails');
             if (!fs.existsSync(thumbDir)) {
                 fs.mkdirSync(thumbDir, { recursive: true });
             }

@@ -488,7 +488,8 @@ const getFullUrl = (url: string) => {
                           className="flex-shrink-0 w-32 bg-gray-50 rounded-lg p-2"
                         >
                           <div className="aspect-video bg-gray-200 rounded mb-2 overflow-hidden">
-                            {typeof videoItem.video === 'object' && videoItem.video.thumbnailUrl ? (
+                          {/* Check if video exists AND is an object (not null) */}
+{videoItem.video && typeof videoItem.video === 'object' && videoItem.video.thumbnailUrl ? (
 <img
   src={getFullUrl(videoItem.video.thumbnailUrl)}
   alt={videoItem.title}

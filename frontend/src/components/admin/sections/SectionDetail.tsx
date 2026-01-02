@@ -282,13 +282,17 @@ const SectionDetail: React.FC = () => {
     // Return as is (could be a data URL or other format)
     return url;
   };
-  const getVideoUrl = (videoItem: SectionVideo) => {
-    if (typeof videoItem.video === 'object') {
-      const url = (videoItem.video as Video).optimizedUrl || (videoItem.video as Video).url;
-      return getFullUrl(url);
-    }
-    return '';
-  };
+const getVideoUrl = (video: Video | null) => {
+    if (!video) return ''; // Add this safety check
+    
+    // Check for full URLs vs relative paths
+    const url = video.optimizedUrl || video.url;
+    if (!url) return '';
+    
+    if (url.startsWith('http')) return url;
+    const backendUrl = process.env.REACT_APP_API_URL || baseURL;
+    return `${backendUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
   const getVideoThumbnail = (videoItem: SectionVideo) => {
     if (typeof videoItem.video === 'object') {
@@ -677,13 +681,15 @@ const SectionDetail: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Video Selection Modal */}
-      <VideoSelectionModal
+<VideoSelectionModal
         isOpen={showVideoModal}
         onClose={() => setShowVideoModal(false)}
         onSelect={(videoId) => handleAddVideos([videoId])}
-        selectedVideos={section.videos.map(v => typeof v.video === 'string' ? v.video : v.video._id)}
+        // FIX: Filter out null videos first
+        selectedVideos={section.videos
+          .filter(v => v.video !== null && v.video !== undefined)
+          .map(v => typeof v.video === 'string' ? v.video : v.video._id)
+        }
         multiple={true}
       />
 

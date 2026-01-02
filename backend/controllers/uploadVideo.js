@@ -8,11 +8,11 @@ const sharp = require('sharp');
 // Ensure upload directories exist
 const createDirectories = () => {
     const dirs = [
-        'public/uploads/videos',
-        'public/uploads/videos/original',
-        'public/uploads/videos/optimized',
-        'public/uploads/thumbnails',
-        'public/uploads/temp'
+        'uploads/videos',
+        'uploads/videos/original',
+        'uploads/videos/optimized',
+        'uploads/thumbnails',
+        'uploads/temp'
     ];
 
     dirs.forEach(dir => {
@@ -27,7 +27,7 @@ createDirectories();
 // Configure storage for original videos
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'public/uploads/videos/original');
+        cb(null, 'uploads/videos/original');
     },
     filename: function (req, file, cb) {
         const uniqueId = uuidv4();
