@@ -206,10 +206,10 @@ class SimpleVideoController {
         }
     };
 
-    // UPLOAD MULTIPLE VIDEOS WITH THUMBNAILS (CLEAN VERSION)
+    // UPLOAD MULTIPLE VIDEOS WITH THUMBNAILS (PRODUCTION-SAFE)
     uploadMultipleVideosWithThumbnails = async (req, res) => {
         try {
-            if (!req.files || !req.files.videos || req.files.videos.length === 0) {
+            if (!req.files?.videos?.length) {
                 return res.status(400).json({
                     success: false,
                     message: 'No video files provided'
@@ -219,7 +219,7 @@ class SimpleVideoController {
             const videoFiles = req.files.videos;
             const thumbnailFiles = req.files.thumbnails || [];
 
-            // -------- Parse optional arrays --------
+            // -------- Parse optional arrays safely --------
             let titles = [];
             let descriptions = [];
             let tagsArray = [];
@@ -229,7 +229,7 @@ class SimpleVideoController {
                 if (req.body.descriptions) descriptions = JSON.parse(req.body.descriptions);
                 if (req.body.tags) tagsArray = JSON.parse(req.body.tags);
             } catch {
-                // Ignore malformed JSON, fallback to defaults
+                // ignore malformed JSON
             }
 
             const videos = [];
@@ -237,8 +237,6 @@ class SimpleVideoController {
             for (let i = 0; i < videoFiles.length; i++) {
                 const videoFile = videoFiles[i];
                 const thumbnailFile = thumbnailFiles[i] || null;
-
-                const hasCustomThumbnail = !!thumbnailFile;
 
                 const title =
                     Array.isArray(titles) && titles[i]
@@ -255,23 +253,31 @@ class SimpleVideoController {
                         ? tagsArray[i]
                         : [];
 
-                // -------- Create video DB record --------
-                const videoData = {
+                // -------- Handle thumbnail correctly --------
+                let thumbnailUrl = '';
+                let hasCustomThumbnail = false;
+
+                if (thumbnailFile) {
+                    const processed = await this.processThumbnail(thumbnailFile);
+
+                    if (processed?.url) {
+                        thumbnailUrl = processed.url;
+                        hasCustomThumbnail = true;
+                    }
+                }
+
+                // -------- Create DB record --------
+                const video = await Video.create({
                     filename: videoFile.filename,
                     originalName: videoFile.originalname,
                     title,
                     description,
-                    path: videoFile.path,
 
+                    path: videoFile.path,
                     url: `/uploads/videos/original/${videoFile.filename}`,
 
-                    thumbnail: hasCustomThumbnail
-                        ? `/uploads/thumbnails/${thumbnailFile.filename}`
-                        : '',
-
-                    thumbnailUrl: hasCustomThumbnail
-                        ? `/uploads/thumbnails/${thumbnailFile.filename}`
-                        : '',
+                    thumbnail: thumbnailUrl,
+                    thumbnailUrl,
 
                     hasCustomThumbnail,
 
@@ -279,27 +285,25 @@ class SimpleVideoController {
                     duration: 0,
                     size: videoFile.size,
                     sizeFormatted: this.formatFileSize(videoFile.size),
-                    format: path.extname(videoFile.originalname).replace('.', '').toLowerCase(),
+                    format: path.extname(videoFile.originalname).slice(1).toLowerCase(),
                     resolution: { width: 0, height: 0 },
                     bitrate: 0,
                     optimized: false,
                     tags,
                     isUsed: false
-                };
+                });
 
-                const video = await Video.create(videoData);
-
-                // -------- Auto-generate thumbnail if NOT provided --------
+                // -------- Auto-generate thumbnail if missing --------
                 if (!hasCustomThumbnail) {
                     try {
-                        const autoThumbnail = await this.generateAutoThumbnail(
+                        const autoThumb = await this.generateAutoThumbnail(
                             videoFile.path,
                             video._id
                         );
 
-                        if (autoThumbnail) {
-                            video.thumbnail = autoThumbnail.thumbnail;
-                            video.thumbnailUrl = autoThumbnail.thumbnailUrl;
+                        if (autoThumb?.thumbnailUrl) {
+                            video.thumbnail = autoThumb.thumbnail;
+                            video.thumbnailUrl = autoThumb.thumbnailUrl;
                             video.hasCustomThumbnail = false;
                             await video.save();
                         }
@@ -331,12 +335,10 @@ class SimpleVideoController {
         } catch (error) {
             console.error('Multiple upload error:', error);
 
-            // -------- Cleanup uploaded files on failure --------
+            // -------- Cleanup on failure --------
             if (req.files) {
                 Object.values(req.files).flat().forEach(file => {
-                    if (fs.existsSync(file.path)) {
-                        fs.unlinkSync(file.path);
-                    }
+                    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
                 });
             }
 
@@ -347,6 +349,7 @@ class SimpleVideoController {
             });
         }
     };
+
 
 
     // UPDATE THUMBNAIL FOR EXISTING VIDEO
