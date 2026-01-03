@@ -87,10 +87,36 @@ const validateVideoReorder = validate([
         .isInt({ min: 0 })
         .withMessage('Order must be a non-negative integer')
 ]);
+const validateSectionReorder = async (req, res, next) => {
+    await body('sections')
+        .isArray({ min: 1 })
+        .withMessage('sections must be an array')
+        .run(req);
 
+    await body('sections.*.id')
+        .isMongoId()
+        .withMessage('Invalid section id')
+        .run(req);
+
+    await body('sections.*.order')
+        .isInt({ min: 0 })
+        .withMessage('Order must be >= 0')
+        .run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({
+            success: false,
+            errors: errors.array()
+        });
+    }
+
+    next();
+};
 module.exports = {
     validateVideoUpload,
     validateSection,
     validateVideoReorder,
-    validate
+    validate,
+    validateSectionReorder
 };

@@ -39,9 +39,11 @@ export const sectionService = {
     return response.data;
   },
 
-  // Reorder sections
-  async reorderSections(sections: SectionReorderData[]) {
-    const response = await api.put('/sections/reorder-sections', { sections });
-    return response.data;
-  }
+  async reorderSections(payload: { sections: { id: string; order: number }[] }) {
+  return api
+    .put('/sections/reorder-sections', payload)
+    .then(res => res.data);
+}
+
+
 };

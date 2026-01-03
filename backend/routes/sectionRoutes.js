@@ -2,26 +2,50 @@
 const express = require('express');
 const router = express.Router();
 const sectionController = require('../controllers/sectionController');
-const { validateSection, validateVideoReorder } = require('../middlewares/validateVideo');
+const { validateSection, validateVideoReorder, validateSectionReorder } = require('../middlewares/validateVideo');
 
-// Public routes (for homepage)
+// ==========================================
+// 1. Static & Specific Routes (MUST BE FIRST)
+// ==========================================
+
+// Public route for homepage
 router.get('/visible', sectionController.getVisibleSections);
 
-// Admin routes
+// Reordering sections 
+// ⚠️ IMPORTANT: This must be defined BEFORE the '/:id' route
+router.put('/reorder-sections',
+    validateSectionReorder, // Ensure this middleware accepts { sections: [...] }
+    sectionController.reorderSections
+);
+
+// ==========================================
+// 2. General Root Routes
+// ==========================================
+
+router.get('/', sectionController.getAllSections);
+
 router.post('/',
     validateSection,
     sectionController.createSection
 );
 
-router.get('/', sectionController.getAllSections);
+// ==========================================
+// 3. Dynamic ID Routes (/:id)
+// ==========================================
+
 router.get('/:id', sectionController.getSectionById);
+
 router.put('/:id',
     validateSection,
     sectionController.updateSection
 );
+
 router.delete('/:id', sectionController.deleteSection);
 
-// Video management within sections
+// ==========================================
+// 4. Video Management Sub-Routes
+// ==========================================
+
 router.put('/:sectionId/videos',
     sectionController.addVideoToSection
 );
@@ -36,12 +60,6 @@ router.put('/:sectionId/videos/:videoId',
 
 router.put('/:sectionId/reorder-videos',
     sectionController.reorderVideosInSection
-);
-
-// Reordering sections
-router.put('/reorder-sections',
-    validateVideoReorder,
-    sectionController.reorderSections
 );
 
 module.exports = router;

@@ -123,7 +123,9 @@ const getFullUrl = (url: string) => {
         order: index
       }));
 
-      const response = await sectionService.reorderSections(reorderData);
+      const response = await sectionService.reorderSections({
+  sections: reorderData
+});
       
       if (!response.success) {
         toast.error(response.message || 'Failed to reorder sections');
@@ -180,7 +182,9 @@ const getFullUrl = (url: string) => {
         order: index
       }));
 
-      const response = await sectionService.reorderSections(reorderData);
+      const response = await sectionService.reorderSections({
+  sections: reorderData
+});
       
       if (!response.success) {
         toast.error(response.message || 'Failed to reorder sections');
