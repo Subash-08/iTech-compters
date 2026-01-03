@@ -24,3 +24,16 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# =========================
+# User uploads (NEVER COMMIT)
+# =========================
+backend/public/uploads/
+backend/public/
+backend/uploads/
+
+# If frontend ever has uploads
+frontend/public/uploads/
+
+# Keep folder structure if needed
+!backend/public/uploads/.gitkeep
