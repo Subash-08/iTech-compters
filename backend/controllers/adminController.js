@@ -373,6 +373,8 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
                 product.manufacturerImages
             );
 
+
+
             const allowedFields = [
                 'name', 'description', 'brand', 'categories', 'status', 'condition',
                 'isActive', 'definition', 'tags', 'label', 'specifications', 'features',
