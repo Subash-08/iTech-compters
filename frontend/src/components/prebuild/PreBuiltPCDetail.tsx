@@ -22,14 +22,14 @@ import {
 // Component icon mapper
 const componentIcons: Record<string, React.ComponentType<any>> = {
   'CPU': CpuIcon,
-  'GPU': GpuIcon,
-  'RAM': MemoryStick,
   'Motherboard': ShieldCheck,
+  'RAM': MemoryStick,
   'Storage': StorageIcon,
-  'PSU': Power,
   'Cabinet': Package,
+  'PSU': Power,
+  'GPU': GpuIcon,
   'Cooling': FanIcon,
-  'Other': LayersIcon
+  'Other': LayersIcon,
 };
 
 const getComponentIcon = (partType: string) => {

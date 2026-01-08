@@ -40,7 +40,8 @@ const allowedOrigins = [
     'http://127.0.0.1:3000',
     'http://localhost:5000',
     'http://127.0.0.1:5000',
-    "https://itechcomputers.shop/",
+    'https://itechcomputers.shop',
+    'https://www.itechcomputers.shop',
     'https://merry-gecko-b150d8.netlify.app',
     'https://itech-compters.onrender.com',
     'https://www.itech-compters.onrender.com'
@@ -56,7 +57,7 @@ app.use(cors({
             if (process.env.NODE_ENV === 'development') {
                 return callback(null, true);
             }
-            return callback(new Error('Not allowed by CORS'));
+            return callback(null, false);
         }
     },
     credentials: true

@@ -55,12 +55,12 @@ const [formData, setFormData] = useState<PreBuiltPCFormData>({
   tags: '',
   components: [
     { partType: 'CPU', name: '', brand: '', specs: '' },
-    { partType: 'GPU', name: '', brand: '', specs: '' },
-    { partType: 'RAM', name: '', brand: '', specs: '' },
     { partType: 'Motherboard', name: '', brand: '', specs: '' },
+    { partType: 'RAM', name: '', brand: '', specs: '' },
     { partType: 'Storage', name: '', brand: '', specs: '' },
+    { partType: 'Cabinet', name: '', brand: '', specs: '' },
+    { partType: 'GPU', name: '', brand: '', specs: '' },
     { partType: 'PSU', name: '', brand: '', specs: '' },
-    { partType: 'Cabinet', name: '', brand: '', specs: '' }
   ],
   // Pricing fields
   basePrice: 0,
@@ -745,7 +745,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
                     <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Specifications *
+                        Specifications
                       </label>
                       <textarea
                         value={component.specs}

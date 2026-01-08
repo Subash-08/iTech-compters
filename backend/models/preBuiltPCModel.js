@@ -19,7 +19,6 @@ const componentSchema = new mongoose.Schema({
     },
     specs: {
         type: String,
-        required: [true, 'Specifications are required'],
         trim: true
     },
     image: {

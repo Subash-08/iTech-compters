@@ -44,6 +44,7 @@ export const preBuiltPCAPI = {
       }
 
       const response = await api.get<PreBuiltPCsResponse>('/prebuilt-pcs', { params });
+
       
       return {
         ...response.data,
@@ -84,7 +85,7 @@ export const preBuiltPCAPI = {
   getPreBuiltPCBySlug: async (slug: string): Promise<PreBuiltPC> => {
     try {
       const response = await api.get<{ success: boolean; data: PreBuiltPC }>(`/prebuilt-pcs/slug/${slug}`);
-      return response.data.data;
+            return response.data.data;
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to fetch pre-built PC';
       throw new Error(errorMessage);
