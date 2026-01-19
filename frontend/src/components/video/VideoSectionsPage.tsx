@@ -114,8 +114,6 @@ const VideoSectionsPage: React.FC = () => {
         setSections([]);
       }
     } catch (err: any) {
-      // SILENT ERROR HANDLING - Don't show error to user
-      console.log('Silently handled error:', err.message);
       setHasError(true);
       setSections([]); // Set empty array to show nothing
     } finally {

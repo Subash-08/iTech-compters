@@ -142,9 +142,7 @@ export const heroSectionService = {
     },
 
 reorderHeroSections: async (sectionsOrder: string[]) => {
-    console.log('Sending reorder request with sections:', sectionsOrder);
     const response = await api.put('/admin/hero-sections/reorder', { sectionsOrder });
-    console.log('Reorder response:', response.data);
     return response.data;
 },
 

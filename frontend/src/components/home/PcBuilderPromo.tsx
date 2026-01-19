@@ -161,7 +161,7 @@ const CustomPCSection = () => {
   whileTap={{ scale: 0.95 }}
 >
   <button
-    onClick={() => navigate('/prebuilt-pcs')}
+    onClick={() => navigate('/custom-pcs')}
     className={`group relative inline-flex items-center gap-2 px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-bold text-white bg-gradient-to-r ${ACCENT_GRADIENT} rounded-full overflow-hidden shadow-xl shadow-indigo-600/30 transition-all hover:shadow-indigo-600/50`}
   >
     <span className="relative z-10">Start Building</span>

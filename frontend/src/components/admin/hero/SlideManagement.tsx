@@ -230,54 +230,55 @@ const SlideManagement: React.FC = () => {
                   <SafeIcons.GripVertical className="w-5 h-5 text-gray-400" />
                 </div>
 
-                {/* Media Preview */}
-                <div className="flex-shrink-0 w-24 h-24 bg-gray-200 rounded-lg overflow-hidden relative">
-                  {slide.mediaType === 'video' ? (
-                    <>
-                      {slide.thumbnailUrl || (slide.videoDetails?.thumbnailUrl) ? (
-                        <img
-                          src={slide.thumbnailUrl || slide.videoDetails?.thumbnailUrl}
-                          alt={slide.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <SafeIcons.Video className="w-8 h-8" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <SafeIcons.Play className="w-6 h-6 text-white" />
-                      </div>
-                    </>
-                  ) : (
-                    slide.image ? (
-                      <img
-                        src={getImageUrl(slide.image)}
-                        alt={slide.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <SafeIcons.Image className="w-8 h-8" />
-                      </div>
-                    )
-                  )}
-                  <div className="absolute top-2 left-2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      slide.mediaType === 'video' 
-                        ? 'bg-purple-100 text-purple-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {slide.mediaType === 'video' ? 'Video' : 'Image'}
-                    </span>
-                  </div>
-                </div>
+{/* Media Preview */}
+<div className="flex-shrink-0 w-24 h-24 bg-gray-200 rounded-lg overflow-hidden relative">
+  {slide.mediaType === 'video' ? (
+    <>
+      {/* FIX: Use getImageUrl() for video thumbnails */}
+      {slide.thumbnailUrl || slide.videoDetails?.thumbnailUrl ? (
+        <img
+          src={getImageUrl(slide.thumbnailUrl || slide.videoDetails?.thumbnailUrl)}
+          alt={slide.title}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
+          }}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-gray-400">
+          <SafeIcons.Video className="w-8 h-8" />
+        </div>
+      )}
+      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+        <SafeIcons.Play className="w-6 h-6 text-white" />
+      </div>
+    </>
+  ) : (
+    slide.image ? (
+      <img
+        src={getImageUrl(slide.image)}
+        alt={slide.title}
+        className="w-full h-full object-cover"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
+        }}
+      />
+    ) : (
+      <div className="w-full h-full flex items-center justify-center text-gray-400">
+        <SafeIcons.Image className="w-8 h-8" />
+      </div>
+    )
+  )}
+  <div className="absolute top-2 left-2">
+    <span className={`text-xs px-2 py-1 rounded-full ${
+      slide.mediaType === 'video' 
+        ? 'bg-purple-100 text-purple-800' 
+        : 'bg-blue-100 text-blue-800'
+    }`}>
+      {slide.mediaType === 'video' ? 'Video' : 'Image'}
+    </span>
+  </div>
+</div>
 
                 {/* Slide Details */}
                 <div className="flex-1 min-w-0">

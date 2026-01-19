@@ -20,7 +20,7 @@ const ShopButton: React.FC = () => {
 
   return (
     <motion.button
-      onClick={() => navigate('/custom-pcs')}
+      onClick={() => navigate('/prebuilt-pcs')}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       className="bg-white text-black px-6 py-2.5 rounded-md font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] z-30"

@@ -56,6 +56,7 @@ const SlideForm: React.FC = () => {
   const [availableVideos, setAvailableVideos] = useState<Video[]>([]);
   const [videoSearch, setVideoSearch] = useState('');
   const [loadingVideos, setLoadingVideos] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState<SlideFormData>({
     title: '',
@@ -84,6 +85,14 @@ const SlideForm: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+
+  const handleImageError = (videoId: string) => {
+    setImageErrors(prev => ({ ...prev, [videoId]: true }));
+  };
+
+  const isImageError = (videoId: string) => {
+    return imageErrors[videoId] || false;
+  };
 
   useEffect(() => {
     if (id) {
@@ -465,9 +474,12 @@ const SlideForm: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   {availableVideos.find(v => v._id === formData.videoId)?.thumbnailUrl ? (
                     <img
-                      src={availableVideos.find(v => v._id === formData.videoId)?.thumbnailUrl}
+                      src={getImageUrl(availableVideos.find(v => v._id === formData.videoId)?.thumbnailUrl || '')}
                       alt="Video thumbnail"
                       className="w-16 h-12 object-cover rounded"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
+                      }}
                     />
                   ) : (
                     <div className="w-16 h-12 bg-purple-100 rounded flex items-center justify-center">
@@ -513,11 +525,12 @@ const SlideForm: React.FC = () => {
                       }`}
                     >
                       <div className="flex space-x-3">
-                        {video.thumbnailUrl ? (
+                        {video.thumbnailUrl && !isImageError(video._id) ? (
                           <img
-                            src={video.thumbnailUrl}
+                            src={getImageUrl(video.thumbnailUrl)}
                             alt={video.title}
                             className="w-20 h-14 object-cover rounded"
+                            onError={() => handleImageError(video._id)}
                           />
                         ) : (
                           <div className="w-20 h-14 bg-gray-100 rounded flex items-center justify-center">

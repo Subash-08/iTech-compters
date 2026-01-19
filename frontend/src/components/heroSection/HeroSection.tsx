@@ -72,7 +72,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             await videoRef.current?.play();
           }
         } catch (error) {
-          console.log('Autoplay prevented:', error);
         }
       };
       playVideo();

@@ -129,7 +129,7 @@ const App: React.FC = () => {
             className="container mx-auto px-4"
           />
         <HomePage />
-        <DealsSection />
+        {/* <DealsSection /> */}
         <PcBuilderPromo />
         <PCPackageSection />
         <VideoSectionsPage />

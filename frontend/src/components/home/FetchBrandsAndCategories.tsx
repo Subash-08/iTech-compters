@@ -254,7 +254,12 @@ const HomePage: React.FC = () => {
                   <FadeImage
                     src={getImageUrl(brand.logo)}
                     alt={brand.name}
-                    className="max-w-[120px] max-h-10 object-contain"
+                    className="w-20 h-20 
+              object-contain 
+              grayscale-80
+              group-hover:grayscale-0 
+              transition-all 
+              duration-200"
                     fallback={<BuildingIcon />}
                   />
                 </Link>
@@ -266,15 +271,15 @@ const HomePage: React.FC = () => {
       )}
 
       {/* FOOTER CTA — unchanged */}
-      <section className="py-20 bg-black text-white text-center">
+      {/* <section className="py-20 bg-black text-white text-center">
         <h2 className="text-3xl font-bold mb-4">Ready to upgrade your workflow?</h2>
         <p className="text-gray-400 mb-8">Join thousands of satisfied customers.</p>
         <Link to="/products" className="bg-white text-black px-10 py-4 rounded-full font-bold hover:bg-gray-200">
           Browse Catalog
         </Link>
-      </section>
+      </section> */}
       {/* HERO SECTION — unchanged */}
-      <section className="relative pt-8 pb-8 text-center">
+      {/* <section className="relative pt-8 pb-8 text-center">
         <h1 className="text-6xl font-bold tracking-tight mb-6">
           Define Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500">Tech Lifestyle.</span>
         </h1>
@@ -290,7 +295,7 @@ const HomePage: React.FC = () => {
             View New Arrivals
           </Link>
         </div>
-      </section>
+      </section> */}
     </div>
   );
 };

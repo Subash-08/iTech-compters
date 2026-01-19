@@ -258,6 +258,7 @@ exports.getAllHeroSections = catchAsyncErrors(async (req, res, next) => {
 
 // Get hero section by ID
 exports.getHeroSectionById = catchAsyncErrors(async (req, res, next) => {
+
     const heroSection = await HeroSection.findById(req.params.id)
         .populate({
             path: 'slides.videoId',

@@ -35,6 +35,162 @@ const createStorage = (entityType) => {
     });
 };
 
+
+
+// File filter for featured brand logos
+const featuredBrandFileFilter = (req, file, cb) => {
+    const allowedMimeTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/svg+xml',
+        'image/webp'
+    ];
+
+    const allowedExtensions = ['.jpeg', '.jpg', '.png', '.svg', '.webp'];
+
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+
+    // Check both mime type and extension
+    const isValidMime = allowedMimeTypes.includes(file.mimetype);
+    const isValidExtension = allowedExtensions.includes(fileExtension);
+
+    if (isValidMime && isValidExtension) {
+        cb(null, true);
+    } else {
+        cb(new Error('Invalid file type. Only JPEG, PNG, SVG, or WebP files are allowed for brand logos.'), false);
+    }
+};
+
+// Create storage for featured brands (temporary storage for processing)
+const featuredBrandTempStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        try {
+            const uploadPath = path.join(__dirname, '../public/uploads/featured-brands/temp');
+            ensureUploadDir(uploadPath);
+            cb(null, uploadPath);
+        } catch (error) {
+            cb(new Error(`Failed to create upload directory for featured brands: ${error.message}`), null);
+        }
+    },
+    filename: function (req, file, cb) {
+        try {
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            const fileExtension = path.extname(file.originalname).toLowerCase();
+            const filename = `brand-temp-${uniqueSuffix}${fileExtension}`;
+            cb(null, filename);
+        } catch (error) {
+            cb(new Error(`Failed to generate filename for featured brand: ${error.message}`), null);
+        }
+    }
+});
+
+// Featured brand upload configuration (single logo)
+const featuredBrandUpload = multer({
+    storage: featuredBrandTempStorage,
+    fileFilter: featuredBrandFileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB max for brand logos
+        files: 1
+    }
+});
+
+// Featured brand bulk upload (multiple logos)
+const featuredBrandBulkUpload = multer({
+    storage: featuredBrandTempStorage,
+    fileFilter: featuredBrandFileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB per file
+        files: 20 // Maximum 20 logos in bulk upload
+    }
+});
+
+// config/multerConfig.js - Update the processFeaturedBrandLogo function
+const processFeaturedBrandLogo = async (tempFilePath, brandName) => {
+    try {
+        const finalDir = path.join(__dirname, '../public/uploads/featured-brands/logos');
+
+        // Ensure directory exists with proper permissions
+        if (!fs.existsSync(finalDir)) {
+            fs.mkdirSync(finalDir, { recursive: true, mode: 0o755 });
+        }
+
+        // Ensure temp file exists
+        if (!fs.existsSync(tempFilePath)) {
+            throw new Error(`Temp file not found: ${tempFilePath}`);
+        }
+
+        const fileExtension = path.extname(tempFilePath).toLowerCase();
+        const sanitizedName = brandName.toLowerCase()
+            .replace(/[^a-z0-9]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '')
+            .substring(0, 50); // Limit length
+
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 8);
+        const finalFilename = `${sanitizedName}-${timestamp}-${randomString}${fileExtension}`;
+        const finalPath = path.join(finalDir, finalFilename);
+
+        console.log('Copying file:', {
+            from: tempFilePath,
+            to: finalPath,
+            tempFileExists: fs.existsSync(tempFilePath),
+            targetDirExists: fs.existsSync(finalDir)
+        });
+
+        // Copy file to final location
+        fs.copyFileSync(tempFilePath, finalPath);
+
+        // Verify file was copied
+        if (!fs.existsSync(finalPath)) {
+            throw new Error(`Failed to copy file to: ${finalPath}`);
+        }
+
+        // Delete temp file
+        if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+        }
+
+        // Get file info
+        const stats = fs.statSync(finalPath);
+
+        return {
+            url: `/uploads/featured-brands/logos/${finalFilename}`,
+            path: finalPath,
+            filename: finalFilename,
+            size: stats.size,
+            format: fileExtension.replace('.', ''),
+            dimensions: null
+        };
+
+    } catch (error) {
+        console.error('Error processing featured brand logo:', error);
+        throw error;
+    }
+};
+
+// Helper function to delete brand logo
+const deleteFeaturedBrandLogo = (logoUrl) => {
+    try {
+        if (!logoUrl) return;
+
+        const filename = path.basename(logoUrl);
+        const filePath = path.join(__dirname, '../public/uploads/featured-brands/logos', filename);
+
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error deleting featured brand logo:', error);
+        return false;
+    }
+};
+
+
+
 // ========== ADD VIDEO CONFIGURATIONS HERE ==========
 
 // File filter for VIDEOS
@@ -664,5 +820,11 @@ module.exports = {
     uploadVideo,
     videoFileFilter,
     imageFileFilter,
-    videoAndImageFileFilter
+    videoAndImageFileFilter,
+
+    featuredBrandUpload,
+    featuredBrandBulkUpload,
+    processFeaturedBrandLogo,
+    deleteFeaturedBrandLogo,
+    featuredBrandFileFilter
 };

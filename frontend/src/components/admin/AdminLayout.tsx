@@ -64,6 +64,8 @@ import InvoiceGenerator from './invoice/InvoiceGenerator';
 import InvoiceDetails from './invoice/InvoiceDetails';
 import NavbarSettings from './navbar/NavbarSettings';
 import InvoiceCalculator from './pc-invoice/InvoiceCalculator';
+import FeaturedBrandList from './featured-brands/FeaturedBrandList';
+import FeaturedBrandForm from './featured-brands/FeaturedBrandForm';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -384,6 +386,12 @@ const sidebarItems: SidebarItem[] = [
         icon: <Icons.FileText className="w-4 h-4" />,
         path: '/admin/blogs'
       },
+      {
+        id: 'featured-brands',
+        label: 'Featured Brands',
+        icon: <Icons.Layout className="w-4 h-4" />,
+        path: '/admin/featured-brands'
+      }
     ]
   },
 
@@ -578,7 +586,10 @@ const sidebarItems: SidebarItem[] = [
         <Route path="/navbar-settings" element={<NavbarSettings />} />
 
         <Route path="/pc-invoice" element={<InvoiceCalculator />} />
-            </Routes>
+          <Route path="/featured-brands" element={<FeaturedBrandList />} />
+              <Route path="/featured-brands/new" element={<FeaturedBrandForm />} />
+              <Route path="/featured-brands/edit/:id" element={<FeaturedBrandForm />} />
+               </Routes>
           </div>
         </main>
       </div>
