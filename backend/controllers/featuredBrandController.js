@@ -1,6 +1,6 @@
 // controllers/featuredBrandController.js
 const FeaturedBrand = require('../models/featuredBrand');
-const { processFeaturedBrandLogo, deleteBrandLogo } = require('../config/multerConfig');
+const { processFeaturedBrandLogo, deleteFeaturedBrandLogo } = require('../config/multerConfig');
 const path = require('path');
 const fs = require('fs');
 
@@ -204,7 +204,7 @@ exports.updateFeaturedBrand = async (req, res) => {
 
             // Delete old logo file
             if (featuredBrand.logo && featuredBrand.logo.url) {
-                deleteBrandLogo(featuredBrand.logo.url);
+                deleteFeaturedBrandLogo(featuredBrand.logo.url);
             }
 
             logoUpdate = {
@@ -318,7 +318,7 @@ exports.deleteFeaturedBrand = async (req, res) => {
 
         // Delete logo file
         if (featuredBrand.logo && featuredBrand.logo.url) {
-            deleteBrandLogo(featuredBrand.logo.url);
+            deleteFeaturedBrandLogo(featuredBrand.logo.url);
         }
 
         // Soft delete by setting status to inactive
