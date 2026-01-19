@@ -57,49 +57,80 @@ class SectionController {
         }
     };
 
-    // Get visible sections for homepage
+    // backend/controllers/sectionController.js
     getVisibleSections = async (req, res) => {
         try {
+            // Add try-catch inside for MongoDB operations
             const sections = await Section.find({ visible: true })
                 .sort({ order: 1 })
-                .populate('videos.video', 'title thumbnailUrl durationFormatted url optimizedUrl')
+                .populate({
+                    path: 'videos.video',
+                    select: 'title thumbnailUrl durationFormatted url optimizedUrl',
+                    // Add error handling for missing videos
+                    options: {
+                        allowNull: true,
+                        onError: (err) => {
+                            console.log('Error populating video:', err);
+                            return null;
+                        }
+                    }
+                })
                 .select('-__v -createdAt -updatedAt')
                 .lean();
 
-            // Transform data for frontend
-            const transformedSections = sections.map(section => ({
-                id: section._id,
-                title: section.title,
-                description: section.description,
-                layoutType: section.layoutType,
-                gridConfig: section.gridConfig,
-                sliderConfig: section.sliderConfig,
-                backgroundColor: section.backgroundColor,
-                textColor: section.textColor,
-                padding: section.padding,
-                maxWidth: section.maxWidth,
-                videos: section.videos
-                    .sort((a, b) => a.order - b.order)
+            // Safe transformation
+            const transformedSections = sections.map(section => {
+                // Filter out null/undefined videos
+                const validVideos = (section.videos || [])
+                    .filter(v => v && v.video) // Only keep videos that exist
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
                     .map(video => ({
-                        id: video.video._id,
-                        title: video.title || video.video.title,
-                        description: video.description,
-                        url: video.video.optimizedUrl || video.video.url,
-                        thumbnailUrl: video.video.thumbnailUrl,
-                        duration: video.video.durationFormatted,
-                        settings: video.settings
+                        id: video.video?._id?.toString() || '',
+                        title: video.title || video.video?.title || 'Untitled',
+                        description: video.description || '',
+                        url: video.video?.optimizedUrl || video.video?.url || '',
+                        thumbnailUrl: video.video?.thumbnailUrl || '',
+                        duration: video.video?.durationFormatted || '',
+                        settings: video.settings || {}
                     }))
-            }));
+                    .filter(v => v.url); // Only keep videos with URLs
+
+                return {
+                    id: section._id.toString(),
+                    title: section.title || '',
+                    description: section.description || '',
+                    layoutType: section.layoutType || 'grid',
+                    gridConfig: section.gridConfig || {},
+                    sliderConfig: section.sliderConfig || {},
+                    backgroundColor: section.backgroundColor || '',
+                    textColor: section.textColor || '',
+                    padding: section.padding || {},
+                    maxWidth: section.maxWidth || '',
+                    videos: validVideos
+                };
+            });
+
+            // Filter out sections with no videos
+            const sectionsWithVideos = transformedSections.filter(section =>
+                section.videos.length > 0
+            );
 
             res.json({
                 success: true,
-                data: { sections: transformedSections }
+                data: {
+                    sections: sectionsWithVideos,
+                    count: sectionsWithVideos.length
+                }
             });
         } catch (error) {
             console.error('Get visible sections error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch sections'
+            // Return empty array instead of 500 error
+            res.json({
+                success: true,
+                data: {
+                    sections: [],
+                    count: 0
+                }
             });
         }
     };

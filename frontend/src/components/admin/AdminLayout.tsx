@@ -63,6 +63,7 @@ import InvoiceList from './invoice/InvoiceList';
 import InvoiceGenerator from './invoice/InvoiceGenerator';
 import InvoiceDetails from './invoice/InvoiceDetails';
 import NavbarSettings from './navbar/NavbarSettings';
+import InvoiceCalculator from './pc-invoice/InvoiceCalculator';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -246,119 +247,85 @@ const AdminLayout: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Sidebar items configuration
-  const sidebarItems: SidebarItem[] = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: <Icons.Dashboard className="w-5 h-5" />,
-      path: '/admin'
-    },
-    {
-      id: 'catalog',
-      label: 'Catalog',
-      icon: <Icons.Products className="w-5 h-5" />,
-      path: '/admin/catalog',
-      children: [
-        {
-          id: 'categories',
-          label: 'Categories',
-          icon: <Icons.Categories className="w-4 h-4" />,
-          path: '/admin/categories'
-        },
-        {
-          id: 'brands',
-          label: 'Brands',
-          icon: <Icons.Brands className="w-4 h-4" />,
-          path: '/admin/brands'
-        },
-        {
-          id: 'products',
-          label: 'Products',
-          icon: <Icons.Products className="w-4 h-4" />,
-          path: '/admin/products'
-        },
-          {
-    id: 'prebuilt-pcs',
-    label: 'Pre-built PCs',
-    icon: <Computer className="w-5 h-5" />, // You'll need to add this icon
-    path: '/admin/prebuilt-pcs'
-  },
-      ]
-    },
-      {
-    id: 'hero-sections',
-    label: 'Hero Sections',
-    icon: <Icons.Image className="w-5 h-5" />,
-    path: '/admin/hero-sections'
+// Sidebar items configuration
+const sidebarItems: SidebarItem[] = [
+  // --- OVERVIEW ---
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: <Icons.Dashboard className="w-5 h-5" />,
+    path: '/admin'
   },
 
+  // --- E-COMMERCE MANAGEMENT ---
+  {
+    id: 'catalog',
+    label: 'Catalog',
+    icon: <Icons.Products className="w-5 h-5" />,
+    path: '/admin/catalog',
+    children: [
       {
-    id: 'invoices',
-    label: 'Invoices',
-    icon: <Icons.Image className="w-5 h-5" />,
-    path: '/admin/invoices'
-  },
-     {
-        id: 'showcase-sections',
-        label: 'Showcase Sections',
-        icon: <Icons.Layout className="w-4 h-4" />,
-        path: '/admin/showcase-sections'
+        id: 'categories',
+        label: 'Categories',
+        icon: <Icons.Categories className="w-4 h-4" />,
+        path: '/admin/categories'
       },
-    {
-      id: 'sales',
-      label: 'Sales',
-      icon: <Icons.Orders className="w-5 h-5" />,
-      path: '/admin/sales',
-      children: [
-        {
-          id: 'orders',
-          label: 'Orders',
-          icon: <Icons.Orders className="w-4 h-4" />,
-          path: '/admin/orders'
-        },   
-         {
-      id: 'users',
-      label: 'User Management',
-      icon: <Icons.Users className="w-5 h-5" />,
-      path: '/admin/users'
-    },
-        {
-          id: 'coupons',
-          label: 'Coupons',
-          icon: <Icons.Coupons className="w-4 h-4" />,
-          path: '/admin/coupons'
-        }
-      ]
-    },
-    {
-      id: 'reviews',
-      label: 'Ratings & Reviews',
-      icon: <Icons.Reviews className="w-5 h-5" />,
-      path: '/admin/reviews'
-    },
-    {
-      id: 'blog',
-      label: 'blogs',
-      icon: <Icons.Shipping className="w-5 h-5" />,
-      path: '/admin/blogs'
-    },   {
-      id: 'nav',
-      label: 'Navbar Settings',
-      icon: <Icons.Shipping className="w-5 h-5" />,
-      path: '/admin/navbar-settings'
-    }, 
-       {
-      id: 'Vidoes',
-      label: 'Videos',
-      icon: <Icons.Shipping className="w-5 h-5" />,
-      path: '/admin/videos'
-    },
-        {
-      id: 'Video Section',
-      label: 'Video Section',
-      icon: <Icons.Shipping className="w-5 h-5" />,
-      path: '/admin/sections'
-    },
+      {
+        id: 'brands',
+        label: 'Brands',
+        icon: <Icons.Brands className="w-4 h-4" />,
+        path: '/admin/brands'
+      },
+      {
+        id: 'products',
+        label: 'Products',
+        icon: <Icons.Products className="w-4 h-4" />,
+        path: '/admin/products'
+      },
+      {
+        id: 'prebuilt-pcs',
+        label: 'Pre-built PCs',
+        icon: <Computer className="w-4 h-4" />,
+        path: '/admin/prebuilt-pcs'
+      },
+    ]
+  },
+
+  // --- SALES & FINANCE ---
+  {
+    id: 'sales',
+    label: 'Sales & Finance',
+    icon: <Icons.Orders className="w-5 h-5" />,
+    path: '/admin/sales',
+    children: [
+      {
+        id: 'orders',
+        label: 'Orders',
+        icon: <Icons.Orders className="w-4 h-4" />,
+        path: '/admin/orders'
+      },
+      {
+        id: 'invoices',
+        label: 'Invoices',
+        icon: <Icons.FileText className="w-4 h-4" />, // Changed to FileText for invoice
+        path: '/admin/invoices'
+      },
+      {
+        id: 'pc-invoice',
+        label: 'PC Invoice',
+        icon: <Icons.FileText className="w-4 h-4" />,
+        path: '/admin/pc-invoice'
+      },
+      {
+        id: 'coupons',
+        label: 'Coupons',
+        icon: <Icons.Coupons className="w-4 h-4" />,
+        path: '/admin/coupons'
+      }
+    ]
+  },
+
+  // --- PC BUILDER TOOLS ---
   {
     id: 'pc-builder',
     label: 'PC Builder',
@@ -367,19 +334,97 @@ const AdminLayout: React.FC = () => {
     children: [
       {
         id: 'pc-requirements',
-        label: 'PC Requirements',
+        label: 'Requirements',
         icon: <ClipboardList className="w-4 h-4" />,
         path: '/admin/pc-builder/requirements'
       },
       {
         id: 'pc-quotes',
-        label: 'PC Quotes',
+        label: 'Quotes',
         icon: <Quote className="w-4 h-4" />,
         path: '/admin/pc-builder/quotes'
       }
     ]
   },
-  ];
+
+  // --- CONTENT MANAGEMENT (CMS) ---
+  {
+    id: 'cms',
+    label: 'Content Management',
+    icon: <Icons.Layout className="w-5 h-5" />,
+    path: '/admin/cms',
+    children: [
+      {
+        id: 'hero-sections',
+        label: 'Hero Sections',
+        icon: <Icons.Image className="w-4 h-4" />,
+        path: '/admin/hero-sections'
+      },
+      {
+        id: 'showcase-sections',
+        label: 'Showcase Sections',
+        icon: <Icons.Layout className="w-4 h-4" />,
+        path: '/admin/showcase-sections'
+      },
+      {
+        id: 'video-management',
+        label: 'Videos',
+        icon: <Icons.Layout className="w-4 h-4" />, // Assuming Video icon exists
+        path: '/admin/videos'
+      },
+      {
+        id: 'sections',
+        label: 'Page Sections',
+        icon: <Icons.Layout className="w-4 h-4" />,
+        path: '/admin/sections'
+      },
+      {
+        id: 'blog',
+        label: 'Blogs',
+        icon: <Icons.FileText className="w-4 h-4" />,
+        path: '/admin/blogs'
+      },
+    ]
+  },
+
+  // --- USERS & REVIEWS ---
+  {
+    id: 'users-reviews',
+    label: 'Users & Community',
+    icon: <Icons.Users className="w-5 h-5" />,
+    path: '/admin/users', // Or a wrapper path
+    children: [
+      {
+        id: 'users',
+        label: 'User Management',
+        icon: <Icons.Users className="w-4 h-4" />,
+        path: '/admin/users'
+      },
+      {
+        id: 'reviews',
+        label: 'Ratings & Reviews',
+        icon: <Icons.Reviews className="w-4 h-4" />,
+        path: '/admin/reviews'
+      },
+    ]
+  },
+
+  // --- SETTINGS ---
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: <Icons.Settings className="w-5 h-5" />, // Assuming Settings icon
+    path: '/admin/settings',
+    children: [
+      {
+        id: 'nav',
+        label: 'Navbar Settings',
+        icon: <Icons.Menu className="w-4 h-4" />,
+        path: '/admin/navbar-settings'
+      }
+    ]
+  }
+];
 
   const handleItemClick = (path: string) => {
     navigate(path);
@@ -531,6 +576,8 @@ const AdminLayout: React.FC = () => {
         <Route path="/invoices/:id" element={<InvoiceDetails />} />
 
         <Route path="/navbar-settings" element={<NavbarSettings />} />
+
+        <Route path="/pc-invoice" element={<InvoiceCalculator />} />
             </Routes>
           </div>
         </main>

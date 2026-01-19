@@ -30,6 +30,8 @@
     "google-auth-library": "^10.5.0",
     "image-thumbnail": "^1.0.17",
     "jsonwebtoken": "^8.5.1",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "lodash": "^4.17.21",
     "mongoose": "^6.8.0",
     "mongoose-paginate-v2": "^1.9.1",

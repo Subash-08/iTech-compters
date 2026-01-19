@@ -36,6 +36,7 @@ interface ApiSection {
     description: string;
     url: string;
     thumbnailUrl: string;
+    duration?: string;
     settings: {
       autoplay: boolean;
       loop: boolean;
@@ -51,7 +52,7 @@ interface ApiSection {
 const VideoSectionsPage: React.FC = () => {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     fetchSections();
@@ -60,14 +61,26 @@ const VideoSectionsPage: React.FC = () => {
   const fetchSections = async () => {
     try {
       setLoading(true);
+      setHasError(false);
+      
       const response = await videoService.getVisibleSections();
            
       if (response.success) {
         // Map API response to Section interface
         const apiSections = response.data?.sections as ApiSection[] || [];
         
-        const mappedSections: Section[] = apiSections.map((apiSection: ApiSection) => ({
-          _id: apiSection.id, // Map id to _id
+        // Filter sections that have videos
+        const sectionsWithVideos = apiSections.filter(apiSection => 
+          apiSection.videos && apiSection.videos.length > 0
+        );
+        
+        if (sectionsWithVideos.length === 0) {
+          setSections([]);
+          return;
+        }
+        
+        const mappedSections: Section[] = sectionsWithVideos.map((apiSection: ApiSection) => ({
+          _id: apiSection.id,
           title: apiSection.title,
           description: apiSection.description,
           layoutType: apiSection.layoutType,
@@ -78,11 +91,12 @@ const VideoSectionsPage: React.FC = () => {
           gridConfig: apiSection.gridConfig,
           sliderConfig: apiSection.sliderConfig,
           videos: apiSection.videos.map(video => ({
-            _id: video.id, // Map id to _id
+            _id: video.id,
             title: video.title,
             description: video.description,
             url: video.url,
             thumbnailUrl: video.thumbnailUrl,
+            duration: video.duration,
             settings: video.settings
           })),
           order: apiSection.order || 0,
@@ -96,18 +110,20 @@ const VideoSectionsPage: React.FC = () => {
         
         setSections(sortedSections);
       } else {
-        setError(response.message || 'Failed to load sections');
+        // If API returns success: false, set empty sections
+        setSections([]);
       }
     } catch (err: any) {
-      console.error('Error fetching sections:', err); // Debug log
-      setError(err.message || 'An error occurred');
+      // SILENT ERROR HANDLING - Don't show error to user
+      console.log('Silently handled error:', err.message);
+      setHasError(true);
+      setSections([]); // Set empty array to show nothing
     } finally {
       setLoading(false);
     }
   };
 
-  // ... rest of the component remains the same
-
+  // Show loading spinner
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -119,44 +135,15 @@ const VideoSectionsPage: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center">
-        <div className="text-center p-8">
-          <div className="text-red-500 mb-4">
-            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Oops! Something went wrong</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={fetchSections}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
+  // Show NOTHING when:
+  // 1. There's an error (500 or any error)
+  // 2. There are no sections
+  // 3. Sections array is empty
+  if (hasError || sections.length === 0) {
+    return null; // Returns absolutely nothing
   }
 
-  if (sections.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center p-8">
-          <div className="text-gray-400 mb-4">
-            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">No videos available</h2>
-          <p className="text-gray-600">Check back later for new content</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Only render when we have sections with videos
   return (
     <div>
       {sections.map((section, index) => (
