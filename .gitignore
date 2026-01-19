@@ -20,7 +20,7 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
-
+config.env
 # IDE
 .vscode/
 .idea/
