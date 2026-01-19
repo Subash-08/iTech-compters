@@ -143,7 +143,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       }
 
       const options = {
-        key: "rzp_test_Rhd3c2tvDK3obS",
+        key: "rzp_live_S5d4s0XjA7FhY7",
         amount: result.data.amount || Math.round(amount * 100),
         currency: result.data.currency || 'INR',
         name: 'iTech Store',

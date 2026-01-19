@@ -1,3 +1,4 @@
+// backend/routes/heroSectionRoutes.js
 const express = require('express');
 const router = express.Router();
 const {
@@ -10,16 +11,24 @@ const {
     updateHeroSection,
     reorderSlides,
     toggleSlideActive,
-    getAllHeroSections
+    getAllHeroSections,
+    getAvailableVideos,
+    reorderHeroSections
 } = require('../controllers/heroSectionController');
 const { heroSectionUpload, handleMulterError } = require('../config/multerConfig');
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/authenticate');
 
-// Public Routes - No authentication required
+// ==========================================
+// 1. PUBLIC ROUTES
+// ==========================================
 router.get("/hero-sections/active", getActiveHeroSections);
 router.get("/hero-sections/:id", getHeroSectionById);
 
-// Admin Routes - Hero Section Management (with authentication and authorization)
+// ==========================================
+// 2. ADMIN ROUTES - STATIC/FIXED ROUTES FIRST
+// ==========================================
+
+// Get all hero sections
 router.get(
     "/admin/hero-sections",
     isAuthenticatedUser,
@@ -27,6 +36,15 @@ router.get(
     getAllHeroSections
 );
 
+// Get available videos
+router.get(
+    "/admin/hero-sections/available-videos",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    getAvailableVideos
+);
+
+// Create hero section
 router.post(
     "/admin/hero-sections",
     isAuthenticatedUser,
@@ -34,6 +52,19 @@ router.post(
     createHeroSection
 );
 
+// ⚠️ CRITICAL: Reorder hero sections MUST come before :id routes
+router.put(
+    "/admin/hero-sections/reorder",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    reorderHeroSections
+);
+
+// ==========================================
+// 3. ADMIN ROUTES - DYNAMIC ROUTES (/:id)
+// ==========================================
+
+// Get hero section by ID
 router.get(
     "/admin/hero-sections/:id",
     isAuthenticatedUser,
@@ -41,6 +72,7 @@ router.get(
     getHeroSectionById
 );
 
+// Update hero section
 router.put(
     "/admin/hero-sections/:id",
     isAuthenticatedUser,
@@ -48,7 +80,11 @@ router.put(
     updateHeroSection
 );
 
-// Slide Management Routes
+// ==========================================
+// 4. SLIDE MANAGEMENT ROUTES
+// ==========================================
+
+// Add slide
 router.post(
     "/admin/hero-sections/:heroSectionId/slides",
     isAuthenticatedUser,
@@ -58,6 +94,7 @@ router.post(
     addSlide
 );
 
+// Update slide
 router.put(
     "/admin/hero-sections/:heroSectionId/slides/:slideId",
     isAuthenticatedUser,
@@ -67,6 +104,7 @@ router.put(
     updateSlide
 );
 
+// Delete slide
 router.delete(
     "/admin/hero-sections/:heroSectionId/slides/:slideId",
     isAuthenticatedUser,
@@ -74,6 +112,7 @@ router.delete(
     deleteSlide
 );
 
+// Reorder slides within a section
 router.put(
     "/admin/hero-sections/:heroSectionId/reorder",
     isAuthenticatedUser,
@@ -81,6 +120,7 @@ router.put(
     reorderSlides
 );
 
+// Toggle slide active status
 router.put(
     "/admin/hero-sections/:heroSectionId/slides/:slideId/toggle",
     isAuthenticatedUser,

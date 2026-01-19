@@ -33,6 +33,12 @@ const SafeIcons = {
   Image: ({ className }: { className?: string }) => (
     <div className={className}>🖼️</div>
   ),
+  Video: ({ className }: { className?: string }) => (
+    <div className={className}>🎬</div>
+  ),
+  Play: ({ className }: { className?: string }) => (
+    <div className={className}>▶️</div>
+  ),
 };
 
 const SlideManagement: React.FC = () => {
@@ -223,39 +229,92 @@ const SlideManagement: React.FC = () => {
                 <div className="flex-shrink-0 cursor-grab active:cursor-grabbing p-2 hover:bg-gray-100 rounded-lg">
                   <SafeIcons.GripVertical className="w-5 h-5 text-gray-400" />
                 </div>
-<div className="flex-shrink-0 w-20 h-20 bg-gray-200 rounded-lg overflow-hidden">
-  {slide.image ? (
-    <img
-      src={getImageUrl(slide.image)}
-      alt={slide.title}
-      className="w-full h-full object-cover"
-      onError={(e) => {
-        (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
-      }}
-    />
-  ) : (
-    <div className="w-full h-full flex items-center justify-center text-gray-400">
-      <SafeIcons.Image className="w-8 h-8" />
-    </div>
-  )}
-</div>
 
+                {/* Media Preview */}
+                <div className="flex-shrink-0 w-24 h-24 bg-gray-200 rounded-lg overflow-hidden relative">
+                  {slide.mediaType === 'video' ? (
+                    <>
+                      {slide.thumbnailUrl || (slide.videoDetails?.thumbnailUrl) ? (
+                        <img
+                          src={slide.thumbnailUrl || slide.videoDetails?.thumbnailUrl}
+                          alt={slide.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <SafeIcons.Video className="w-8 h-8" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <SafeIcons.Play className="w-6 h-6 text-white" />
+                      </div>
+                    </>
+                  ) : (
+                    slide.image ? (
+                      <img
+                        src={getImageUrl(slide.image)}
+                        alt={slide.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <SafeIcons.Image className="w-8 h-8" />
+                      </div>
+                    )
+                  )}
+                  <div className="absolute top-2 left-2">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      slide.mediaType === 'video' 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {slide.mediaType === 'video' ? 'Video' : 'Image'}
+                    </span>
+                  </div>
+                </div>
 
                 {/* Slide Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {slide.title}
-                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-medium text-gray-900">
+                          {slide.title}
+                        </h3>
+                        {slide.mediaType === 'video' && slide.videoDetails && (
+                          <span className="text-xs text-gray-500">
+                            ({slide.videoDetails.durationFormatted})
+                          </span>
+                        )}
+                      </div>
+                      
                       {slide.subtitle && (
                         <p className="text-gray-600 mt-1">{slide.subtitle}</p>
                       )}
+                      
                       {slide.description && (
                         <p className="text-sm text-gray-500 mt-1 line-clamp-2">
                           {slide.description}
                         </p>
                       )}
+
+                      {/* Video Source Info */}
+                      {slide.mediaType === 'video' && slide.videoDetails && (
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className="text-xs text-gray-500">Source:</span>
+                          <span className="text-xs text-blue-600 truncate max-w-xs">
+                            {slide.videoDetails.title}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Button Info */}
                       {slide.buttonText && (
                         <div className="flex items-center space-x-2 mt-2">
                           <span className="text-sm text-gray-500">Button:</span>
@@ -263,8 +322,30 @@ const SlideManagement: React.FC = () => {
                             {slide.buttonText}
                           </span>
                           {slide.buttonLink && (
-                            <span className="text-xs text-blue-600 truncate">
+                            <span className="text-xs text-blue-600 truncate max-w-xs">
                               → {slide.buttonLink}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Video Settings */}
+                      {slide.mediaType === 'video' && slide.videoSettings && (
+                        <div className="flex items-center space-x-3 mt-2">
+                          <span className="text-xs text-gray-500">Settings:</span>
+                          {slide.videoSettings.autoplay && (
+                            <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">
+                              Autoplay
+                            </span>
+                          )}
+                          {slide.videoSettings.loop && (
+                            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                              Loop
+                            </span>
+                          )}
+                          {slide.videoSettings.controls && (
+                            <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                              Controls
                             </span>
                           )}
                         </div>

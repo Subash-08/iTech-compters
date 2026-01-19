@@ -1,8 +1,9 @@
 // src/components/admin/hero/SlideForm.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { heroSectionService, HeroSection } from '../services/heroSectionService';
+import { heroSectionService, HeroSection, Video } from '../services/heroSectionService';
 import { getImageUrl } from '../../utils/imageUtils';
+import { videoService } from '../services/videoService';
 
 // Safe icon fallbacks
 const SafeIcons = {
@@ -15,12 +16,27 @@ const SafeIcons = {
   Image: ({ className }: { className?: string }) => (
     <div className={className}>🖼️</div>
   ),
+  Video: ({ className }: { className?: string }) => (
+    <div className={className}>🎬</div>
+  ),
+  Search: ({ className }: { className?: string }) => (
+    <div className={className}>🔍</div>
+  ),
 };
 
 interface SlideFormData {
   title: string;
   subtitle?: string;
   description?: string;
+  mediaType: 'image' | 'video';
+  videoId?: string;
+  videoSettings?: {
+    autoplay: boolean;
+    loop: boolean;
+    muted: boolean;
+    controls: boolean;
+    playsInline: boolean;
+  };
   buttonText?: string;
   buttonLink?: string;
   backgroundColor?: string;
@@ -37,10 +53,23 @@ const SlideForm: React.FC = () => {
   const isEdit = Boolean(slideId);
 
   const [heroSection, setHeroSection] = useState<HeroSection | null>(null);
+  const [availableVideos, setAvailableVideos] = useState<Video[]>([]);
+  const [videoSearch, setVideoSearch] = useState('');
+  const [loadingVideos, setLoadingVideos] = useState(false);
+  
   const [formData, setFormData] = useState<SlideFormData>({
     title: '',
     subtitle: '',
     description: '',
+    mediaType: 'image',
+    videoId: '',
+    videoSettings: {
+      autoplay: true,
+      loop: true,
+      muted: true,
+      controls: false,
+      playsInline: true,
+    },
     buttonText: '',
     buttonLink: '',
     backgroundColor: '#ffffff',
@@ -50,6 +79,7 @@ const SlideForm: React.FC = () => {
     startDate: '',
     endDate: '',
   });
+  
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -58,8 +88,11 @@ const SlideForm: React.FC = () => {
   useEffect(() => {
     if (id) {
       loadHeroSection();
+      if (formData.mediaType === 'video') {
+        loadAvailableVideos();
+      }
     }
-  }, [id]);
+  }, [id, formData.mediaType]);
 
   useEffect(() => {
     if (isEdit && slideId && heroSection) {
@@ -69,6 +102,15 @@ const SlideForm: React.FC = () => {
           title: slide.title,
           subtitle: slide.subtitle || '',
           description: slide.description || '',
+          mediaType: slide.mediaType || 'image',
+          videoId: slide.videoId || '',
+          videoSettings: slide.videoSettings || {
+            autoplay: true,
+            loop: true,
+            muted: true,
+            controls: false,
+            playsInline: true,
+          },
           buttonText: slide.buttonText || '',
           buttonLink: slide.buttonLink || '',
           backgroundColor: slide.backgroundColor || '#ffffff',
@@ -78,7 +120,15 @@ const SlideForm: React.FC = () => {
           startDate: slide.startDate ? new Date(slide.startDate).toISOString().split('T')[0] : '',
           endDate: slide.endDate ? new Date(slide.endDate).toISOString().split('T')[0] : '',
         });
-        setImagePreview(slide.image);
+        
+        if (slide.mediaType === 'image') {
+          setImagePreview(slide.image);
+        }
+        
+        // If it's a video slide, load the selected video details
+        if (slide.mediaType === 'video' && slide.videoId) {
+          loadVideoDetails(slide.videoId);
+        }
       }
     } else if (!isEdit && heroSection) {
       // Set default order to last position for new slides
@@ -100,6 +150,38 @@ const SlideForm: React.FC = () => {
     }
   };
 
+  const loadAvailableVideos = useCallback(async () => {
+    try {
+      setLoadingVideos(true);
+      const response = await heroSectionService.getAvailableVideos(videoSearch);
+      if (response.success) {
+        setAvailableVideos(response.data.videos || []);
+      }
+    } catch (err) {
+      console.error('Failed to load videos:', err);
+    } finally {
+      setLoadingVideos(false);
+    }
+  }, [videoSearch]);
+
+  const loadVideoDetails = async (videoId: string) => {
+    try {
+      const response = await videoService.getVideoById(videoId);
+      if (response.success) {
+        // Add video to available videos list if not already there
+        setAvailableVideos(prev => {
+          const exists = prev.some(v => v._id === videoId);
+          if (!exists && response.data) {
+            return [response.data, ...prev];
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load video details:', err);
+    }
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -107,6 +189,33 @@ const SlideForm: React.FC = () => {
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
     }
+  };
+
+  const handleMediaTypeChange = (type: 'image' | 'video') => {
+    setFormData(prev => ({
+      ...prev,
+      mediaType: type,
+      videoId: type === 'image' ? '' : prev.videoId
+    }));
+    
+    if (type === 'video') {
+      loadAvailableVideos();
+    }
+  };
+
+  const handleVideoSelect = (video: Video) => {
+    setFormData(prev => ({
+      ...prev,
+      videoId: video._id,
+      videoSettings: {
+        ...prev.videoSettings,
+        autoplay: true,
+        loop: true,
+        muted: true,
+        controls: false,
+        playsInline: true,
+      }
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -118,8 +227,13 @@ const SlideForm: React.FC = () => {
       return;
     }
     
-    if (!imageFile && !imagePreview && !isEdit) {
-      setError('Image is required');
+    if (formData.mediaType === 'image' && !imageFile && !imagePreview && !isEdit) {
+      setError('Image is required for image slides');
+      return;
+    }
+    
+    if (formData.mediaType === 'video' && !formData.videoId) {
+      setError('Please select a video');
       return;
     }
 
@@ -133,7 +247,14 @@ const SlideForm: React.FC = () => {
       Object.keys(formData).forEach(key => {
         const value = formData[key as keyof SlideFormData];
         if (value !== undefined && value !== null) {
-          formDataToSend.append(key, String(value));
+          if (key === 'videoSettings') {
+            const settings = value as any;
+            Object.keys(settings).forEach(settingKey => {
+              formDataToSend.append(`videoSettings[${settingKey}]`, settings[settingKey].toString());
+            });
+          } else {
+            formDataToSend.append(key, String(value));
+          }
         }
       });
 
@@ -160,6 +281,16 @@ const SlideForm: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
+    }));
+  };
+
+  const handleVideoSettingChange = (setting: keyof NonNullable<SlideFormData['videoSettings']>, value: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      videoSettings: {
+        ...prev.videoSettings!,
+        [setting]: value
+      }
     }));
   };
 
@@ -200,57 +331,319 @@ const SlideForm: React.FC = () => {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-8">
-        {/* Image Upload */}
+        {/* Media Type Selection */}
         <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Slide Image</h3>
-          <div className="flex items-start space-x-6">
-            {/* Image Preview */}
-<div className="flex-shrink-0">
-  <div className="w-48 h-32 bg-gray-200 rounded-lg overflow-hidden border-2 border-dashed border-gray-300 flex items-center justify-center">
-    {imagePreview ? (
-      <img
-        src={
-          imagePreview.startsWith('blob:')
-            ? imagePreview                 // File preview
-            : getImageUrl(imagePreview)    // Saved image
-        }
-        alt="Slide preview"
-        className="w-full h-full object-cover"
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
-        }}
-      />
-    ) : (
-      <div className="text-center text-gray-400">
-        <SafeIcons.Image className="w-8 h-8 mx-auto mb-2" />
-        <p className="text-sm">No image</p>
-      </div>
-    )}
-  </div>
-</div>
-
-            {/* Upload Controls */}
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {isEdit ? 'Update Image' : 'Upload Image'} {!isEdit && '*'}
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-              <p className="text-sm text-gray-500 mt-2">
-                Recommended size: 1200x600px. Max file size: 5MB
-              </p>
-              {!imageFile && !imagePreview && !isEdit && (
-                <p className="text-sm text-red-600 mt-1">Image is required for new slides</p>
-              )}
-            </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Media Type</h3>
+          <div className="flex space-x-4">
+            <button
+              type="button"
+              onClick={() => handleMediaTypeChange('image')}
+              className={`flex-1 flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${
+                formData.mediaType === 'image' 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <SafeIcons.Image className={`w-8 h-8 mb-2 ${
+                formData.mediaType === 'image' ? 'text-blue-600' : 'text-gray-400'
+              }`} />
+              <span className={`font-medium ${
+                formData.mediaType === 'image' ? 'text-blue-700' : 'text-gray-700'
+              }`}>
+                Image
+              </span>
+              <span className="text-sm text-gray-500 mt-1">Upload an image</span>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => handleMediaTypeChange('video')}
+              className={`flex-1 flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${
+                formData.mediaType === 'video' 
+                  ? 'border-purple-500 bg-purple-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <SafeIcons.Video className={`w-8 h-8 mb-2 ${
+                formData.mediaType === 'video' ? 'text-purple-600' : 'text-gray-400'
+              }`} />
+              <span className={`font-medium ${
+                formData.mediaType === 'video' ? 'text-purple-700' : 'text-gray-700'
+              }`}>
+                Video
+              </span>
+              <span className="text-sm text-gray-500 mt-1">Select from videos</span>
+            </button>
           </div>
         </div>
 
-        {/* Content */}
+        {/* Image Upload Section */}
+        {formData.mediaType === 'image' && (
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Slide Image</h3>
+            <div className="flex items-start space-x-6">
+              {/* Image Preview */}
+              <div className="flex-shrink-0">
+                <div className="w-48 h-32 bg-gray-200 rounded-lg overflow-hidden border-2 border-dashed border-gray-300 flex items-center justify-center">
+                  {imagePreview ? (
+                    <img
+                      src={
+                        imagePreview.startsWith('blob:')
+                          ? imagePreview                 // File preview
+                          : getImageUrl(imagePreview)    // Saved image
+                      }
+                      alt="Slide preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
+                      }}
+                    />
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <SafeIcons.Image className="w-8 h-8 mx-auto mb-2" />
+                      <p className="text-sm">No image</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Upload Controls */}
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {isEdit ? 'Update Image' : 'Upload Image'} *
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p className="text-sm text-gray-500 mt-2">
+                  Recommended size: 1200x600px. Max file size: 5MB
+                </p>
+                {!imageFile && !imagePreview && !isEdit && (
+                  <p className="text-sm text-red-600 mt-1">Image is required</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Video Selection Section */}
+        {formData.mediaType === 'video' && (
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Select Video</h3>
+            
+            {/* Video Search */}
+            <div className="mb-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={videoSearch}
+                  onChange={(e) => setVideoSearch(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && loadAvailableVideos()}
+                  placeholder="Search videos by title or description..."
+                  className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <SafeIcons.Search className="w-4 h-4 text-gray-400" />
+                </div>
+                <button
+                  type="button"
+                  onClick={loadAvailableVideos}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-purple-600 hover:text-purple-800"
+                >
+                  Search
+                </button>
+              </div>
+            </div>
+
+            {/* Selected Video Preview */}
+            {formData.videoId && (
+              <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <h4 className="font-medium text-purple-900 mb-2">Selected Video:</h4>
+                <div className="flex items-center space-x-3">
+                  {availableVideos.find(v => v._id === formData.videoId)?.thumbnailUrl ? (
+                    <img
+                      src={availableVideos.find(v => v._id === formData.videoId)?.thumbnailUrl}
+                      alt="Video thumbnail"
+                      className="w-16 h-12 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-16 h-12 bg-purple-100 rounded flex items-center justify-center">
+                      <SafeIcons.Video className="w-6 h-6 text-purple-400" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">
+                      {availableVideos.find(v => v._id === formData.videoId)?.title || 'Loading...'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {availableVideos.find(v => v._id === formData.videoId)?.durationFormatted || ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('videoId', '')}
+                    className="text-sm text-red-600 hover:text-red-800"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Videos List */}
+            <div className="max-h-96 overflow-y-auto">
+              {loadingVideos ? (
+                <div className="text-center py-8">
+                  <SafeIcons.Loader className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-2" />
+                  <p className="text-gray-600">Loading videos...</p>
+                </div>
+              ) : availableVideos.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {availableVideos.map((video) => (
+                    <div
+                      key={video._id}
+                      onClick={() => handleVideoSelect(video)}
+                      className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                        formData.videoId === video._id
+                          ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex space-x-3">
+                        {video.thumbnailUrl ? (
+                          <img
+                            src={video.thumbnailUrl}
+                            alt={video.title}
+                            className="w-20 h-14 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-20 h-14 bg-gray-100 rounded flex items-center justify-center">
+                            <SafeIcons.Video className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{video.title}</p>
+                          <p className="text-xs text-gray-500 truncate">{video.description}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xs text-purple-600">{video.durationFormatted}</span>
+                            {formData.videoId === video._id && (
+                              <span className="text-xs font-medium text-purple-700">Selected</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No videos found. Try a different search term.
+                </div>
+              )}
+            </div>
+
+            {/* Video Settings */}
+            {formData.videoId && (
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-gray-900 mb-3">Video Settings</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Autoplay
+                      </label>
+                      <p className="text-sm text-gray-500">Start playing automatically</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleVideoSettingChange('autoplay', !formData.videoSettings!.autoplay)}
+                      className={`w-10 h-6 rounded-full transition-colors duration-200 ${
+                        formData.videoSettings!.autoplay ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full transition-transform duration-200 ${
+                          formData.videoSettings!.autoplay ? 'transform translate-x-5' : 'transform translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Loop
+                      </label>
+                      <p className="text-sm text-gray-500">Loop video continuously</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleVideoSettingChange('loop', !formData.videoSettings!.loop)}
+                      className={`w-10 h-6 rounded-full transition-colors duration-200 ${
+                        formData.videoSettings!.loop ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full transition-transform duration-200 ${
+                          formData.videoSettings!.loop ? 'transform translate-x-5' : 'transform translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Muted
+                      </label>
+                      <p className="text-sm text-gray-500">Play without sound</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleVideoSettingChange('muted', !formData.videoSettings!.muted)}
+                      className={`w-10 h-6 rounded-full transition-colors duration-200 ${
+                        formData.videoSettings!.muted ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full transition-transform duration-200 ${
+                          formData.videoSettings!.muted ? 'transform translate-x-5' : 'transform translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Show Controls
+                      </label>
+                      <p className="text-sm text-gray-500">Show video controls</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleVideoSettingChange('controls', !formData.videoSettings!.controls)}
+                      className={`w-10 h-6 rounded-full transition-colors duration-200 ${
+                        formData.videoSettings!.controls ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full transition-transform duration-200 ${
+                          formData.videoSettings!.controls ? 'transform translate-x-5' : 'transform translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Content Section */}
         <div>
           <h3 className="text-lg font-medium text-gray-900 mb-4">Slide Content</h3>
           <div className="grid grid-cols-1 gap-4">
@@ -472,7 +865,7 @@ const SlideForm: React.FC = () => {
           </button>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (formData.mediaType === 'video' && !formData.videoId)}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             {loading && <SafeIcons.Loader className="w-4 h-4 animate-spin" />}

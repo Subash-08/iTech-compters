@@ -25,6 +25,7 @@ const HeroSectionForm: React.FC = () => {
     transitionEffect: 'slide',
     showNavigation: true,
     showPagination: true,
+    order: 0,
   });
 
   const [loading, setLoading] = useState(false);
@@ -33,11 +34,33 @@ const HeroSectionForm: React.FC = () => {
   useEffect(() => {
     if (isEdit && id) {
       loadHeroSection();
+    } else {
+      // Set default order for new sections
+      loadDefaultOrder();
     }
   }, [isEdit, id]);
 
+  const loadDefaultOrder = async () => {
+    try {
+      const response = await heroSectionService.getAllHeroSections();
+      if (response.success) {
+        const sections = response.data;
+        const maxOrder = sections.reduce((max: number, section: any) => 
+          Math.max(max, section.order || 0), 0
+        );
+        setFormData(prev => ({
+          ...prev,
+          order: maxOrder + 1
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load sections for order calculation:', error);
+    }
+  };
+
   const loadHeroSection = async () => {
     try {
+      setLoading(true);
       const response = await heroSectionService.getHeroSectionById(id!);
       if (response.success) {
         const section = response.data;
@@ -48,15 +71,24 @@ const HeroSectionForm: React.FC = () => {
           transitionEffect: section.transitionEffect,
           showNavigation: section.showNavigation,
           showPagination: section.showPagination,
+          order: section.order || 0,
         });
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load hero section');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      setError('Section name is required');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -130,6 +162,21 @@ const HeroSectionForm: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., Homepage Hero, Festival Banner"
               />
+            </div>
+
+            <div>
+              <label htmlFor="order" className="block text-sm font-medium text-gray-700 mb-2">
+                Display Order
+              </label>
+              <input
+                type="number"
+                id="order"
+                min="0"
+                value={formData.order}
+                onChange={(e) => handleChange('order', parseInt(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-sm text-gray-500 mt-1">Lower numbers appear first. Set to 0 for automatic ordering.</p>
             </div>
           </div>
         </div>

@@ -17,10 +17,65 @@ const heroSlideSchema = new mongoose.Schema({
         trim: true,
         maxlength: [500, 'Description cannot exceed 500 characters']
     },
-    image: {
-        type: String, // Store file path instead of Cloudinary object
-        required: true
+
+    // Media type and fields
+    mediaType: {
+        type: String,
+        enum: ['image', 'video'],
+        default: 'image'
     },
+
+    // For images
+    image: {
+        type: String,
+        default: ''
+    },
+
+    // For videos - reference to Video model
+    videoId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Video',
+        default: null
+    },
+
+    // Video metadata (populated from Video model)
+    videoUrl: {
+        type: String,
+        default: ''
+    },
+    thumbnailUrl: {
+        type: String,
+        default: ''
+    },
+    duration: {
+        type: String,
+        default: ''
+    },
+
+    // Video player settings
+    videoSettings: {
+        autoplay: {
+            type: Boolean,
+            default: true
+        },
+        loop: {
+            type: Boolean,
+            default: true
+        },
+        muted: {
+            type: Boolean,
+            default: true
+        },
+        controls: {
+            type: Boolean,
+            default: false
+        },
+        playsInline: {
+            type: Boolean,
+            default: true
+        }
+    },
+
     buttonText: {
         type: String,
         trim: true,
@@ -90,6 +145,10 @@ const heroSectionSchema = new mongoose.Schema({
     showPagination: {
         type: Boolean,
         default: true
+    },
+    order: {
+        type: Number,
+        default: 0
     }
 }, {
     timestamps: true
@@ -98,5 +157,6 @@ const heroSectionSchema = new mongoose.Schema({
 // Index for better query performance
 heroSectionSchema.index({ isActive: 1, 'slides.isActive': 1 });
 heroSectionSchema.index({ 'slides.startDate': 1, 'slides.endDate': 1 });
+heroSectionSchema.index({ order: 1 });
 
 module.exports = mongoose.model('HeroSection', heroSectionSchema);
