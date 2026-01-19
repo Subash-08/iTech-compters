@@ -1,4 +1,4 @@
-// src/components/sections/SectionRenderer.tsx (FIXED)
+// src/components/sections/SectionRenderer.tsx (UPDATED)
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import VideoCard from '../video/VideoCard';
@@ -25,7 +25,7 @@ interface Section {
   _id: string;
   title: string;
   description: string;
-  layoutType: 'card' | 'slider' | 'grid' | 'masonry' | 'full-video';
+  layoutType: 'card' | 'slider' | 'grid' | 'masonry' | 'full-video' | 'reels'; // Added 'reels'
   backgroundColor: string;
   textColor: string;
   maxWidth: string;
@@ -58,8 +58,12 @@ interface SectionRendererProps {
 
 const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = '' }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [activeReel, setActiveReel] = useState(0); // For reels layout
   const sliderRef = useRef<HTMLDivElement>(null);
+  const reelsContainerRef = useRef<HTMLDivElement>(null);
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const autoplayRef = useRef<NodeJS.Timeout>();
+  const observerRef = useRef<IntersectionObserver>();
 
   // Animation variants
   const containerVariants = {
@@ -101,6 +105,49 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
     };
   }, [section.layoutType, section.sliderConfig, section.videos.length]);
 
+  // Intersection Observer for reels layout
+  useEffect(() => {
+    if (section.layoutType !== 'reels') return;
+
+    const options = {
+      root: reelsContainerRef.current,
+      rootMargin: '0px',
+      threshold: 0.7 // When 70% of video is visible
+    };
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const index = parseInt(entry.target.getAttribute('data-index') || '0');
+          setActiveReel(index);
+          
+          // Play the video
+          const video = videoRefs.current[index];
+          if (video) {
+            video.play().catch(console.error);
+          }
+        } else {
+          const index = parseInt(entry.target.getAttribute('data-index') || '0');
+          // Pause non-visible videos
+          const video = videoRefs.current[index];
+          if (video && index !== activeReel) {
+            video.pause();
+          }
+        }
+      });
+    }, options);
+
+    // Observe all reel containers
+    const reelContainers = reelsContainerRef.current?.querySelectorAll('.reel-container');
+    reelContainers?.forEach(container => {
+      observerRef.current?.observe(container);
+    });
+
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, [section.layoutType, section.videos.length, activeReel]);
+
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % section.videos.length);
   };
@@ -112,9 +159,17 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
   // Helper function to get full URL
   const getFullUrl = (url: string) => {
     if (url.startsWith('http')) return url;
-    // Add your backend URL here
-    const backendUrl = baseURL;
-    return `${backendUrl}${url}`;
+    return `${baseURL}${url}`;
+  };
+
+  // Handle video ready for reels
+  const handleVideoReady = (index: number, element: HTMLVideoElement) => {
+    videoRefs.current[index] = element;
+    
+    // Only autoplay the first video initially
+    if (index === 0 && section.layoutType === 'reels') {
+      element.play().catch(console.error);
+    }
   };
 
   // Render based on layout type
@@ -130,11 +185,157 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
         return renderGrid(videos);
       case 'masonry':
         return renderMasonry(videos);
+      case 'reels': // Add reels case
+        return renderReels(videos);
       case 'card':
       default:
         return renderCard(videos);
     }
   };
+
+// ========== REELS LAYOUT RENDERER (Updated for Side-by-Side Cards) ==========
+const renderReels = (videos: Video[]) => {
+  return (
+    <div className="relative">
+      <div 
+        ref={reelsContainerRef}
+        className="reels-scroll-container mx-auto h-[80vh] overflow-y-auto scroll-smooth px-4"
+        style={{
+          scrollbarWidth: 'thin',
+          msOverflowStyle: 'none',
+        }}
+      >
+        {/* Hide scrollbar for Chrome/Safari */}
+        <style jsx>{`
+          .reels-scroll-container::-webkit-scrollbar {
+            width: 6px;
+          }
+          .reels-scroll-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+          }
+          .reels-scroll-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+          }
+          .reels-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+          }
+        `}</style>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8">
+          {videos.map((video, index) => (
+            <div
+              key={video._id || index}
+              data-index={index}
+              className="reel-container bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group"
+            >
+              {/* Video Container */}
+              <div className="relative overflow-hidden bg-black">
+                <VideoPlayer
+                  src={getFullUrl(video.url)}
+                  poster={getFullUrl(video.thumbnailUrl)}
+                  autoplay={false}
+                  loop={false}
+                  muted={true}
+                  controls={false}
+                  playsInline={true}
+                  className="w-full h-auto aspect-[3/4] object-cover transform group-hover:scale-105 transition-transform duration-300"
+                  onReady={(element) => handleVideoReady(index, element)}
+                  onPlay={() => setActiveReel(index)}
+                  intersectionThreshold={0.3}
+                />
+                
+                {/* Play Button Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <button
+                    onClick={() => {
+                      const video = videoRefs.current[index];
+                      if (video) {
+                        video.paused ? video.play() : video.pause();
+                      }
+                    }}
+                    className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform duration-300"
+                  >
+                    <svg className="w-6 h-6 text-gray-900 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Video Duration Badge */}
+                {/* <div className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                  {video.duration || '0:30'}
+                </div> */}
+              </div>
+              
+              {/* Video Info */}
+              {/* <div className="p-4 space-y-2">
+                <h3 className="font-semibold text-gray-800 text-lg line-clamp-1 group-hover:text-blue-600 transition-colors">
+                  {video.title || `Video ${index + 1}`}
+                </h3>
+                
+                {video.description && (
+                  <p className="text-sm text-gray-600 line-clamp-2">
+                    {video.description}
+                  </p>
+                )}
+                
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        const video = videoRefs.current[index];
+                        if (video) {
+                          video.muted = !video.muted;
+                        }
+                      }}
+                      className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                      title="Toggle mute"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M12 6l-3 3m0 0l-3 3m3-3v12" />
+                      </svg>
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        const video = videoRefs.current[index];
+                        if (video) {
+                          video.loop = !video.loop;
+                        }
+                      }}
+                      className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                      title="Toggle loop"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <span className="text-xs text-gray-400">
+                    #{index + 1}
+                  </span>
+                </div>
+              </div> */}
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* Scroll Stats */}
+      <div className="text-center mt-4 text-sm text-gray-600">
+        <p className="font-medium">
+          Showing {videos.length} videos in vertical layout
+        </p>
+        <p className="text-xs mt-1">
+          Click play button to control video playback
+        </p>
+      </div>
+    </div>
+  );
+};
 
   const renderFullVideo = (video: Video | undefined) => {
     if (!video) return null;

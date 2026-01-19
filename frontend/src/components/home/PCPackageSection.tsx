@@ -106,7 +106,7 @@ const PreBuildSection: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
         
         {/* Left Card: Narrower (1 col) */}
-        <div className="lg:col-span-1">
+        {/* <div className="lg:col-span-1">
           <ProductCard
             category="Fast Performance"
             title="Gaming PC"
@@ -114,10 +114,10 @@ const PreBuildSection: React.FC = () => {
             image="https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?q=80&w=1000&auto=format&fit=crop" 
             delay={0.1}
           />
-        </div>
+        </div> */}
 
         {/* Center Card: Wider (2 cols) */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-4">
           <ProductCard
             category="Creative Power"
             title="Content Creation"
@@ -129,7 +129,7 @@ const PreBuildSection: React.FC = () => {
         </div>
 
         {/* Right Card: Narrower (1 col) */}
-        <div className="lg:col-span-1">
+        {/* <div className="lg:col-span-1">
           <ProductCard
             category="Effortless Work"
             title="Workstation"
@@ -137,7 +137,7 @@ const PreBuildSection: React.FC = () => {
             image="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000&auto=format&fit=crop"
             delay={0.3}
           />
-        </div>
+        </div> */}
 
       </div>
     </section>

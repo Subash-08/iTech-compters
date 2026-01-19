@@ -48,7 +48,7 @@ const sectionSchema = new mongoose.Schema({
     },
     layoutType: {
         type: String,
-        enum: ['card', 'full-video', 'slider', 'grid', 'masonry'],
+        enum: ['card', 'full-video', 'slider', 'grid', 'masonry', 'reels'],
         default: 'card'
     },
     gridConfig: {

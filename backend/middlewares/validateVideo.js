@@ -63,7 +63,7 @@ const validateSection = validate([
         .isLength({ max: 500 })
         .withMessage('Description must be less than 500 characters'),
     body('layoutType')
-        .isIn(['card', 'full-video', 'slider', 'grid', 'masonry'])
+        .isIn(['card', 'full-video', 'slider', 'grid', 'masonry', 'reels'])
         .withMessage('Invalid layout type'),
     body('visible')
         .optional()

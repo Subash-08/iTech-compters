@@ -6,7 +6,7 @@ import { getImageUrl } from '../utils/imageUtils';
 
 interface VideoCardProps {
   video: Video;
-  layout?: 'card' | 'grid' | 'masonry';
+  layout?: 'card' | 'grid' | 'masonry' | 'reels';
   showActions?: boolean;
   compact?: boolean;
   autoplay?: boolean;
@@ -38,6 +38,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
         return `${baseClasses} ${compact ? 'p-2' : 'p-3'}`;
       case 'masonry':
         return `${baseClasses} ${compact ? 'p-1' : 'p-2'}`;
+        case 'reels':
+        return `${baseClasses} ${compact ? 'p-1' : 'p-2'} h-[500px]`;
       default:
         return `${baseClasses} ${compact ? 'p-2' : 'p-4'}`;
     }

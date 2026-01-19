@@ -36,7 +36,7 @@ export interface SectionPadding {
   right: number;
 }
 
-export type LayoutType = 'card' | 'full-video' | 'slider' | 'grid' | 'masonry';
+export type LayoutType = 'card' | 'full-video' | 'slider' | 'grid' | 'masonry' | 'reels';
 
 export interface Section {
   _id: string;

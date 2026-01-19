@@ -1,9 +1,9 @@
 // src/components/home/HomeLatestNews.tsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { blogService, Blog } from '../admin/services/blogService'; // Adjust path relative to your project structure
-import { getImageUrl, getPlaceholderImage } from '../utils/imageUtils'; // Adjust path relative to your project structure
-import { ArrowRight, Calendar } from 'lucide-react';
+import { blogService, Blog } from '../admin/services/blogService';
+import { getImageUrl, getPlaceholderImage } from '../utils/imageUtils';
+import { ArrowRight } from 'lucide-react';
 
 const HomeLatestNews: React.FC = () => {
   const [blogs, setBlogs] = useState<Blog[]>([]);
@@ -11,27 +11,39 @@ const HomeLatestNews: React.FC = () => {
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    const fetchLatestBlogs = async () => {
+    const fetchFeaturedBlogs = async () => {
       try {
         setLoading(true);
-        // Fetch exactly 5 posts for the layout (1 big + 4 small)
+        
+        // OPTION 1: If your blogService has a getFeaturedBlogs method
+        // const response = await blogService.getFeaturedBlogs({
+        //   limit: 5,
+        //   sort: '-published_at'
+        // });
+        
+        // OPTION 2: If not, use getPublishedBlogs with featured filter
+        // Check your blogService API to see what filters it accepts
         const response = await blogService.getPublishedBlogs({
           limit: 5,
-          sort: '-published_at'
+          sort: '-published_at',
+          featured: true // Add featured filter
         });
         
         if (response.success) {
           setBlogs(response.data);
         }
       } catch (err: any) {
-        console.error('Failed to load home blogs:', err);
+        console.error('Failed to load featured blogs:', err);
         setError('Failed to load news');
+        
+        // Fallback: Show empty section instead of error
+        setBlogs([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLatestBlogs();
+    fetchFeaturedBlogs();
   }, []);
 
   // --- Helpers ---
@@ -57,7 +69,6 @@ const HomeLatestNews: React.FC = () => {
   };
 
   const getCategory = (blog: Blog) => {
-    // Handle array or string category structure
     if (Array.isArray(blog.category)) return blog.category[0];
     return blog.category || 'News';
   };
@@ -66,21 +77,22 @@ const HomeLatestNews: React.FC = () => {
     return (
       <div className="max-w-[85rem] mx-auto px-4 py-12">
         <div className="animate-pulse space-y-8">
-           <div className="h-8 bg-gray-200 w-48 rounded"></div>
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-             <div className="h-96 bg-gray-200 rounded-xl"></div>
-             <div className="grid grid-cols-2 gap-6">
-               {[...Array(4)].map((_, i) => (
-                 <div key={i} className="h-40 bg-gray-200 rounded-xl"></div>
-               ))}
-             </div>
-           </div>
+          <div className="h-8 bg-gray-200 w-48 rounded"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="h-96 bg-gray-200 rounded-xl"></div>
+            <div className="grid grid-cols-2 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-40 bg-gray-200 rounded-xl"></div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (error || blogs.length === 0) return null;
+  // Show nothing if no featured blogs
+  if (blogs.length === 0) return null;
 
   // Split data: First item is "Featured", rest are "Grid"
   const featuredPost = blogs[0];
@@ -93,13 +105,13 @@ const HomeLatestNews: React.FC = () => {
         {/* --- Header --- */}
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-5xl font-black uppercase tracking-tight">
-            <span className="text-blue-500">LATEST</span> <span className="text-gray-900">NEWS</span>
+            <span className="text-blue-500">FEATURED</span> <span className="text-gray-900">NEWS</span>
           </h2>
           <Link 
             to="/blogs" 
             className="text-xs font-bold text-gray-800 hover:text-blue-500 uppercase tracking-wide flex items-center transition-colors"
           >
-            View All Post
+            View All Posts
             <ArrowRight className="w-3 h-3 ml-1" />
           </Link>
         </div>
@@ -129,20 +141,19 @@ const HomeLatestNews: React.FC = () => {
               </Link>
               
               <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-3">
-                 {/* Strip HTML and limit length */}
-                 {featuredPost.meta_tags || featuredPost.html?.replace(/<[^>]*>/g, '').substring(0, 150) + '...'}
+                {featuredPost.meta_tags || featuredPost.excerpt || featuredPost.html?.replace(/<[^>]*>/g, '').substring(0, 150) + '...'}
               </p>
 
               <div className="mt-auto flex items-center justify-between pt-2">
-                 <span className="text-xs font-bold text-gray-400 uppercase">
-                    {formatDate(featuredPost.published_at || featuredPost.created_at)}
-                 </span>
-                 <Link 
-                    to={`/blog/${getCleanSlug(featuredPost)}`} 
-                    className="text-xs font-bold text-gray-900 uppercase flex items-center hover:text-blue-600 transition-colors"
-                 >
-                    Read More <ArrowRight className="w-3 h-3 ml-1 text-blue-500" />
-                 </Link>
+                <span className="text-xs font-bold text-gray-400 uppercase">
+                  {formatDate(featuredPost.published_at || featuredPost.created_at)}
+                </span>
+                <Link 
+                  to={`/blog/${getCleanSlug(featuredPost)}`} 
+                  className="text-xs font-bold text-gray-900 uppercase flex items-center hover:text-blue-600 transition-colors"
+                >
+                  Read More <ArrowRight className="w-3 h-3 ml-1 text-blue-500" />
+                </Link>
               </div>
             </div>
           </div>
@@ -152,15 +163,15 @@ const HomeLatestNews: React.FC = () => {
             {sidePosts.map((post) => (
               <div key={post._id} className="group flex flex-col">
                 <Link to={`/blog/${getCleanSlug(post)}`} className="block overflow-hidden rounded-xl relative mb-3">
-                   <img 
-                     src={getBlogImageUrl(post)} 
-                     alt={post.title} 
-                     className="w-full aspect-[4/3] object-cover transform group-hover:scale-105 transition-transform duration-500"
-                   />
-                   {/* Badge Overlapping Image Bottom */}
-                   <span className="absolute bottom-3 left-3 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider rounded-sm shadow-sm">
-                      {getCategory(post)}
-                   </span>
+                  <img 
+                    src={getBlogImageUrl(post)} 
+                    alt={post.title} 
+                    className="w-full aspect-[4/3] object-cover transform group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {/* Badge Overlapping Image Bottom */}
+                  <span className="absolute bottom-3 left-3 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider rounded-sm shadow-sm">
+                    {getCategory(post)}
+                  </span>
                 </Link>
                 
                 <Link to={`/blog/${getCleanSlug(post)}`}>
@@ -168,12 +179,21 @@ const HomeLatestNews: React.FC = () => {
                     {post.title}
                   </h4>
                 </Link>
+                
+                {/* Optional: Add date for small posts */}
+                <p className="text-xs text-gray-400 mt-1">
+                  {formatDate(post.published_at || post.created_at)}
+                </p>
               </div>
             ))}
             
-            {/* If fewer than 5 posts, this grid will just naturally show what is available */}
+            {/* Show empty slots if fewer than 5 featured blogs */}
+            {sidePosts.length < 4 && Array.from({ length: 4 - sidePosts.length }).map((_, index) => (
+              <div key={`empty-${index}`} className="opacity-0">
+                {/* Empty placeholder to maintain grid layout */}
+              </div>
+            ))}
           </div>
-
         </div>
       </div>
     </section>

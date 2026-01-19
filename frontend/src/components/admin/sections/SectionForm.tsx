@@ -137,7 +137,8 @@ const SectionForm: React.FC = () => {
     { value: 'full-video', label: 'Full Video', description: 'Single video displayed full-width with autoplay' },
     { value: 'slider', label: 'Slider', description: 'Multiple videos in a horizontal slider/carousel' },
     { value: 'grid', label: 'Grid Layout', description: 'Videos arranged in a fixed grid (2x2, 3x3, etc.)' },
-    { value: 'masonry', label: 'Masonry Layout', description: 'Videos in a Pinterest-style masonry layout' }
+    { value: 'masonry', label: 'Masonry Layout', description: 'Videos in a Pinterest-style masonry layout' },
+     { value: 'reels', label: 'Reels Layout', description: 'Vertical scrolling videos like Instagram Reels/TikTok' } 
   ];
 
   if (loading) {
@@ -306,6 +307,14 @@ const SectionForm: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {formData.layoutType === 'reels' && (
+    <div className="flex flex items-center justify-center space-y-2">
+        {[1, 2, 3].map(i => (
+            <div key={i} className="w-24 h-32 bg-gradient-to-b from-purple-400 to-pink-400 border border-purple-200 rounded-lg"></div>
+        ))}
+    </div>
+)}
 
             {formData.layoutType === 'slider' && (
               <div className="mb-6">
