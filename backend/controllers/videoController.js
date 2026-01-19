@@ -74,8 +74,6 @@ class VideoController {
             });
 
             await video.save();
-
-            // Get populated video for response
             const populatedVideo = await Video.findById(video._id)
                 .select('-path -__v')
                 .lean();
