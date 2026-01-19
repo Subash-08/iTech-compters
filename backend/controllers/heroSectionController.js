@@ -502,11 +502,6 @@ exports.toggleSlideActive = catchAsyncErrors(async (req, res, next) => {
         data: heroSection
     });
 });
-
-// backend/controllers/heroSectionController.js
-// Update the getAvailableVideos function:
-
-// Get available videos for hero section
 exports.getAvailableVideos = catchAsyncErrors(async (req, res, next) => {
     try {
         const { search, page = 1, limit = 20 } = req.query;
@@ -520,22 +515,14 @@ exports.getAvailableVideos = catchAsyncErrors(async (req, res, next) => {
             ];
         }
 
-        // First check if Video model exists
-        if (!Video) {
-            return res.status(404).json({
-                success: false,
-                message: 'Video model not found'
-            });
-        }
-
         const total = await Video.countDocuments(filter);
 
-        // Fix the select statement - include _id
+        // Remove durationFormatted from select - it's a virtual field
         const videos = await Video.find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
-            .select('_id title description url thumbnailUrl durationFormatted optimizedUrl createdAt'); // Added _id
+            .select('_id title description url thumbnailUrl duration optimizedUrl createdAt'); // Removed durationFormatted
 
         res.status(200).json({
             success: true,

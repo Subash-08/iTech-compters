@@ -1,3 +1,4 @@
+// backend/models/Video.js
 const mongoose = require('mongoose');
 
 const videoSchema = new mongoose.Schema({
@@ -86,7 +87,10 @@ const videoSchema = new mongoose.Schema({
         default: false
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    // Add this to include virtuals in toJSON() and toObject()
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
 
 // Virtual for formatted duration
