@@ -503,38 +503,60 @@ exports.toggleSlideActive = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
+// backend/controllers/heroSectionController.js
+// Update the getAvailableVideos function:
+
 // Get available videos for hero section
 exports.getAvailableVideos = catchAsyncErrors(async (req, res, next) => {
-    const { search, page = 1, limit = 20 } = req.query;
-    const skip = (page - 1) * limit;
+    try {
+        const { search, page = 1, limit = 20 } = req.query;
+        const skip = (page - 1) * limit;
 
-    const filter = {};
-    if (search) {
-        filter.$or = [
-            { title: { $regex: search, $options: 'i' } },
-            { description: { $regex: search, $options: 'i' } }
-        ];
-    }
-
-    const total = await Video.countDocuments(filter);
-    const videos = await Video.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .select('title description url thumbnailUrl durationFormatted optimizedUrl createdAt');
-
-    res.status(200).json({
-        success: true,
-        data: {
-            videos,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total,
-                pages: Math.ceil(total / limit)
-            }
+        const filter = {};
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
         }
-    });
+
+        // First check if Video model exists
+        if (!Video) {
+            return res.status(404).json({
+                success: false,
+                message: 'Video model not found'
+            });
+        }
+
+        const total = await Video.countDocuments(filter);
+
+        // Fix the select statement - include _id
+        const videos = await Video.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .select('_id title description url thumbnailUrl durationFormatted optimizedUrl createdAt'); // Added _id
+
+        res.status(200).json({
+            success: true,
+            data: {
+                videos,
+                pagination: {
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    total,
+                    pages: Math.ceil(total / limit)
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Get available videos error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch available videos',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
 });
 
 exports.reorderHeroSections = catchAsyncErrors(async (req, res, next) => {
