@@ -66,6 +66,8 @@ import NavbarSettings from './navbar/NavbarSettings';
 import InvoiceCalculator from './pc-invoice/InvoiceCalculator';
 import FeaturedBrandList from './featured-brands/FeaturedBrandList';
 import FeaturedBrandForm from './featured-brands/FeaturedBrandForm';
+import PreBuildShowcaseList from './PreBuildShowcase/PreBuildShowcaseList';
+import PreBuildShowcaseForm from './PreBuildShowcase/PreBuildShowcaseForm';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -381,6 +383,12 @@ const sidebarItems: SidebarItem[] = [
         path: '/admin/sections'
       },
       {
+        id: 'prebuild-showcase',
+        label: 'Pre-Build Showcase',
+        icon: <Icons.Layout className="w-4 h-4" />,
+        path: '/admin/pre-build-showcase'
+      },
+      {
         id: 'blog',
         label: 'Blogs',
         icon: <Icons.FileText className="w-4 h-4" />,
@@ -589,6 +597,9 @@ const sidebarItems: SidebarItem[] = [
           <Route path="/featured-brands" element={<FeaturedBrandList />} />
               <Route path="/featured-brands/new" element={<FeaturedBrandForm />} />
               <Route path="/featured-brands/edit/:id" element={<FeaturedBrandForm />} />
+              <Route path="/pre-build-showcase" element={<PreBuildShowcaseList />} />
+<Route path="/pre-build-showcase/new" element={<PreBuildShowcaseForm />} />
+<Route path="/pre-build-showcase/edit/:id" element={<PreBuildShowcaseForm />} />
                </Routes>
           </div>
         </main>

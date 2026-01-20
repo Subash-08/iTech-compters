@@ -16,6 +16,7 @@ import VideoSectionsPage from '../video/VideoSectionsPage';
 import PCPackageSection from './PCPackageSection';
 import HomeLatestNews from './HomeLatestNews';
 import TrustedBrandsSection from './TrustedBrandsSection';
+import PreBuildSection from './PreBuildSection';
 
 const App: React.FC = () => {
   // Business Details Constants
@@ -131,7 +132,8 @@ const App: React.FC = () => {
         <HomePage />
         {/* <DealsSection /> */}
         <PcBuilderPromo />
-        <PCPackageSection />
+        <PreBuildSection />
+        {/* <PCPackageSection /> */}
         <VideoSectionsPage />
         
         <section className="py-12">

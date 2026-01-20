@@ -1,25 +1,19 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { preBuildShowcaseService } from '../admin/services/preBuildShowcaseService';
+import { PreBuildShowcaseItem } from '../admin/types/preBuildShowcase';
+import { getImageUrl } from '../utils/imageUtils';
 
-// --- Types ---
-interface ProductCardProps {
-  category: string;
-  title: string;
-  price: string;
-  image: string;
-  delay?: number;
-  className?: string;
-  isWide?: boolean;
-}
+// --- Sub Components ---
 
-const ShopButton: React.FC = () => {
-  const navigate = useNavigate(); // ✅ CORRECT PLACE
+const ShopButton: React.FC<{ link: string }> = ({ link }) => {
+  const navigate = useNavigate();
 
   return (
     <motion.button
-      onClick={() => navigate('/prebuilt-pcs')}
+      onClick={() => navigate(link)}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       className="bg-white text-black px-6 py-2.5 rounded-md font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] z-30"
@@ -30,15 +24,12 @@ const ShopButton: React.FC = () => {
   );
 };
 
-const ProductCard: React.FC<ProductCardProps> = ({ 
-  category, 
-  title, 
-  price, 
-  image, 
-  delay = 0,
-  className = '',
-  isWide = false
-}) => {
+interface ProductCardProps {
+  item: PreBuildShowcaseItem;
+  delay?: number;
+}
+
+const ProductCard: React.FC<ProductCardProps> = ({ item, delay = 0 }) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
 
@@ -48,13 +39,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
       initial={{ opacity: 0, y: 30 }}
       animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
       transition={{ duration: 0.5, delay, ease: "easeOut" }}
-      className={`relative group overflow-hidden rounded-xl bg-black h-[450px] md:h-[500px] flex flex-col border border-white/10 ${className}`}
+      className={`relative group overflow-hidden rounded-xl bg-black h-[450px] md:h-[500px] flex flex-col border border-white/10 ${
+        item.isWide ? 'lg:col-span-4' : 'lg:col-span-1'
+      }`}
     >
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
-         <img 
-          src={image} 
-          alt={title} 
+        <img 
+          src={getImageUrl(item.image)} 
+          alt={item.title} 
           className="w-full h-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-105"
         />
       </div>
@@ -63,35 +56,55 @@ const ProductCard: React.FC<ProductCardProps> = ({
       <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-black via-black/50 to-black/30" />
       <div className="absolute inset-0 z-10 pointer-events-none bg-black/20 group-hover:bg-black/10 transition-colors duration-500" />
 
-      {/* Content Container - Centered Vertically and Horizontally */}
+      {/* Content Container */}
       <div className="relative z-20 flex flex-col h-full justify-center items-center text-center p-6 md:p-8">
-        
         <div className="flex flex-col items-center space-y-3 md:space-y-4">
           <span className="text-[10px] md:text-xs font-bold tracking-[0.2em] text-gray-400 uppercase">
-            {category}
+            {item.category}
           </span>
           
-          <h3 className={`font-black uppercase leading-[0.9] text-white ${isWide ? 'text-5xl md:text-7xl' : 'text-3xl md:text-4xl'}`}>
-            {title.split(' ').map((word, i) => (
+          <h3 className={`font-black uppercase leading-[0.9] text-white ${
+            item.isWide ? 'text-5xl md:text-7xl' : 'text-3xl md:text-4xl'
+          }`}>
+            {item.title.split(' ').map((word, i) => (
               <span key={i} className="block">{word}</span>
             ))}
           </h3>
           
-          <p className="font-semibold text-brand-red text-lg md:text-xl tracking-wide text-white">
-            {price}
+          <p className="font-semibold text-white text-lg md:text-xl tracking-wide">
+          Starting ₹{item.price}
           </p>
 
           <div className="pt-4 md:pt-6">
-            <ShopButton />
+            <ShopButton link={item.buttonLink} />
           </div>
         </div>
-
       </div>
     </motion.div>
   );
 };
 
 const PreBuildSection: React.FC = () => {
+  const [items, setItems] = useState<PreBuildShowcaseItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const response = await preBuildShowcaseService.getShowcaseItems();
+        setItems(response.data);
+      } catch (error) {
+        console.error("Failed to load pre-build showcase", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchItems();
+  }, []);
+
+  if (loading) return null; // Or a skeleton loader
+  if (items.length === 0) return null;
+
   return (
     <section className="relative w-full max-w-[1600px] mx-auto px-4 md:px-8 py-16">
       {/* Header */}
@@ -102,20 +115,13 @@ const PreBuildSection: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
-        
-
-        <div className="lg:col-span-4">
-          <ProductCard
-            category="Creative Power"
-            title="Content Creation"
-            price="Starting ₹49999"
-            image="https://images.unsplash.com/photo-1598550476439-6847785fcea6?q=80&w=1000&auto=format&fit=crop"
-            delay={0.2}
-            isWide={true}
+        {items.map((item, index) => (
+          <ProductCard 
+            key={item._id} 
+            item={item} 
+            delay={index * 0.1}
           />
-        </div>
-
-
+        ))}
       </div>
     </section>
   );

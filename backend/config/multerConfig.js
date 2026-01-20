@@ -789,7 +789,34 @@ const blogUpload = multer({
         files: 1
     }
 });
-
+const preBuildShowcaseUpload = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            try {
+                // Save to public/uploads/sections/prebuild
+                const uploadPath = path.join(__dirname, '../public/uploads/sections/prebuild');
+                ensureUploadDir(uploadPath);
+                cb(null, uploadPath);
+            } catch (error) {
+                cb(new Error(`Failed to create upload directory: ${error.message}`), null);
+            }
+        },
+        filename: function (req, file, cb) {
+            try {
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const fileExtension = path.extname(file.originalname);
+                cb(null, `prebuild-showcase-${uniqueSuffix}${fileExtension}`);
+            } catch (error) {
+                cb(new Error(`Failed to generate filename: ${error.message}`), null);
+            }
+        }
+    }),
+    fileFilter: fileFilter, // Using your existing image file filter
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
+        files: 1
+    }
+});
 // ========== EXPORT EVERYTHING ==========
 
 module.exports = {
@@ -826,5 +853,6 @@ module.exports = {
     featuredBrandBulkUpload,
     processFeaturedBrandLogo,
     deleteFeaturedBrandLogo,
-    featuredBrandFileFilter
+    featuredBrandFileFilter,
+    preBuildShowcaseUpload
 };

@@ -29,6 +29,7 @@ const invoiceRoutes = require('./routes/invoiceRoutes');
 const reelRoutes = require('./routes/reels');
 const navbarSettingRoutes = require('./routes/navbarSetting');
 const featuredBrandRoutes = require('./routes/featuredBrandRoutes');
+const preBuildShowcaseRoutes = require('./routes/preBuildShowcaseRoutes');
 
 const { cleanupTempFiles } = require('./middlewares/uploadVideo');
 
@@ -79,6 +80,7 @@ app.use(cleanupTempFiles);
 
 // API Routes
 
+app.use('/api/v1', preBuildShowcaseRoutes);
 app.use('/api/v1', featuredBrandRoutes);
 app.use('/api/v1', blogRoutes);
 app.use('/api/v1/videos', videoRoutes);

@@ -182,7 +182,7 @@ const HomePage: React.FC = () => {
             src={getImageUrl(cat.image)}
             alt={cat.name}
             className="
-              w-24 h-24 
+              w-28 h-28 
               object-contain 
               grayscale-80
               group-hover:grayscale-0 
@@ -254,7 +254,7 @@ const HomePage: React.FC = () => {
                   <FadeImage
                     src={getImageUrl(brand.logo)}
                     alt={brand.name}
-                    className="w-20 h-20 
+                    className="w-24 h-24 
               object-contain 
               grayscale-80
               group-hover:grayscale-0 
