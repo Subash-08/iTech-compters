@@ -17,7 +17,7 @@ import PCPackageSection from './PCPackageSection';
 import HomeLatestNews from './HomeLatestNews';
 import TrustedBrandsSection from './TrustedBrandsSection';
 import PreBuildSection from './PreBuildSection';
-
+import YTVideoSection from './YTVideoSlider';
 const App: React.FC = () => {
   // Business Details Constants
   const companyName = "iTech Computers";
@@ -148,6 +148,7 @@ const App: React.FC = () => {
 
         <TrustedBrandsSection />
         <HomeLatestNews />
+        <YTVideoSection />
       </main>
     </div>
   );

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { SidebarItem } from './types/admin';
 import { Icons } from './Icon';
-import {Computer, ClipboardList, Quote} from 'lucide-react'
+import {Computer, ClipboardList, Quote, Youtube} from 'lucide-react'
 
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -68,6 +68,9 @@ import FeaturedBrandList from './featured-brands/FeaturedBrandList';
 import FeaturedBrandForm from './featured-brands/FeaturedBrandForm';
 import PreBuildShowcaseList from './PreBuildShowcase/PreBuildShowcaseList';
 import PreBuildShowcaseForm from './PreBuildShowcase/PreBuildShowcaseForm';
+import VideoForm from './ytvideos/YTVideoForm';
+import YTVideoList from './ytvideos/YTVideoList';
+import YTVideoForm from './ytvideos/YTVideoForm';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -399,7 +402,13 @@ const sidebarItems: SidebarItem[] = [
         label: 'Featured Brands',
         icon: <Icons.Layout className="w-4 h-4" />,
         path: '/admin/featured-brands'
-      }
+      },
+      {
+  id: 'yt-videos',
+  label: 'Tech Reviews (YT)', // Distinct label to differentiate from your existing "Videos"
+  icon: <Youtube className="w-4 h-4" />, // Use Youtube icon if available, or Video icon
+  path: '/admin/yt-videos' // Make sure this matches your routing structure (e.g., if you prefix /admin in parent)
+}
     ]
   },
 
@@ -600,6 +609,10 @@ const sidebarItems: SidebarItem[] = [
               <Route path="/pre-build-showcase" element={<PreBuildShowcaseList />} />
 <Route path="/pre-build-showcase/new" element={<PreBuildShowcaseForm />} />
 <Route path="/pre-build-showcase/edit/:id" element={<PreBuildShowcaseForm />} />
+
+<Route path="/yt-videos" element={<YTVideoList />} />
+<Route path="/yt-videos/new" element={<YTVideoForm />} />
+<Route path="/yt-videos/edit/:id" element={<YTVideoForm />} />
                </Routes>
           </div>
         </main>

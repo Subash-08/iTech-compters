@@ -297,7 +297,12 @@ html {
 }
 /* src/styles/blog-content.css */
 .blog-content {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
     sans-serif;
   line-height: 1.8;
   color: #333;
@@ -462,4 +467,82 @@ html {
   .blog-content p {
     font-size: 1rem;
   }
+}
+/* Container adjustments */
+.video-slider-container {
+  max-width: 1420px; /* Based on your slick-track width */
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Slide Wrapper styling */
+.video-slide {
+  padding: 0 10px; /* Creates spacing between slides */
+  box-sizing: border-box;
+}
+
+.video-wrapper {
+  position: relative;
+  cursor: pointer;
+}
+
+/* Thumbnail and Image */
+.video-thumbnail {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9; /* Standard YouTube ratio */
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Play Icon Overlay */
+.play-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px; /* Adjust size as needed */
+  height: 50px;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.play-icon img {
+  width: 100%;
+  height: 100%;
+}
+
+.video-thumbnail:hover .play-icon {
+  opacity: 1;
+}
+
+/* Title Styling */
+.video-title-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  margin-top: 10px;
+}
+
+.video-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+  color: #333;
+  /* Limit to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.video-title-link:hover .video-title {
+  color: #ff0000; /* YouTube Red hover effect */
 }
