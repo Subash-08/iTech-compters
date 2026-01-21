@@ -600,7 +600,44 @@ const createMultipleBrands = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler(error.message, 500));
     }
 });
+const getHomeShowcaseBrands = catchAsyncErrors(async (req, res, next) => {
 
+    // We only care about 'active' brands for the homepage
+    const brands = await Brand.find({ status: 'active' })
+        .sort({ isFeatured: -1, order: 1, name: 1 }) // Featured first -> then by Order -> then Name
+        .select('name slug logo order isFeatured status'); // Select only needed fields
+
+    res.status(200).json({
+        success: true,
+        count: brands.length,
+        brands
+    });
+});
+
+// 2. UPDATE Function for Home Page Settings
+// Updates ONLY the order and featured status.
+const updateHomeShowcaseSettings = catchAsyncErrors(async (req, res, next) => {
+    const { id } = req.params;
+    const { order, isFeatured } = req.body;
+
+    const brand = await Brand.findById(id);
+
+    if (!brand) {
+        return next(new ErrorHandler('Brand not found', 404));
+    }
+
+    // Update only if provided
+    if (order !== undefined) brand.order = parseInt(order);
+    if (isFeatured !== undefined) brand.isFeatured = isFeatured;
+
+    await brand.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Home page settings updated',
+        brand
+    });
+});
 
 module.exports = {
     createBrand,
@@ -609,5 +646,7 @@ module.exports = {
     updateBrand,
     updateBrandStatus,
     deleteBrand,
-    createMultipleBrands
+    createMultipleBrands,
+    getHomeShowcaseBrands,
+    updateHomeShowcaseSettings
 };

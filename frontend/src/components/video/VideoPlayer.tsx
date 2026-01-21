@@ -6,9 +6,9 @@ interface VideoPlayerProps {
   poster?: string;
   className?: string;
   loop?: boolean;
-  muted?: boolean; // Initial state
+  muted?: boolean;
   controls?: boolean;
-  objectFit?: 'cover' | 'contain';
+  objectFit?: 'cover' | 'contain'; // Interface allows both
   onPlay?: () => void;
   onPause?: () => void;
   onEnded?: () => void;
@@ -22,7 +22,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
   loop = true,
   muted = true,
   controls = false,
-  objectFit = 'cover',
+  objectFit = 'contain', // DEFAULT IS NOW CONTAIN (No cropping)
   onPlay,
   onPause,
   onEnded,
@@ -34,16 +34,13 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
   const [isMuted, setIsMuted] = useState(muted);
   const [error, setError] = useState<boolean>(false);
 
-  // Expose internal ref to parent
   useImperativeHandle(ref, () => internalRef.current as HTMLVideoElement);
 
-  // Full URL helper
   const getFullUrl = (url: string) => {
     if (!url) return '';
     return url.startsWith('http') ? url : `${baseURL}${url}`;
   };
 
-  // Safety: Pause if scrolled out of view (Optimization only, not logic)
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -60,14 +57,14 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
 
   return (
     <div 
-      className={`relative overflow-hidden bg-gray-900 ${className}`}
+      className={`relative overflow-hidden bg-black ${className}`} // Changed to bg-black for better letterboxing
       onClick={onClick}
     >
       <video
         ref={internalRef}
         src={getFullUrl(src)}
         poster={getFullUrl(poster || '')}
-        className={`w-full h-full object-${objectFit}`}
+        className={`w-full h-full object-${objectFit}`} // Dynamically applies contain or cover
         loop={loop}
         muted={isMuted}
         playsInline
@@ -88,31 +85,26 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
         }}
       />
 
-      {/* Loading Skeleton */}
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10">
           <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
         </div>
       )}
 
-      {/* Error State */}
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-20">
+        <div className="absolute inset-0 flex items-center justify-center bg-black z-20">
           <span className="text-white/50 text-xs">Video Unavailable</span>
         </div>
       )}
 
-      {/* UI Overlays (Only show if default controls are off) */}
       {!controls && !isLoading && !error && (
         <>
-          {/* Play/Pause Center Indicator (Fades out when playing) */}
           <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none ${isPlaying ? 'opacity-0' : 'opacity-100'}`}>
             <div className="w-14 h-14 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center">
               <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
             </div>
           </div>
 
-          {/* Now Playing Badge */}
           {isPlaying && (
             <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full z-10">
               <div className="flex gap-0.5 items-end h-3">
@@ -124,7 +116,6 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
             </div>
           )}
 
-          {/* Mute Toggle */}
           <button 
             onClick={(e) => {
               e.stopPropagation();

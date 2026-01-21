@@ -7,11 +7,13 @@ const {
     updateBrand,
     updateBrandStatus,
     deleteBrand,
-    createMultipleBrands
+    createMultipleBrands,
+    getHomeShowcaseBrands,
+    updateHomeShowcaseSettings
 } = require("../controllers/brandController");
 const { brandUpload } = require("../config/multerConfig");
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/authenticate");
-
+router.get("/brands/home-showcase", getHomeShowcaseBrands);
 // Public Routes - No authentication required
 router.get("/brands", getAllBrands);
 router.get("/brand/slug/:slug", getBrand);
@@ -38,7 +40,20 @@ router.get(
     authorizeRoles('admin'),
     getAllBrands
 );
+router.get(
+    "/admin/brands/home-showcase",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    getHomeShowcaseBrands
+);
 
+// Update settings (Order/Featured) for a specific brand
+router.patch(
+    "/admin/brands/:id/home-showcase",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    updateHomeShowcaseSettings
+);
 router.get(
     "/admin/brands/:slug",
     isAuthenticatedUser,

@@ -55,6 +55,16 @@ const categorySchema = new mongoose.Schema(
             ref: "User",
             default: null
         },
+        order: {
+            type: Number,
+            default: 0,
+            index: true
+        },
+        isFeatured: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
         metaTitle: String,
         metaDescription: String,
         metaKeywords: [String],

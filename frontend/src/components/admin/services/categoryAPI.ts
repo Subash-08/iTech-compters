@@ -131,6 +131,18 @@ export const categoryAPI = {
   removeImage: async (id: string) => {
     const response = await api.delete(`/admin/categories/${id}/image`);
     return response.data;
+  },
+  getHomeShowcaseCategories: async () => {
+    const response = await api.get('/admin/categories/home-showcase');
+    return response.data;
+  },
+
+  /**
+   * NEW: Update Home Page settings (Order/Featured)
+   */
+  updateHomeShowcaseCategorySettings: async (id: string, data: { order?: number; isFeatured?: boolean }) => {
+    const response = await api.patch(`/admin/categories/${id}/home-showcase`, data);
+    return response.data;
   }
 };
 

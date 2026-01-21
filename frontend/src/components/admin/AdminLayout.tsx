@@ -71,6 +71,8 @@ import PreBuildShowcaseForm from './PreBuildShowcase/PreBuildShowcaseForm';
 import VideoForm from './ytvideos/YTVideoForm';
 import YTVideoList from './ytvideos/YTVideoList';
 import YTVideoForm from './ytvideos/YTVideoForm';
+import HomeBrandManager from './home/HomeBrandManager';
+import HomeCategoryManager from './home/HomeCategoryManager';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
@@ -368,6 +370,18 @@ const sidebarItems: SidebarItem[] = [
         path: '/admin/hero-sections'
       },
       {
+  id: 'home-featured-categories',
+  label: 'Homepage Categories',
+  icon: <Icons.Layout className="w-4 h-4" />,
+  path: '/admin/home-featured-categories'
+},
+      {
+        id:'home-featured-brands',
+        label: 'Home Featured Brands',
+        icon: <Icons.Layout className="w-4 h-4" />,
+        path: '/admin/home-featured-brands'
+      },
+      {
         id: 'showcase-sections',
         label: 'Showcase Sections',
         icon: <Icons.Layout className="w-4 h-4" />,
@@ -613,6 +627,9 @@ const sidebarItems: SidebarItem[] = [
 <Route path="/yt-videos" element={<YTVideoList />} />
 <Route path="/yt-videos/new" element={<YTVideoForm />} />
 <Route path="/yt-videos/edit/:id" element={<YTVideoForm />} />
+
+<Route path="/home-featured-brands" element={<HomeBrandManager />} />
+<Route path="/home-featured-categories" element={<HomeCategoryManager />} />
                </Routes>
           </div>
         </main>

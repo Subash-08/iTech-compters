@@ -13,14 +13,31 @@ const {
     getCategoriesDropdown,
     deleteAllBrands,
     deleteAllCategories,
-    createMultipleCategories
+    createMultipleCategories,
+    getHomeShowcaseCategories,
+    updateHomeShowcaseCategorySettings
 } = require("../controllers/categoryController");
 const { categoryUpload, handleMulterError } = require("../config/multerConfig");
-
+router.get("/categories/home-showcase", getHomeShowcaseCategories);
 // Public routes - No authentication required
 router.get("/categories", getAllCategories);
 router.get("/category/:slug", getCategoryBySlug);
 
+
+router.get(
+    "/admin/categories/home-showcase",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    getHomeShowcaseCategories
+);
+
+// 2. NEW: Update Showcase Settings
+router.patch(
+    "/admin/categories/:id/home-showcase",
+    isAuthenticatedUser,
+    authorizeRoles('admin'),
+    updateHomeShowcaseCategorySettings
+);
 // Admin routes - Category Management (Admin only)
 router.post(
     "/admin/categories",

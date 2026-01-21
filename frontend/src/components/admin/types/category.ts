@@ -24,6 +24,8 @@ export interface Category {
   subcategories?: Category[];
   createdBy?: string;
   updatedBy?: string;
+  order?: number;
+  isFeatured?: boolean;
 }
 
 export interface CategoryFormData {

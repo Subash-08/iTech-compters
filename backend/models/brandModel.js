@@ -35,6 +35,16 @@ const brandSchema = new mongoose.Schema(
                 default: null
             }
         },
+        order: {
+            type: Number,
+            default: 0,
+            index: true
+        },
+        isFeatured: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
         // Status Management
         status: {
             type: String,
@@ -98,6 +108,7 @@ brandSchema.virtual("products", {
 brandSchema.index({ name: 1, status: 1 });
 brandSchema.index({ slug: 1, status: 1 });
 brandSchema.index({ 'logo.url': 1 });
+brandSchema.index({ isFeatured: -1, order: 1 });
 
 // Prevent hard deletion
 brandSchema.pre('remove', function (next) {

@@ -17,6 +17,8 @@ export interface Brand {
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string[];
+  order?: number;
+  isFeatured?: boolean;
   createdBy?: string;
   updatedBy?: string;
   createdAt: string;

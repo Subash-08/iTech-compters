@@ -136,7 +136,13 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
           <div className="relative">
             <div
               ref={carouselRef}
-              className="flex gap-4 lg:gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide scroll-smooth"
+              /* ✅ UPDATED CLASSNAMES:
+                 1. Removed 'scrollbar-hide' (unless you have the plugin installed, this does nothing).
+                 2. Added '[&::-webkit-scrollbar]:hidden' for Chrome/Safari/Edge.
+                 3. Added '[-ms-overflow-style:none]' for IE/Edge.
+                 4. Added '[scrollbar-width:none]' for Firefox.
+              */
+              className="flex gap-4 lg:gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {products.map((product) => (
                 <div 

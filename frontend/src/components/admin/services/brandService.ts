@@ -44,5 +44,20 @@ export const brandService = {
   async deleteBrand(slug: string) {
     const response = await api.delete(`/admin/brands/${slug}`);
     return response.data;
-  }
+  },
+  async getHomeShowcaseBrands() {
+    const response = await api.get('/admin/brands/home-showcase');
+    return response.data;
+  },
+
+  // NEW: Update Home Page settings (Order/Featured)
+  async updateHomeShowcaseSettings(id: string, data: { order?: number; isFeatured?: boolean }) {
+    const response = await api.patch(`/admin/brands/${id}/home-showcase`, data);
+    return response.data;
+  },
+  async getPublicShowcaseBrands() {
+    // Note: No '/admin' prefix
+    const response = await api.get('/brands/home-showcase');
+    return response.data;
+  },
 };

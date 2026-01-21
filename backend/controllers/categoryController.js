@@ -742,3 +742,51 @@ exports.createMultipleCategories = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler(error.message, 500));
     }
 });
+
+exports.getHomeShowcaseCategories = catchAsyncErrors(async (req, res, next) => {
+    // Fetch all active categories
+    // Sort logic: 
+    // 1. Featured categories first (-1)
+    // 2. Then by Order number (1 = smallest first)
+    // 3. Then alphabetical by Name
+    const categories = await Category.find({ status: 'active' })
+        .select('name slug image order isFeatured status')
+        .sort({ isFeatured: -1, order: 1, name: 1 });
+
+    res.status(200).json({
+        success: true,
+        count: categories.length,
+        categories
+    });
+});
+
+// @desc    Update Home Page settings (Order/Featured)
+// @route   PATCH /api/admin/categories/:id/home-showcase
+// @access  Admin
+exports.updateHomeShowcaseCategorySettings = catchAsyncErrors(async (req, res, next) => {
+    const { id } = req.params;
+    const { order, isFeatured } = req.body;
+
+    const category = await Category.findById(id);
+
+    if (!category) {
+        return next(new ErrorHandler('Category not found', 404));
+    }
+
+    // Only update fields if they are provided in the request
+    if (order !== undefined) {
+        category.order = parseInt(order);
+    }
+
+    if (isFeatured !== undefined) {
+        category.isFeatured = isFeatured;
+    }
+
+    await category.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Category showcase settings updated',
+        category
+    });
+});

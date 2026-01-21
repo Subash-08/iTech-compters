@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import VideoPlayer from '../video/VideoPlayer';
-import { useSectionVideoController } from '../utils/useSectionVideoController'; // Ensure path is correct
+import { useSectionVideoController } from '../utils/useSectionVideoController';
 
 // --- Interfaces ---
 interface Video {
@@ -17,8 +17,8 @@ interface Section {
   title: string;
   description: string;
   layoutType: 'card' | 'slider' | 'grid' | 'masonry' | 'full-video' | 'reels';
-  autoplayMode?: 'none' | 'single' | 'all'; // Backend rule
-  defaultAutoplayIndex?: number;            // Backend rule
+  autoplayMode?: 'none' | 'single' | 'all';
+  defaultAutoplayIndex?: number;
   backgroundColor: string;
   textColor: string;
   maxWidth: string;
@@ -48,7 +48,6 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
     const targetIndex = section.defaultAutoplayIndex ?? 0;
 
     if (shouldAutoplay && section.videos.length > 0) {
-      // Small timeout ensures DOM is ready and refs are populated
       const timer = setTimeout(() => {
         play(targetIndex);
       }, 500);
@@ -63,13 +62,19 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
     const video = section.videos[0];
     if (!video) return null;
     return (
-      <div className="w-full h-[80vh] max-h-[900px] rounded-2xl overflow-hidden shadow-2xl">
+      <div className="
+        w-full 
+        relative
+        rounded-2xl overflow-hidden shadow-2xl bg-black
+       
+      ">
         <VideoPlayer
           ref={(el) => register(0, el)}
           src={video.url}
           poster={video.thumbnailUrl}
           onPlay={() => play(0)}
-          className="h-full"
+          className="w-full h-full"
+          objectFit="contain" // Ensures the whole video is visible without cropping
         />
       </div>
     );
@@ -78,7 +83,6 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
   const renderSlider = () => {
     const handleSlideChange = (newIndex: number) => {
       setCurrentSlide(newIndex);
-      // Auto-play the new slide if autoplay is enabled for this section
       if (section.autoplayMode !== 'none') {
         play(newIndex);
       } else {
@@ -94,12 +98,13 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
             style={{ transform: `translateX(-${currentSlide * 100}%)` }}
           >
             {section.videos.map((video, idx) => (
-              <div key={video._id || idx} className="w-full flex-shrink-0 relative aspect-video">
+              <div key={video._id || idx} className="w-full flex-shrink-0 relative aspect-video bg-black">
                 <VideoPlayer
                   ref={(el) => register(idx, el)}
                   src={video.url}
                   poster={video.thumbnailUrl}
-                  onPlay={() => play(idx)} // Enforce single playback manually
+                  onPlay={() => play(idx)}
+                  objectFit="contain"
                 />
               </div>
             ))}
@@ -141,13 +146,14 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
           variants={variants}
           className={`bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow ${isMasonry ? 'break-inside-avoid' : ''}`}
         >
-          <div className="aspect-video relative">
+          <div className="aspect-video relative bg-black">
             <VideoPlayer
               ref={(el) => register(idx, el)}
               src={video.url}
               poster={video.thumbnailUrl}
-              onPlay={() => play(idx)} // Crucial: clicking play on one pauses others
+              onPlay={() => play(idx)}
               onClick={() => toggle(idx)}
+              objectFit="contain"
             />
           </div>
           <div className="p-4">
@@ -160,8 +166,6 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
   );
 
   const renderReels = () => {
-    // Reels usually auto-play based on center focus. 
-    // Simplified logic: Click to play, only one plays.
     return (
       <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-4 scrollbar-hide">
         {section.videos.map((video, idx) => (
@@ -174,7 +178,7 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
                 ref={(el) => register(idx, el)}
                 src={video.url}
                 poster={video.thumbnailUrl}
-                objectFit="cover"
+                objectFit="cover" // Reels usually look better covering the full vertical space
                 onPlay={() => play(idx)}
                 onClick={() => toggle(idx)}
                 loop
