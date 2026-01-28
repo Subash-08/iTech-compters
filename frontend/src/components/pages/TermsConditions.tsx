@@ -178,7 +178,7 @@ const TermsConditions = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="bg-white p-3 rounded-lg">
                   <p className="text-sm text-gray-600">Phone / WhatsApp</p>
-                  <p className="font-medium">6382928973</p>
+                  <p className="font-medium">+91 63829 28973</p>
                 </div>
                 <div className="bg-white p-3 rounded-lg">
                   <p className="text-sm text-gray-600">Email</p>

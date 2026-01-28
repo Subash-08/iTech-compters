@@ -110,7 +110,7 @@ addToCart: async (cartData: AddToCartData): Promise<{ data: any; message: string
       }
 
       localStorageUtils.saveGuestCart(updatedCart);
-      toast.success('Product added to cart successfully');
+      toast.success('Product added to cart successfully', { toastId: 'prebuild-cart-add-1' });
       
       return {
         success: true,
@@ -278,7 +278,14 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
       const guestCart = localStorageUtils.getGuestCart();
       
       const variantId = cartData.variantData?.variantId || cartData.variantId;
-      const price = cartData.variantData?.price || cartData.product?.effectivePrice || cartData.product?.offerPrice || 0;
+const price = 
+        cartData.variantData?.price || 
+        cartData.product?.effectivePrice || 
+        cartData.product?.offerPrice || 
+        cartData.product?.price ||
+        cartData.product?.sellingPrice || 
+        cartData.product?.basePrice || // <--- ADD THIS
+        0;
       
       // Check if item already exists
       const existingItemIndex = guestCart.findIndex(
@@ -355,7 +362,7 @@ const addToCart = (cartData: AddToCartData) => async (dispatch: any, getState: a
         }
       });
       
-      toast.success('Product added to cart successfully');
+      toast.success('Product added to cart successfully', { toastId: 'product-cart-added-111' });
       
     } else {
       // For authenticated users
@@ -456,7 +463,7 @@ const updateCartQuantity = (updateData: UpdateCartQuantityData) => async (dispat
         }
       });
       
-      toast.success('Cart updated successfully');
+      toast.success('Cart updated successfully', { toastId: 'prebuild-cart-add-3' });
       
     } else {
       // For authenticated users, use the API
@@ -505,7 +512,7 @@ const removeFromCart = (removeData: RemoveFromCartData) => async (dispatch: any,
         }
       });
       
-      toast.success('Product removed from cart successfully');
+      toast.success('Product removed from cart successfully', { toastId: 'prebuild-cart-remove-4' });
     } else {
       // ✅ FIXED: Send variantId if it exists
       const payload = {
@@ -608,7 +615,7 @@ const syncGuestCart = () => async (dispatch: any, getState: any) => {
       localStorageUtils.clearGuestCart();
       localStorageUtils.setLastSyncedUser(currentUser);
       
-      toast.success(`Added ${guestCart.length} items to your cart!`);
+      toast.success(`Added ${guestCart.length} items to your cart!`, { toastId: 'prebuild-cart-add-4' });
     } else {
     }
     
@@ -858,7 +865,7 @@ const updatePreBuiltPCQuantity = (pcId: string, quantity: number) => async (disp
         }
       });
       
-      toast.success(response.data.message || 'Cart updated successfully');
+      toast.success(response.data.message || 'Cart updated successfully', { toastId: 'prebuild-cart-update-3' });
     }
     
   } catch (error: any) {

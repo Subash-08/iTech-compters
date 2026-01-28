@@ -8,7 +8,7 @@ interface VideoPlayerProps {
   loop?: boolean;
   muted?: boolean;
   controls?: boolean;
-  objectFit?: 'cover' | 'contain'; // Interface allows both
+  objectFit?: 'contain' | 'cover';
   onPlay?: () => void;
   onPause?: () => void;
   onEnded?: () => void;
@@ -22,7 +22,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
   loop = true,
   muted = true,
   controls = false,
-  objectFit = 'contain', // DEFAULT IS NOW CONTAIN (No cropping)
+  objectFit = 'cover',
   onPlay,
   onPause,
   onEnded,
@@ -57,14 +57,27 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
 
   return (
     <div 
-      className={`relative overflow-hidden bg-black ${className}`} // Changed to bg-black for better letterboxing
+      className={`relative overflow-hidden bg-black w-full h-full ${className}`}
+      style={{ 
+        width: '100%',
+        height: '100%',
+        minHeight: '100%'
+      }}
       onClick={onClick}
     >
       <video
         ref={internalRef}
         src={getFullUrl(src)}
         poster={getFullUrl(poster || '')}
-        className={`w-full h-full object-${objectFit}`} // Dynamically applies contain or cover
+        style={{ 
+          width: '100%',
+          height: '100%',
+          minWidth: '100%',
+          minHeight: '100%',
+          objectFit: objectFit,
+          objectPosition: 'center center',
+          display: 'block'
+        }}
         loop={loop}
         muted={isMuted}
         playsInline

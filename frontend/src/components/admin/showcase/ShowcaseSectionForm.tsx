@@ -60,7 +60,7 @@ const ShowcaseSectionForm: React.FC<ShowcaseSectionFormProps> = ({
         displayOrder: section.displayOrder,
         isActive: section.isActive,
         showViewAll: section.showViewAll,
-        viewAllLink: section.viewAllLink || '',
+        viewAllLink: '',
         timerConfig: section.timerConfig,
         styleConfig: section.styleConfig,
         visibility: section.visibility

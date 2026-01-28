@@ -1,7 +1,7 @@
 // src/components/blog/BlogList.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async'; // ✅ Added for SEO
+import { Helmet } from 'react-helmet-async';
 import { blogService, Blog } from '../admin/services/blogService';
 import { BlogCardSkeleton } from './Skeleton';
 import { getImageUrl, getPlaceholderImage } from '../utils/imageUtils';
@@ -33,7 +33,8 @@ const BlogList: React.FC<BlogListProps> = ({
   const [pages, setPages] = useState(0);
   
   // Filters state
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(''); // Controls the input field
+  const [activeSearch, setActiveSearch] = useState(''); // Controls the actual API call
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || '');
   const [selectedTag, setSelectedTag] = useState(initialTag || '');
   const [sortBy, setSortBy] = useState('-published_at');
@@ -43,11 +44,10 @@ const BlogList: React.FC<BlogListProps> = ({
   const [tags, setTags] = useState<Array<{ _id: string; count: number }>>([]);
   const [recentPosts, setRecentPosts] = useState<Blog[]>([]);
 
-  // --- SEO HELPER LOGIC START ---
+  // --- SEO HELPER LOGIC ---
   const siteUrl = "https://itechcomputers.shop";
   const currentUrl = `${siteUrl}${location.pathname}${location.search}`;
   
-  // Dynamic Title Construction
   let pageTitle = "Tech Blog, PC Build Guides & Reviews | iTech Computers";
   let pageDescription = "Explore the latest insights on custom PC building, hardware reviews, and technology trends. Expert advice from iTech Computers Salem.";
 
@@ -59,12 +59,10 @@ const BlogList: React.FC<BlogListProps> = ({
     pageDescription = `Browse all our tech articles tagged with ${selectedTag}.`;
   }
 
-  // Add pagination to title to prevent duplicate title SEO issues
   if (page > 1) {
     pageTitle = `${pageTitle} - Page ${page}`;
   }
 
-  // Structured Data (CollectionPage + ItemList)
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -81,7 +79,6 @@ const BlogList: React.FC<BlogListProps> = ({
       }))
     }
   };
-  // --- SEO HELPER LOGIC END ---
 
   // Fetch filter options on mount
   useEffect(() => {
@@ -132,7 +129,8 @@ const BlogList: React.FC<BlogListProps> = ({
         category: selectedCategory || undefined,
         tag: selectedTag || undefined,
         featured: featured ? 'true' : undefined,
-        search: searchQuery || undefined,
+        // ✅ CHANGED: Use activeSearch instead of searchQuery
+        search: activeSearch || undefined,
         sort: sortBy
       };
       const response = await blogService.getPublishedBlogs(filters);
@@ -178,12 +176,11 @@ const BlogList: React.FC<BlogListProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading, loadingMore, infiniteScroll, page, pages]);
 
-  // Load blogs when filters change
+  // ✅ CHANGED: Load blogs when filters change (Removed searchQuery, added activeSearch)
   useEffect(() => {
     loadBlogs(true);
-  }, [selectedCategory, selectedTag, searchQuery, sortBy, featured]);
+  }, [selectedCategory, selectedTag, activeSearch, sortBy, featured]);
 
-  // Load more blogs when page changes (for infinite scroll)
   useEffect(() => {
     if (page > 1 && infiniteScroll) {
       loadBlogs(false);
@@ -220,13 +217,16 @@ const BlogList: React.FC<BlogListProps> = ({
     return slug.toString().replace(/\n/g, '').trim();
   };
 
+  // ✅ CHANGED: Only update activeSearch when form is submitted
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    loadBlogs(true);
+    setActiveSearch(searchQuery); // This triggers the useEffect above
   };
 
+  // ✅ CHANGED: Reset both states
   const handleResetFilters = () => {
     setSearchQuery('');
+    setActiveSearch('');
     setSelectedCategory('');
     setSelectedTag('');
     setSortBy('-published_at');
@@ -234,33 +234,24 @@ const BlogList: React.FC<BlogListProps> = ({
 
   return (
     <div className="min-h-screen bg-white py-12">
-      {/* ✅ SEO Injection */}
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />
         <link rel="canonical" href={currentUrl} />
-        
-        {/* Open Graph */}
         <meta property="og:type" content="website" />
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={pageDescription} />
         <meta property="og:url" content={currentUrl} />
-        
-        {/* Robots: Don't index search result pages to save crawl budget */}
-        {searchQuery && <meta name="robots" content="noindex, follow" />}
-        
-        {/* Structured Data */}
+        {activeSearch && <meta name="robots" content="noindex, follow" />}
         <script type="application/ld+json">
           {JSON.stringify(structuredData)}
         </script>
       </Helmet>
 
       <div className="max-w-[85rem] mx-auto px-6 sm:px-8 lg:px-12">
-        {/* Main Content Area */}
         <div className="flex flex-col lg:flex-row gap-12">
           {/* Left Content Area (Blog Posts) */}
           <div className="lg:w-3/4">
-            {/* Page Header - Simplified */}
             <div className="mb-12">
               <h1 className="text-4xl font-bold text-gray-900 mb-4 tracking-tight">
                 {selectedCategory ? `${selectedCategory} Blogs` : 
@@ -274,7 +265,6 @@ const BlogList: React.FC<BlogListProps> = ({
               </p>
             </div>
 
-            {/* Error Message - Minimal */}
             {error && (
               <div className="mb-8 p-4 bg-red-50 text-red-700 rounded-lg">
                 <p className="font-medium">Error Loading Blogs</p>
@@ -288,7 +278,6 @@ const BlogList: React.FC<BlogListProps> = ({
               </div>
             )}
 
-            {/* Blog Posts List - EXACTLY like reference image */}
             <div className="space-y-10">
               {loading && page === 1 ? (
                 <BlogCardSkeleton count={limit} />
@@ -307,7 +296,6 @@ const BlogList: React.FC<BlogListProps> = ({
                       className="group"
                     >
                       <div className="flex flex-col lg:flex-row gap-8">
-                        {/* Image Container */}
                         <div className="lg:w-2/5">
                           <div className="relative overflow-hidden rounded-xl">
                             <img
@@ -318,7 +306,6 @@ const BlogList: React.FC<BlogListProps> = ({
                                 e.currentTarget.src = getPlaceholderImage(blogTitle);
                               }}
                             />
-                            {/* Category Tag - Bottom Left */}
                             {blogCategory && (
                               <div className="absolute bottom-3 left-3">
                                 <span className="bg-orange-500 text-white px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">
@@ -329,21 +316,17 @@ const BlogList: React.FC<BlogListProps> = ({
                           </div>
                         </div>
 
-                        {/* Content */}
                         <div className="lg:w-3/5">
-                          {/* Title */}
                           <h2 className="text-2xl font-bold text-gray-900 mb-4 leading-tight">
                             <Link to={`/blog/${blogSlug}`} className="hover:no-underline hover:text-gray-900">
                               {blogTitle}
                             </Link>
                           </h2>
 
-                          {/* Description */}
                           <p className="text-gray-600 mb-6 leading-relaxed">
                             {blogExcerpt}
                           </p>
 
-                          {/* Date and Read More */}
                           <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                             <span className="text-gray-500 text-sm">
                               {blogDate}
@@ -361,7 +344,6 @@ const BlogList: React.FC<BlogListProps> = ({
                         </div>
                       </div>
 
-                      {/* Divider - Only between posts, not after last */}
                       {index < blogs.length - 1 && (
                         <div className="mt-10 pt-10 border-t border-gray-200"></div>
                       )}
@@ -371,16 +353,15 @@ const BlogList: React.FC<BlogListProps> = ({
               )}
             </div>
 
-            {/* Empty State - Minimal */}
             {!loading && blogs.length === 0 && (
               <div className="text-center py-16">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">No blog posts found</h3>
                 <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                  {selectedCategory || selectedTag || searchQuery 
+                  {selectedCategory || selectedTag || activeSearch 
                     ? 'Try adjusting your search or filters to find what you\'re looking for.'
                     : 'Check back soon for new articles and insights.'}
                 </p>
-                {(selectedCategory || selectedTag || searchQuery) && (
+                {(selectedCategory || selectedTag || activeSearch) && (
                   <button
                     onClick={handleResetFilters}
                     className="bg-gray-900 text-white px-8 py-3 rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium"
@@ -391,7 +372,6 @@ const BlogList: React.FC<BlogListProps> = ({
               </div>
             )}
 
-            {/* Load More Button - Minimal */}
             {!infiniteScroll && !loading && page < pages && (
               <div className="mt-12 text-center">
                 <button
@@ -417,7 +397,6 @@ const BlogList: React.FC<BlogListProps> = ({
               </div>
             )}
 
-            {/* Traditional Pagination - Minimal */}
             {showPagination && !infiniteScroll && pages > 1 && (
               <div className="mt-16">
                 <div className="flex items-center justify-between">
@@ -475,7 +454,7 @@ const BlogList: React.FC<BlogListProps> = ({
             )}
           </div>
 
-          {/* Right Sidebar - EXACTLY like reference image */}
+          {/* Right Sidebar */}
           <div className="lg:w-1/4">
             <div className="sticky top-8">
               {/* Search - Simplified */}
@@ -485,7 +464,8 @@ const BlogList: React.FC<BlogListProps> = ({
                     <input
                       type="text"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      // Just updates local input state, doesn't trigger load
+                      onChange={(e) => setSearchQuery(e.target.value)} 
                       placeholder="Search blog posts..."
                       className="flex-1 px-2 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 text-base"
                     />
@@ -524,7 +504,7 @@ const BlogList: React.FC<BlogListProps> = ({
                 <div className="mt-8 pt-6 border-t border-gray-200"></div>
               </div>
 
-              {/* Categories Widget - Minimal */}
+              {/* Categories Widget */}
               {categories.length > 0 && (
                 <div className="mb-10">
                   <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6">
@@ -560,7 +540,7 @@ const BlogList: React.FC<BlogListProps> = ({
                 </div>
               )}
 
-              {/* Tags Widget - Minimal */}
+              {/* Tags Widget */}
               {tags.length > 0 && (
                 <div>
                   <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6">

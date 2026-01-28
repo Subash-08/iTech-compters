@@ -16,7 +16,7 @@ import {
 
 export const BRAND = {
   name: 'iTech Computers',
-  phone: '6382928973',
+  phone: '+91 63829 28973',
   email: 'itechcomputersno7@gmail.com',
   address: `iTech Computers, RBT Mall, Meyyanur Bypass Rd, Opp. to iPlanet, Meyyanur, Salem, Tamil Nadu – 636004`
 };

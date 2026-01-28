@@ -395,7 +395,7 @@ const sidebarItems: SidebarItem[] = [
       },
       {
         id: 'sections',
-        label: 'Page Sections',
+        label: 'Video Sections',
         icon: <Icons.Layout className="w-4 h-4" />,
         path: '/admin/sections'
       },
@@ -413,7 +413,7 @@ const sidebarItems: SidebarItem[] = [
       },
       {
         id: 'featured-brands',
-        label: 'Featured Brands',
+        label: 'LEADING BRANDS',
         icon: <Icons.Layout className="w-4 h-4" />,
         path: '/admin/featured-brands'
       },

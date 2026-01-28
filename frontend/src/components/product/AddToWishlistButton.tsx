@@ -51,20 +51,20 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
 
     setLoading(true);
     
-    try {
+   try {
       if (isInWishlist) {
+        // ✅ FIX: Changed property name from 'productId' to 'itemId' to match your Action
         await dispatch(wishlistActions.removeFromWishlist({ 
-          productId: wishlistItemId, // Use unique ID for removal
+          itemId: wishlistItemId, 
           productType 
         }));
         
-        toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} removed from wishlist`);
+        toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} removed from wishlist`, { toastId: 'wishlist-2' });
       } else {
-        // CHANGED: Send both product and variant data
         await dispatch(wishlistActions.addToWishlist({ 
           productId,
-          product, // ✅ ADD THIS: Pass product data
-          variant, // Send variant data
+          product,
+          variant, 
           productType
         }));
         
@@ -73,7 +73,7 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
           setTimeout(() => setShowGuestTooltip(false), 3000);
         }
         
-        toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} added to wishlist`);
+        toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} added to wishlist`, { toastId: 'wishlist-1' } );
       }
     } catch (error: any) {
       console.error('❌ Wishlist toggle error:', error);

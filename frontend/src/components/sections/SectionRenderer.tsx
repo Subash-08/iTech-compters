@@ -66,15 +66,15 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
         w-full 
         relative
         rounded-2xl overflow-hidden shadow-2xl bg-black
-       
+        aspect-[16/7]
       ">
         <VideoPlayer
           ref={(el) => register(0, el)}
           src={video.url}
           poster={video.thumbnailUrl}
           onPlay={() => play(0)}
-          className="w-full h-full"
-          objectFit="contain" // Ensures the whole video is visible without cropping
+          className="absolute inset-0 w-full h-full"
+          objectFit="cover"
         />
       </div>
     );
@@ -104,7 +104,8 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
                   src={video.url}
                   poster={video.thumbnailUrl}
                   onPlay={() => play(idx)}
-                  objectFit="contain"
+                  className="absolute inset-0 w-full h-full"
+                  objectFit="cover"
                 />
               </div>
             ))}
@@ -153,7 +154,8 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
               poster={video.thumbnailUrl}
               onPlay={() => play(idx)}
               onClick={() => toggle(idx)}
-              objectFit="contain"
+              className="absolute inset-0 w-full h-full"
+              objectFit="cover"
             />
           </div>
           <div className="p-4">
@@ -178,7 +180,8 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
                 ref={(el) => register(idx, el)}
                 src={video.url}
                 poster={video.thumbnailUrl}
-                objectFit="cover" // Reels usually look better covering the full vertical space
+                className="absolute inset-0 w-full h-full"
+                objectFit="cover"
                 onPlay={() => play(idx)}
                 onClick={() => toggle(idx)}
                 loop

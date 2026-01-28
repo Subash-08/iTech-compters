@@ -744,7 +744,7 @@ useEffect(() => {
 
     const brandItems = brands.map(brand => ({
       label: brand.name,
-      href: `/brands/${brand.slug}`
+      href: `/products/brand/${brand.slug}`
     }));
 
     return [

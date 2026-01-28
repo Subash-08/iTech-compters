@@ -119,7 +119,6 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       };
       
       await dispatch(cartActions.addToCart(cartPayload));
-      toast.success('Product added to cart!');
       
     } catch (error: any) {
       console.error('Failed to add to cart:', error);
@@ -365,7 +364,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
       <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-gray-50 to-white">
         {/* Wishlist Button */}
-        <div className="absolute top-4 right-4 z-20 transform transition-transform duration-300 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-2">
+        <div className="absolute top-4 right-4 z-20 transform transition-transform duration-300">
           <AddToWishlistButton 
             productId={_id}
             product={wishlistProductData} // ✅ FIX: Pass the normalized data here
@@ -379,8 +378,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               sku: baseVariant.sku,
               slug: baseVariant.slug
             } : null}
-            className="p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white hover:shadow-xl transition-all duration-300"
-            size="sm"
+className="bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white hover:shadow-xl hover:text-red-500 transition-all duration-300"
+            size="md"
           />
         </div>
 

@@ -158,12 +158,12 @@ exports.googleAuth = catchAsyncError(async (req, res, next) => {
         // ONE RESPONSE ONLY
         sendToken(user, 200, res, "Google login successful");
 
-        // N8NService.run("welcomeEmail", {
-        //     event: "welcomeEmail",
-        //     email: user.email,
-        //     firstName: user.firstName,
-        //     userId: user._id.toString()
-        // }).catch(err => console.error("n8n trigger failed:", err));
+        N8NService.run("welcomeEmail", {
+            event: "welcomeEmail",
+            email: user.email,
+            firstName: user.firstName,
+            userId: user._id.toString()
+        }).catch(err => console.error("n8n trigger failed:", err));
 
     } catch (error) {
         console.error("Google auth error:", error);

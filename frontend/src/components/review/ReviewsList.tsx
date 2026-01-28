@@ -177,7 +177,7 @@ const ReviewsList: React.FC<ReviewsListProps> = ({ productId, reviews = [], onRe
             ))
           ) : (
             // Only show "No reviews" if user filter resulted in 0 items AND it's not just because user has the only review
-            (!userReview || filterBy !== 'all') && (
+            (filterBy !== 'all') && (
                <div className="py-12 text-center">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3 text-gray-400">
                     <Filter size={20} />

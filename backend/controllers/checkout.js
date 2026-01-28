@@ -122,7 +122,7 @@ const getCheckoutData = catchAsyncErrors(async (req, res, next) => {
             });
         }
 
-        const shipping = subtotal >= 1000 ? 0 : 100;
+        const shipping = subtotal >= 1000 ? 0 : 150;
         const total = subtotal + shipping + totalTax;
         res.status(200).json({
             success: true,
@@ -836,7 +836,7 @@ const getCheckoutDataFallback = async (userId) => {
             return sum + (itemPrice * item.quantity);
         }, 0);
 
-        const shipping = subtotal >= 1000 ? 0 : 50; // Free shipping above ₹1000
+        const shipping = subtotal >= 1000 ? 0 : 150; // Free shipping above ₹1000
         const tax = subtotal * 0.18; // 18% GST
         const total = subtotal + shipping + tax;
 

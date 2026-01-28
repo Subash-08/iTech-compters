@@ -216,7 +216,7 @@ const PrivacyPolicy = () => {
                 <Phone className="w-5 h-5 text-blue-600" />
                 <div>
                   <p className="text-sm text-gray-600">Phone / WhatsApp</p>
-                  <p className="font-medium">6382928973</p>
+                  <p className="font-medium">+91 63829 28973</p>
                 </div>
               </div>
 

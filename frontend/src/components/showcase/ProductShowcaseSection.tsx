@@ -30,6 +30,7 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
     showViewAll,
     viewAllLink
   } = section;
+  
 
   // Smooth scroll handler
   const scrollCarousel = (direction: 'left' | 'right') => {

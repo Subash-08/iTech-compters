@@ -30,12 +30,17 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
       };
     }
     
+    // ✅ FIX: Logic updated to match ProductCard (check sellingPrice/effectivePrice)
+    // If basePrice is 0, it now checks sellingPrice or effectivePrice
+    const activePrice = productData.offerPrice || productData.effectivePrice || (productData as any).sellingPrice || productData.basePrice || 0;
+    const activeMrp = productData.mrp || activePrice;
+
     return {
-      mrp: productData.mrp || productData.basePrice || 0,
-      offerPrice: productData.basePrice || 0,
-      price: productData.basePrice || 0,
+      mrp: activeMrp,
+      offerPrice: activePrice,
+      price: activePrice,
       stockQuantity: productData.stockQuantity || 0,
-      hasDiscount: productData.mrp && productData.mrp > productData.basePrice
+      hasDiscount: activeMrp > activePrice
     };
   };
 
@@ -78,6 +83,16 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
       attributes: selectedVariant.identifyingAttributes,
       sku: selectedVariant.sku
     };
+  };
+
+  // ✅ FIX: Create Normalized Data for Wishlist
+  // This ensures the wishlist gets the price we just calculated, not 0
+  const wishlistProductData = {
+    ...productData,
+    price: currentPriceInfo.offerPrice, 
+    effectivePrice: currentPriceInfo.offerPrice,
+    mrp: currentPriceInfo.mrp,
+    images: selectedVariant?.images || productData.images 
   };
 
   return (
@@ -173,53 +188,60 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
       {/* Stock & Delivery Info */}
       <div className="space-y-4">
 
-{/* Action Buttons */}
-<div className="space-y-4">
-  {/* Action Buttons */}
-  <div className="flex flex-col sm:flex-row gap-3">
-    {/* Add to Cart Button - Full width on mobile, 2/3 on desktop */}
-    <AddToCartButton
-      productId={productData._id}
-      product={productData} // Pass full product data
-      variant={getVariantData()}
-      className={`flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 font-bold py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-        !canAddToCart ? 'opacity-50 cursor-not-allowed' : ''
-      }`}
-      quantity={1}
-      disabled={!canAddToCart}
-      showIcon={true}
-    >
-      {/* Custom button content */}
-      <motion.div
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="flex items-center justify-center gap-2 w-full"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-        Add to Cart
-      </motion.div>
-    </AddToCartButton>
-    
-    {/* Wishlist Button */}
-    <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      className="sm:w-1/3 py-3.5 border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center justify-center gap-2"
-    >
-      <AddToWishlistButton
-        productId={productData._id}
-        variant={getVariantData()}
-        productType="product"
-        className="!w-5 !h-5"
-        size="sm"
-        showTooltip={false}
-      />
-      Wishlist
-    </motion.button>
-  </div>
-</div>
+      {/* Action Buttons */}
+      <div className="space-y-4">
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Add to Cart Button - Full width on mobile, 2/3 on desktop */}
+          <AddToCartButton
+            productId={productData._id}
+            product={wishlistProductData}
+            variant={getVariantData()}
+            className={`flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 font-bold py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+              !canAddToCart ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            quantity={1}
+            disabled={!canAddToCart}
+            showIcon={true}
+          >
+            {/* Custom button content */}
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center justify-center gap-2 w-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Add to Cart
+            </motion.div>
+          </AddToCartButton>
+          
+<motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="sm:w-1/3 py-3.5 border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+            // 👇 FIX: This makes the whole div clickable
+            onClick={(e) => {
+              // If the click is NOT on the button itself (e.g. text or whitespace), find the button and click it
+              if (!(e.target as HTMLElement).closest('button')) {
+                e.currentTarget.querySelector('button')?.click();
+              }
+            }}
+          >
+            <AddToWishlistButton
+              productId={productData._id}
+              product={wishlistProductData}
+              variant={getVariantData()}
+              productType="product"
+              className="!w-5 !h-5"
+              size="sm"
+              showTooltip={false}
+            />
+            <span>Wishlist</span>
+          </motion.div>
+        </div>
+      </div>
         {/* Warranty Info */}
         { productData.warranty &&  <div className="flex items-center text-sm text-gray-600">
        <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

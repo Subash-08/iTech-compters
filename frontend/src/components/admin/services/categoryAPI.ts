@@ -136,6 +136,11 @@ export const categoryAPI = {
     const response = await api.get('/admin/categories/home-showcase');
     return response.data;
   },
+  getPublicShowcaseCategories: async () => {
+    // Points to the public route /categories/home-showcase
+    const response = await api.get('/categories/home-showcase');
+    return response.data;
+  },
 
   /**
    * NEW: Update Home Page settings (Order/Featured)

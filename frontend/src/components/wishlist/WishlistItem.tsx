@@ -96,7 +96,7 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
     }, 300);
   };
 
-  const handleMoveToCart = async () => {
+const handleMoveToCart = async () => {
     if (!stockStatus.isInStock) return;
     
     setIsMovingToCart(true);
@@ -114,6 +114,8 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
       } else {
         await dispatch(cartActions.addToCart({ 
           productId: (item.product as any)._id,
+          // 👇 ADD THIS LINE
+          product: item.product as any, 
           variantData: item.variant ? {
             variantId: item.variant.variantId,
             name: item.variant.name,
@@ -121,7 +123,9 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
             mrp: item.variant.mrp,
             stock: item.variant.stock,
             attributes: item.variant.attributes,
-            sku: item.variant.sku
+            sku: item.variant.sku,
+            // You might also want to ensure images are passed here if your variant type requires it
+             images: item.variant.images 
           } : undefined,
           quantity: 1 
         }));

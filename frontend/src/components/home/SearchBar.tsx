@@ -11,7 +11,7 @@ import {
   selectSearchQuery,
 } from '../../redux/selectors/productSelector';
 import { clearSearchResults, updateSearchQuery } from '../../redux/slices/productSlice';
-import { getImageUrl } from '../utils/imageUtils'; // Import the utility function
+import { getImageUrl } from '../utils/imageUtils';
 
 const SearchBar: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,8 +57,9 @@ const SearchBar: React.FC = () => {
       dispatch(updateSearchQuery(searchTerm.trim()));
       
       // Navigate to products page with search
+      // --- CHANGE 1: Updated path from /product to /products ---
       navigate({
-        pathname: '/product',
+        pathname: '/products', 
         search: `?${createSearchParams({ search: searchTerm.trim() })}`
       });
       
@@ -68,6 +69,8 @@ const SearchBar: React.FC = () => {
   };
 
   const handleSuggestionClick = (product: any) => {
+    // Note: Assuming detail page remains /product/slug. 
+    // If detail pages should also be /products/slug, change this line too.
     navigate(`/product/${product.slug}`);
     setShowSuggestions(false);
     setSearchTerm('');
@@ -85,8 +88,9 @@ const SearchBar: React.FC = () => {
   const handleViewAllResults = () => {
     if (searchTerm.trim()) {
       dispatch(updateSearchQuery(searchTerm.trim()));
+      // --- CHANGE 2: Updated path from /product to /products ---
       navigate({
-        pathname: '/product',
+        pathname: '/products',
         search: `?${createSearchParams({ search: searchTerm.trim() })}`
       });
       setShowSuggestions(false);
@@ -111,22 +115,36 @@ const SearchBar: React.FC = () => {
           onBlur={() => {
             setTimeout(() => setIsFocused(false), 200);
           }}
-          className="pl-12 pr-10 py-2.5 w-full border border-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+          // --- CHANGE 3: CSS Updated ---
+          // Removed pl-12 (left padding), added pl-4
+          // Increased pr-10 to pr-24 (right padding) to accommodate both buttons
+          className="pl-4 pr-24 py-2.5 w-full border border-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
           aria-label="Search products"
         />
         
-        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-        
+        {/* --- CHANGE 4: Clear Button Position Update --- */}
+        {/* Moved to right-14 to sit next to the search button */}
         {searchTerm && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute right-14 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
             aria-label="Clear search"
           >
             <XIcon className="w-4 h-4" />
           </button>
         )}
+
+        {/* --- CHANGE 5: Search Icon moved to Right & Made Clickable --- */}
+        {/* Changed from div/icon to button[type=submit]. Positioned absolute right. */}
+        <button
+          type="submit"
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-600 transition-colors p-1"
+          aria-label="Search"
+        >
+          <SearchIcon className="w-5 h-5" />
+        </button>
+
       </form>
 
       {/* Search Suggestions Dropdown */}
@@ -146,7 +164,6 @@ const SearchBar: React.FC = () => {
                     onClick={() => handleSuggestionClick(product)}
                     className="w-full text-left p-3 hover:bg-gray-50 rounded-md transition-colors flex items-center space-x-3"
                   >
-                    {/* Updated Image Handling with getImageUrl */}
                     <img
                       src={getImageUrl(product.images?.thumbnail || product.images?.[0])}
                       alt={product.name}

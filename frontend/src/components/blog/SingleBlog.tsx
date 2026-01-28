@@ -282,7 +282,7 @@ const SingleBlog: React.FC = () => {
               
               {/* Navigation Footer */}
               <div className="mt-8 flex justify-between items-center">
-                 <button onClick={() => navigate('/blog')} className="text-blue-600 font-medium hover:underline">← Back to Blog</button>
+                 <button onClick={() => navigate('/blogs')} className="text-blue-600 font-medium hover:underline">← Back to Blog</button>
               </div>
             </main>
 

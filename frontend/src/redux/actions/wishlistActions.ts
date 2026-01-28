@@ -170,7 +170,7 @@ addToWishlist: async (wishlistData: AddToWishlistData): Promise<{ data: any; mes
           };
           const updatedWishlist = [...guestWishlist, newItem];
           localStorageUtils.saveGuestWishlist(updatedWishlist);
-          toast.success('Pre-built PC added to guest wishlist');
+          toast.success('Pre-built PC added to guest wishlist', { toastId: 'prebuild-wishlist-1' });
         } else {
           toast.info('Pre-built PC already in wishlist');
         }
@@ -257,7 +257,7 @@ addToWishlist: async (wishlistData: AddToWishlistData): Promise<{ data: any; mes
   removePreBuiltPCFromWishlist: async (pcId: string): Promise<{ data: any; message: string }> => {
     try {
       const response = await api.delete(`/prebuilt-pc/remove/${pcId}`);
-      toast.success('Pre-built PC removed from wishlist successfully');
+      toast.success('Pre-built PC removed from wishlist successfully', { toastId: 'prebuild-wishlist-removed' });
       return response.data;
     } catch (error: any) {
       console.error('❌ PreBuiltPC removal API error:', error);
@@ -1073,7 +1073,7 @@ const removeFromWishlist = (removeData: { itemId: string; productType?: 'product
             } else {
                 await wishlistAPI.removeFromWishlist(removeData.itemId);
             }
-            toast.success('Item removed from wishlist');
+            toast.success('Item removed from wishlist', { toastId: 'prebuild-wishlist-remove-1' });
         }
         
     } catch (error: any) {
@@ -1226,7 +1226,7 @@ const addPreBuiltPCToWishlist = (wishlistData: {
             };
             
             dispatch(addItemToWishlist(optimisticItem));
-            toast.success('Pre-built PC added to wishlist (offline)');
+            toast.success('Pre-built PC added to wishlist (offline)', { toastId: 'prebuild-wishlist-add-1' });
           } else {
             throw apiError;
           }
@@ -1265,7 +1265,7 @@ const removePreBuiltPCFromWishlist = (pcId: string) => {
       } else {
         // Call API
         await wishlistAPI.removePreBuiltPCFromWishlist(pcId);
-        toast.success('Pre-built PC removed from wishlist');
+        toast.success('Pre-built PC removed from wishlist', { toastId: 'prebuild-wishlist-remove-11' });
       }
       
     } catch (error: any) {
@@ -1326,7 +1326,7 @@ const syncGuestWishlist = () => async (dispatch: any, getState: any) => {
       
       // Show appropriate messages
       if (addedCount > 0) {
-        toast.success(`Synced ${addedCount} item${addedCount > 1 ? 's' : ''} to your wishlist!`);
+        toast.success(`Synced ${addedCount} item${addedCount > 1 ? 's' : ''} to your wishlist!`, { toastId: 'prebuild-wishlist-remove-12' });
       }
       
       if (errors.length > 0) {

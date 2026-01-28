@@ -72,7 +72,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ item, delay = 0 }) => {
           </h3>
           
           <p className="font-semibold text-white text-lg md:text-xl tracking-wide">
-          Starting ₹{item.price}
+          {item.price}
           </p>
 
           <div className="pt-4 md:pt-6">

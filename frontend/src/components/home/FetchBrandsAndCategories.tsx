@@ -100,7 +100,7 @@ const HomePage: React.FC = () => {
       const [brandsRes, categoriesRes] = await Promise.all([
         brandService.getPublicShowcaseBrands(),
         // UPDATED: Use specific showcase endpoint for categories too
-        categoryAPI.getHomeShowcaseCategories(), 
+        categoryAPI.getPublicShowcaseCategories(), 
       ]);
 
       // --- 1. PROCESS BRANDS ---

@@ -84,7 +84,7 @@ const Cart: React.FC = () => {
      toast.info('Item removed from cart');
    } else {
      dispatch(cartActions.updateCartQuantity({ productId, variantId, quantity }));
-     toast.success('Quantity updated');
+     toast.success('Quantity updated', { toastId: 'cart-quantity-update' });
    }
   };
 
@@ -94,7 +94,7 @@ const Cart: React.FC = () => {
       toast.info('PC removed from cart');
     } else {
       dispatch(cartActions.updatePreBuiltPCQuantity(pcId, quantity));
-      toast.success('PC quantity updated');
+      toast.success('PC quantity updated', { toastId: 'prebuilt-pc-quantity-update' });
     }
   };
 
@@ -237,9 +237,12 @@ const Cart: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
             <p className="text-gray-500 mb-8 max-w-md mx-auto">Looks like you haven't added anything to your cart yet. Browse our products to find the perfect gear.</p>
             
-            <a href="/products" className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md">
+  <button 
+              onClick={() => navigate('/products')}
+              className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
+            >
               Start Shopping
-            </a>
+            </button>
 
             {isAuthenticated && guestCartCount > 0 && (
               <div className="mt-8 pt-8 border-t border-gray-100">
