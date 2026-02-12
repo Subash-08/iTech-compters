@@ -118,49 +118,37 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
       </div>
 
       {/* --- Content Grid/Carousel --- */}
-      <div className="relative">
-        {type === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-            {products.slice(0, 8).map((product) => (
-              <div key={product._id}>
-                {/* ✅ Added cardStyle="modern" because your working version had it */}
-                <ProductCard
-                  product={product}
-                  // @ts-ignore
-                  cardStyle="modern"
-                />
-              </div>
-            ))}
+<div className="relative w-full max-w-7xl mx-auto px-2">
+  {type === 'grid' ? (
+    <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory lg:grid lg:grid-cols-4 lg:gap-6 lg:pb-0 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      {products.slice(0, 8).map((product) => (
+        <div 
+          key={product._id} 
+          className="w-[220px] max-w-[220px] sm:w-[260px] sm:max-w-[260px] md:w-[280px] md:max-w-[280px] lg:w-auto lg:max-w-none snap-start shrink-0"
+        >
+          <ProductCard product={product as any} cardStyle="modern" />
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="relative">
+      <div
+        ref={carouselRef}
+        className="flex gap-4 lg:gap-6 overflow-x-auto pb-8 pt-2 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-2"
+      >
+        {products.map((product) => (
+          <div
+            key={product._id}
+            className="max-w-[320px] min-w-[240px] md:min-w-[260px] lg:min-w-[280px] snap-start"
+          >
+            <ProductCard product={product as any} cardStyle="modern" />
           </div>
-        ) : (
-          /* Carousel Layout */
-          <div className="relative">
-            <div
-              ref={carouselRef}
-              /* ✅ UPDATED CLASSNAMES:
-                 1. Removed 'scrollbar-hide' (unless you have the plugin installed, this does nothing).
-                 2. Added '[&::-webkit-scrollbar]:hidden' for Chrome/Safari/Edge.
-                 3. Added '[-ms-overflow-style:none]' for IE/Edge.
-                 4. Added '[scrollbar-width:none]' for Firefox.
-              */
-              className="flex gap-4 lg:gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-            >
-              {products.map((product) => (
-                <div 
-                  key={product._id} 
-                  className="min-w-[240px] md:min-w-[260px] lg:min-w-[280px] snap-start"
-                >
-                  <ProductCard 
-                    product={product} 
-                    // @ts-ignore
-                    cardStyle="modern"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        ))}
       </div>
+    </div>
+  )}
+</div>
+
     </section>
   );
 };

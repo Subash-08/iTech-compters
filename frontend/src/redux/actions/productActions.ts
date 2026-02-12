@@ -174,6 +174,8 @@ export const productActions = {
       // Choose the right API call based on route
       if (routeParams?.categoryName) {
         response = await productAPI.getProductsByCategory(routeParams.categoryName, filters);
+        console.log(response);
+        
       } else if (routeParams?.brandName) {
         response = await productAPI.getProductsByBrand(routeParams.brandName, filters);
       } else {

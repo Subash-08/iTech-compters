@@ -18,24 +18,25 @@ import HomeLatestNews from './HomeLatestNews';
 import TrustedBrandsSection from './TrustedBrandsSection';
 import PreBuildSection from './PreBuildSection';
 import YTVideoSection from './YTVideoSlider';
+import SocialProofSection from '../socialproof/SocialProofSection';
 const App: React.FC = () => {
   // Business Details Constants
   const companyName = "iTech Computers";
   const siteUrl = "https://itechcomputers.shop/";
   const phoneNumber = "+91 63829 28973";
   const emailAddress = "itechcomputersno7@gmail.com";
-  
+
   // SEO Strings
   const pageTitle = "iTech Computers | Best Custom PC Builder & Computer Shop in Salem";
   const pageDescription = "Visit iTech Computers at RBT Mall, Salem for the best custom gaming PCs, laptops, and accessories. Call +91 63829 28973 for deals on top tech brands.";
-  
+
   // Placeholder for your Open Graph image
-  const ogImage = `${siteUrl}og-home-banner.png`; 
+  const ogImage = `${siteUrl}og-home-banner.png`;
 
   // Structured Data (LocalBusiness/ComputerStore Schema)
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "ComputerStore", 
+    "@type": "ComputerStore",
     "name": companyName,
     "image": [ogImage],
     "description": pageDescription,
@@ -54,8 +55,8 @@ const App: React.FC = () => {
     // Coordinates for RBT Mall, Salem
     "geo": {
       "@type": "GeoCoordinates",
-      "latitude": "11.6663", 
-      "longitude": "78.1465" 
+      "latitude": "11.6663",
+      "longitude": "78.1465"
     },
     "openingHoursSpecification": [
       {
@@ -95,7 +96,7 @@ const App: React.FC = () => {
         <meta property="og:description" content="Your one-stop shop for Custom PCs and Tech in Salem. Located opp. iplanet, RBT Mall." />
         <meta property="og:image" content={ogImage} />
         <meta property="og:site_name" content={companyName} />
-        
+
         {/* Contact Specific OG Tags */}
         <meta property="business:contact_data:street_address" content="RBT Mall, Meyyanur Bypass Rd" />
         <meta property="business:contact_data:locality" content="Salem" />
@@ -104,7 +105,7 @@ const App: React.FC = () => {
         <meta property="business:contact_data:country_name" content="India" />
         <meta property="business:contact_data:email" content={emailAddress} />
         <meta property="business:contact_data:phone_number" content={phoneNumber} />
-        
+
         {/* Location Geo Tags for Social Maps */}
         <meta property="place:location:latitude" content="11.6663" />
         <meta property="place:location:longitude" content="78.1465" />
@@ -123,19 +124,19 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <section id="home-hero">
-      <HeroSection />
+        <HeroSection />
       </section>
       <main>
         <ProductShowcaseContainer
-            className="container mx-auto px-4"
-          />
+          className="container mx-auto px-4"
+        />
         <HomePage />
         {/* <DealsSection /> */}
         <PcBuilderPromo />
         <PreBuildSection />
         {/* <PCPackageSection /> */}
         <VideoSectionsPage />
-        
+
         <section className="py-12">
           <div className="container mx-auto px-4">
             {/* <InstagramReels 
@@ -149,6 +150,8 @@ const App: React.FC = () => {
         <TrustedBrandsSection />
         <HomeLatestNews />
         <YTVideoSection />
+        <SocialProofSection />
+
       </main>
     </div>
   );

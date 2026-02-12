@@ -270,6 +270,18 @@ const Footer = () => {
               {/* Copyright & Legal */}
               <div className="text-zinc-500 text-sm">
                 <p>© {currentYear} iTech Computers. All rights reserved.</p>
+                <div className="text-zinc-500 text-xs mt-2">
+  Powered by{" "}
+  <a 
+    href="https://nkmoderntechnology.com/" 
+    target="_blank" 
+    rel="noopener noreferrer"
+    className="text-white hover:underline font-medium"
+  >
+    NK Modern Technology
+  </a>
+</div>
+
                 <div className="flex flex-wrap gap-4 mt-2">
                   {legalLinks.map((link) => (
                     <Link 

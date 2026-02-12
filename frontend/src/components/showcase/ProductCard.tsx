@@ -32,7 +32,7 @@ export interface Product {
   name: string;
   slug: string;
   // ✅ FIX: Added fields based on your console logs
-  basePrice?: number; 
+  basePrice?: number;
   sellingPrice?: number; // Added from logs
   effectivePrice?: number;
   mrp?: number;
@@ -84,8 +84,8 @@ interface AddToCartButtonProps {
   children?: React.ReactNode;
 }
 
-const AddToCartButton: React.FC<AddToCartButtonProps> = ({ 
-  productId, 
+const AddToCartButton: React.FC<AddToCartButtonProps> = ({
+  productId,
   product,
   variant,
   productType = 'product',
@@ -94,18 +94,18 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   disabled = false,
   showIcon = true,
   iconSize = "w-4 h-4",
-  children 
+  children
 }) => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
 
   const handleAddToCart = async () => {
     if (loading || disabled) return;
-    
+
     setLoading(true);
     try {
       const cartPayload = {
-        productId, 
+        productId,
         variantId: variant?.variantId,
         variantData: variant,
         quantity,
@@ -117,9 +117,9 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           effectivePrice: product?.effectivePrice || product?.sellingPrice || product?.basePrice || variant?.price || 0
         }
       };
-      
+
       await dispatch(cartActions.addToCart(cartPayload));
-      
+
     } catch (error: any) {
       console.error('Failed to add to cart:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to add to cart';
@@ -133,11 +133,9 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
     <button
       onClick={handleAddToCart}
       disabled={loading || disabled}
-      className={`${className} transition-all duration-300 ease-out ${
-        loading ? 'opacity-70 cursor-not-allowed' : ''
-      } ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'
-      }`}
+      className={`${className} transition-all duration-300 ease-out ${loading ? 'opacity-70 cursor-not-allowed' : ''
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'
+        }`}
     >
       {loading ? (
         <div className="flex items-center justify-center space-x-2">
@@ -163,7 +161,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
 // --- Main ProductCard Component ---
 interface ProductCardProps {
   product: Product;
-  cardStyle?: string; 
+  cardStyle?: string;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
@@ -193,15 +191,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const getBaseVariant = () => {
     if (!hasVariants) return null;
-    
-    const activeVariantWithStock = safeVariants.find(v => 
+
+    const activeVariantWithStock = safeVariants.find(v =>
       v.isActive !== false && (v.stockQuantity || 0) > 0
     );
     if (activeVariantWithStock) return activeVariantWithStock;
-    
+
     const activeVariant = safeVariants.find(v => v.isActive !== false);
     if (activeVariant) return activeVariant;
-    
+
     return safeVariants[0];
   };
 
@@ -228,19 +226,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const displayPrice = getDisplayPrice();
   const displayMrp = getDisplayMrp();
-  
+
   // Calculate discount
-  const discount = displayMrp > displayPrice && displayPrice > 0 
-    ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100) 
+  const discount = displayMrp > displayPrice && displayPrice > 0
+    ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
     : 0;
 
   // Image handling helper
   const getImageUrl = (imageObj: any) => {
     if (!imageObj?.url) return '/placeholder-image.jpg';
-      
+
     const url = imageObj.url;
     const API_BASE_URL = process.env.REACT_APP_API_URL || baseURL;
-    
+
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) {
       return url;
     }
@@ -250,7 +248,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       if (url.startsWith('brands-')) return `${API_BASE_URL}/uploads/brands/${url}`;
       return `${API_BASE_URL}/uploads/products/${url}`;
     }
-    
+
     if (url.startsWith('/uploads/')) {
       const filename = url.split('/').pop();
       if (filename && filename.startsWith('products-') && !url.includes('/products/')) {
@@ -258,7 +256,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       }
       return `${API_BASE_URL}${url}`;
     }
-    
+
     return `${API_BASE_URL}/${url.replace(/^\//, '')}`;
   };
 
@@ -328,9 +326,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const StarRating = ({ rating }: { rating: number }) => (
     <div className="flex items-center space-x-1">
       {[1, 2, 3, 4, 5].map((star) => (
-        <svg 
-          key={star} 
-          className={`w-3.5 h-3.5 ${star <= Math.round(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+        <svg
+          key={star}
+          className={`w-3.5 h-3.5 ${star <= Math.round(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
           viewBox="0 0 20 20"
         >
           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -341,7 +339,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   );
 
   return (
-    <div 
+    <div
       className="group relative flex flex-col h-full bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.08)] transition-all duration-500 ease-out hover:border-gray-200"
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -365,7 +363,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-gray-50 to-white">
         {/* Wishlist Button */}
         <div className="absolute top-4 right-4 z-20 transform transition-transform duration-300">
-          <AddToWishlistButton 
+          <AddToWishlistButton
             productId={_id}
             product={wishlistProductData} // ✅ FIX: Pass the normalized data here
             variant={hasVariants && baseVariant ? {
@@ -378,7 +376,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               sku: baseVariant.sku,
               slug: baseVariant.slug
             } : null}
-className="bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white hover:shadow-xl hover:text-red-500 transition-all duration-300"
+            className="bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white hover:shadow-xl hover:text-red-500 transition-all duration-300"
             size="md"
           />
         </div>
@@ -393,7 +391,7 @@ className="bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white hover:shadow-xl
 
         <Link to={productUrl} className="block w-full h-full">
           <div className="relative w-full h-full">
-            <div className={`absolute inset-0 ${isHovering ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}>
+            <div className={`absolute inset-0 "w-[220px] max-w-[220px] sm:w-[260px] sm:max-w-[260px] md:w-[280px] md:max-w-[280px] ${isHovering ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}>
               <img
                 src={currentImgSrc}
                 alt={displayImages.thumbnail?.altText || name}
@@ -402,11 +400,11 @@ className="bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white hover:shadow-xl
                 className="w-full h-full object-contain"
                 onLoad={() => setImageLoaded(true)}
                 onError={() => {
-                   if (!hasImageError) {
-                     setHasImageError(true);
-                     setCurrentImgSrc('/placeholder-image.jpg'); 
-                     setImageLoaded(true);
-                   }
+                  if (!hasImageError) {
+                    setHasImageError(true);
+                    setCurrentImgSrc('/placeholder-image.jpg');
+                    setImageLoaded(true);
+                  }
                 }}
               />
             </div>
@@ -441,7 +439,7 @@ className="bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white hover:shadow-xl
         </div>
 
         <Link to={productUrl} className="mb-3 block group/title">
-          <h3 className="text-base font-semibold text-gray-900 leading-tight line-clamp-2 group-hover/title:text-blue-700 transition-colors duration-300">
+          <h3 className="text-base font-semibold text-gray-900 leading-tight line-clamp-2 break-words text-ellipsis overflow-hidden w-full group-hover/title:text-blue-700 transition-colors duration-300">
             {baseVariant?.name || name}
           </h3>
         </Link>
@@ -459,7 +457,7 @@ className="bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white hover:shadow-xl
                 <span className="text-xl font-bold text-gray-900 transition-all duration-300 group-hover:text-blue-700">
                   {formatPrice(displayPrice)}
                 </span>
-                
+
                 {discount > 0 && displayMrp && (
                   <span className="text-sm text-gray-400 line-through transition-all duration-300 group-hover:text-gray-500">
                     {formatPrice(displayMrp)}
@@ -492,8 +490,8 @@ className="bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white hover:shadow-xl
             quantity={1}
             disabled={!inStock}
             className={`w-full py-3 px-6 rounded-xl flex items-center justify-center gap-3 text-sm font-semibold transition-all duration-300 ease-out
-              ${inStock 
-                ? 'bg-gradient-to-r from-gray-900 to-black text-white hover:from-blue-600 hover:to-blue-700 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98]' 
+              ${inStock
+                ? 'bg-gradient-to-r from-gray-900 to-black text-white hover:from-blue-600 hover:to-blue-700 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98]'
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
           >

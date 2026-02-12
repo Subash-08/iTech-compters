@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { SidebarItem } from './types/admin';
 import { Icons } from './Icon';
-import {Computer, ClipboardList, Quote, Youtube} from 'lucide-react'
+import { Computer, ClipboardList, Quote, Youtube } from 'lucide-react'
 
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -73,16 +73,18 @@ import YTVideoList from './ytvideos/YTVideoList';
 import YTVideoForm from './ytvideos/YTVideoForm';
 import HomeBrandManager from './home/HomeBrandManager';
 import HomeCategoryManager from './home/HomeCategoryManager';
+import SocialProofList from './social-proof/SocialProofList';
+import SocialProofForm from './social-proof/SocialProofForm';
 
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath?: string) => {
   if (!avatarPath) return null;
-  
+
   // If avatar is already a full URL, use it directly
   if (avatarPath.startsWith('http')) {
     return avatarPath;
   }
-  
+
   // Otherwise, construct the full URL
   const baseUrl = import.meta.env.VITE_API_URL || baseURL;
   return `${baseUrl}${avatarPath}`;
@@ -95,13 +97,13 @@ const UserDropdown: React.FC = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
   const userInitials = useAppSelector(selectUserInitials);
-  
+
   // Profile selectors
   const profile = useAppSelector(selectProfile);
   const profileInitials = useAppSelector(selectProfileInitials);
   const profileName = useAppSelector(selectUserName);
   const profileAvatar = useAppSelector(selectUserAvatar);
-  
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Use profile data if available, otherwise fall back to auth data
@@ -138,12 +140,12 @@ const UserDropdown: React.FC = () => {
   // If not authenticated, show login link (though this shouldn't happen in admin)
   if (!isAuthenticated) {
     return (
-      <Link 
-        to="/login" 
+      <Link
+        to="/login"
         className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors duration-200"
         aria-label="Sign in"
       >
-        <Icons.User className="w-6 h-6"/>
+        <Icons.User className="w-6 h-6" />
         <span className="hidden sm:block text-sm font-medium">Sign In</span>
       </Link>
     );
@@ -208,7 +210,7 @@ const UserDropdown: React.FC = () => {
               <Icons.User className="w-4 h-4 mr-3" />
               My Profile
             </Link>
-            
+
             <Link
               to="/"
               onClick={() => setIsOpen(false)}
@@ -256,214 +258,220 @@ const AdminLayout: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Sidebar items configuration
-// Sidebar items configuration
-const sidebarItems: SidebarItem[] = [
-  // --- OVERVIEW ---
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: <Icons.Dashboard className="w-5 h-5" />,
-    path: '/admin'
-  },
+  // Sidebar items configuration
+  const sidebarItems: SidebarItem[] = [
+    // --- OVERVIEW ---
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: <Icons.Dashboard className="w-5 h-5" />,
+      path: '/admin'
+    },
 
-  // --- E-COMMERCE MANAGEMENT ---
-  {
-    id: 'catalog',
-    label: 'Catalog',
-    icon: <Icons.Products className="w-5 h-5" />,
-    path: '/admin/catalog',
-    children: [
-      {
-        id: 'categories',
-        label: 'Categories',
-        icon: <Icons.Categories className="w-4 h-4" />,
-        path: '/admin/categories'
-      },
-      {
-        id: 'brands',
-        label: 'Brands',
-        icon: <Icons.Brands className="w-4 h-4" />,
-        path: '/admin/brands'
-      },
-      {
-        id: 'products',
-        label: 'Products',
-        icon: <Icons.Products className="w-4 h-4" />,
-        path: '/admin/products'
-      },
-      {
-        id: 'prebuilt-pcs',
-        label: 'Pre-built PCs',
-        icon: <Computer className="w-4 h-4" />,
-        path: '/admin/prebuilt-pcs'
-      },
-    ]
-  },
+    // --- E-COMMERCE MANAGEMENT ---
+    {
+      id: 'catalog',
+      label: 'Catalog',
+      icon: <Icons.Products className="w-5 h-5" />,
+      path: '/admin/catalog',
+      children: [
+        {
+          id: 'categories',
+          label: 'Categories',
+          icon: <Icons.Categories className="w-4 h-4" />,
+          path: '/admin/categories'
+        },
+        {
+          id: 'brands',
+          label: 'Brands',
+          icon: <Icons.Brands className="w-4 h-4" />,
+          path: '/admin/brands'
+        },
+        {
+          id: 'products',
+          label: 'Products',
+          icon: <Icons.Products className="w-4 h-4" />,
+          path: '/admin/products'
+        },
+        {
+          id: 'prebuilt-pcs',
+          label: 'Pre-built PCs',
+          icon: <Computer className="w-4 h-4" />,
+          path: '/admin/prebuilt-pcs'
+        },
+      ]
+    },
 
-  // --- SALES & FINANCE ---
-  {
-    id: 'sales',
-    label: 'Sales & Finance',
-    icon: <Icons.Orders className="w-5 h-5" />,
-    path: '/admin/sales',
-    children: [
-      {
-        id: 'orders',
-        label: 'Orders',
-        icon: <Icons.Orders className="w-4 h-4" />,
-        path: '/admin/orders'
-      },
-      {
-        id: 'invoices',
-        label: 'Invoices',
-        icon: <Icons.FileText className="w-4 h-4" />, // Changed to FileText for invoice
-        path: '/admin/invoices'
-      },
-      {
-        id: 'pc-invoice',
-        label: 'PC Invoice',
-        icon: <Icons.FileText className="w-4 h-4" />,
-        path: '/admin/pc-invoice'
-      },
-      {
-        id: 'coupons',
-        label: 'Coupons',
-        icon: <Icons.Coupons className="w-4 h-4" />,
-        path: '/admin/coupons'
-      }
-    ]
-  },
+    // --- SALES & FINANCE ---
+    {
+      id: 'sales',
+      label: 'Sales & Finance',
+      icon: <Icons.Orders className="w-5 h-5" />,
+      path: '/admin/sales',
+      children: [
+        {
+          id: 'orders',
+          label: 'Orders',
+          icon: <Icons.Orders className="w-4 h-4" />,
+          path: '/admin/orders'
+        },
+        {
+          id: 'invoices',
+          label: 'Invoices',
+          icon: <Icons.FileText className="w-4 h-4" />, // Changed to FileText for invoice
+          path: '/admin/invoices'
+        },
+        {
+          id: 'pc-invoice',
+          label: 'PC Invoice',
+          icon: <Icons.FileText className="w-4 h-4" />,
+          path: '/admin/pc-invoice'
+        },
+        {
+          id: 'coupons',
+          label: 'Coupons',
+          icon: <Icons.Coupons className="w-4 h-4" />,
+          path: '/admin/coupons'
+        }
+      ]
+    },
 
-  // --- PC BUILDER TOOLS ---
-  {
-    id: 'pc-builder',
-    label: 'PC Builder',
-    icon: <Computer className="w-5 h-5" />,
-    path: '/admin/pc-builder',
-    children: [
-      {
-        id: 'pc-requirements',
-        label: 'Requirements',
-        icon: <ClipboardList className="w-4 h-4" />,
-        path: '/admin/pc-builder/requirements'
-      },
-      {
-        id: 'pc-quotes',
-        label: 'Quotes',
-        icon: <Quote className="w-4 h-4" />,
-        path: '/admin/pc-builder/quotes'
-      }
-    ]
-  },
+    // --- PC BUILDER TOOLS ---
+    {
+      id: 'pc-builder',
+      label: 'PC Builder',
+      icon: <Computer className="w-5 h-5" />,
+      path: '/admin/pc-builder',
+      children: [
+        {
+          id: 'pc-requirements',
+          label: 'Requirements',
+          icon: <ClipboardList className="w-4 h-4" />,
+          path: '/admin/pc-builder/requirements'
+        },
+        {
+          id: 'pc-quotes',
+          label: 'Quotes',
+          icon: <Quote className="w-4 h-4" />,
+          path: '/admin/pc-builder/quotes'
+        }
+      ]
+    },
 
-  // --- CONTENT MANAGEMENT (CMS) ---
-  {
-    id: 'cms',
-    label: 'Content Management',
-    icon: <Icons.Layout className="w-5 h-5" />,
-    path: '/admin/cms',
-    children: [
-      {
-        id: 'hero-sections',
-        label: 'Hero Sections',
-        icon: <Icons.Image className="w-4 h-4" />,
-        path: '/admin/hero-sections'
-      },
-      {
-  id: 'home-featured-categories',
-  label: 'Homepage Categories',
-  icon: <Icons.Layout className="w-4 h-4" />,
-  path: '/admin/home-featured-categories'
-},
-      {
-        id:'home-featured-brands',
-        label: 'Home Featured Brands',
-        icon: <Icons.Layout className="w-4 h-4" />,
-        path: '/admin/home-featured-brands'
-      },
-      {
-        id: 'showcase-sections',
-        label: 'Showcase Sections',
-        icon: <Icons.Layout className="w-4 h-4" />,
-        path: '/admin/showcase-sections'
-      },
-      {
-        id: 'video-management',
-        label: 'Videos',
-        icon: <Icons.Layout className="w-4 h-4" />, // Assuming Video icon exists
-        path: '/admin/videos'
-      },
-      {
-        id: 'sections',
-        label: 'Video Sections',
-        icon: <Icons.Layout className="w-4 h-4" />,
-        path: '/admin/sections'
-      },
-      {
-        id: 'prebuild-showcase',
-        label: 'Pre-Build Showcase',
-        icon: <Icons.Layout className="w-4 h-4" />,
-        path: '/admin/pre-build-showcase'
-      },
-      {
-        id: 'blog',
-        label: 'Blogs',
-        icon: <Icons.FileText className="w-4 h-4" />,
-        path: '/admin/blogs'
-      },
-      {
-        id: 'featured-brands',
-        label: 'LEADING BRANDS',
-        icon: <Icons.Layout className="w-4 h-4" />,
-        path: '/admin/featured-brands'
-      },
-      {
-  id: 'yt-videos',
-  label: 'Tech Reviews (YT)', // Distinct label to differentiate from your existing "Videos"
-  icon: <Youtube className="w-4 h-4" />, // Use Youtube icon if available, or Video icon
-  path: '/admin/yt-videos' // Make sure this matches your routing structure (e.g., if you prefix /admin in parent)
-}
-    ]
-  },
+    // --- CONTENT MANAGEMENT (CMS) ---
+    {
+      id: 'cms',
+      label: 'Content Management',
+      icon: <Icons.Layout className="w-5 h-5" />,
+      path: '/admin/cms',
+      children: [
+        {
+          id: 'hero-sections',
+          label: 'Hero Sections',
+          icon: <Icons.Image className="w-4 h-4" />,
+          path: '/admin/hero-sections'
+        },
+        {
+          id: 'home-featured-categories',
+          label: 'Homepage Categories',
+          icon: <Icons.Layout className="w-4 h-4" />,
+          path: '/admin/home-featured-categories'
+        },
+        {
+          id: 'home-featured-brands',
+          label: 'Home Featured Brands',
+          icon: <Icons.Layout className="w-4 h-4" />,
+          path: '/admin/home-featured-brands'
+        },
+        {
+          id: 'showcase-sections',
+          label: 'Showcase Sections',
+          icon: <Icons.Layout className="w-4 h-4" />,
+          path: '/admin/showcase-sections'
+        },
+        {
+          id: 'video-management',
+          label: 'Videos',
+          icon: <Icons.Layout className="w-4 h-4" />, // Assuming Video icon exists
+          path: '/admin/videos'
+        },
+        {
+          id: 'sections',
+          label: 'Video Sections',
+          icon: <Icons.Layout className="w-4 h-4" />,
+          path: '/admin/sections'
+        },
+        {
+          id: 'prebuild-showcase',
+          label: 'Pre-Build Showcase',
+          icon: <Icons.Layout className="w-4 h-4" />,
+          path: '/admin/pre-build-showcase'
+        },
+        {
+          id: 'social-proof',
+          label: 'Social Proof Section',
+          icon: <Icons.Users className="w-4 h-4" />,
+          path: '/admin/social-proof'
+        },
+        {
+          id: 'blog',
+          label: 'Blogs',
+          icon: <Icons.FileText className="w-4 h-4" />,
+          path: '/admin/blogs'
+        },
+        {
+          id: 'featured-brands',
+          label: 'LEADING BRANDS',
+          icon: <Icons.Layout className="w-4 h-4" />,
+          path: '/admin/featured-brands'
+        },
+        {
+          id: 'yt-videos',
+          label: 'Tech Reviews (YT)', // Distinct label to differentiate from your existing "Videos"
+          icon: <Youtube className="w-4 h-4" />, // Use Youtube icon if available, or Video icon
+          path: '/admin/yt-videos' // Make sure this matches your routing structure (e.g., if you prefix /admin in parent)
+        }
+      ]
+    },
 
-  // --- USERS & REVIEWS ---
-  {
-    id: 'users-reviews',
-    label: 'Users & Community',
-    icon: <Icons.Users className="w-5 h-5" />,
-    path: '/admin/users', // Or a wrapper path
-    children: [
-      {
-        id: 'users',
-        label: 'User Management',
-        icon: <Icons.Users className="w-4 h-4" />,
-        path: '/admin/users'
-      },
-      {
-        id: 'reviews',
-        label: 'Ratings & Reviews',
-        icon: <Icons.Reviews className="w-4 h-4" />,
-        path: '/admin/reviews'
-      },
-    ]
-  },
+    // --- USERS & REVIEWS ---
+    {
+      id: 'users-reviews',
+      label: 'Users & Community',
+      icon: <Icons.Users className="w-5 h-5" />,
+      path: '/admin/users', // Or a wrapper path
+      children: [
+        {
+          id: 'users',
+          label: 'User Management',
+          icon: <Icons.Users className="w-4 h-4" />,
+          path: '/admin/users'
+        },
+        {
+          id: 'reviews',
+          label: 'Ratings & Reviews',
+          icon: <Icons.Reviews className="w-4 h-4" />,
+          path: '/admin/reviews'
+        },
+      ]
+    },
 
-  // --- SETTINGS ---
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: <Icons.Settings className="w-5 h-5" />, // Assuming Settings icon
-    path: '/admin/settings',
-    children: [
-      {
-        id: 'nav',
-        label: 'Navbar Settings',
-        icon: <Icons.Menu className="w-4 h-4" />,
-        path: '/admin/navbar-settings'
-      }
-    ]
-  }
-];
+    // --- SETTINGS ---
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: <Icons.Settings className="w-5 h-5" />, // Assuming Settings icon
+      path: '/admin/settings',
+      children: [
+        {
+          id: 'nav',
+          label: 'Navbar Settings',
+          icon: <Icons.Menu className="w-4 h-4" />,
+          path: '/admin/navbar-settings'
+        }
+      ]
+    }
+  ];
 
   const handleItemClick = (path: string) => {
     navigate(path);
@@ -486,7 +494,7 @@ const sidebarItems: SidebarItem[] = [
       }
       return undefined;
     };
-    
+
     return findItem(sidebarItems)?.label || 'Dashboard';
   };
 
@@ -507,8 +515,8 @@ const sidebarItems: SidebarItem[] = [
       `}>
         {/* Fixed Top Header */}
         <header className="fixed top-0 right-0 left-0 bg-white shadow-sm border-b border-gray-200 z-40 transition-all duration-300"
-          style={{ 
-            marginLeft: isSidebarCollapsed ? '5rem' : '16rem' 
+          style={{
+            marginLeft: isSidebarCollapsed ? '5rem' : '16rem'
           }}
         >
           <div className="flex items-center justify-between px-6 py-4">
@@ -526,7 +534,7 @@ const sidebarItems: SidebarItem[] = [
                 {getPageTitle()}
               </h1>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               {/* Notifications */}
               <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200">
@@ -558,7 +566,7 @@ const sidebarItems: SidebarItem[] = [
               <Route path="/users" element={<UserList />} />
               <Route path="/users/:id" element={<UserDetailPage />} />
               <Route path="/reviews" element={<ReviewList />} />
-                {/* Hero Section Routes */}
+              {/* Hero Section Routes */}
               <Route path="/hero-sections" element={<HeroSectionList />} />
               <Route path="/hero-sections/new" element={<HeroSectionForm />} />
               <Route path="/hero-sections/edit/:id" element={<HeroSectionForm />} />
@@ -566,71 +574,74 @@ const sidebarItems: SidebarItem[] = [
               <Route path="/hero-sections/:id/slides/new" element={<SlideForm />} />
               <Route path="/hero-sections/:id/slides/edit/:slideId" element={<SlideForm />} />
 
-               {/* Add showcase section routes */}
+              {/* Add showcase section routes */}
               <Route path="/showcase-sections" element={<ShowcaseSectionManagement />} />
               <Route path="/showcase-sections/new" element={<ShowcaseSectionForm />} />
               <Route path="/showcase-sections/edit/:id" element={<ShowcaseSectionForm />} />
 
-              
-<Route path="/prebuilt-pcs" element={<PreBuiltPCList />} />
-<Route path="/prebuilt-pcs/new" element={<PreBuiltPCForm />} />
-<Route path="/prebuilt-pcs/edit/:id" element={<PreBuiltPCForm />} />
-<Route path="/prebuilt-pcs/benchmarks/:id" element={<PreBuiltPCBenchmarks />} />
 
-{/* 🆕 Coupon Routes */}
-  <Route path="/coupons" element={<CouponList />} />
-  <Route path="/coupons/new" element={<CouponForm />} />
-  <Route path="/coupons/edit/:id" element={<CouponForm />} />
+              <Route path="/prebuilt-pcs" element={<PreBuiltPCList />} />
+              <Route path="/prebuilt-pcs/new" element={<PreBuiltPCForm />} />
+              <Route path="/prebuilt-pcs/edit/:id" element={<PreBuiltPCForm />} />
+              <Route path="/prebuilt-pcs/benchmarks/:id" element={<PreBuiltPCBenchmarks />} />
+
+              {/* 🆕 Coupon Routes */}
+              <Route path="/coupons" element={<CouponList />} />
+              <Route path="/coupons/new" element={<CouponForm />} />
+              <Route path="/coupons/edit/:id" element={<CouponForm />} />
 
 
-  <Route path="/orders" element={<OrderList />} />
-  <Route path="/orders/analytics" element={<OrderAnalytics />} />
-  <Route path="/orders/:orderId" element={<OrderDetails />} />
+              <Route path="/orders" element={<OrderList />} />
+              <Route path="/orders/analytics" element={<OrderAnalytics />} />
+              <Route path="/orders/:orderId" element={<OrderDetails />} />
 
-  {/* Blog Routes - UPDATED WITH /admin PREFIX */}
-  <Route path="/blogs" element={<BlogList />} />
-  <Route path="/blogs/new" element={<BlogEditor />} />
-  <Route path="/blogs/edit/:id" element={<BlogEditor isEdit />} />
-  <Route path="/blogs/statistics" element={<BlogStatisticsComponent />} />
-  
-  {/* PC Builder Routes */}
-  <Route path="/pc-builder/requirements" element={<PCRequirementsList />} />
-  <Route path="/pc-builder/requirements/:id" element={<PCRequirementDetail />} />
-  <Route path="/pc-builder/quotes" element={<PCQuotesList />} />
-  <Route path="/pc-builder/quotes/:id" element={<PCQuoteDetail />} />
+              {/* Blog Routes - UPDATED WITH /admin PREFIX */}
+              <Route path="/blogs" element={<BlogList />} />
+              <Route path="/blogs/new" element={<BlogEditor />} />
+              <Route path="/blogs/edit/:id" element={<BlogEditor isEdit />} />
+              <Route path="/blogs/statistics" element={<BlogStatisticsComponent />} />
 
-        {/* Video Routes */}
-      <Route path="/videos" element={<VideoList />} />
-      <Route path="/videos/upload" element={<VideoUpload />} />
-      <Route path="/videos/:id" element={<VideoDetail />} />
-      
-      {/* Section Routes */}
-      <Route path="/sections" element={<SectionList />} />
-      <Route path="/sections/create" element={<SectionForm />} />
-      <Route path="/sections/:id" element={<SectionDetail />} />
-      <Route path="/sections/:id/edit" element={<SectionForm />} />
+              {/* PC Builder Routes */}
+              <Route path="/pc-builder/requirements" element={<PCRequirementsList />} />
+              <Route path="/pc-builder/requirements/:id" element={<PCRequirementDetail />} />
+              <Route path="/pc-builder/quotes" element={<PCQuotesList />} />
+              <Route path="/pc-builder/quotes/:id" element={<PCQuoteDetail />} />
+
+              {/* Video Routes */}
+              <Route path="/videos" element={<VideoList />} />
+              <Route path="/videos/upload" element={<VideoUpload />} />
+              <Route path="/videos/:id" element={<VideoDetail />} />
+
+              {/* Section Routes */}
+              <Route path="/sections" element={<SectionList />} />
+              <Route path="/sections/create" element={<SectionForm />} />
+              <Route path="/sections/:id" element={<SectionDetail />} />
+              <Route path="/sections/:id/edit" element={<SectionForm />} />
               {/* Admin Invoice Routes */}
-        <Route path="/invoices" element={<InvoiceList />} />
-        <Route path="/invoices/new" element={<InvoiceGenerator />} />
-        <Route path="/invoices/:id" element={<InvoiceDetails />} />
+              <Route path="/invoices" element={<InvoiceList />} />
+              <Route path="/invoices/new" element={<InvoiceGenerator />} />
+              <Route path="/invoices/:id" element={<InvoiceDetails />} />
 
-        <Route path="/navbar-settings" element={<NavbarSettings />} />
+              <Route path="/navbar-settings" element={<NavbarSettings />} />
 
-        <Route path="/pc-invoice" element={<InvoiceCalculator />} />
-          <Route path="/featured-brands" element={<FeaturedBrandList />} />
+              <Route path="/pc-invoice" element={<InvoiceCalculator />} />
+              <Route path="/featured-brands" element={<FeaturedBrandList />} />
               <Route path="/featured-brands/new" element={<FeaturedBrandForm />} />
               <Route path="/featured-brands/edit/:id" element={<FeaturedBrandForm />} />
               <Route path="/pre-build-showcase" element={<PreBuildShowcaseList />} />
-<Route path="/pre-build-showcase/new" element={<PreBuildShowcaseForm />} />
-<Route path="/pre-build-showcase/edit/:id" element={<PreBuildShowcaseForm />} />
+              <Route path="/pre-build-showcase/new" element={<PreBuildShowcaseForm />} />
+              <Route path="/pre-build-showcase/edit/:id" element={<PreBuildShowcaseForm />} />
 
-<Route path="/yt-videos" element={<YTVideoList />} />
-<Route path="/yt-videos/new" element={<YTVideoForm />} />
-<Route path="/yt-videos/edit/:id" element={<YTVideoForm />} />
+              <Route path="/yt-videos" element={<YTVideoList />} />
+              <Route path="/yt-videos/new" element={<YTVideoForm />} />
+              <Route path="/yt-videos/edit/:id" element={<YTVideoForm />} />
 
-<Route path="/home-featured-brands" element={<HomeBrandManager />} />
-<Route path="/home-featured-categories" element={<HomeCategoryManager />} />
-               </Routes>
+              <Route path="/home-featured-brands" element={<HomeBrandManager />} />
+              <Route path="/home-featured-categories" element={<HomeCategoryManager />} />
+
+              <Route path="/social-proof" element={<SocialProofList />} />
+              <Route path="/social-proof/edit" element={<SocialProofForm />} />
+            </Routes>
           </div>
         </main>
       </div>

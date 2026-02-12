@@ -760,7 +760,7 @@ useEffect(() => {
       { label: 'Pre-Built PC', href: '/prebuilt-pcs' },
       { label: 'Custom Pc', href: '/custom-pcs' },
       // { label: 'Support', href: '/support' },
-      { label: 'New Laptops', href: '/products/category/laptops' },
+      { label: 'New Laptops', href: '/products/category/new-laptops' },
       { label: 'Used Laptops', href: '/used-laptops' },
       { label: 'Blogs', href: '/blogs' },
       { label: 'About', href: '/about' },

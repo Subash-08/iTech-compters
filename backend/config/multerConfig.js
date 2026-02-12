@@ -817,6 +817,37 @@ const preBuildShowcaseUpload = multer({
         files: 1
     }
 });
+
+// SOCIAL PROOF SECTION UPLOAD CONFIGURATION
+const socialProofUpload = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            try {
+                // Save to public/uploads/sections/social-proof
+                const uploadPath = path.join(__dirname, '../public/uploads/sections/social-proof');
+                ensureUploadDir(uploadPath);
+                cb(null, uploadPath);
+            } catch (error) {
+                cb(new Error(`Failed to create upload directory: ${error.message}`), null);
+            }
+        },
+        filename: function (req, file, cb) {
+            try {
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const fileExtension = path.extname(file.originalname);
+                const prefix = file.fieldname === 'backgroundImage' ? 'bg' : 'illustration';
+                cb(null, `social-proof-${prefix}-${uniqueSuffix}${fileExtension}`);
+            } catch (error) {
+                cb(new Error(`Failed to generate filename: ${error.message}`), null);
+            }
+        }
+    }),
+    fileFilter: fileFilter, // Using existing image file filter
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit per file
+        files: 2 // Allow 2 files: illustrationImage and backgroundImage
+    }
+});
 // ========== EXPORT EVERYTHING ==========
 
 module.exports = {
@@ -854,5 +885,6 @@ module.exports = {
     processFeaturedBrandLogo,
     deleteFeaturedBrandLogo,
     featuredBrandFileFilter,
-    preBuildShowcaseUpload
+    preBuildShowcaseUpload,
+    socialProofUpload
 };

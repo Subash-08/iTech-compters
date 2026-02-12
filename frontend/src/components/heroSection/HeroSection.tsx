@@ -1,5 +1,6 @@
 // src/components/hero/HeroSection.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { heroSectionService, HeroSection as HeroSectionType } from '../admin/services/heroSectionService';
 import { baseURL } from '../config/config';
 
@@ -24,7 +25,7 @@ const HeroSkeleton: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-7 gap-4 w-full">
         {/* Main Hero Skeleton */}
         <div className="lg:col-span-5 w-full aspect-video bg-gray-200 rounded-lg" />
-        
+
         {/* Side Banners Skeleton */}
         <div className="hidden lg:flex lg:col-span-2 flex-col gap-4 w-full h-full">
           <div className="flex-1 bg-gray-200 rounded-lg" />
@@ -133,6 +134,7 @@ const HeroSectionItem: React.FC<HeroSectionItemProps> = ({
   const { autoPlay, autoPlaySpeed, slides, showNavigation, showPagination } = heroSection;
   const hasMultipleSlides = slides.length > 1;
   const [isPaused, setIsPaused] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!autoPlay || !hasMultipleSlides || isPaused) return;
@@ -144,11 +146,34 @@ const HeroSectionItem: React.FC<HeroSectionItemProps> = ({
 
   const currentSlide = slides[currentSlideIndex];
 
+  // Handle slide click to navigate to buttonLink
+  const handleSlideClick = () => {
+    if (currentSlide?.buttonLink) {
+      try {
+        // Try to parse as URL to extract pathname
+        const url = new URL(currentSlide.buttonLink, window.location.origin);
+
+        // Check if it's the same origin (internal link)
+        if (url.origin === window.location.origin) {
+          // Internal link - use React Router navigation (no page reload)
+          navigate(url.pathname + url.search + url.hash);
+        } else {
+          // External link - use window.location
+          window.location.href = currentSlide.buttonLink;
+        }
+      } catch (error) {
+        // If URL parsing fails, treat as relative path
+        navigate(currentSlide.buttonLink);
+      }
+    }
+  };
+
   return (
-    <div 
-      className="group relative w-full h-full rounded-lg overflow-hidden bg-gray-50 shadow-sm border border-gray-100/50 hover:shadow-xl transition-shadow duration-500"
+    <div
+      className={`group relative w-full h-full rounded-lg overflow-hidden bg-gray-50 shadow-sm border border-gray-100/50 hover:shadow-xl transition-shadow duration-500 ${currentSlide?.buttonLink ? 'cursor-pointer' : ''}`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onClick={handleSlideClick}
     >
       <div className="relative w-full h-full">
         {currentSlide && (
@@ -176,7 +201,7 @@ const HeroSectionItem: React.FC<HeroSectionItemProps> = ({
                 />
               )
             )}
-            
+
             {/* Overlay Gradient (removed the dark overlay for cleaner look) */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-30 duration-500 group-hover:opacity-20" />
           </div>
@@ -187,7 +212,7 @@ const HeroSectionItem: React.FC<HeroSectionItemProps> = ({
       {showNavigation && hasMultipleSlides && (
         <>
           <button
-            onClick={(e) => { e.preventDefault(); onNavigate('prev'); }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onNavigate('prev'); }}
             className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-md border border-white/20 text-white opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-300 hover:bg-white/30"
             aria-label="Previous slide"
           >
@@ -196,7 +221,7 @@ const HeroSectionItem: React.FC<HeroSectionItemProps> = ({
             </svg>
           </button>
           <button
-            onClick={(e) => { e.preventDefault(); onNavigate('next'); }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onNavigate('next'); }}
             className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-md border border-white/20 text-white opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-300 hover:bg-white/30"
             aria-label="Next slide"
           >
@@ -213,10 +238,9 @@ const HeroSectionItem: React.FC<HeroSectionItemProps> = ({
           {slides.map((_, index) => (
             <button
               key={index}
-              onClick={(e) => { e.preventDefault(); onGoToSlide(index); }}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                index === currentSlideIndex ? 'w-6 bg-white shadow-sm' : 'w-1.5 bg-white/40 hover:bg-white/70'
-              }`}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onGoToSlide(index); }}
+              className={`h-1.5 rounded-full transition-all duration-300 ${index === currentSlideIndex ? 'w-6 bg-white shadow-sm' : 'w-1.5 bg-white/40 hover:bg-white/70'
+                }`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}
@@ -245,7 +269,7 @@ const HeroSection: React.FC = () => {
             .filter((section: HeroSectionType) => section.isActive)
             .sort((a: HeroSectionType, b: HeroSectionType) => (a.order || 0) - (b.order || 0))
             .slice(0, 3);
-          
+
           setHeroSections(activeSections);
           setCurrentSlideIndices(new Array(activeSections.length).fill(0));
         }
@@ -263,10 +287,10 @@ const HeroSection: React.FC = () => {
       const newIndices = [...prev];
       const section = heroSections[heroSectionIndex];
       if (!section) return prev;
-      
+
       const currentIndex = newIndices[heroSectionIndex];
       const length = section.slides.length;
-      
+
       if (direction === 'next') {
         newIndices[heroSectionIndex] = (currentIndex + 1) % length;
       } else {
@@ -286,7 +310,7 @@ const HeroSection: React.FC = () => {
 
   // Show skeleton while loading
   if (loading) return <HeroSkeleton />;
-  
+
   // Show nothing if no sections
   if (!heroSections.length) return null;
 

@@ -30,6 +30,7 @@ const reelRoutes = require('./routes/reels');
 const navbarSettingRoutes = require('./routes/navbarSetting');
 const featuredBrandRoutes = require('./routes/featuredBrandRoutes');
 const preBuildShowcaseRoutes = require('./routes/preBuildShowcaseRoutes');
+const socialProofRoutes = require('./routes/socialProofRoutes');
 const ytVideoRoutes = require('./routes/ytVideoRoutes');
 
 const { cleanupTempFiles } = require('./middlewares/uploadVideo');
@@ -82,6 +83,7 @@ app.use(cleanupTempFiles);
 // API Routes
 
 app.use('/api/v1', preBuildShowcaseRoutes);
+app.use('/api/v1', socialProofRoutes);
 app.use('/api/v1', featuredBrandRoutes);
 app.use('/api/v1', blogRoutes);
 app.use('/api/v1', ytVideoRoutes);

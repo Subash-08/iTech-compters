@@ -67,6 +67,8 @@ const UsedLaptopsPage: React.FC = () => {
 
   // Redux Selectors
   const products = useAppSelector(selectProducts);
+  console.log(products);
+  
   const loading = useAppSelector(selectProductsLoading);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const error = useAppSelector(selectProductsError);
@@ -151,7 +153,7 @@ const UsedLaptopsPage: React.FC = () => {
 
       try {
         await dispatch(productActions.fetchProducts(filters, { 
-          categoryName: 'laptops' // UI Label
+          categoryName: 'renewed-laptops' // UI Label
         }));
       } catch (error: any) {
         if (handleAuthError(error)) return;

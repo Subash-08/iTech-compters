@@ -4,7 +4,7 @@ export const getConfig = () => {
   if (typeof window !== 'undefined' && (window as any).APP_CONFIG) {
     return (window as any).APP_CONFIG;
   }
-  
+
   // Fallback to build-time environment variables
   return {
     API_URL: process.env.REACT_APP_API_URL || 'https://api.itechcomputers.shop/api/v1',
