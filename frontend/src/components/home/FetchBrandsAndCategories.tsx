@@ -60,9 +60,8 @@ const FadeImage = ({ src, alt, className, fallback }: any) => {
         alt={alt}
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
-        className={`w-full h-full object-contain transition-all duration-700 ease-out ${
-          isLoaded ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-105 blur-sm'
-        }`}
+        className={`w-full h-full object-contain transition-all duration-700 ease-out ${isLoaded ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-105 blur-sm'
+          }`}
       />
     </div>
   );
@@ -96,16 +95,16 @@ const HomePage: React.FC = () => {
   const fetchHomepageData = async () => {
     try {
       setLoading(true);
-      
+
       const [brandsRes, categoriesRes] = await Promise.all([
         brandService.getPublicShowcaseBrands(),
         // UPDATED: Use specific showcase endpoint for categories too
-        categoryAPI.getPublicShowcaseCategories(), 
+        categoryAPI.getPublicShowcaseCategories(),
       ]);
 
       // --- 1. PROCESS BRANDS ---
       let fetchedBrands: Brand[] = brandsRes.brands || [];
-      
+
       fetchedBrands.sort((a, b) => {
         if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1;
         const orderA = a.order && a.order > 0 ? a.order : 999999;
@@ -114,7 +113,7 @@ const HomePage: React.FC = () => {
         return a.name.localeCompare(b.name);
       });
 
-      setBrands(fetchedBrands.slice(0, 12)); 
+      setBrands(fetchedBrands.slice(0, 12));
 
       // --- 2. PROCESS CATEGORIES ---
       let fetchedCategories: Category[] = categoriesRes.categories || categoriesRes.data || [];
@@ -122,19 +121,19 @@ const HomePage: React.FC = () => {
       fetchedCategories.sort((a, b) => {
         // Priority: Featured
         if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1;
-        
+
         // Priority: Order (Treat 0 as last)
         const orderA = a.order && a.order > 0 ? a.order : 999999;
         const orderB = b.order && b.order > 0 ? b.order : 999999;
-        
+
         if (orderA !== orderB) return orderA - orderB;
-        
+
         // Priority: Alphabetical
         return a.name.localeCompare(b.name);
       });
 
       setCategories(fetchedCategories.slice(0, 12));
-      
+
     } catch (err: any) {
       setError(err.message || "Failed to fetch");
     } finally {
@@ -181,25 +180,33 @@ const HomePage: React.FC = () => {
             />
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-8 items-center justify-items-center">
-              {categories.map((cat, idx) => (
-                <Link
-                  key={cat._id}
-                  to={`/products/category/${cat.slug}`}
-                  className="group flex flex-col items-center justify-center transition-all duration-200 opacity-100 hover:opacity-100 hover:scale-105"
-                  style={{ transitionDelay: `${idx * 40}ms` }}
-                >
-                  <FadeImage
-                    src={getImageUrl(cat.image)}
-                    alt={cat.name}
-                    className="w-28 h-28 object-contain grayscale-80 group-hover:grayscale-0 transition-all duration-200"
-                    fallback={<BoxIcon />}
-                  />
-                  <h3 className="mt-2 text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-center">
-                    {cat.name}
-                  </h3>
-                </Link>
-              ))}
+              {categories.map((cat, idx) => {
+                const categoryUrl =
+                  cat.slug === "used-laptops"
+                    ? "/used-laptops"
+                    : `/products/category/${cat.slug}`;
+
+                return (
+                  <Link
+                    key={cat._id}
+                    to={categoryUrl}
+                    className="group flex flex-col items-center justify-center transition-all duration-200 opacity-100 hover:opacity-100 hover:scale-105"
+                    style={{ transitionDelay: `${idx * 40}ms` }}
+                  >
+                    <FadeImage
+                      src={getImageUrl(cat.image)}
+                      alt={cat.name}
+                      className="w-28 h-28 object-contain grayscale-80 group-hover:grayscale-0 transition-all duration-200"
+                      fallback={<BoxIcon />}
+                    />
+                    <h3 className="mt-2 text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-center">
+                      {cat.name}
+                    </h3>
+                  </Link>
+                );
+              })}
             </div>
+
 
           </div>
         </section>

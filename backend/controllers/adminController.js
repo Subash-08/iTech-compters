@@ -331,21 +331,45 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             // 🆕 Process Videos
             let finalVideos = product.videos || [];
 
-            // 1. Handle removals (existingVideos should be an array of public_ids to keep)
-            if (productData.existingVideos) {
-                const keptPublicIds = Array.isArray(productData.existingVideos)
-                    ? productData.existingVideos
-                    : [productData.existingVideos]; // specific case if single string
+            if (productData.existingVideos !== undefined) {
+                // 🔧 FIX: Parse JSON string from FormData
+                let parsedExistingVideos = productData.existingVideos;
+                if (typeof parsedExistingVideos === 'string') {
+                    try {
+                        parsedExistingVideos = JSON.parse(parsedExistingVideos);
 
-                const videosToRemove = finalVideos.filter(v => !keptPublicIds.includes(v.public_id));
-
-                // Delete removed videos from Cloudinary
-                for (const v of videosToRemove) {
-                    await deleteFromCloudinary(v.public_id, 'video');
-                    await deleteFromCloudinary(v.thumbnailPublicId, 'image');
+                    } catch (e) {
+                        console.error('❌ Failed to parse existingVideos:', e);
+                        parsedExistingVideos = [];
+                    }
                 }
 
+                // Ensure we have an array of public IDs to keep
+                const keptPublicIds = Array.isArray(parsedExistingVideos)
+                    ? parsedExistingVideos
+                    : [];
+
+                // Find videos that need to be removed
+                const videosToRemove = finalVideos.filter(v => !keptPublicIds.includes(v.public_id));
+
+
+                // Delete removed videos from Cloudinary
+                if (videosToRemove.length > 0) {
+
+                    for (const v of videosToRemove) {
+                        try {
+                            await deleteFromCloudinary(v.public_id, 'video');
+                            await deleteFromCloudinary(v.thumbnailPublicId, 'image');
+                        } catch (deleteError) {
+                            console.error(`❌ Failed to delete video ${v.public_id}:`, deleteError);
+                        }
+                    }
+                } else {
+                }
+
+                // Update finalVideos to only include kept videos
                 finalVideos = finalVideos.filter(v => keptPublicIds.includes(v.public_id));
+            } else {
             }
 
             // 2. Handle new uploads
@@ -488,6 +512,47 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
         } else {
             productData = req.body;
 
+            // 🆕 Process Videos (same logic as above)
+            let finalVideos = product.videos || [];
+
+            if (productData.existingVideos !== undefined) {
+                // 🔧 FIX: Parse JSON string from FormData
+                let parsedExistingVideos = productData.existingVideos;
+                if (typeof parsedExistingVideos === 'string') {
+                    try {
+                        parsedExistingVideos = JSON.parse(parsedExistingVideos);
+                    } catch (e) {
+                        console.error('❌ Failed to parse existingVideos:', e);
+                        parsedExistingVideos = [];
+                    }
+                }
+
+                // Ensure we have an array of public IDs to keep
+                const keptPublicIds = Array.isArray(parsedExistingVideos)
+                    ? parsedExistingVideos
+                    : [];
+
+                // Find videos that need to be removed
+                const videosToRemove = finalVideos.filter(v => !keptPublicIds.includes(v.public_id));
+
+                // Delete removed videos from Cloudinary
+                if (videosToRemove.length > 0) {
+                    for (const v of videosToRemove) {
+                        try {
+                            await deleteFromCloudinary(v.public_id, 'video');
+                            await deleteFromCloudinary(v.thumbnailPublicId, 'image');
+
+                        } catch (deleteError) {
+                            console.error(`❌ Failed to delete video ${v.public_id}:`, deleteError);
+                        }
+                    }
+                }
+
+                // Update finalVideos to only include kept videos
+                finalVideos = finalVideos.filter(v => keptPublicIds.includes(v.public_id));
+            } else {
+            }
+
             const jsonFields = [
                 'categories',
                 'variantConfiguration',
@@ -554,6 +619,9 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             if (productData.meta && !updateData.meta) {
                 updateData.meta = { ...product.meta, ...productData.meta };
             }
+
+            // 🆕 Set videos (ensure removal is persisted)
+            updateData.videos = finalVideos;
 
             // 🆕 Handle variants for JSON requests
             if (productData.variants !== undefined && Array.isArray(productData.variants)) {

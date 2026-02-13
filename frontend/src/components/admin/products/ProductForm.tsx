@@ -565,10 +565,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         fd.append("videoThumbnails", file);
       });
 
-      // Existing videos to keep
-      if (initialData) {
-        fd.append("existingVideos", JSON.stringify(existingVideos));
-      }
+      fd.append("existingVideos", JSON.stringify(existingVideos));
 
       // 🔹 Specifications and Features
       fd.append("specifications", JSON.stringify(formData.specifications || []));
@@ -730,7 +727,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
                       videoFiles,
                       videoThumbnailFiles,
                       existingVideos,
-                      setExistingVideos
+                      setExistingVideos: (videos: string[]) => {
+                        setExistingVideos(videos);
+
+                      }
                     }
                     : {})
                 } as any)}

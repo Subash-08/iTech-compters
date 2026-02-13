@@ -71,18 +71,18 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="w-full bg-[#050505] text-white rounded-xl px-2">
+    <footer className="w-full bg-[#050505] text-white px-2">
       <div className="mx-auto w-full bg-[#050505] text-white relative overflow-hidden">
-        
+
         {/* Background Effects */}
         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-900/10 rounded-full blur-[120px] pointer-events-none" />
 
         <div className="container mx-auto px-4 md:px-6 py-12 relative z-10">
-          
+
           {/* Top Section: Newsletter & Trust Badges */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10 mb-12 pb-8 border-b border-white/10">
-            
+
             {/* Newsletter */}
             <div className="max-w-xl">
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
@@ -91,17 +91,17 @@ const Footer = () => {
               <p className="text-zinc-400 mb-6">
                 Subscribe to get exclusive offers, new product launches, and tech insights.
               </p>
-              
+
               <form className="w-full max-w-md" onSubmit={(e) => e.preventDefault()}>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <input 
-                    type="email" 
-                    placeholder="Enter your email address" 
+                  <input
+                    type="email"
+                    placeholder="Enter your email address"
                     className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-6 py-3 font-medium hover:opacity-90 transition-opacity duration-300"
                   >
                     Subscribe
@@ -112,7 +112,7 @@ const Footer = () => {
                 </p>
               </form>
             </div>
-            
+
             {/* Trust Badges */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
@@ -140,19 +140,19 @@ const Footer = () => {
 
           {/* Middle Section: Links Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
-            
+
             {/* Brand Column */}
             <div className="lg:col-span-2 space-y-6">
               <div className="flex items-center space-x-4">
                 <div className="w-14 h-14 rounded-lg flex items-center justify-center">
-                 <img src={Logo} alt="NK" className="h-14 w-14 object-contain" />
+                  <img src={Logo} alt="NK" className="h-14 w-14 object-contain" />
                 </div>
                 <div>
                   <span className="font-bold text-2xl tracking-tight block">iTech Computers</span>
                   <span className="text-xs text-zinc-500 uppercase tracking-widest">Premium Electronics</span>
                 </div>
               </div>
-              
+
               <p className="text-zinc-400 leading-relaxed max-w-sm text-sm">
                 Your trusted destination for premium gaming peripherals, custom PCs, and cutting-edge electronics. Quality products with exceptional service.
               </p>
@@ -170,19 +170,19 @@ const Footer = () => {
                   </div>
                   <span>itechcomputersno7@gmail.com</span>
                 </a>
-<a
-  href="https://www.google.com/maps?ll=11.667667,78.135905&z=15&t=m&hl=en-US&gl=US&cid=5146045816583805650"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="flex items-center space-x-3 text-zinc-400 hover:text-white transition-colors group"
->
-  <div className="p-2 bg-white/5 rounded-full group-hover:bg-green-500/10 transition-colors">
-    <MapPin className="w-4 h-4 group-hover:text-green-400 transition-colors" />
-  </div>
-  <span>
-    RBT Mall, Meyyanur Bypass Rd, opp. to iPlanet, Meyyanur, Salem, Tamil Nadu
-  </span>
-</a>
+                <a
+                  href="https://www.google.com/maps?ll=11.667667,78.135905&z=15&t=m&hl=en-US&gl=US&cid=5146045816583805650"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-3 text-zinc-400 hover:text-white transition-colors group"
+                >
+                  <div className="p-2 bg-white/5 rounded-full group-hover:bg-green-500/10 transition-colors">
+                    <MapPin className="w-4 h-4 group-hover:text-green-400 transition-colors" />
+                  </div>
+                  <span>
+                    RBT Mall, Meyyanur Bypass Rd, opp. to iPlanet, Meyyanur, Salem, Tamil Nadu
+                  </span>
+                </a>
               </div>
             </div>
 
@@ -194,8 +194,8 @@ const Footer = () => {
               <ul className="space-y-3">
                 {shopCategories.map((link) => (
                   <li key={link.label}>
-                    <Link 
-                      to={link.href} 
+                    <Link
+                      to={link.href}
                       className="group flex items-center text-zinc-400 hover:text-white transition-colors text-sm py-1"
                     >
                       <span className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mr-2">›</span>
@@ -214,8 +214,8 @@ const Footer = () => {
               <ul className="space-y-3">
                 {popularBrands.map((link) => (
                   <li key={link.label}>
-                    <Link 
-                      to={link.href} 
+                    <Link
+                      to={link.href}
                       className="group flex items-center text-zinc-400 hover:text-white transition-colors text-sm py-1"
                     >
                       <span className="text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mr-2">›</span>
@@ -234,8 +234,8 @@ const Footer = () => {
               <ul className="space-y-3">
                 {customerService.map((link) => (
                   <li key={link.label}>
-                    <Link 
-                      to={link.href} 
+                    <Link
+                      to={link.href}
                       className="group flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-sm py-1"
                     >
                       <span className="text-green-500">
@@ -246,8 +246,8 @@ const Footer = () => {
                   </li>
                 ))}
                 <li>
-                  <Link 
-                    to="/support" 
+                  <Link
+                    to="/support"
                     className="group flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-sm py-1"
                   >
                     <span className="text-yellow-500">
@@ -263,28 +263,28 @@ const Footer = () => {
           {/* Bottom Section: Payment & Social */}
           <div>
 
-            
+
             {/* Bottom Bar */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-6 border-t border-white/10">
-              
+
               {/* Copyright & Legal */}
               <div className="text-zinc-500 text-sm">
                 <p>© {currentYear} iTech Computers. All rights reserved.</p>
                 <div className="text-zinc-500 text-xs mt-2">
-  Powered by{" "}
-  <a 
-    href="https://nkmoderntechnology.com/" 
-    target="_blank" 
-    rel="noopener noreferrer"
-    className="text-white hover:underline font-medium"
-  >
-    NK Modern Technology
-  </a>
-</div>
+                  Powered by{" "}
+                  <a
+                    href="https://nkmoderntechnology.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-white hover:underline font-medium"
+                  >
+                    NK Modern Technology
+                  </a>
+                </div>
 
                 <div className="flex flex-wrap gap-4 mt-2">
                   {legalLinks.map((link) => (
-                    <Link 
+                    <Link
                       key={link.label}
                       to={link.href}
                       className="text-zinc-500 hover:text-white transition-colors text-xs"

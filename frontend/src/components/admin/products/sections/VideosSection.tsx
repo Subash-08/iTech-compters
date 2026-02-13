@@ -128,9 +128,14 @@ const VideosSection: React.FC<VideosSectionProps> = ({
 
     // Remove existing video
     const removeExistingVideo = (publicId: string) => {
+
+
         if (setExistingVideos) {
-            setExistingVideos(existingVideos.filter(id => id !== publicId));
+            const newExistingVideos = existingVideos.filter(id => id !== publicId);
+            setExistingVideos(newExistingVideos);
             toast.info("Video marked for removal");
+        } else {
+            console.error('❌ [VideosSection] setExistingVideos is not defined!');
         }
     };
 
