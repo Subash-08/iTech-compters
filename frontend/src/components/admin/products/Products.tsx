@@ -76,44 +76,60 @@ const Products: React.FC = () => {
     setFilters(prev => ({ ...prev, page: newPage }));
   };
 
-  const handleEdit = (product: Product) => {
-    setEditingProduct(product);
-    setShowForm(true);
+  const handleEdit = async (product: Product) => {
+    try {
+      setLoading(true);
+      // Fetch individual product using single product endpoint
+      const { data } = await api.get(`/admin/product/${product._id}`);
+
+
+      if (data.success && data.product) {
+        setEditingProduct(data.product);
+        setShowForm(true);
+      } else {
+        toast.error('Failed to load product details');
+      }
+    } catch (error: any) {
+      console.error('Error fetching product for edit:', error);
+      toast.error(error?.response?.data?.message || 'Failed to load product');
+    } finally {
+      setLoading(false);
+    }
   };
 
-// In your Products.tsx, update the handleStatusChange function
-const handleStatusChange = async (productId: string, newStatus: string) => {
-  try {    
-    const payload = { 
-      status: newStatus,
-      // Add other required fields if needed
-      _id: productId
-    };
-    
-    const response = await api.patch(
-      `/admin/products/${productId}/status`, 
-      payload,
-      {
-        headers: {
-          'Content-Type': 'application/json'
+  // In your Products.tsx, update the handleStatusChange function
+  const handleStatusChange = async (productId: string, newStatus: string) => {
+    try {
+      const payload = {
+        status: newStatus,
+        // Add other required fields if needed
+        _id: productId
+      };
+
+      const response = await api.patch(
+        `/admin/products/${productId}/status`,
+        payload,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
+      );
+      await fetchProducts();
+
+      return response.data;
+    } catch (error: any) {
+      console.error('💥 Error updating product status:', error);
+
+      // Check for specific error details
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        console.error('Error status:', error.response.status);
       }
-    );    
-    await fetchProducts();
-    
-    return response.data;
-  } catch (error: any) {
-    console.error('💥 Error updating product status:', error);
-    
-    // Check for specific error details
-    if (error.response) {
-      console.error('Error response:', error.response.data);
-      console.error('Error status:', error.response.status);
+
+      throw error;
     }
-    
-    throw error;
-  }
-};
+  };
 
   const handleDelete = async (productId: string) => {
     try {

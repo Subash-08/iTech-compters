@@ -12,6 +12,9 @@ const {
     processProductImages,
     processManufacturerImages
 } = require("../utils/imageHelper");
+const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const { uploadVideoToCloudinary, uploadImageToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
 
 exports.getProducts = catchAsyncErrors(async (req, res, next) => {
     try {
@@ -940,6 +943,60 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
     };
 
     // -----------------------------
+    // 9.5) Video Processing (Cloudinary)
+    // -----------------------------
+    const folderId = uuidv4();
+    const cloudFolder = `products/${folderId}/videos`;
+    const videoData = [];
+
+    if (req.files && req.files.videos) {
+        const videos = req.files.videos;
+        const thumbnails = req.files.videoThumbnails || [];
+
+        if (videos.length > 5) {
+            return next(new ErrorHandler("Maximum 5 videos allowed", 400));
+        }
+
+        if (videos.length !== thumbnails.length) {
+            return next(new ErrorHandler("Each video must have a corresponding thumbnail", 400));
+        }
+
+        try {
+            for (let i = 0; i < videos.length; i++) {
+                const videoFile = videos[i];
+                const thumbFile = thumbnails[i];
+
+                // Upload Video
+                const videoUpload = await uploadVideoToCloudinary(videoFile.path, cloudFolder);
+
+                // Upload Thumbnail
+                const thumbUpload = await uploadImageToCloudinary(thumbFile.path, cloudFolder);
+
+                videoData.push({
+                    public_id: videoUpload.public_id,
+                    url: videoUpload.url,
+                    thumbnailPublicId: thumbUpload.public_id,
+                    thumbnailUrl: thumbUpload.url,
+                    duration: videoUpload.duration,
+                    format: videoUpload.format,
+                    bytes: videoUpload.bytes
+                });
+
+                // Cleanup local temp files
+                if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
+                if (fs.existsSync(thumbFile.path)) fs.unlinkSync(thumbFile.path);
+            }
+        } catch (error) {
+            // Rollback uploaded videos
+            for (const v of videoData) {
+                await deleteFromCloudinary(v.public_id, 'video');
+                await deleteFromCloudinary(v.thumbnailPublicId, 'image');
+            }
+            return next(new ErrorHandler("Video upload failed: " + error.message, 500));
+        }
+    }
+
+    // -----------------------------
     // 10) Final product payload
     // -----------------------------
     const productData = {
@@ -966,6 +1023,7 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
 
         images: productImages,
         manufacturerImages,
+        videos: videoData,
 
         variantConfiguration,
         variants: processedVariants,
@@ -992,6 +1050,18 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
             product
         });
     } catch (error) {
+        // Rollback videos on save failure
+        if (videoData.length > 0) {
+            for (const v of videoData) {
+                try {
+                    await deleteFromCloudinary(v.public_id, 'video');
+                    await deleteFromCloudinary(v.thumbnailPublicId, 'image');
+                } catch (cleanupError) {
+                    console.error("Failed to delete video during rollback:", cleanupError);
+                }
+            }
+        }
+
         console.error("❌ Product creation failed:", error);
 
         if (error.code === 11000) {
@@ -1276,7 +1346,7 @@ exports.getAdminProducts = catchAsyncErrors(async (req, res, next) => {
 
     // Execute query
     const products = await Product.find(finalFilter)
-        .select('name slug brand categories tags condition label isActive status description definition images basePrice mrp offerPrice discountPercentage taxRate sku barcode stockQuantity variantConfiguration variants specifications features dimensions weight warranty reviews averageRating totalReviews meta canonicalUrl linkedProducts notes hsn manufacturerImages createdAt updatedAt')
+        .select('name slug brand categories tags condition label isActive status description definition images basePrice mrp offerPrice discountPercentage taxRate sku barcode stockQuantity variantConfiguration variants specifications features dimensions weight warranty reviews averageRating totalReviews meta canonicalUrl linkedProducts notes hsn manufacturerImages videos createdAt updatedAt')
         .populate("categories", "name slug")
         .populate("brand", "name slug")
         .sort(sortConfig)

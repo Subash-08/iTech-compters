@@ -8,7 +8,7 @@ interface VideoPlayerProps {
   loop?: boolean;
   muted?: boolean;
   controls?: boolean;
-  objectFit?: 'contain' | 'cover';
+  objectFit?: 'contain';
   onPlay?: () => void;
   onPause?: () => void;
   onEnded?: () => void;
@@ -22,7 +22,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
   loop = true,
   muted = true,
   controls = false,
-  objectFit = 'cover',
+  objectFit = 'contain',
   onPlay,
   onPause,
   onEnded,
@@ -56,20 +56,35 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
   }, []);
 
   return (
-    <div 
+    <div
       className={`relative overflow-hidden bg-black w-full h-full ${className}`}
-      style={{ 
+      style={{
         width: '100%',
         height: '100%',
         minHeight: '100%'
       }}
       onClick={onClick}
     >
+      {/* Blurred Background Layer for "Fit" Effect (Visible during playback) */}
+      {poster && (
+        <div
+          className="absolute inset-0 w-full h-full z-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${getFullUrl(poster)})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'blur(20px) brightness(0.6)',
+            transform: 'scale(1.1)' // Prevent blur edges
+          }}
+        />
+      )}
+
+      {/* Video Element (Contained) */}
       <video
         ref={internalRef}
         src={getFullUrl(src)}
-        poster={getFullUrl(poster || '')}
-        style={{ 
+        className="relative z-10"
+        style={{
           width: '100%',
           height: '100%',
           minWidth: '100%',
@@ -86,10 +101,6 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
           setIsPlaying(true);
           onPlay?.();
         }}
-        onPause={() => {
-          setIsPlaying(false);
-          onPause?.();
-        }}
         onEnded={onEnded}
         onLoadedData={() => setIsLoading(false)}
         onError={() => {
@@ -97,6 +108,18 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
           setError(true);
         }}
       />
+
+      {/* Sharp Poster Overlay (Cover) - Visible only when NOT playing */}
+      {poster && !isPlaying && (
+        <div className="absolute inset-0 z-20 w-full h-full bg-black">
+          <img
+            src={getFullUrl(poster)}
+            alt="Video thumbnail"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/10" /> {/* Subtle dimming for text readability */}
+        </div>
+      )}
 
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10">
@@ -112,14 +135,14 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
 
       {!controls && !isLoading && !error && (
         <>
-          <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none ${isPlaying ? 'opacity-0' : 'opacity-100'}`}>
-            <div className="w-14 h-14 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center">
+          <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none z-30 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}>
+            <div className="w-14 h-14 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-lg group-hover:scale-110 transition-transform">
               <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
             </div>
           </div>
 
           {isPlaying && (
-            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full z-10">
+            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full z-30">
               <div className="flex gap-0.5 items-end h-3">
                 <span className="w-0.5 h-full bg-green-400 animate-[bounce_1s_infinite]" />
                 <span className="w-0.5 h-2/3 bg-green-400 animate-[bounce_1s_infinite_0.2s]" />
@@ -129,15 +152,15 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(({
             </div>
           )}
 
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
-              if(internalRef.current) {
+              if (internalRef.current) {
                 internalRef.current.muted = !internalRef.current.muted;
                 setIsMuted(!isMuted);
               }
             }}
-            className="absolute bottom-3 right-3 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition-colors z-20"
+            className="absolute bottom-3 right-3 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-black/60 transition-colors z-30"
           >
             {isMuted ? (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>

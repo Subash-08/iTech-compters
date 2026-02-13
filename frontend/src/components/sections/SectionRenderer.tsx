@@ -35,7 +35,7 @@ interface SectionRendererProps {
 const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = '' }) => {
   const { register, play, pauseAll, toggle } = useSectionVideoController();
   const [currentSlide, setCurrentSlide] = useState(0);
-  
+
   // Animation Variants
   const variants = {
     hidden: { opacity: 0, y: 20 },
@@ -93,7 +93,7 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
     return (
       <div className="relative group">
         <div className="overflow-hidden rounded-xl">
-          <div 
+          <div
             className="flex transition-transform duration-500 ease-out"
             style={{ transform: `translateX(-${currentSlide * 100}%)` }}
           >
@@ -111,17 +111,17 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
             ))}
           </div>
         </div>
-        
+
         {/* Navigation */}
         {section.videos.length > 1 && (
           <>
-            <button 
+            <button
               onClick={() => handleSlideChange((currentSlide - 1 + section.videos.length) % section.videos.length)}
               className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 backdrop-blur hover:bg-white/20 p-3 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
             >
               ←
             </button>
-            <button 
+            <button
               onClick={() => handleSlideChange((currentSlide + 1) % section.videos.length)}
               className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 backdrop-blur hover:bg-white/20 p-3 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
             >
@@ -134,15 +134,15 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
   };
 
   const renderGrid = (isMasonry = false) => (
-    <div 
+    <div
       className={isMasonry ? "columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6" : "grid gap-6"}
-      style={!isMasonry ? { 
+      style={!isMasonry ? {
         gridTemplateColumns: `repeat(${section.gridConfig.columns}, 1fr)`,
-        gap: section.gridConfig.gap 
+        gap: section.gridConfig.gap
       } : {}}
     >
       {section.videos.map((video, idx) => (
-        <motion.div 
+        <motion.div
           key={video._id || idx}
           variants={variants}
           className={`bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow ${isMasonry ? 'break-inside-avoid' : ''}`}
@@ -171,8 +171,8 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
     return (
       <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-4 scrollbar-hide">
         {section.videos.map((video, idx) => (
-          <div 
-            key={video._id || idx} 
+          <div
+            key={video._id || idx}
             className="flex-shrink-0 w-[280px] md:w-[320px] snap-center"
           >
             <div className="relative aspect-[9/16] rounded-xl overflow-hidden bg-black shadow-lg">
@@ -198,9 +198,9 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({ section, className = 
 
   // --- Main Render ---
   return (
-    <section 
+    <section
       className={`py-12 ${className}`}
-      style={{ 
+      style={{
         backgroundColor: section.backgroundColor,
         color: section.textColor,
         paddingTop: section.padding.top,

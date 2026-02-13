@@ -132,12 +132,6 @@ const processFeaturedBrandLogo = async (tempFilePath, brandName) => {
         const finalFilename = `${sanitizedName}-${timestamp}-${randomString}${fileExtension}`;
         const finalPath = path.join(finalDir, finalFilename);
 
-        console.log('Copying file:', {
-            from: tempFilePath,
-            to: finalPath,
-            tempFileExists: fs.existsSync(tempFilePath),
-            targetDirExists: fs.existsSync(finalDir)
-        });
 
         // Copy file to final location
         fs.copyFileSync(tempFilePath, finalPath);
@@ -545,6 +539,10 @@ const productUpload = multer({
                     filename = `product-gallery-${uniqueSuffix}${fileExtension}`;
                 } else if (file.fieldname === 'manufacturerImages') {
                     filename = `manufacturer-${uniqueSuffix}${fileExtension}`;
+                } else if (file.fieldname === 'videos') {
+                    filename = `video-${uniqueSuffix}${fileExtension}`;
+                } else if (file.fieldname === 'videoThumbnails') {
+                    filename = `video-thumb-${uniqueSuffix}${fileExtension}`;
                 } else {
                     filename = `product-${uniqueSuffix}${fileExtension}`;
                 }
@@ -555,9 +553,9 @@ const productUpload = multer({
             }
         }
     }),
-    fileFilter: fileFilter,
+    fileFilter: videoAndImageFileFilter,
     limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB
+        fileSize: 25 * 1024 * 1024, // 25MB
         files: 50 // Increased to handle variant images
     }
 });

@@ -62,23 +62,23 @@ const VideoSectionsPage: React.FC = () => {
     try {
       setLoading(true);
       setHasError(false);
-      
+
       const response = await videoService.getVisibleSections();
-           
+
       if (response.success) {
         // Map API response to Section interface
         const apiSections = response.data?.sections as ApiSection[] || [];
-        
+
         // Filter sections that have videos
-        const sectionsWithVideos = apiSections.filter(apiSection => 
+        const sectionsWithVideos = apiSections.filter(apiSection =>
           apiSection.videos && apiSection.videos.length > 0
         );
-        
+
         if (sectionsWithVideos.length === 0) {
           setSections([]);
           return;
         }
-        
+
         const mappedSections: Section[] = sectionsWithVideos.map((apiSection: ApiSection) => ({
           _id: apiSection.id,
           title: apiSection.title,
@@ -107,7 +107,7 @@ const VideoSectionsPage: React.FC = () => {
         const sortedSections = mappedSections
           .filter((section: Section) => section.visible)
           .sort((a: Section, b: Section) => (a.order || 0) - (b.order || 0));
-        
+
         setSections(sortedSections);
       } else {
         // If API returns success: false, set empty sections
@@ -124,7 +124,7 @@ const VideoSectionsPage: React.FC = () => {
   // Show loading spinner
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-rose-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading videos...</p>
@@ -143,13 +143,14 @@ const VideoSectionsPage: React.FC = () => {
 
   // Only render when we have sections with videos
   return (
-    <div>
+    <div className="bg-rose-50">
       {sections.map((section, index) => (
         <motion.div
           key={section._id}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: index * 0.1 }}
+          className="bg-rose-50"
         >
           <SectionRenderer section={section} />
         </motion.div>

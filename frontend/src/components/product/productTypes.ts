@@ -97,12 +97,21 @@ export interface ProductData {
   status: string;
   description?: string;
   definition?: string;
-  
+
   // 🆕 NEW FIELDS
   hsn?: string; // HSN code
   mrp?: number; // Maximum Retail Price
   manufacturerImages?: Image[]; // A+ content images
-  
+  videos?: Array<{
+    public_id: string;
+    url: string;
+    thumbnailPublicId: string;
+    thumbnailUrl: string;
+    duration: number;
+    format: string;
+    bytes: number;
+  }>;
+
   // 🆕 VIRTUAL FIELDS (from backend)
   sellingPrice?: number; // Virtual: Always uses variant prices if variants exist
   displayMrp?: number; // Virtual: Always uses variant MRP if variants exist
@@ -121,26 +130,26 @@ export interface ProductData {
     stock: number;
     variants: string[];
   }>;
-  
+
   // Pricing fields (kept for backward compatibility)
   basePrice: number;
   offerPrice: number;
   discountPercentage: number;
   taxRate?: number;
   stockQuantity: number;
-  
+
   variants: Variant[];
   averageRating: number;
   totalReviews: number;
   slug: string;
   createdAt: string;
-  
+
   images: {
     thumbnail: Image;
     hoverImage?: Image;
     gallery: Image[];
   };
-  
+
   variantConfiguration: {
     hasVariants: boolean;
     variantType: string;
@@ -157,7 +166,7 @@ export interface ProductData {
       values: string[];
     }>;
   };
-  
+
   specifications?: SpecificationSection[];
   features?: Feature[];
   dimensions?: Dimensions;

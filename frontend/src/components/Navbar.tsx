@@ -70,7 +70,7 @@ let navItems: NavItem[] = [
     children: [] // Will be populated with categories from API
   },
   {
-    label: 'Brands', 
+    label: 'Brands',
     href: '/brands',
     children: [] // Will be populated with brands from API
   },
@@ -83,11 +83,11 @@ const AuthenticatedUserSection: React.FC<{ closeMobileMenu: () => void }> = ({ c
   const user = useAppSelector(selectUser);
   const profile = useAppSelector(selectProfile);
   const profileAvatar = useAppSelector(selectUserAvatar);
-  
+
   const [imageError, setImageError] = useState(false);
-  
-const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for modal
-  
+
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for modal
+
   const displayUser = profile || user;
   const displayAvatar = profileAvatar || user?.avatar;
   const avatarUrl = getAvatarUrl(displayAvatar);
@@ -131,7 +131,7 @@ const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for 
               </span>
             </div>
           )}
-          
+
           {/* User Name */}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-gray-900 truncate">
@@ -156,7 +156,7 @@ const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for 
             <UserIcon className="w-5 h-5" />
           </Link>
 
-{/* Admin Dashboard - Only for admins */}
+          {/* Admin Dashboard - Only for admins */}
           {displayUser?.role === 'admin' && (
             <Link
               to="/admin"
@@ -170,7 +170,7 @@ const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for 
               </svg>
             </Link>
           )}
-          
+
           {/* Sign Out Button */}
           <button
             onClick={handleLogoutClick}
@@ -237,21 +237,21 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
     }
   }
 
-// --- MEGA MENU RENDERER ---
+  // --- MEGA MENU RENDERER ---
   if (isMegaMenu) {
     return (
       // 1. CHANGED: Removed 'relative', added 'static'. 
       // This allows the dropdown to position itself relative to the Header, not this specific list item.
       <li className="group static h-full flex items-center">
-        
+
         {/* Top Level Nav Item */}
         <Link
           to={item.href}
           className="relative z-10 flex items-center gap-1.5 px-4 py-2 rounded-full text-[14px] font-medium text-black transition-all duration-300 hover:text-[#544D89] hover:bg-[#544D89]/5"
         >
           {item.label}
-          <ChevronDown 
-            className="w-3.5 h-3.5 mt-0.5 text-black transition-transform duration-300 ease-out group-hover:rotate-180 group-hover:text-[#544D89]" 
+          <ChevronDown
+            className="w-3.5 h-3.5 mt-0.5 text-black transition-transform duration-300 ease-out group-hover:rotate-180 group-hover:text-[#544D89]"
             strokeWidth={2}
           />
         </Link>
@@ -263,14 +263,14 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
             - 'top-full': Starts exactly at the bottom of the header.
         */}
         <div className="absolute top-full left-0 w-full flex justify-center opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 cubic-bezier(0.16, 1, 0.3, 1) z-50">
-          
+
           {/* Main Card */}
           {/* 3. CHANGED: Controls the actual width of the menu card */}
           <div className="w-[95vw] lg:w-[900px] xl:w-[1100px] bg-white rounded-b-2xl shadow-2xl ring-1 ring-black/5 overflow-hidden flex mx-auto mt-2">
-            
+
             {/* Left Side: Links Grid */}
             <div className={`flex-1 p-6 xl:p-8 w-full xl:w-3/4`}>
-              
+
               {/* Optional Section Header */}
               <div className="mb-6 border-b border-gray-100 pb-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[#2c2358]">
@@ -301,35 +301,35 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
 
             {/* Right Side: Promo / Hero Card */}
             <div className="hidden xl:block w-[320px] bg-gray-50 p-3 border-l border-gray-100">
-                <div className="relative w-full h-[380px] rounded-xl overflow-hidden group/ad isolate cursor-pointer">
-                  {/* Image with Zoom Effect */}
-<img 
-  // ✅ Correct: Pass the variable directly
-  src={isCategories ? nav1 : nav2}
-  alt="Featured Collection" 
-  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover/ad:scale-105"
-/>
-                  
-                  {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90 transition-opacity duration-300" />
+              <div className="relative w-full h-[380px] rounded-xl overflow-hidden group/ad isolate cursor-pointer">
+                {/* Image with Zoom Effect */}
+                <img
+                  // ✅ Correct: Pass the variable directly
+                  src={isCategories ? nav1 : nav2}
+                  alt="Featured Collection"
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover/ad:scale-105"
+                />
 
-                  {/* Content */}
-                  <div className="absolute inset-0 flex flex-col justify-end p-6">
-                    <p className="text-white/80 text-xs font-medium mb-2 tracking-wide">
-                      {isCategories ? "New Arrivals" : "Official Partners"}
-                    </p>
-                    <h4 className="text-white font-semibold text-xl mb-4 leading-tight">
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90 transition-opacity duration-300" />
+
+                {/* Content */}
+                <div className="absolute inset-0 flex flex-col justify-end p-6">
+                  <p className="text-white/80 text-xs font-medium mb-2 tracking-wide">
+                    {isCategories ? "New Arrivals" : "Official Partners"}
+                  </p>
+                  <h4 className="text-white font-semibold text-xl mb-4 leading-tight">
                     {isCategories ? "Premium Laptops." : "Custom PC Builder."}
-                    </h4>
-                    
-                    <button   onClick={() => navigate(isCategories ? '/products/category/laptops' : '/custom-pcs')} className="flex items-center gap-2 text-white text-xs font-semibold backdrop-blur-md bg-white/20 hover:bg-white/30 border border-white/30 px-4 py-2.5 rounded-lg transition-all w-fit group-hover/ad:gap-3">
-                     {isCategories ? "Shop Laptops" : "Start Building"}
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
+                  </h4>
+
+                  <button onClick={() => navigate(isCategories ? '/products/category/laptops' : '/custom-pcs')} className="flex items-center gap-2 text-white text-xs font-semibold backdrop-blur-md bg-white/20 hover:bg-white/30 border border-white/30 px-4 py-2.5 rounded-lg transition-all w-fit group-hover/ad:gap-3">
+                    {isCategories ? "Shop Laptops" : "Start Building"}
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
                 </div>
+              </div>
             </div>
-            
+
           </div>
         </div>
       </li>
@@ -345,8 +345,8 @@ const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
       >
         {item.label}
         {hasChildren && (
-          <ChevronDown 
-            className="w-3.5 h-3.5 mt-0.5 text-black transition-transform duration-300 ease-out group-hover:rotate-180 group-hover:text-[#544D89]" 
+          <ChevronDown
+            className="w-3.5 h-3.5 mt-0.5 text-black transition-transform duration-300 ease-out group-hover:rotate-180 group-hover:text-[#544D89]"
             strokeWidth={2}
           />
         )}
@@ -398,15 +398,15 @@ const MobileNavLink: React.FC<MobileNavLinkProps> = ({ item, closeMenu }) => {
           <ChevronDownIcon className={`w-5 h-5 transition-transform duration-300 text-gray-400 ${isOpen ? 'rotate-180 text-[#544D89]' : ''}`} />
         </button>
         {/* FIX: Increased max-height to 2000px to allow full scroll, added overflow-hidden to prevent layout jump during transition */}
-        <div 
-          id={`submenu-${item.label}`} 
+        <div
+          id={`submenu-${item.label}`}
           className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
         >
           <ul className="bg-gray-50 pb-2">
             {item.children.map((child) => (
               <li key={child.label}>
-                <Link 
-                  to={child.href} 
+                <Link
+                  to={child.href}
                   className="flex items-center justify-between py-2.5 px-6 pl-8 text-[14px] text-gray-600 hover:text-[#544D89] hover:bg-gray-100 transition-colors border-l-2 border-transparent hover:border-[#544D89]"
                   onClick={closeMenu}
                 >
@@ -423,8 +423,8 @@ const MobileNavLink: React.FC<MobileNavLinkProps> = ({ item, closeMenu }) => {
 
   return (
     <li>
-      <Link 
-        to={item.href} 
+      <Link
+        to={item.href}
         className="block py-3.5 px-4 text-[15px] text-gray-800 hover:text-[#544D89] hover:bg-gray-50 transition-colors font-semibold"
         onClick={closeMenu}
       >
@@ -444,23 +444,23 @@ const getUserMenuItems = (userRole?: string) => [
 // Fixed avatar URL function
 const getAvatarUrl = (avatarPath?: string): string | null => {
   if (!avatarPath) return null;
-  
+
   // If avatar is already a full URL, use it directly
   if (avatarPath.startsWith('http')) {
     return avatarPath;
   }
-  
+
   // Otherwise, construct the full URL
   const baseUrl = import.meta.env.VITE_API_URL || baseURL;
   if (!baseUrl) {
     console.warn('Base URL not configured');
     return null;
   }
-  
+
   // Ensure proper URL construction
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   const cleanAvatarPath = avatarPath.startsWith('/') ? avatarPath : `/${avatarPath}`;
-  
+
   return `${cleanBaseUrl}${cleanAvatarPath}`;
 };
 
@@ -468,11 +468,11 @@ const UserDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State for modal
-  
+
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
-  
+
   // Profile selectors
   const profile = useAppSelector(selectProfile);
   const profileAvatar = useAppSelector(selectUserAvatar);
@@ -494,7 +494,7 @@ const UserDropdown: React.FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
       // Don't close if clicking inside the modal
       if (showLogoutConfirm) return;
-      
+
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
@@ -528,12 +528,12 @@ const UserDropdown: React.FC = () => {
   // If not authenticated, show login link
   if (!isAuthenticated) {
     return (
-      <Link 
-        to="/login" 
+      <Link
+        to="/login"
         className="flex items-center space-x-2 text-black hover:text-[#544D89] transition-colors duration-200 px-3 py-2 rounded-md"
         aria-label="Sign in"
       >
-        <UserIcon className="w-6 h-6"/>
+        <UserIcon className="w-6 h-6" />
         <span className="hidden md:block text-sm font-medium">Sign In</span>
       </Link>
     );
@@ -568,17 +568,17 @@ const UserDropdown: React.FC = () => {
                 </span>
               </div>
             )}
-            
+
             {/* User Name (visible on larger screens) */}
             <span className="hidden md:block text-sm font-medium text-black max-w-24 truncate">
               {displayUser?.firstName || 'User'}
             </span>
-            
+
             {/* Chevron Icon */}
             <ChevronDownIcon className={`w-4 h-4 text-black transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
           </div>
         </button>
-        
+
         {/* Dropdown Menu */}
         {isOpen && (
           <div className="absolute right-0 top-full mt-2 w-60 bg-white shadow-2xl rounded-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5">
@@ -591,13 +591,13 @@ const UserDropdown: React.FC = () => {
                 {displayUser?.email}
               </p>
             </div>
-            
+
             {/* Menu Items */}
             <div className="py-2">
               {userMenuItems.map((item) => (
-                <Link 
+                <Link
                   key={item.label}
-                  to={item.href} 
+                  to={item.href}
                   className="flex items-center px-5 py-2.5 text-sm text-gray-700 hover:bg-[#544D89]/5 hover:text-[#544D89] transition-colors duration-200 group"
                   onClick={() => setIsOpen(false)}
                 >
@@ -676,21 +676,21 @@ const Navbar: React.FC = () => {
   const [error, setError] = useState('');
   const [navbarSettings, setNavbarSettings] = useState<any>(null);
 
-// Add this useEffect to fetch navbar settings
-useEffect(() => {
-  const fetchNavbarSettings = async () => {
-    try {
-      const response = await navbarSettingService.getNavbarSettings();
-      if (response.success && response.settings) {
-        setNavbarSettings(response.settings);
+  // Add this useEffect to fetch navbar settings
+  useEffect(() => {
+    const fetchNavbarSettings = async () => {
+      try {
+        const response = await navbarSettingService.getNavbarSettings();
+        if (response.success && response.settings) {
+          setNavbarSettings(response.settings);
+        }
+      } catch (error) {
+        console.error('Error fetching navbar settings:', error);
       }
-    } catch (error) {
-      console.error('Error fetching navbar settings:', error);
-    }
-  };
-  
-  fetchNavbarSettings();
-}, []);
+    };
+
+    fetchNavbarSettings();
+  }, []);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
   const cartCount = useAppSelector(selectCartItemsCount);
@@ -737,10 +737,13 @@ useEffect(() => {
 
   // Update navItems with fetched data
   const updatedNavItems = React.useMemo(() => {
-    const categoryItems = categories.map(category => ({
-      label: category.name,
-      href: `/products/category/${category.slug}`
-    }));
+    const categoryItems = categories
+      .filter(category => category.slug !== 'used-laptops')
+      .map(category => ({
+        label: category.name,
+        href: `/products/category/${category.slug}`
+      }));
+
 
     const brandItems = brands.map(brand => ({
       label: brand.name,
@@ -774,7 +777,7 @@ useEffect(() => {
     } else {
       document.body.style.overflow = 'auto';
     }
-    
+
     return () => {
       document.body.style.overflow = 'auto';
     };
@@ -790,15 +793,15 @@ useEffect(() => {
       <header className="hidden lg:block pt-4 pb-0 relative shadow-md z-40 bg-white">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 items-center pb-4 gap-4">
-            
-{/* 1. Logo Section */}
-<div className="flex-shrink-0 w-full lg:w-auto flex justify-center lg:justify-start">
-  <LogoSection 
-    variant="desktop"
-    logoSize="md"
-    showTagline={true}
-  />
-</div>
+
+            {/* 1. Logo Section */}
+            <div className="flex-shrink-0 w-full lg:w-auto flex justify-center lg:justify-start">
+              <LogoSection
+                variant="desktop"
+                logoSize="md"
+                showTagline={true}
+              />
+            </div>
 
             {/* 2. Search Bar (Center - Big) */}
             <div className="flex justify-center">
@@ -809,7 +812,7 @@ useEffect(() => {
 
             {/* 3. Right Actions (User, Wishlist, Cart) */}
             <div className="hidden lg:flex justify-end items-center gap-4 xl:gap-6 text-[#1a1a1a]">
-              
+
               {/* Wishlist */}
               <Link to="/wishlist" className="relative group p-2 hover:bg-gray-100 rounded-full transition-colors" title="Wishlist">
                 <HeartIcon className="w-6 h-6 text-gray-700 group-hover:text-[#544D89] transition-colors" />
@@ -872,39 +875,39 @@ useEffect(() => {
                 <MenuIcon className="w-6 h-6" />
               </button>
 
-{/* Logo */}
-<div className="flex-shrink-0">
-  <LogoSection 
-    variant="mobile"
-    logoSize="sm"
-    showTagline={false}
-  />
-</div>
+              {/* Logo */}
+              <div className="flex-shrink-0">
+                <LogoSection
+                  variant="mobile"
+                  logoSize="sm"
+                  showTagline={false}
+                />
+              </div>
             </div>
-            
+
             {/* Right: Icons with real counts */}
             <div className="flex items-center space-x-1 sm:space-x-2">
-               {/* Wishlist Icon Mobile */}
-               <Link 
-                  to="/wishlist" 
-                  className="relative p-2 text-gray-700 hover:text-[#544D89]"
-                  aria-label="Wishlist"
-                >
-                  <HeartIcon className="w-6 h-6"/>
-                  {wishlistCount > 0 && (
-                    <span className="absolute top-0 right-0 bg-[#544D89] text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
-                      {wishlistCount > 99 ? '99+' : wishlistCount}
-                    </span>
-                  )}
-                </Link>
+              {/* Wishlist Icon Mobile */}
+              <Link
+                to="/wishlist"
+                className="relative p-2 text-gray-700 hover:text-[#544D89]"
+                aria-label="Wishlist"
+              >
+                <HeartIcon className="w-6 h-6" />
+                {wishlistCount > 0 && (
+                  <span className="absolute top-0 right-0 bg-[#544D89] text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
+                    {wishlistCount > 99 ? '99+' : wishlistCount}
+                  </span>
+                )}
+              </Link>
 
               {/* Cart Icon Mobile */}
-              <Link 
-                to="/cart" 
+              <Link
+                to="/cart"
                 className="relative p-2 text-gray-700 hover:text-[#544D89]"
                 aria-label="Shopping Cart"
               >
-                <CartIcon className="w-6 h-6"/>
+                <CartIcon className="w-6 h-6" />
                 {cartCount > 0 && (
                   <span className="absolute top-0 right-0 bg-[#544D89] text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
                     {cartCount > 99 ? '99+' : cartCount}
@@ -914,7 +917,7 @@ useEffect(() => {
             </div>
           </div>
         </div>
-        
+
         {/* === MOBILE SEARCH === */}
         <div className="border-t border-gray-100 bg-gray-50/50">
           <div className="container mx-auto px-4 sm:px-6">
@@ -924,7 +927,7 @@ useEffect(() => {
           </div>
         </div>
       </header>
-      
+
       {/* === MOBILE MENU FLYOUT === */}
       <div
         role="dialog"
@@ -944,41 +947,41 @@ useEffect(() => {
           className={`absolute top-0 left-0 h-full w-[85%] max-w-sm bg-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
         >
           <div className="flex flex-col h-full">
-{/* Header */}
-<div className="flex justify-between items-center p-4 border-b border-gray-100 bg-[#2c2358] text-white shrink-0">
-  <div className="flex items-center gap-2">
-    {/* Use LogoSection for consistency */}
-    <div className="flex items-center gap-2">
-      <img 
-        src={navbarSettings?.logo?.url || logo} 
-        alt={navbarSettings?.logo?.altText || "Logo"} 
-        className="w-8 h-8 object-contain bg-white rounded-full p-0.5"
-        onError={(e) => {
-          const target = e.target as HTMLImageElement;
-          target.onerror = null;
-          target.src = logo;
-        }}
-      />
-      <h2 className="text-lg font-bold">Menu</h2>
-    </div>
-  </div>
-  <button
-    onClick={closeMobileMenu}
-    className="p-2 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors"
-    aria-label="Close navigation menu"
-  >
-    <XIcon className="w-6 h-6" />
-  </button>
-</div>
-            
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-[#2c2358] text-white shrink-0">
+              <div className="flex items-center gap-2">
+                {/* Use LogoSection for consistency */}
+                <div className="flex items-center gap-2">
+                  <img
+                    src={navbarSettings?.logo?.url || logo}
+                    alt={navbarSettings?.logo?.altText || "Logo"}
+                    className="w-8 h-8 object-contain bg-white rounded-full p-0.5"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = logo;
+                    }}
+                  />
+                  <h2 className="text-lg font-bold">Menu</h2>
+                </div>
+              </div>
+              <button
+                onClick={closeMobileMenu}
+                className="p-2 text-white/80 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Close navigation menu"
+              >
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+
             {/* Navigation Links - Scrollable area */}
             <nav className="flex-1 overflow-y-auto">
               <ul className="flex flex-col divide-y divide-gray-100">
                 {updatedNavItems.map((item) => (
-                  <MobileNavLink 
-                    key={item.label} 
-                    item={item} 
-                    closeMenu={closeMobileMenu} 
+                  <MobileNavLink
+                    key={item.label}
+                    item={item}
+                    closeMenu={closeMobileMenu}
                   />
                 ))}
               </ul>

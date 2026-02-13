@@ -25,8 +25,8 @@ interface AddToWishlistButtonProps {
   showTooltip?: boolean;
 }
 
-const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({ 
-  productId, 
+const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
+  productId,
   product, // ✅ ADD THIS
   variant,
   productType = 'product',
@@ -35,10 +35,10 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
   showTooltip = true
 }) => {
   const dispatch = useAppDispatch();
-  
+
   // CHANGED: Create unique identifier for wishlist items with variants
   const wishlistItemId = variant?.variantId ? `${productId}_${variant.variantId}` : productId;
-  
+
   const isInWishlist = useAppSelector(selectIsInWishlist(wishlistItemId));
   const isGuestWishlist = useAppSelector(selectIsGuestWishlist);
   const wishlistItems = useAppSelector(state => state.wishlistState.items || []);
@@ -46,40 +46,44 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
   const [loading, setLoading] = useState(false);
   const [showGuestTooltip, setShowGuestTooltip] = useState(false);
 
-  const handleWishlistToggle = async () => {
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    // CHANGE 2: Stop the click from affecting parent elements
+    e.stopPropagation();
+    e.preventDefault();
+
     if (loading) return;
 
     setLoading(true);
-    
-   try {
+
+    try {
       if (isInWishlist) {
         // ✅ FIX: Changed property name from 'productId' to 'itemId' to match your Action
-        await dispatch(wishlistActions.removeFromWishlist({ 
-          itemId: wishlistItemId, 
-          productType 
-        }));
-        
-        toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} removed from wishlist`, { toastId: 'wishlist-2' });
-      } else {
-        await dispatch(wishlistActions.addToWishlist({ 
-          productId,
-          product,
-          variant, 
+        await dispatch(wishlistActions.removeFromWishlist({
+          itemId: wishlistItemId,
           productType
         }));
-        
+
+        toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} removed from wishlist`, { toastId: 'wishlist-2' });
+      } else {
+        await dispatch(wishlistActions.addToWishlist({
+          productId,
+          product,
+          variant,
+          productType
+        }));
+
         if (!isAuthenticated && showTooltip) {
           setShowGuestTooltip(true);
           setTimeout(() => setShowGuestTooltip(false), 3000);
         }
-        
-        toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} added to wishlist`, { toastId: 'wishlist-1' } );
+
+        toast.success(`${productType === 'prebuilt-pc' ? 'Pre-built PC' : 'Product'} added to wishlist`, { toastId: 'wishlist-1' });
       }
     } catch (error: any) {
       console.error('❌ Wishlist toggle error:', error);
-      
+
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update wishlist';
-      
+
       if (!(productType === 'prebuilt-pc' && error.response?.status === 404)) {
         toast.error(errorMessage);
       }
@@ -101,7 +105,7 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
   };
 
   return (
-    <div className="relative">
+    <div className={`group ${showGuestTooltip ? 'relative z-20' : ''}`}>
       <button
         onClick={handleWishlistToggle}
         disabled={loading}
@@ -109,10 +113,9 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
           ${sizeClasses[size]} 
           rounded-full transition-all duration-300 
           flex items-center justify-center
-          ${
-            isInWishlist 
-              ? 'text-red-500 bg-red-50 hover:bg-red-100 shadow-md border-red-200' 
-              : 'text-gray-400 bg-white hover:bg-gray-50 hover:text-red-500 shadow-sm hover:shadow-md border-gray-200'
+          ${isInWishlist
+            ? 'text-red-500 bg-red-50 hover:bg-red-100 shadow-md border-red-200'
+            : 'text-gray-400 bg-white hover:bg-gray-50 hover:text-red-500 shadow-sm hover:shadow-md border-gray-200'
           } 
           ${className}
           border
@@ -122,19 +125,19 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
         title={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
       >
         {loading ? (
-          <svg 
-            className={`${iconSizes[size]} animate-spin`} 
-            fill="none" 
+          <svg
+            className={`${iconSizes[size]} animate-spin`}
+            fill="none"
             viewBox="0 0 24 24"
           >
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
         ) : (
-          <svg 
-            className={iconSizes[size]} 
-            fill={isInWishlist ? "currentColor" : "none"} 
-            stroke="currentColor" 
+          <svg
+            className={iconSizes[size]}
+            fill={isInWishlist ? "currentColor" : "none"}
+            stroke="currentColor"
             viewBox="0 0 24 24"
             strokeWidth={isInWishlist ? 0 : 2}
           >

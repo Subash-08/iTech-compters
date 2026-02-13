@@ -13,7 +13,18 @@ const imageSchema = new Schema({
     altText: { type: String, trim: true, required: true },
 }, { _id: false });
 
-// 🏭 Manufacturer Images Schema (Simplified)
+// � Video Schema
+const videoSchema = new Schema({
+    public_id: { type: String, required: true },
+    url: { type: String, required: true },
+    thumbnailPublicId: { type: String, required: true },
+    thumbnailUrl: { type: String, required: true },
+    duration: { type: Number, default: 0 },
+    format: { type: String },
+    bytes: { type: Number }
+}, { _id: false });
+
+// �🏭 Manufacturer Images Schema (Simplified)
 const manufacturerImageSchema = new Schema({
     url: { type: String, required: true },
     altText: { type: String, trim: true, required: true },
@@ -89,7 +100,10 @@ const productSchema = new Schema({
         gallery: [imageSchema],
     },
 
-    // 🏭 MANUFACTURER IMAGES
+    // � VIDEOS
+    videos: [videoSchema],
+
+    // �🏭 MANUFACTURER IMAGES
     manufacturerImages: [manufacturerImageSchema],
 
     basePrice: {

@@ -67,8 +67,8 @@ const UsedLaptopsPage: React.FC = () => {
 
   // Redux Selectors
   const products = useAppSelector(selectProducts);
-  console.log(products);
-  
+
+
   const loading = useAppSelector(selectProductsLoading);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const error = useAppSelector(selectProductsError);
@@ -80,20 +80,20 @@ const UsedLaptopsPage: React.FC = () => {
   const activeFilters = useAppSelector(selectActiveFilters);
 
   // --- 1. CONFIGURATION ---
-  const BASE_CATEGORY_SLUG = 'laptops'; 
-  const BASE_CONDITION = 'Used'; 
+  const BASE_CATEGORY_SLUG = 'laptops';
+  const BASE_CONDITION = 'Used';
 
   // --- 2. SEO CONFIGURATION ---
   const siteUrl = "https://itechcomputers.shop";
   const canonicalUrl = `${siteUrl}/used-laptops${currentPage > 1 ? `?page=${currentPage}` : ''}`;
-  
+
   const seoTitle = "Buy Used Laptops | Certified Refurbished | iTech Computers";
   const seoDescription = "Shop high-performance used and refurbished laptops at iTech Computers Salem. Quality tested, warranty backed, and best prices guaranteed.";
 
   // --- 3. INITIALIZATION & CLEANUP (The Fix) ---
   useEffect(() => {
     // ✅ CRITICAL: Clear old products immediately so users don't see "New" products flash
-    dispatch(productActions.clearProducts()); 
+    dispatch(productActions.clearProducts());
 
     return () => {
       dispatch(productActions.clearProducts());
@@ -103,13 +103,13 @@ const UsedLaptopsPage: React.FC = () => {
   // --- 4. FILTER LOGIC ---
   useEffect(() => {
     const urlFilters: any = {
-      category: BASE_CATEGORY_SLUG, 
-      condition: BASE_CONDITION,    
-      page: 1,                      
-      limit: 12,                    
-      search: '',                   
+      category: BASE_CATEGORY_SLUG,
+      condition: BASE_CONDITION,
+      page: 1,
+      limit: 12,
+      search: '',
       sortBy: 'newest',
-      
+
       // Explicitly clear potentially stale filters
       brand: null,
       minPrice: null,
@@ -144,16 +144,16 @@ const UsedLaptopsPage: React.FC = () => {
   // --- 5. FETCH DATA (With Guard Clause) ---
   useEffect(() => {
     const fetchUsedLaptops = async () => {
-      
+
       // ✅ CRITICAL GUARD: Do not fetch if Redux hasn't updated to 'Used' yet.
       // This prevents the "All Products" API call race condition.
       if (filters.condition !== BASE_CONDITION || filters.category !== BASE_CATEGORY_SLUG) {
-         return; 
+        return;
       }
 
       try {
-        await dispatch(productActions.fetchProducts(filters, { 
-          categoryName: 'renewed-laptops' // UI Label
+        await dispatch(productActions.fetchProducts(filters, {
+          categoryName: 'used-laptops' // UI Label
         }));
       } catch (error: any) {
         if (handleAuthError(error)) return;
@@ -169,10 +169,10 @@ const UsedLaptopsPage: React.FC = () => {
 
     const newParams = new URLSearchParams(searchParams);
     if (key !== 'page') newParams.delete('page');
-    
+
     if (value === null || value === '' || value === false) newParams.delete(key);
     else newParams.set(key, value.toString());
-    
+
     setSearchParams(newParams);
   }, [searchParams, setSearchParams]);
 
@@ -197,8 +197,8 @@ const UsedLaptopsPage: React.FC = () => {
 
   // Hide the Category filter AND Condition filter from the sidebar
   const shouldShowFilter = useCallback((filterType: string) => {
-    if (filterType === 'category') return false; 
-    if (filterType === 'condition') return false; 
+    if (filterType === 'category') return false;
+    if (filterType === 'condition') return false;
     return true;
   }, []);
 
@@ -233,7 +233,7 @@ const UsedLaptopsPage: React.FC = () => {
       </Helmet>
 
       <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
-        
+
         {/* --- Header --- */}
         <div className="flex flex-col gap-6 mb-10 md:mb-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -247,13 +247,13 @@ const UsedLaptopsPage: React.FC = () => {
               <p className="mt-2 text-gray-500 text-sm">
                 {totalProducts} certified units available. Performance tested & quality checked.
               </p>
-                <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 px-5 py-4">
-            <p className="text-sm text-gray-700 leading-relaxed">
-              <strong>Note:</strong> All laptops listed on this page are <strong>pre-owned</strong>.
-              Each device is professionally tested for performance and quality.
-              Exact condition details are clearly mentioned on the product page.
-            </p>
-          </div>
+              <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 px-5 py-4">
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  <strong>Note:</strong> All laptops listed on this page are <strong>pre-owned</strong>.
+                  Each device is professionally tested for performance and quality.
+                  Exact condition details are clearly mentioned on the product page.
+                </p>
+              </div>
             </div>
 
             {/* Controls */}
@@ -306,38 +306,38 @@ const UsedLaptopsPage: React.FC = () => {
 
         {/* --- Main Content Layout --- */}
         <div className="flex flex-col xl:flex-row gap-8 xl:gap-16 relative">
-          
+
           {/* Sidebar Filters */}
           <div className={`
             fixed inset-0 z-50 transform transition-transform duration-300 ease-in-out
             xl:relative xl:transform-none xl:z-0 xl:w-80 xl:block
             ${showFilters ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'}
           `}>
-             <div className="absolute inset-0 bg-black/30 backdrop-blur-sm xl:hidden" onClick={() => setShowFilters(false)}></div>
-             <div className="relative h-full w-[85%] max-w-xs bg-white xl:bg-transparent xl:w-full xl:max-w-none shadow-2xl xl:shadow-none overflow-hidden flex flex-col">
-                <div className="xl:hidden px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white">
-                  <span className="text-lg font-semibold">Filters</span>
-                  <button onClick={() => setShowFilters(false)}>✕</button>
-                </div>
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm xl:hidden" onClick={() => setShowFilters(false)}></div>
+            <div className="relative h-full w-[85%] max-w-xs bg-white xl:bg-transparent xl:w-full xl:max-w-none shadow-2xl xl:shadow-none overflow-hidden flex flex-col">
+              <div className="xl:hidden px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white">
+                <span className="text-lg font-semibold">Filters</span>
+                <button onClick={() => setShowFilters(false)}>✕</button>
+              </div>
 
-                <div className="flex-1 overflow-y-auto p-6 xl:p-0 xl:sticky xl:top-24">
-                  <ProductDetailFilters
-                    showFilters={true}
-                    availableFilters={availableFilters}
-                    currentFilters={filters}
-                    onUpdateFilter={updateFilter}
-                    onClearFilters={clearFilters}
-                    shouldShowFilter={shouldShowFilter} // Prevents untoggling Used/Laptops
-                    products={products}
-                  />
-                </div>
+              <div className="flex-1 overflow-y-auto p-6 xl:p-0 xl:sticky xl:top-24">
+                <ProductDetailFilters
+                  showFilters={true}
+                  availableFilters={availableFilters}
+                  currentFilters={filters}
+                  onUpdateFilter={updateFilter}
+                  onClearFilters={clearFilters}
+                  shouldShowFilter={shouldShowFilter} // Prevents untoggling Used/Laptops
+                  products={products}
+                />
+              </div>
 
-                <div className="xl:hidden p-6 border-t border-gray-100 bg-white">
-                  <button onClick={() => setShowFilters(false)} className="w-full py-3 bg-black text-white font-medium rounded-lg">
-                    Show Results
-                  </button>
-                </div>
-             </div>
+              <div className="xl:hidden p-6 border-t border-gray-100 bg-white">
+                <button onClick={() => setShowFilters(false)} className="w-full py-3 bg-black text-white font-medium rounded-lg">
+                  Show Results
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Product Grid */}

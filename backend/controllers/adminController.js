@@ -9,6 +9,9 @@ const mongoose = require("mongoose");
 
 // Fix the Product import - handle ES6 module in CommonJS
 const Product = ProductModule.default || ProductModule;
+const fs = require('fs');
+const { uploadVideoToCloudinary, uploadImageToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
+const { v4: uuidv4 } = require('uuid');
 
 // 🆕 ADD THESE HELPER FUNCTIONS AT THE TOP
 const generateVariantSKU = (productName, index) => {
@@ -325,6 +328,91 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
                 }
             }
 
+            // 🆕 Process Videos
+            let finalVideos = product.videos || [];
+
+            // 1. Handle removals (existingVideos should be an array of public_ids to keep)
+            if (productData.existingVideos) {
+                const keptPublicIds = Array.isArray(productData.existingVideos)
+                    ? productData.existingVideos
+                    : [productData.existingVideos]; // specific case if single string
+
+                const videosToRemove = finalVideos.filter(v => !keptPublicIds.includes(v.public_id));
+
+                // Delete removed videos from Cloudinary
+                for (const v of videosToRemove) {
+                    await deleteFromCloudinary(v.public_id, 'video');
+                    await deleteFromCloudinary(v.thumbnailPublicId, 'image');
+                }
+
+                finalVideos = finalVideos.filter(v => keptPublicIds.includes(v.public_id));
+            }
+
+            // 2. Handle new uploads
+            const newVideoData = [];
+            if (req.files && req.files.videos) {
+                const videos = req.files.videos;
+                const thumbnails = req.files.videoThumbnails || [];
+
+                if (finalVideos.length + videos.length > 5) {
+                    return next(new ErrorHandler("Maximum 5 videos allowed total", 400));
+                }
+
+                if (videos.length !== thumbnails.length) {
+                    return next(new ErrorHandler("Each new video must have a corresponding thumbnail", 400));
+                }
+
+                // Use existing folder ID or generate new if not present (legacy products)
+                let folderId;
+                if (product.videos && product.videos.length > 0) {
+                    // Extract folder ID from first video URL or public_id?
+                    // public_id format: products/{folderId}/videos/filename
+                    const parts = product.videos[0].public_id.split('/');
+                    if (parts.length >= 3) {
+                        folderId = parts[1];
+                    }
+                }
+                if (!folderId) {
+                    folderId = uuidv4();
+                }
+
+                const cloudFolder = `products/${folderId}/videos`;
+
+                try {
+                    for (let i = 0; i < videos.length; i++) {
+                        const videoFile = videos[i];
+                        const thumbFile = thumbnails[i];
+
+                        const videoUpload = await uploadVideoToCloudinary(videoFile.path, cloudFolder);
+                        const thumbUpload = await uploadImageToCloudinary(thumbFile.path, cloudFolder);
+
+                        const newVideo = {
+                            public_id: videoUpload.public_id,
+                            url: videoUpload.url,
+                            thumbnailPublicId: thumbUpload.public_id,
+                            thumbnailUrl: thumbUpload.url,
+                            duration: videoUpload.duration,
+                            format: videoUpload.format,
+                            bytes: videoUpload.bytes
+                        };
+
+                        newVideoData.push(newVideo);
+                        finalVideos.push(newVideo);
+
+                        // Cleanup
+                        if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
+                        if (fs.existsSync(thumbFile.path)) fs.unlinkSync(thumbFile.path);
+                    }
+                } catch (error) {
+                    // Rollback newly uploaded videos
+                    for (const v of newVideoData) {
+                        await deleteFromCloudinary(v.public_id, 'video');
+                        await deleteFromCloudinary(v.thumbnailPublicId, 'image');
+                    }
+                    return next(new ErrorHandler("Video upload failed: " + error.message, 500));
+                }
+            }
+
             // 🆕 Parse other JSON fields
             const jsonFields = [
                 'categories',
@@ -381,7 +469,7 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
                 'basePrice', 'mrp', 'discountPercentage', 'stockQuantity',
                 'barcode', 'sku', 'weight', 'dimensions', 'warranty', 'taxRate', 'notes',
                 'linkedProducts', 'hsn', 'manufacturerImages', 'canonicalUrl', 'offerPrice',
-                'variantConfiguration', 'variants', 'images', 'meta'
+                'variantConfiguration', 'variants', 'images', 'meta', 'videos'
             ];
 
             // Only update allowed fields that are provided
@@ -395,9 +483,11 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
             // Add processed images
             updateData.images = finalImages;
             updateData.manufacturerImages = finalManufacturerImages;
+            updateData.videos = finalVideos;
 
         } else {
             productData = req.body;
+
             const jsonFields = [
                 'categories',
                 'variantConfiguration',
@@ -425,7 +515,7 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
                 'basePrice', 'mrp', 'discountPercentage', 'stockQuantity',
                 'barcode', 'sku', 'weight', 'dimensions', 'warranty', 'taxRate', 'notes',
                 'linkedProducts', 'hsn', 'manufacturerImages', 'canonicalUrl', 'offerPrice',
-                'variantConfiguration', 'variants', 'images', 'meta'
+                'variantConfiguration', 'variants', 'images', 'meta', 'videos'
             ];
 
             // Only update allowed fields that are provided

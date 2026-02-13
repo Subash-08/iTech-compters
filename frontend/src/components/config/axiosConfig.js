@@ -44,7 +44,7 @@ api.interceptors.response.use(
         if (error.response?.status >= 500) {
             toast.error('Server error. Please try again later.');
         } else if (error.code === 'NETWORK_ERROR' || !error.response) {
-            toast.error('Network error. Please check your connection.');
+            toast.error('Network error. Please check your connection.', { toastId: 'network-error' });
         }
 
         // Return error for components to handle

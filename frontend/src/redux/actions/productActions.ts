@@ -17,7 +17,7 @@ export const productAPI = {
       if (filters.category) params.category = filters.category;
       if (filters.condition) params.condition = filters.condition;
       if (filters.inStock) params.inStock = 'true';
-      
+
       // 🎯 FIX: Send BOTH minPrice and maxPrice
       if (filters.minPrice !== undefined && filters.minPrice > 0) {
         params['minPrice'] = filters.minPrice; // Send as minPrice
@@ -27,23 +27,23 @@ export const productAPI = {
         params['maxPrice'] = filters.maxPrice; // Send as maxPrice  
         params['price[lte]'] = filters.maxPrice; // Also send as price[lte] for backend
       }
-      
+
       if (filters.rating) params['rating[gte]'] = filters.rating;
-      
+
       const sortMap: Record<string, string> = {
         'featured': 'newest',
-        'newest': 'newest', 
+        'newest': 'newest',
         'price-low': 'price-low',
         'price-high': 'price-high',
         'rating': 'rating',
         'popular': 'popular'
       };
-      
+
       params.sort = sortMap[filters.sortBy || 'featured'] || 'newest';
-     const response = await api.get<ProductsResponse>('/products', { params });
-      
+      const response = await api.get<ProductsResponse>('/products', { params });
+
       return response.data;
-      
+
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to fetch products';
       throw new Error(errorMessage);
@@ -102,7 +102,7 @@ export const productAPI = {
       const rangeFilters = { ...filters };
       delete rangeFilters.minPrice;
       delete rangeFilters.maxPrice;
-      
+
       const priceRangeParams = {
         ...rangeFilters,
         limit: 1000,
@@ -119,13 +119,13 @@ export const productAPI = {
       } else {
         response = await productAPI.getProducts(priceRangeParams);
       }
-      
+
       // 🎯 UPDATED: Use effectivePrice instead of basePrice
       if (response.data.products.length > 0) {
         const prices = response.data.products.map(product => product.effectivePrice || product.basePrice);
-        
+
         const minPrice = Math.floor(Math.min(...prices));
-        const maxPrice = Math.ceil(Math.max(...prices));        
+        const maxPrice = Math.ceil(Math.max(...prices));
         return {
           minPrice: Math.max(0, minPrice),
           maxPrice: Math.max(minPrice + 100, maxPrice)
@@ -168,23 +168,22 @@ export const productActions = {
   fetchProducts: (filters: ProductFilters, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
       dispatch({ type: 'products/fetchProductsStart' });
-      
+
       let response: ProductsResponse;
-      
+
       // Choose the right API call based on route
       if (routeParams?.categoryName) {
         response = await productAPI.getProductsByCategory(routeParams.categoryName, filters);
-        console.log(response);
-        
+
       } else if (routeParams?.brandName) {
         response = await productAPI.getProductsByBrand(routeParams.brandName, filters);
       } else {
         response = await productAPI.getProducts(filters);
       }
-      
+
       // 🎯 NEW: Extract data from unified response
       const responseData = mapToNewResponseFormat(response);
-      
+
       dispatch({
         type: 'products/fetchProductsSuccess',
         payload: {
@@ -210,7 +209,7 @@ export const productActions = {
           totalProducts: response.data.filters.totalProducts,
         },
       });
-      
+
     } catch (error: any) {
       dispatch({
         type: 'products/fetchProductsFailure',
@@ -228,8 +227,8 @@ export const productActions = {
         page: 1,
         sortBy: 'price-low'
       };
-      
-      const priceRange = await productAPI.getPriceRange(baseRangeFilters, routeParams);    
+
+      const priceRange = await productAPI.getPriceRange(baseRangeFilters, routeParams);
       dispatch({
         type: 'products/updateAvailableFilters',
         payload: {
@@ -288,7 +287,7 @@ export const productActions = {
   fetchPriceRange: (filters: Partial<ProductFilters>, routeParams?: { brandName?: string; categoryName?: string }) => async (dispatch: any) => {
     try {
       const priceRange = await productAPI.getPriceRange(filters, routeParams);
-      
+
       dispatch({
         type: 'products/updateAvailableFilters',
         payload: {
@@ -341,9 +340,9 @@ export const productActions = {
   quickSearch: (query: string) => async (dispatch: any) => {
     try {
       dispatch({ type: 'products/quickSearchStart' });
-      
+
       const results = await productAPI.searchProducts(query, 5);
-      
+
       dispatch({
         type: 'products/quickSearchSuccess',
         payload: results,
@@ -363,10 +362,10 @@ export const productActions = {
   advancedSearch: (query: string, filters: ProductFilters) => async (dispatch: any) => {
     try {
       dispatch({ type: 'products/fetchProductsStart' });
-      
+
       const response = await productAPI.getProducts({ ...filters, search: query });
       const responseData = mapToNewResponseFormat(response);
-      
+
       dispatch({
         type: 'products/fetchProductsSuccess',
         payload: {

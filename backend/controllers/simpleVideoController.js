@@ -59,8 +59,6 @@ class SimpleVideoController {
             const thumbFullPath = path.join(thumbDir, thumbFileName);
 
             await sharp(thumbnailFile.path)
-                .resize(320, 240, { fit: 'cover', position: 'center' })
-                .jpeg({ quality: 80 })
                 .toFile(thumbFullPath);
 
             // OPTIONAL cleanup (safe)

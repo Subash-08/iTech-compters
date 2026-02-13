@@ -1,137 +1,170 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ProductData, Variant } from './productTypes';
-import { 
-  getImageUrl, 
-  getPlaceholderImage, 
-  getImageAltText 
+import {
+  getImageUrl,
+  getPlaceholderImage,
+  getImageAltText
 } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
+import GalleryModal from './GalleryModal';
 
 interface ProductImagesProps {
   productData: ProductData;
   selectedVariant: Variant | null;
 }
 
+interface MediaItem {
+  type: 'image' | 'video';
+  url: string;
+  altText: string;
+  thumbnailUrl?: string;
+  duration?: number;
+}
+
 const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVariant }) => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [imageError, setImageError] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [images, setImages] = useState<Array<{
-    url: string;
-    altText: string;
-    type: string;
-    isVariantImage: boolean;
-  }>>([]);
-  
   const [isPlaying, setIsPlaying] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInitialTab, setModalInitialTab] = useState<'images' | 'videos'>('images');
+  const [modalInitialIndex, setModalInitialIndex] = useState(0);
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const autoplayDuration = 5000; // 5 seconds
 
-  // Get variant-specific images only
-  const getVariantImages = () => {
-    const imagesList: Array<{
-      url: string;
-      altText: string;
-      type: string;
-      isVariantImage: boolean;
-    }> = [];
+  // Memoized media merging logic
+  const { allImages, allVideos, combinedMedia } = useMemo(() => {
+    const imagesList: MediaItem[] = [];
+    const videosList: MediaItem[] = [];
 
-    // 🔒 FIX: Show ONLY selected variant images when variant exists
+    // Get images (variant overrides base)
     if (selectedVariant?.images) {
-      // 1. Variant thumbnail
+      // Variant thumbnail
       if (selectedVariant.images.thumbnail) {
-        const variantThumbnailUrl = getImageUrl(selectedVariant.images.thumbnail);
-        if (variantThumbnailUrl && !variantThumbnailUrl.startsWith('blob:')) {
+        const url = getImageUrl(selectedVariant.images.thumbnail);
+        if (url && !url.startsWith('blob:')) {
           imagesList.push({
-            url: variantThumbnailUrl,
+            type: 'image',
+            url,
             altText: getImageAltText(
               selectedVariant.images.thumbnail,
               `${productData.name} - ${selectedVariant.name} thumbnail`
-            ),
-            type: 'variant-thumbnail',
-            isVariantImage: true
+            )
           });
         }
       }
 
-      // 2. Variant gallery images
-      if (selectedVariant.images.gallery && selectedVariant.images.gallery.length > 0) {
+      // Variant gallery
+      if (selectedVariant.images.gallery?.length) {
         selectedVariant.images.gallery.forEach((img, index) => {
-          const galleryUrl = getImageUrl(img);
-          if (galleryUrl && !galleryUrl.startsWith('blob:')) {
+          const url = getImageUrl(img);
+          if (url && !url.startsWith('blob:')) {
             imagesList.push({
-              url: galleryUrl,
+              type: 'image',
+              url,
               altText: getImageAltText(
                 img,
                 `${productData.name} - ${selectedVariant.name} image ${index + 1}`
-              ),
-              type: `variant-gallery-${index + 1}`,
-              isVariantImage: true
+              )
             });
           }
         });
       }
     }
 
-    // 🔒 FIX: Fallback to base product images ONLY if variant has no images
+    // Fallback to base images if no variant images
     if (imagesList.length === 0 && productData.images) {
       if (productData.images.thumbnail) {
-        const baseThumbnailUrl = getImageUrl(productData.images.thumbnail);
-        if (baseThumbnailUrl && !baseThumbnailUrl.startsWith('blob:')) {
+        const url = getImageUrl(productData.images.thumbnail);
+        if (url && !url.startsWith('blob:')) {
           imagesList.push({
-            url: baseThumbnailUrl,
-            altText: getImageAltText(productData.images.thumbnail, productData.name),
-            type: 'base-thumbnail',
-            isVariantImage: false
+            type: 'image',
+            url,
+            altText: getImageAltText(productData.images.thumbnail, productData.name)
           });
         }
       }
 
-      // Base product gallery images
-      if (productData.images.gallery && productData.images.gallery.length > 0) {
+      if (productData.images.gallery?.length) {
         productData.images.gallery.forEach((img, index) => {
-          const galleryUrl = getImageUrl(img);
-          if (galleryUrl && !galleryUrl.startsWith('blob:')) {
+          const url = getImageUrl(img);
+          if (url && !url.startsWith('blob:')) {
             imagesList.push({
-              url: galleryUrl,
-              altText: getImageAltText(img, `${productData.name} image ${index + 1}`),
-              type: `base-gallery-${index + 1}`,
-              isVariantImage: false
+              type: 'image',
+              url,
+              altText: getImageAltText(img, `${productData.name} image ${index + 1}`)
             });
           }
         });
       }
     }
 
-    // Add placeholder if no images at all
-    if (imagesList.length === 0) {
-      imagesList.push({
-        url: getPlaceholderImage('No Product Images Available', 800, 800),
-        altText: 'Product image not available',
-        type: 'placeholder',
-        isVariantImage: false
+    // Add videos (only for base product, not variant)
+    if (!selectedVariant && productData.videos?.length) {
+      productData.videos.forEach((video: any, index: number) => {
+        videosList.push({
+          type: 'video',
+          url: video.url,
+          altText: `${productData.name} video ${index + 1}`,
+          thumbnailUrl: video.thumbnailUrl,
+          duration: video.duration
+        });
       });
     }
-    return imagesList;
-  };
+
+    // Combined media (images first, then videos)
+    const combined = [...imagesList, ...videosList];
+
+    return {
+      allImages: imagesList,
+      allVideos: videosList,
+      combinedMedia: combined.length > 0 ? combined : [{
+        type: 'image' as const,
+        url: getPlaceholderImage('No Product Images Available', 800, 800),
+        altText: 'Product image not available'
+      }]
+    };
+  }, [productData, selectedVariant]);
+
+  // Determine display items (+N overlay logic)
+  const { displayItems, hasOverlay, totalCount, remainingCount } = useMemo(() => {
+    const total = combinedMedia.length;
+
+    if (total <= 5) {
+      return {
+        displayItems: combinedMedia,
+        hasOverlay: false,
+        totalCount: total,
+        remainingCount: 0
+      };
+    }
+
+    // Show first 4, +N on 5th
+    return {
+      displayItems: combinedMedia.slice(0, 4),
+      hasOverlay: true,
+      totalCount: total,
+      remainingCount: total - 4
+    };
+  }, [combinedMedia]);
 
   useEffect(() => {
-    const loadImages = () => {
-      setLoading(true);
-      const loadedImages = getVariantImages();
-      setImages(loadedImages);
-      setSelectedImage(0);
-      setImageError(false);
-      setLoading(false);
-    };
-    
-    loadImages();
+    setLoading(true);
+    setSelectedImage(0);
+    setIsPlaying(true);
+    setImageError(false);
+    setLoading(false);
   }, [productData, selectedVariant]);
 
   // Auto-slideshow effect
   useEffect(() => {
-    if (images.length <= 1 || !isPlaying) {
+    if (
+      combinedMedia.length <= 1 ||
+      !isPlaying ||
+      combinedMedia[selectedImage]?.type === 'video'
+    ) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
@@ -139,7 +172,7 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
     }
 
     intervalRef.current = setInterval(() => {
-      setSelectedImage((prev) => (prev + 1) % images.length);
+      setSelectedImage((prev) => (prev + 1) % combinedMedia.length);
     }, autoplayDuration);
 
     return () => {
@@ -147,15 +180,15 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
         clearInterval(intervalRef.current);
       }
     };
-  }, [images.length, isPlaying]);
+  }, [combinedMedia.length, isPlaying, selectedImage]);
 
   const nextImage = () => {
-    setSelectedImage((prev) => (prev + 1) % images.length);
+    setSelectedImage((prev) => (prev + 1) % combinedMedia.length);
     resetAutoplay();
   };
 
   const prevImage = () => {
-    setSelectedImage((prev) => (prev - 1 + images.length) % images.length);
+    setSelectedImage((prev) => (prev - 1 + combinedMedia.length) % combinedMedia.length);
     resetAutoplay();
   };
 
@@ -164,10 +197,37 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
-    setTimeout(() => setIsPlaying(true), 3000); // Resume after 3 seconds pause
+    setTimeout(() => setIsPlaying(true), 3000);
   };
 
-  const currentImage = images[selectedImage] || images[0];
+  const handleThumbnailClick = (index: number) => {
+    if (hasOverlay && index === 4) {
+      // Clicked +N overlay - open modal
+      openModal('images', 0);
+    } else {
+      setSelectedImage(index);
+      resetAutoplay();
+    }
+  };
+
+  const handleMainImageClick = () => {
+    const item = displayItems[selectedImage];
+    if (item.type === 'image') {
+      const indexInImages = allImages.findIndex(img => img.url === item.url);
+      openModal('images', indexInImages >= 0 ? indexInImages : 0);
+    } else {
+      const indexInVideos = allVideos.findIndex(vid => vid.url === item.url);
+      openModal('videos', indexInVideos >= 0 ? indexInVideos : 0);
+    }
+  };
+
+  const openModal = (tab: 'images' | 'videos', index: number) => {
+    setModalInitialTab(tab);
+    setModalInitialIndex(index);
+    setIsModalOpen(true);
+  };
+
+  const currentItem = displayItems[selectedImage] || displayItems[0];
 
   if (loading) {
     return (
@@ -178,7 +238,7 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
             <div key={i} className="w-20 h-20 bg-gray-200 rounded-lg animate-pulse"></div>
           ))}
         </div>
-        
+
         {/* Main Image Skeleton */}
         <div className="flex-1">
           <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl h-[500px] animate-pulse flex items-center justify-center">
@@ -193,240 +253,273 @@ const ProductImages: React.FC<ProductImagesProps> = ({ productData, selectedVari
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Left: Vertical Thumbnail Gallery - Amazon Style */}
-      {images.length > 1 && (
-        <div className="hidden lg:flex flex-col space-y-3 w-20 flex-shrink-0">
-          {images.map((image, index) => (
-            <motion.button
-              key={index}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`relative w-20 h-20 rounded-lg overflow-hidden border transition-all duration-200 ${
-                selectedImage === index
+    <>
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Left: Vertical Thumbnail Gallery */}
+        {displayItems.length > 1 && (
+          <div className="hidden lg:flex flex-col space-y-3 w-20 flex-shrink-0 max-h-[550px] overflow pr-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            {displayItems.map((item, index) => (
+              <motion.button
+                key={index}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`relative w-20 h-20 rounded-lg overflow-hidden border transition-all duration-200 ${selectedImage === index
                   ? 'border-blue-500 shadow-sm'
                   : 'border-gray-300 hover:border-gray-400'
-              }`}
-              onClick={() => {
-                setSelectedImage(index);
-                resetAutoplay();
-              }}
-              title={image.altText}
-            >
-              <img
-                src={image.url}
-                alt={image.altText}
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                onError={(e) => {
-                  e.currentTarget.src = getPlaceholderImage('Thumbnail Error', 80, 80);
-                }}
-              />
-              
-              {/* Selected indicator */}
-              {selectedImage === index && (
-                <div className="absolute inset-0 border-2 border-blue-500 rounded-lg"></div>
-              )}
-
-              {/* Loading indicator */}
-              {selectedImage === index && imageLoaded && (
-                <motion.div
-                  initial={{ width: '0%' }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: autoplayDuration / 1000, ease: "linear" }}
-                  className="absolute bottom-0 left-0 h-1 bg-blue-500"
-                />
-              )}
-            </motion.button>
-          ))}
-        </div>
-      )}
-
-      {/* Right: Main Image Viewer with Slideshow Controls */}
-      <div className="flex-1">
-        {/* Main Image Container */}
-        <div className="relative bg-gradient-to-br from-gray-50 to-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-          <div className="relative h-[500px] flex items-center justify-center bg-white">
-            {/* Main Image with Slide Animation */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={selectedImage}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="w-full h-full flex items-center justify-center"
+                  }`}
+                onClick={() => handleThumbnailClick(index)}
+                title={item.altText}
               >
                 <img
-                  src={currentImage.url}
-                  alt={currentImage.altText}
-                  className="max-h-full max-w-full object-contain"
+                  src={item.type === 'video' ? item.thumbnailUrl : item.url}
+                  alt={item.altText}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
                   onError={(e) => {
-                    setImageError(true);
-                    e.currentTarget.src = getPlaceholderImage('Image Failed to Load', 800, 800);
-                  }}
-                  onLoad={() => {
-                    setImageError(false);
-                    setImageLoaded(true);
+                    e.currentTarget.src = getPlaceholderImage('Thumbnail Error', 80, 80);
                   }}
                 />
-              </motion.div>
-            </AnimatePresence>
 
-            {/* Loading Overlay */}
-            {loading && (
-              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center">
-                <div className="text-center">
-                  <div className="h-12 w-12 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-600 font-medium">Loading image...</p>
-                </div>
-              </div>
-            )}
-
-            {/* Error Overlay */}
-            {imageError && (
-              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center">
-                <div className="text-center p-6">
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                {/* Play icon overlay for videos */}
+                {item.type === 'video' && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <svg className="w-6 h-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M6 4l10 6-10 6V4z" />
                     </svg>
                   </div>
-                  <p className="text-gray-700 font-medium mb-2">Image failed to load</p>
-                  <p className="text-gray-500 text-sm">Please try another image</p>
-                </div>
-              </div>
-            )}
-
-            {/* Navigation Arrows */}
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={prevImage}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-300 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl group"
-                  aria-label="Previous image"
-                >
-                  <svg className="w-5 h-5 text-gray-700 group-hover:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-
-                <button
-                  onClick={nextImage}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-300 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl group"
-                  aria-label="Next image"
-                >
-                  <svg className="w-5 h-5 text-gray-700 group-hover:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </>
-            )}
-
-            {/* Auto-play Control */}
-            {/* {images.length > 1 && (
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-lg flex items-center gap-2 transition-all duration-200 hover:shadow-xl group"
-              >
-                {isPlaying ? (
-                  <>
-                    <svg className="w-4 h-4 text-gray-700 group-hover:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">Pause</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 text-gray-700 group-hover:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">Play</span>
-                  </>
                 )}
-              </button>
-            )} */}
 
-            {/* Image Counter - Top Right */}
-            {/* {images.length > 1 && (
-              <div className="absolute top-4 right-4 bg-black/70 text-white text-sm font-medium px-3 py-1.5 rounded-full backdrop-blur-sm">
-                {selectedImage + 1} / {images.length}
+                {/* Selected indicator */}
+                {selectedImage === index && (
+                  <div className="absolute inset-0 border-2 border-blue-500 rounded-lg"></div>
+                )}
+
+                {/* Progress bar */}
+                {selectedImage === index && imageLoaded && (
+                  <motion.div
+                    initial={{ width: '0%' }}
+                    animate={{ width: '100%' }}
+                    transition={{ duration: autoplayDuration / 1000, ease: "linear" }}
+                    className="absolute bottom-0 left-0 h-1 bg-blue-500"
+                  />
+                )}
+              </motion.button>
+            ))}
+
+            {/* +N Overlay Thumbnail */}
+            {hasOverlay && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-300 hover:border-gray-400 transition-all duration-200 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center cursor-pointer"
+                onClick={() => openModal('images', 0)}
+                title={`View all ${totalCount} media items`}
+              >
+                <div className="text-center text-white">
+                  <div className="text-xl font-bold">+{remainingCount}</div>
+                  <div className="text-xs">more</div>
+                </div>
+              </motion.button>
+            )}
+
+            {/* +N Videos Tile (if videos exist) */}
+            {allVideos.length > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="relative w-20 h-20 rounded-lg overflow-hidden border border-purple-400 hover:border-purple-500 transition-all duration-200 bg-gradient-to-br from-purple-700 to-purple-900 flex items-center justify-center cursor-pointer shadow-lg shadow-purple-500/30"
+                onClick={() => openModal('videos', 0)}
+                title={`View ${allVideos.length} video${allVideos.length > 1 ? 's' : ''}`}
+              >
+                <div className="text-center text-white">
+                  <svg className="w-8 h-8 mx-auto mb-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M6 4l10 6-10 6V4z" />
+                  </svg>
+                  <div className="text-xs font-semibold">{allVideos.length} video{allVideos.length > 1 ? 's' : ''}</div>
+                </div>
+              </motion.button>
+            )}
+          </div>
+        )}
+
+        {/* Right: Main Image Viewer */}
+        <div className="flex-1">
+          <div className="relative bg-gradient-to-br from-gray-50 to-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+            <div className="relative h-[500px] flex items-center justify-center bg-white">
+              {/* Main Media with Slide Animation */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={selectedImage}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="w-full h-full flex items-center justify-center cursor-pointer"
+                  onClick={handleMainImageClick}
+                >
+                  {/* Show from combinedMedia to include all images and videos */}
+                  {combinedMedia[selectedImage]?.type === 'video' ? (
+                    <video
+                      src={combinedMedia[selectedImage].url}
+                      controls
+                      className="max-h-full max-w-full object-contain"
+                      onPlay={() => setIsPlaying(false)}
+                    />
+                  ) : (
+                    <img
+                      src={combinedMedia[selectedImage]?.url || getPlaceholderImage('Image not available', 800, 800)}
+                      alt={combinedMedia[selectedImage]?.altText || 'Product image'}
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => {
+                        setImageError(true);
+                        e.currentTarget.src = getPlaceholderImage('Image Failed to Load', 800, 800);
+                      }}
+                      onLoad={() => {
+                        setImageError(false);
+                        setImageLoaded(true);
+                      }}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Navigation Arrows */}
+              {combinedMedia.length > 1 && (
+                <>
+                  <button
+                    onClick={prevImage}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-300 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl group"
+                    aria-label="Previous image"
+                  >
+                    <svg className="w-5 h-5 text-gray-700 group-hover:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  <button
+                    onClick={nextImage}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-300 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl group"
+                    aria-label="Next image"
+                  >
+                    <svg className="w-5 h-5 text-gray-700 group-hover:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Progress Dots */}
+            {displayItems.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-2">
+                {displayItems.slice(0, hasOverlay ? 4 : displayItems.length).map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleThumbnailClick(index)}
+                    className="focus:outline-none"
+                    aria-label={`Go to item ${index + 1}`}
+                  >
+                    <div className={`w-2 h-2 rounded-full transition-all duration-300 ${selectedImage === index
+                      ? 'bg-blue-500 w-8'
+                      : 'bg-gray-300 hover:bg-gray-400'
+                      }`} />
+                  </button>
+                ))}
+                {hasOverlay && (
+                  <button
+                    onClick={() => openModal('images', 0)}
+                    className="text-xs text-gray-600 hover:text-gray-900 font-medium ml-2"
+                  >
+                    +{remainingCount}
+                  </button>
+                )}
               </div>
-            )} */}
+            )}
           </div>
 
-          {/* Progress Dots - Bottom Center */}
-          {images.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-2">
-              {images.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setSelectedImage(index);
-                    resetAutoplay();
-                  }}
-                  className="focus:outline-none"
-                  aria-label={`Go to image ${index + 1}`}
-                >
-                  <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    selectedImage === index 
-                      ? 'bg-blue-500 w-8' 
-                      : 'bg-gray-300 hover:bg-gray-400'
-                  }`} />
-                </button>
-              ))}
+          {/* Horizontal Thumbnail Gallery (Mobile) */}
+          {displayItems.length > 1 && (
+            <div className="mt-4 lg:hidden">
+              <div className="flex space-x-3 overflow-x-auto pb-4 px-1">
+                {displayItems.map((item, index) => (
+                  <motion.button
+                    key={index}
+                    whileTap={{ scale: 0.95 }}
+                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border transition-all relative ${selectedImage === index
+                      ? 'border-blue-500 shadow-sm'
+                      : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    onClick={() => handleThumbnailClick(index)}
+                  >
+                    <img
+                      src={item.type === 'video' ? item.thumbnailUrl : item.url}
+                      alt={item.altText}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = getPlaceholderImage('Thumbnail Error', 80, 80);
+                      }}
+                    />
+
+                    {/* Play icon for videos */}
+                    {item.type === 'video' && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <svg className="w-6 h-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M6 4l10 6-10 6V4z" />
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Selected indicator */}
+                    {selectedImage === index && (
+                      <div className="absolute inset-0 border-2 border-blue-500 rounded-lg"></div>
+                    )}
+                  </motion.button>
+                ))}
+
+                {/* +N Overlay for mobile */}
+                {hasOverlay && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-gray-300 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center"
+                    onClick={() => openModal('images', 0)}
+                  >
+                    <div className="text-center text-white">
+                      <div className="text-lg font-bold">+{remainingCount}</div>
+                      <div className="text-xs">more</div>
+                    </div>
+                  </motion.button>
+                )}
+
+                {/* +N Videos for mobile */}
+                {allVideos.length > 0 && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-purple-400 bg-gradient-to-br from-purple-700 to-purple-900 flex items-center justify-center shadow-lg shadow-purple-500/30"
+                    onClick={() => openModal('videos', 0)}
+                  >
+                    <div className="text-center text-white">
+                      <svg className="w-7 h-7 mx-auto mb-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M6 4l10 6-10 6V4z" />
+                      </svg>
+                      <div className="text-xs font-semibold">{allVideos.length}</div>
+                    </div>
+                  </motion.button>
+                )}
+              </div>
             </div>
           )}
         </div>
-
-        {/* Horizontal Thumbnail Gallery (Mobile) */}
-        {images.length > 1 && (
-          <div className="mt-4 lg:hidden">
-            <div className="flex space-x-3 overflow-x-auto pb-4 px-1">
-              {images.map((image, index) => (
-                <motion.button
-                  key={index}
-                  whileTap={{ scale: 0.95 }}
-                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border transition-all relative ${
-                    selectedImage === index
-                      ? 'border-blue-500 shadow-sm'
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                  onClick={() => {
-                    setSelectedImage(index);
-                    resetAutoplay();
-                  }}
-                >
-                  <img
-                    src={image.url}
-                    alt={image.altText}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = getPlaceholderImage('Thumbnail Error', 80, 80);
-                    }}
-                  />
-                  
-                  {/* Selected indicator for mobile */}
-                  {selectedImage === index && (
-                    <div className="absolute inset-0 border-2 border-blue-500 rounded-lg"></div>
-                  )}
-
-                  {/* Progress bar for mobile */}
-                  {selectedImage === index && imageLoaded && (
-                    <motion.div
-                      initial={{ width: '0%' }}
-                      animate={{ width: '100%' }}
-                      transition={{ duration: autoplayDuration / 1000, ease: "linear" }}
-                      className="absolute bottom-0 left-0 h-1 bg-blue-500"
-                    />
-                  )}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
-    </div>
+
+      {/* Gallery Modal */}
+      <GalleryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        images={allImages}
+        videos={allVideos}
+        initialTab={modalInitialTab}
+        initialIndex={modalInitialIndex}
+      />
+    </>
   );
 };
 

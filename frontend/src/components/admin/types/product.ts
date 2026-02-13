@@ -12,19 +12,30 @@ export interface Product {
   status: 'Draft' | 'Published' | 'OutOfStock' | 'Archived' | 'Discontinued';
   description: string;
   definition: string;
-  
+
   // 🆕 NEW FIELDS
   hsn?: string; // HSN code for tax purposes
   mrp?: number; // Maximum Retail Price (strikethrough price)
   manufacturerImages?: ImageData[]; // A+ content images from manufacturer
-  
+
   // Images
   images: {
     thumbnail: ImageData;
     hoverImage?: ImageData;
     gallery: ImageData[];
   };
-  
+
+  // Videos
+  videos?: {
+    public_id: string;
+    url: string;
+    thumbnailPublicId: string;
+    thumbnailUrl: string;
+    duration: number;
+    format: string;
+    bytes: number;
+  }[];
+
   // Pricing & Inventory - 🆕 UPDATED
   basePrice: number;
   offerPrice: number; // Kept for backward compatibility
@@ -34,7 +45,7 @@ export interface Product {
   barcode: string;
   stockQuantity: number;
   hasVariants?: boolean;
-  
+
   // 🆕 VIRTUAL FIELDS (from backend - for display)
   sellingPrice?: number; // Virtual: Always uses variant prices if variants exist, otherwise product basePrice
   displayMrp?: number; // Virtual: Always uses variant MRP if variants exist, otherwise product MRP
@@ -45,15 +56,15 @@ export interface Product {
     hasRange: boolean;
   };
   hasActiveVariants?: boolean; // Virtual: Checks if product has active variants
-  
+
   // Variants
   variantConfiguration: VariantConfiguration;
   variants: ProductVariant[];
-  
+
   // Specifications & Features
   specifications: Specification[];
   features: Feature[];
-  
+
   // Dimensions & Weight
   dimensions: {
     length: number;
@@ -65,11 +76,11 @@ export interface Product {
     value: number;
     unit: 'g' | 'kg' | 'lb' | 'oz';
   };
-  
+
   // Reviews & Ratings
   averageRating?: number;
   totalReviews?: number;
-  
+
   warranty: string;
   meta: {
     title: string;
@@ -95,19 +106,30 @@ export interface ProductFormData {
   status: 'Draft' | 'Published' | 'OutOfStock' | 'Archived' | 'Discontinued';
   description: string;
   definition: string;
-  
+
   // 🆕 NEW FIELDS
   hsn?: string;
   mrp?: number;
   manufacturerImages?: ImageData[];
-  
+
   // Images
   images: {
     thumbnail: ImageData;
     hoverImage?: ImageData;
     gallery: ImageData[];
   };
-  
+
+  // Videos
+  videos?: {
+    public_id: string;
+    url: string;
+    thumbnailPublicId: string;
+    thumbnailUrl: string;
+    duration: number;
+    format: string;
+    bytes: number;
+  }[];
+
   // Pricing & Inventory - 🆕 UPDATED
   basePrice: number;
   offerPrice: number; // Kept for backward compatibility
@@ -116,15 +138,15 @@ export interface ProductFormData {
   sku: string;
   barcode: string;
   stockQuantity: number;
-  
+
   // Variants
   variantConfiguration: VariantConfiguration;
   variants: ProductVariant[];
-  
+
   // Specifications & Features
   specifications: Specification[];
   features: Feature[];
-  
+
   // Dimensions & Weight
   dimensions: {
     length: number;
@@ -136,7 +158,7 @@ export interface ProductFormData {
     value: number;
     unit: 'g' | 'kg' | 'lb' | 'oz';
   };
-  
+
   warranty: string;
   meta: {
     title: string;
@@ -193,7 +215,7 @@ export interface ProductVariant {
   };
   isActive: boolean;
   specifications: Specification[];
-   _thumbnailFile?: File;
+  _thumbnailFile?: File;
   _galleryFiles?: File[];
 }
 

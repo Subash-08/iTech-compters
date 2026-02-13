@@ -37,7 +37,9 @@ router.patch('/admin/products/:id/partial',
         { name: 'thumbnail', maxCount: 1 },
         { name: 'hoverImage', maxCount: 1 },
         { name: 'gallery', maxCount: 10 },
-        { name: 'manufacturerImages', maxCount: 10 }
+        { name: 'manufacturerImages', maxCount: 10 },
+        { name: 'videos', maxCount: 5 },
+        { name: 'videoThumbnails', maxCount: 5 }
     ]),
     handleMulterError,
     partialUpdateProduct
