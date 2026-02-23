@@ -82,15 +82,15 @@ const calculateTaxBreakdown = (subtotal, discount, taxRate, shipping = 0) => {
     const safeDiscount = Math.min(safeSubtotal, Math.max(0, discount));
     const safeShipping = Math.max(0, shipping);
 
-    // 1. Calculate Taxable Amount
-    const taxableAmount = safeSubtotal - safeDiscount;
+    // 1. Calculate Taxable Amount (do NOT subtract discount to keep tax unchanged)
+    const taxableAmount = safeSubtotal;
 
     // 2. Calculate Tax
     const tax = calculateTaxAmount(taxableAmount, rate);
 
     // 3. Calculate Final Total
-    // Total = Taxable Amount + Tax + Shipping
-    const total = taxableAmount + tax + safeShipping;
+    // Total = Taxable Amount + Tax + Shipping - Discount
+    const total = taxableAmount + tax + safeShipping - safeDiscount;
 
     return {
         subtotal: Math.round(safeSubtotal * 100) / 100,
@@ -134,13 +134,10 @@ const calculateItemLevelTaxBreakdown = (items = [], discountAmount = 0, shipping
     ) / 100;
     const safeShipping = Math.max(0, Number(shippingAfterDiscount) || 0);
 
-    // Apply discount proportionally per item, round both discount and tax at item level
+    // Calculate tax on the full pre-discount item total
     const tax = items.reduce((acc, item) => {
         const itemTotal = Number(item.total) || 0;
-        const itemShare = subtotal > 0 ? itemTotal / subtotal : 0;
-        // Round itemDiscount per item to prevent floating-point residual drift
-        const itemDiscount = Math.round(itemShare * safeDiscount * 100) / 100;
-        const taxableAmount = itemTotal - itemDiscount;
+        const taxableAmount = itemTotal; // Do NOT subtract discount here
         // Round per-item tax before summing (Option A)
         const itemTaxRounded = Math.round(calculateTaxAmount(taxableAmount, item.taxRate) * 100) / 100;
         return acc + itemTaxRounded;

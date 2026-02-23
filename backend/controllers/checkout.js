@@ -107,11 +107,13 @@ const calculateCheckout = catchAsyncErrors(async (req, res, next) => {
                         }
                         // Add other applicability checks as needed
 
-                        return isApplicable ? total + item.total : total;
+                        // use tax-inclusive item total for applicable items
+                        return isApplicable ? total + item.total + (item.taxAmount || 0) : total;
                     }, 0);
                 }
 
-                discount = coupon.calculateDiscount(pricing.subtotal, applicableItemsTotal);
+                // Apply coupon on the tax-inclusive total, not subtotal
+                discount = coupon.calculateDiscount(pricing.total, applicableItemsTotal);
                 couponDetails = {
                     code: coupon.code,
                     name: coupon.name,
@@ -610,12 +612,25 @@ const calculateCheckoutInternal = async (userId, couponCode) => {
             try {
 
                 const couponCartItems = cartItems.map(item => ({
-                    product: item.product?.toString?.(),
-                    price: item.price,
-                    quantity: item.quantity
                 }));
-                const coupon = await Coupon.validateCoupon(couponCode, userId, couponCartItems, pricing.subtotal);
-                discount = coupon.calculateDiscount(pricing.subtotal, pricing.subtotal);
+
+                const coupon = await Coupon.validateCoupon(couponCode, userId, couponCartItems, pricing.total);
+
+                let applicableItemsTotal = null;
+                if (coupon.applicableTo !== 'all_products') {
+                    applicableItemsTotal = cartItems.reduce((total, item) => {
+                        let isApplicable = false;
+                        if (coupon.applicableTo === 'specific_products') {
+                            isApplicable = coupon.specificProducts.includes(item.product?._id?.toString() || item.product?.toString());
+                        } else if (coupon.applicableTo === 'specific_categories') {
+                            // simplistic check if category logic is needed, although cartItems may not populate it deep
+                            isApplicable = coupon.specificCategories.includes(item.category?.toString());
+                        }
+                        return isApplicable ? total + item.total + (item.taxAmount || 0) : total;
+                    }, 0);
+                }
+
+                discount = coupon.calculateDiscount(pricing.total, applicableItemsTotal || pricing.total);
 
                 couponDetails = {
                     couponId: coupon._id,

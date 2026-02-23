@@ -1,7 +1,7 @@
 // utils/localStorage.ts
 export const LocalStorageKeys = {
   GUEST_CART: 'guest_cart',
-  GUEST_WISHLIST: 'guest_wishlist', 
+  GUEST_WISHLIST: 'guest_wishlist',
   LAST_SYNCED_USER: 'last_synced_user',
   CART_SESSION_ID: 'cart_session_id'
 };
@@ -15,7 +15,7 @@ export interface GuestCartItem {
   quantity: number;
   price: number;
   addedAt: string;
-  
+
   // Product data (for regular products)
   product?: {
     _id: string;
@@ -46,6 +46,9 @@ export interface GuestCartItem {
       name: string;
       slug?: string;
     };
+    taxRate?: number;
+    basePrice?: number;
+    category?: any;
     variants?: Array<{
       _id: string;
       name: string;
@@ -64,7 +67,7 @@ export interface GuestCartItem {
       identifyingAttributes?: any[];
     }>;
   };
-  
+
   // Pre-built PC data
   preBuiltPC?: {
     _id: string;
@@ -94,9 +97,11 @@ export interface GuestCartItem {
       name: string;
       slug?: string;
     };
+    taxRate?: number;
+    basePrice?: number;
     specifications?: any;
   };
-  
+
   // Variant data (for products with variants)
   variant?: {
     variantId: string;
@@ -136,7 +141,7 @@ export const localStorageUtils = {
     try {
       const cart = localStorage.getItem(LocalStorageKeys.GUEST_CART);
       const parsedCart = cart ? JSON.parse(cart) : [];
-      
+
       // Validate and migrate old cart structure if needed
       return parsedCart.map((item: any) => ({
         // Ensure required fields
@@ -147,7 +152,7 @@ export const localStorageUtils = {
         quantity: Math.max(1, item.quantity || 1),
         price: Math.max(0, item.price || 0),
         addedAt: item.addedAt || new Date().toISOString(),
-        
+
         // Product data
         product: item.product ? {
           _id: item.product._id,
@@ -161,9 +166,12 @@ export const localStorageUtils = {
           averageRating: item.product.averageRating,
           images: item.product.images,
           brand: item.product.brand,
+          taxRate: item.product.taxRate,
+          basePrice: item.product.basePrice,
+          category: item.product.category,
           variants: item.product.variants
         } : undefined,
-        
+
         // Pre-built PC data
         preBuiltPC: item.preBuiltPC ? {
           _id: item.preBuiltPC._id,
@@ -176,9 +184,11 @@ export const localStorageUtils = {
           performanceRating: item.preBuiltPC.performanceRating,
           images: item.preBuiltPC.images,
           category: item.preBuiltPC.category,
+          taxRate: item.preBuiltPC.taxRate,
+          basePrice: item.preBuiltPC.basePrice,
           specifications: item.preBuiltPC.specifications
         } : undefined,
-        
+
         // Variant data
         variant: item.variant ? {
           variantId: item.variant.variantId || item.variant._id,
@@ -212,7 +222,7 @@ export const localStorageUtils = {
         preBuiltPC: item.preBuiltPC,
         variant: item.variant
       }));
-      
+
       localStorage.setItem(LocalStorageKeys.GUEST_CART, JSON.stringify(validatedCart));
     } catch (error) {
       console.error('❌ Error saving guest cart to localStorage:', error);
@@ -223,7 +233,7 @@ export const localStorageUtils = {
   updateGuestCartQuantity: (cartItemId: string, quantity: number): GuestCartItem[] => {
     const currentCart = localStorageUtils.getGuestCart();
     const updatedCart = currentCart.map(item =>
-      item._id === cartItemId 
+      item._id === cartItemId
         ? { ...item, quantity: Math.max(1, quantity) }
         : item
     );
@@ -280,7 +290,7 @@ export const localStorageUtils = {
   // Find cart item by product ID and variant
   findGuestCartItem: (productId: string, variantId?: string): GuestCartItem | undefined => {
     const cart = localStorageUtils.getGuestCart();
-    return cart.find(item => 
+    return cart.find(item =>
       item.productId === productId && item.variantId === variantId
     );
   },
@@ -312,153 +322,153 @@ export const localStorageUtils = {
     localStorage.removeItem(LocalStorageKeys.CART_SESSION_ID);
   },
 
-getGuestWishlist: (): GuestWishlistItem[] => {
-  try {
-    const wishlist = localStorage.getItem(LocalStorageKeys.GUEST_WISHLIST);
-    const parsedWishlist = wishlist ? JSON.parse(wishlist) : [];
+  getGuestWishlist: (): GuestWishlistItem[] => {
+    try {
+      const wishlist = localStorage.getItem(LocalStorageKeys.GUEST_WISHLIST);
+      const parsedWishlist = wishlist ? JSON.parse(wishlist) : [];
       return parsedWishlist.map(item => {
-      // If this is a prebuilt PC and has productData
-      if (item.productType === 'prebuilt-pc' && item.productData) {
-        return {
-          ...item,
-          productData: {
-            // Ensure prebuilt PC has the right structure
-            _id: item.productData._id || item.productId,
-            name: item.productData.name || 'Pre-built PC',
-            images: item.productData.images || [],
-            price: item.productData.price || item.productData.totalPrice || 0,
-            basePrice: item.productData.basePrice || item.productData.totalPrice || 0,
-            offerPrice: item.productData.offerPrice || item.productData.discountPrice || 0,
-            slug: item.productData.slug || '',
-            stockQuantity: item.productData.stockQuantity || 0,
-            condition: item.productData.condition || 'New',
-            category: item.productData.category,
-            performanceRating: item.productData.performanceRating,
-            // Add other prebuilt PC specific fields
-            totalPrice: item.productData.totalPrice,
-            discountPrice: item.productData.discountPrice,
-            specifications: item.productData.specifications
-          }
-        };
-      }
-      return item;
-    });
-  } catch (error) {
-    console.error('❌ Error reading guest wishlist from localStorage:', error);
-    return [];
-  }
-},
-
-// In localStorageUtils.ts - ADD THIS NEW FUNCTION AFTER addToGuestWishlist
-saveCompleteWishlistItem: (itemData: {
-  productId: string;
-  productType: 'product' | 'prebuilt-pc';
-  variantId?: string;
-  productData: any;
-  variant?: any;
-  addedAt: string;
-}): boolean => {
-  try {
-    const currentWishlist = localStorageUtils.getGuestWishlist();
-    
-    // Find if item already exists
-    const existingItemIndex = currentWishlist.findIndex(wishlistItem => 
-      wishlistItem.productId === itemData.productId && 
-      wishlistItem.productType === itemData.productType &&
-      wishlistItem.variantId === itemData.variantId
-    );
-    
-    let updatedWishlist: GuestWishlistItem[];
-    
-    if (existingItemIndex >= 0) {
-      // Update existing item
-      updatedWishlist = [...currentWishlist];
-      updatedWishlist[existingItemIndex] = {
-        ...updatedWishlist[existingItemIndex],
-        productData: itemData.productData,
-        variant: itemData.variant,
-        addedAt: itemData.addedAt
-      };
-    } else {
-      // Add new item
-      updatedWishlist = [...currentWishlist, {
-        productId: itemData.productId,
-        productType: itemData.productType,
-        variantId: itemData.variantId,
-        productData: itemData.productData,
-        variant: itemData.variant,
-        addedAt: itemData.addedAt,
-        originalProductId: itemData.productId.includes('_') ? itemData.productId.split('_')[0] : itemData.productId
-      }];
+        // If this is a prebuilt PC and has productData
+        if (item.productType === 'prebuilt-pc' && item.productData) {
+          return {
+            ...item,
+            productData: {
+              // Ensure prebuilt PC has the right structure
+              _id: item.productData._id || item.productId,
+              name: item.productData.name || 'Pre-built PC',
+              images: item.productData.images || [],
+              price: item.productData.price || item.productData.totalPrice || 0,
+              basePrice: item.productData.basePrice || item.productData.totalPrice || 0,
+              offerPrice: item.productData.offerPrice || item.productData.discountPrice || 0,
+              slug: item.productData.slug || '',
+              stockQuantity: item.productData.stockQuantity || 0,
+              condition: item.productData.condition || 'New',
+              category: item.productData.category,
+              performanceRating: item.productData.performanceRating,
+              // Add other prebuilt PC specific fields
+              totalPrice: item.productData.totalPrice,
+              discountPrice: item.productData.discountPrice,
+              specifications: item.productData.specifications
+            }
+          };
+        }
+        return item;
+      });
+    } catch (error) {
+      console.error('❌ Error reading guest wishlist from localStorage:', error);
+      return [];
     }
-    
-    // Save to localStorage
-    localStorage.setItem(LocalStorageKeys.GUEST_WISHLIST, JSON.stringify(updatedWishlist));
-    
-    // Also save a backup copy for debugging
-    localStorage.setItem('wishlist_backup_' + Date.now(), JSON.stringify(itemData));
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Error saving complete wishlist item:', error);
-    return false;
-  }
-},
+  },
 
-// Also update the saveGuestWishlist function for better debugging
-saveGuestWishlist: (wishlist: GuestWishlistItem[]): void => {
-  try {
-    // Validate each item has productData
-    const validatedWishlist = wishlist.map(item => ({
-      ...item,
-      productData: item.productData || null,
-      variant: item.variant || null
-    }));
-    
-    localStorage.setItem(LocalStorageKeys.GUEST_WISHLIST, JSON.stringify(validatedWishlist));
-  } catch (error) {
-    console.error('❌ Error saving guest wishlist to localStorage:', error);
-  }
-},
-// In localStorageUtils.ts - UPDATE THIS FUNCTION
-addToGuestWishlist: (
-  productId: string, 
-  productType: 'product' | 'prebuilt-pc' = 'product',
-  variantId?: string,
-  productData?: any, // ✅ ADD THIS PARAMETER
-  variant?: any      // ✅ ADD THIS PARAMETER
-): GuestWishlistItem[] => {
-  const currentWishlist = localStorageUtils.getGuestWishlist();
-  const existingItem = currentWishlist.find(item => 
-    item.productId === productId && 
-    item.productType === productType &&
-    item.variantId === variantId
-  );
-  
-  if (!existingItem) {
-    const newItem: GuestWishlistItem = {
-      productId,
-      productType,
-      variantId,
-      addedAt: new Date().toISOString(),
-      productData: productData || null, // ✅ SAVE PRODUCT DATA
-      variant: variant || null          // ✅ SAVE VARIANT DATA
-    };
-    const updatedWishlist = [...currentWishlist, newItem];
-    localStorageUtils.saveGuestWishlist(updatedWishlist);
-    return updatedWishlist;
-  }
-  return currentWishlist;
-},
+  // In localStorageUtils.ts - ADD THIS NEW FUNCTION AFTER addToGuestWishlist
+  saveCompleteWishlistItem: (itemData: {
+    productId: string;
+    productType: 'product' | 'prebuilt-pc';
+    variantId?: string;
+    productData: any;
+    variant?: any;
+    addedAt: string;
+  }): boolean => {
+    try {
+      const currentWishlist = localStorageUtils.getGuestWishlist();
+
+      // Find if item already exists
+      const existingItemIndex = currentWishlist.findIndex(wishlistItem =>
+        wishlistItem.productId === itemData.productId &&
+        wishlistItem.productType === itemData.productType &&
+        wishlistItem.variantId === itemData.variantId
+      );
+
+      let updatedWishlist: GuestWishlistItem[];
+
+      if (existingItemIndex >= 0) {
+        // Update existing item
+        updatedWishlist = [...currentWishlist];
+        updatedWishlist[existingItemIndex] = {
+          ...updatedWishlist[existingItemIndex],
+          productData: itemData.productData,
+          variant: itemData.variant,
+          addedAt: itemData.addedAt
+        };
+      } else {
+        // Add new item
+        updatedWishlist = [...currentWishlist, {
+          productId: itemData.productId,
+          productType: itemData.productType,
+          variantId: itemData.variantId,
+          productData: itemData.productData,
+          variant: itemData.variant,
+          addedAt: itemData.addedAt,
+          originalProductId: itemData.productId.includes('_') ? itemData.productId.split('_')[0] : itemData.productId
+        }];
+      }
+
+      // Save to localStorage
+      localStorage.setItem(LocalStorageKeys.GUEST_WISHLIST, JSON.stringify(updatedWishlist));
+
+      // Also save a backup copy for debugging
+      localStorage.setItem('wishlist_backup_' + Date.now(), JSON.stringify(itemData));
+
+      return true;
+    } catch (error) {
+      console.error('❌ Error saving complete wishlist item:', error);
+      return false;
+    }
+  },
+
+  // Also update the saveGuestWishlist function for better debugging
+  saveGuestWishlist: (wishlist: GuestWishlistItem[]): void => {
+    try {
+      // Validate each item has productData
+      const validatedWishlist = wishlist.map(item => ({
+        ...item,
+        productData: item.productData || null,
+        variant: item.variant || null
+      }));
+
+      localStorage.setItem(LocalStorageKeys.GUEST_WISHLIST, JSON.stringify(validatedWishlist));
+    } catch (error) {
+      console.error('❌ Error saving guest wishlist to localStorage:', error);
+    }
+  },
+  // In localStorageUtils.ts - UPDATE THIS FUNCTION
+  addToGuestWishlist: (
+    productId: string,
+    productType: 'product' | 'prebuilt-pc' = 'product',
+    variantId?: string,
+    productData?: any, // ✅ ADD THIS PARAMETER
+    variant?: any      // ✅ ADD THIS PARAMETER
+  ): GuestWishlistItem[] => {
+    const currentWishlist = localStorageUtils.getGuestWishlist();
+    const existingItem = currentWishlist.find(item =>
+      item.productId === productId &&
+      item.productType === productType &&
+      item.variantId === variantId
+    );
+
+    if (!existingItem) {
+      const newItem: GuestWishlistItem = {
+        productId,
+        productType,
+        variantId,
+        addedAt: new Date().toISOString(),
+        productData: productData || null, // ✅ SAVE PRODUCT DATA
+        variant: variant || null          // ✅ SAVE VARIANT DATA
+      };
+      const updatedWishlist = [...currentWishlist, newItem];
+      localStorageUtils.saveGuestWishlist(updatedWishlist);
+      return updatedWishlist;
+    }
+    return currentWishlist;
+  },
 
   removeFromGuestWishlist: (
-    productId: string, 
+    productId: string,
     productType?: 'product' | 'prebuilt-pc',
     variantId?: string
   ): GuestWishlistItem[] => {
     const currentWishlist = localStorageUtils.getGuestWishlist();
-    const updatedWishlist = currentWishlist.filter(item => 
-      !(item.productId === productId && 
+    const updatedWishlist = currentWishlist.filter(item =>
+      !(item.productId === productId &&
         (!productType || item.productType === productType) &&
         (!variantId || item.variantId === variantId))
     );
@@ -467,13 +477,13 @@ addToGuestWishlist: (
   },
 
   isInGuestWishlist: (
-    productId: string, 
+    productId: string,
     productType?: 'product' | 'prebuilt-pc',
     variantId?: string
   ): boolean => {
     const currentWishlist = localStorageUtils.getGuestWishlist();
-    return currentWishlist.some(item => 
-      item.productId === productId && 
+    return currentWishlist.some(item =>
+      item.productId === productId &&
       (!productType || item.productType === productType) &&
       (!variantId || item.variantId === variantId)
     );

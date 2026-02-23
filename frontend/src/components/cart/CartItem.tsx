@@ -305,9 +305,9 @@ const CartItem: React.FC<CartItemProps> = ({
   // taxRate is percentage (e.g., 18 for 18%). Tax is product-level; variants share product's taxRate.
   const taxRate: number = (isPreBuiltPC ? preBuiltPC?.taxRate : product?.taxRate) ?? 0;
   const displayUnitPrice = taxRate > 0
-    ? Math.round(itemPrice * (1 + taxRate / 100) * 100) / 100
-    : itemPrice;
-  const displayTotalPrice = Math.round(displayUnitPrice * item.quantity * 100) / 100;
+    ? Math.round(itemPrice * (1 + taxRate / 100))
+    : Math.round(itemPrice);
+  const displayTotalPrice = Math.round(displayUnitPrice * item.quantity);
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const target = e.target as HTMLImageElement;
@@ -337,8 +337,8 @@ const CartItem: React.FC<CartItemProps> = ({
             {/* Product Type Badge */}
             <div className="absolute top-3 left-3">
               <div className={`px-2.5 py-1 rounded-md text-xs font-semibold shadow-sm border ${isPreBuiltPC
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                : 'bg-emerald-50 text-emerald-700 border-emerald-100'
                 }`}>
                 {isPreBuiltPC ? (
                   <span className="flex items-center gap-1.5">
@@ -471,8 +471,8 @@ const CartItem: React.FC<CartItemProps> = ({
                     <button
                       onClick={handleRemove}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all duration-200 text-sm shadow-sm ${isHovered
-                          ? 'border-rose-200 text-rose-600 bg-rose-50'
-                          : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                        ? 'border-rose-200 text-rose-600 bg-rose-50'
+                        : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                         }`}
                     >
                       <Trash2 className="w-4 h-4" />
