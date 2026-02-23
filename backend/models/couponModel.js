@@ -252,6 +252,16 @@ couponSchema.methods.validateForUser = function (userId, cartItems = [], cartTot
         return result;
     }
 
+    // Check usage limit per user
+    if (this.usageLimitPerUser && userId) {
+        const userUsageCount = (this.usedBy || []).filter(id => id.toString() === userId.toString()).length;
+        if (userUsageCount >= this.usageLimitPerUser) {
+            result.isValid = false;
+            result.message = "You have already used this coupon " + this.usageLimitPerUser + " time(s)";
+            return result;
+        }
+    }
+
     // Check minimum cart value
     if (cartTotal < this.minimumCartValue) {
         result.isValid = false;

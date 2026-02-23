@@ -22,7 +22,8 @@ import {
   selectCheckoutCartItems,
   selectCheckoutAddresses,
   selectIsCheckoutValid,
-  selectOrderCreationData
+  selectOrderCreationData,
+  selectOrderCreationPayload
 } from '../../redux/selectors/checkoutSelectors';
 import { selectIsAuthenticated } from '../../redux/selectors';
 import LoadingSpinner from '../admin/common/LoadingSpinner';
@@ -80,7 +81,8 @@ const Checkout: React.FC = () => {
   const cartItems = useAppSelector(selectCheckoutCartItems);
   const addresses = useAppSelector(selectCheckoutAddresses);
   const isCheckoutValid = useAppSelector(selectIsCheckoutValid);
-  const orderData = useAppSelector(selectOrderCreationData);
+  const orderPayloadBase = useAppSelector(selectOrderCreationPayload);
+  const orderResponse = useAppSelector(selectOrderCreationData);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   // Local state
@@ -203,7 +205,7 @@ const Checkout: React.FC = () => {
     setProcessingOrder(true);
     try {
       const orderPayload = {
-        ...orderData,
+        ...orderPayloadBase,
         shippingAddressId: shippingAddress._id || shippingAddress.id,
         billingAddressId: billingAddress?._id || billingAddress?.id,
         paymentMethod: paymentMethod
@@ -568,10 +570,10 @@ const Checkout: React.FC = () => {
                       <motion.div
                         whileHover={{ scale: 1.05 }}
                         className={`relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${currentStep === step
-                            ? 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white shadow-lg'
-                            : currentStep === 'payment' && step === 'address'
-                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white'
-                              : 'bg-gradient-to-b from-slate-100 to-slate-200 text-slate-500'
+                          ? 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white shadow-lg'
+                          : currentStep === 'payment' && step === 'address'
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white'
+                            : 'bg-gradient-to-b from-slate-100 to-slate-200 text-slate-500'
                           }`}
                       >
                         {index + 1}
@@ -586,8 +588,8 @@ const Checkout: React.FC = () => {
 
                       <div className="ml-2">
                         <p className={`text-sm font-medium ${currentStep === step
-                            ? 'text-slate-900'
-                            : 'text-slate-500'
+                          ? 'text-slate-900'
+                          : 'text-slate-500'
                           }`}>
                           {step === 'address' ? 'Shipping Address' : 'Payment'}
                         </p>
@@ -599,8 +601,8 @@ const Checkout: React.FC = () => {
                       {index < 1 && (
                         <motion.div
                           className={`w-12 h-0.5 ${currentStep === 'payment'
-                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                              : 'bg-gradient-to-r from-slate-200 to-slate-300'
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                            : 'bg-gradient-to-r from-slate-200 to-slate-300'
                             }`}
                         />
                       )}
@@ -687,8 +689,8 @@ const Checkout: React.FC = () => {
                             whileTap={{ scale: 0.98 }}
                             onClick={() => setShowGSTForm(!showGSTForm)}
                             className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-300 ${showGSTForm
-                                ? 'border-rose-200 text-rose-600 bg-rose-50'
-                                : 'border-slate-300 text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50'
+                              ? 'border-rose-200 text-rose-600 bg-rose-50'
+                              : 'border-slate-300 text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50'
                               }`}
                           >
                             {showGSTForm ? 'Cancel' : gstInfo ? 'Edit' : 'Add GST'}
@@ -746,8 +748,8 @@ const Checkout: React.FC = () => {
                           onClick={handleNextStep}
                           disabled={!shippingAddress}
                           className={`px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-3 ${shippingAddress
-                              ? 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white hover:shadow-lg hover:from-indigo-700 hover:to-blue-600'
-                              : 'bg-gradient-to-b from-slate-200 to-slate-300 text-slate-500 cursor-not-allowed'
+                            ? 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white hover:shadow-lg hover:from-indigo-700 hover:to-blue-600'
+                            : 'bg-gradient-to-b from-slate-200 to-slate-300 text-slate-500 cursor-not-allowed'
                             }`}
                         >
                           Continue to Payment
@@ -775,12 +777,12 @@ const Checkout: React.FC = () => {
                       {/* Payment Method Component */}
                       <PaymentMethod
                         selectedMethod={paymentMethod}
-                        onSelectMethod={(method) => dispatch(setPaymentMethod(method))}
-                        orderId={createdOrderId}
-                        amount={total}
+                        onSelectMethod={(method: string) => dispatch(setPaymentMethod(method as any))}
+                        orderId={createdOrderId || ''}
+                        amount={orderResponse?.order?.pricing?.amountDue ?? total}
                         currency="INR"
                         onPaymentSuccess={handlePaymentSuccess}
-                        onPaymentError={(error) => {
+                        onPaymentError={(error: string) => {
                           console.error('Payment error:', error);
                           setPaymentError(error);
                         }}
@@ -813,8 +815,8 @@ const Checkout: React.FC = () => {
                             disabled={!paymentMethod || !isCheckoutValid || total <= 0}
                             // 3. Added w-full md:w-auto and justify-center
                             className={`flex w-full items-center justify-center gap-3 px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 md:w-auto ${paymentMethod && isCheckoutValid && total > 0
-                                ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white hover:shadow-lg hover:from-emerald-600 hover:to-teal-500'
-                                : 'bg-gradient-to-b from-slate-200 to-slate-300 text-slate-500 cursor-not-allowed'
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white hover:shadow-lg hover:from-emerald-600 hover:to-teal-500'
+                              : 'bg-gradient-to-b from-slate-200 to-slate-300 text-slate-500 cursor-not-allowed'
                               }`}
                           >
                             {processingOrder ? (

@@ -241,18 +241,24 @@ class InvoiceGenerator {
         const subtotal = Math.round(pricing.subtotal || pricing.totalPrice || 0);
         const tax = Math.round(pricing.tax || pricing.totalGst || 0);
         const shipping = Math.round(pricing.shipping || pricing.deliveryCharge || 0);
+        const discount = Math.round(pricing.discount || 0);
         const total = Math.round(pricing.total || pricing.finalAmount || 0);
 
         printRow('Subtotal', `${this.currency} ${subtotal.toLocaleString('en-IN')}`);
         printRow('Shipping', `${this.currency} ${shipping.toLocaleString('en-IN')}`);
+        if (discount > 0) {
+            printRow('Discount', `-${this.currency} ${discount.toLocaleString('en-IN')}`);
+        }
         printRow('Total GST', `${this.currency} ${tax.toLocaleString('en-IN')}`);
 
         doc.moveTo(summaryX, sumY).lineTo(545, sumY).strokeColor('#333').stroke();
         sumY += 10;
 
+        const totalDue = total - discount;
+
         doc.font(this.fonts.bold).fontSize(12).fillColor(this.colors.primary)
             .text('Total Due', labelX, sumY);
-        doc.text(`${this.currency} ${total.toLocaleString('en-IN')}`, valX, sumY, { width: 70, align: 'right' });
+        doc.text(`${this.currency} ${totalDue.toLocaleString('en-IN')}`, valX, sumY, { width: 70, align: 'right' });
     }
 
     _generateFooter(doc) {

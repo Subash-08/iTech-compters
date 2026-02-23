@@ -94,6 +94,18 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
     }
   ];
 
+  const handlePaymentClose = (): void => {
+    setProcessing(false);
+    isPaymentOpenRef.current = false;
+  };
+
+  const handlePaymentFailure = (errorMessage: string): void => {
+    setProcessing(false);
+    setHasFailed(true);
+    isPaymentOpenRef.current = false;
+    onPaymentError(errorMessage);
+  };
+
   const initializeRazorpayPayment = async (): Promise<void> => {
     if (!orderId) {
       onPaymentError('Order not found. Please try creating the order again.');
@@ -117,11 +129,16 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       setPaymentAttempts(prev => prev + 1);
 
       // Create Order
+      console.log(`[DEBUG] PaymentMethod initialized - amount prop received: ${amount}, orderId: ${orderId}`);
+
+      // GUARD: Prevent multiple calls if we already have an active attempt for this order
+      // The backend handles idempotency, but we should minimize redundant network calls
       const response = await api.post('/payment/razorpay/create-order', {
         orderId,
         amount: Math.round(amount * 100)
       });
       const result = response.data;
+      console.log(`[DEBUG] Razorpay create-order api response:`, result);
 
       if (!result.success) {
         if (result.data?.alreadyPaid) {
@@ -141,6 +158,8 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       if (!razorpayLoaded) {
         throw new Error('Failed to load payment gateway');
       }
+
+      console.log(`[DEBUG] Razorpay initialize options with amount: ${result.data.amount || Math.round(amount * 100)} (prop amount was ${amount})`);
 
       const options = {
         key: "rzp_test_SIhog84IuMU49Z",
@@ -170,8 +189,8 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
 
       const razorpayInstance = new (window as any).Razorpay(options);
 
-      razorpayInstance.on('payment.failed', function (response: RazorpayError) {
-        handlePaymentFailure(response.error.description || 'Payment failed.');
+      razorpayInstance.on('payment.failed', function (response: any) {
+        handlePaymentFailure(response?.error?.description || response?.description || 'Payment failed.');
       });
 
       // Update message while user is interacting with popup
@@ -182,18 +201,6 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       console.error('❌ Payment initialization error:', error);
       handlePaymentFailure(error.message || 'Failed to initialize payment');
     }
-  };
-
-  const handlePaymentClose = (): void => {
-    setProcessing(false);
-    isPaymentOpenRef.current = false;
-  };
-
-  const handlePaymentFailure = (errorMessage: string): void => {
-    setProcessing(false);
-    setHasFailed(true);
-    isPaymentOpenRef.current = false;
-    onPaymentError(errorMessage);
   };
 
   const handlePaymentSuccess = async (response: RazorpayResponse): Promise<void> => {

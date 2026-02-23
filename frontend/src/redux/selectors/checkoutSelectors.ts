@@ -160,13 +160,22 @@ export const selectDiscountAmount = createSelector(
 export const selectGrandTotal = createSelector(
   [selectCurrentPricing, selectSubtotal, selectShippingCost, selectTaxAmount, selectDiscountAmount],
   (pricing, subtotal, shipping, tax, discount) => {
-    const backendTotal = pricing?.total || 0;
+    // IMPORTANT: The backend 'total' is now the gross total BEFORE discount.
+    // The final payable amount is 'amountDue'.
+    const backendAmountDue = pricing?.amountDue !== undefined ? pricing.amountDue : undefined;
+
     const calculatedTotal = Math.max(0, subtotal + shipping + tax - discount);
+
+    // Fallback logic if amountDue is missing (e.g., older API responses)
+    const backendTotal = backendAmountDue !== undefined
+      ? backendAmountDue
+      : (pricing?.total || 0) > 0 ? Math.max(0, pricing!.total - discount) : 0;
 
     // Debug total calculation
     if (subtotal > 0 && Math.abs(backendTotal - calculatedTotal) > 1) {
       console.warn('⚠️ Total calculation mismatch:', {
-        backendTotal,
+        backendAmountDue,
+        backendTotalFromAPI: pricing?.total,
         calculatedTotal,
         difference: backendTotal - calculatedTotal,
         components: { subtotal, shipping, tax, discount }

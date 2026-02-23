@@ -42,6 +42,7 @@ export interface CheckoutPricing {
   tax: number;
   discount: number;
   total: number;
+  amountDue?: number;
 }
 
 export interface CheckoutCoupon {

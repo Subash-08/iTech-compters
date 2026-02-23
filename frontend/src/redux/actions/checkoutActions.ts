@@ -33,32 +33,36 @@ export const checkoutService = {
   },
 
   // Calculate checkout with coupon
-  async calculateCheckout(couponCode?: string, shippingAddressId?: string): Promise<{ 
-    success: boolean; 
+  async calculateCheckout(couponCode?: string, shippingAddressId?: string): Promise<{
+    success: boolean;
     data: any;
   }> {
+    console.log(`[DEBUG] /api/checkout/calculate - Request Payload:`, { couponCode, shippingAddressId });
     const response = await api.post('/checkout/calculate', {
       couponCode,
       shippingAddressId
     });
+    console.log(`[DEBUG] /api/checkout/calculate - Response Data:`, response.data);
     return response.data;
   },
 
   // Create order
-  async createOrder(orderData: CreateOrderRequest): Promise<{ 
-    success: boolean; 
+  async createOrder(orderData: CreateOrderRequest): Promise<{
+    success: boolean;
     message: string;
     order: any;
     orderId: string;
     orderNumber: string;
   }> {
+    console.log(`[DEBUG] /api/checkout/create-order - Request Payload Pricing:`, orderData?.pricing);
     const response = await api.post('/checkout/create-order', orderData);
+    console.log(`[DEBUG] /api/checkout/create-order - Response Data:`, response.data);
     return response.data;
   },
 
   // Save address
-  async saveAddress(addressData: any, setAsDefault = false): Promise<{ 
-    success: boolean; 
+  async saveAddress(addressData: any, setAsDefault = false): Promise<{
+    success: boolean;
     message: string;
     address: any;
   }> {
@@ -70,8 +74,8 @@ export const checkoutService = {
   },
 
   // Update address
-  async updateAddress(addressId: string, addressData: any, setAsDefault = false): Promise<{ 
-    success: boolean; 
+  async updateAddress(addressId: string, addressData: any, setAsDefault = false): Promise<{
+    success: boolean;
     message: string;
     address: any;
   }> {
@@ -83,8 +87,8 @@ export const checkoutService = {
   },
 
   // Delete address
-  async deleteAddress(addressId: string): Promise<{ 
-    success: boolean; 
+  async deleteAddress(addressId: string): Promise<{
+    success: boolean;
     message: string;
     deletedAddressId: string;
   }> {

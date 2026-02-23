@@ -92,11 +92,11 @@ const calculateCheckout = catchAsyncErrors(async (req, res, next) => {
                     couponCode,
                     userId,
                     couponCartItems,
-                    pricing.subtotal
+                    pricing.total
                 );
 
                 // Calculate discount amount
-                let applicableItemsTotal = pricing.subtotal;
+                let applicableItemsTotal = pricing.total;
 
                 if (coupon.applicableTo !== 'all_products') {
                     applicableItemsTotal = cartItems.reduce((total, item) => {
@@ -129,6 +129,10 @@ const calculateCheckout = catchAsyncErrors(async (req, res, next) => {
         // For free_shipping coupons: discount = 0 on items, shipping reduced to 0 separately
         const shippingAfterCoupon = couponDetails?.discountType === 'free_shipping' ? 0 : pricing.shipping;
         const finalPricing = calculateItemLevelTaxBreakdown(cartItems, discount, shippingAfterCoupon);
+
+        console.log(`[DEBUG] /api/checkout/calculate - Coupon: ${couponCode || 'None'}`);
+        console.log(`[DEBUG] /api/checkout/calculate - Original Total: ${pricing.total}, Discount: ${discount}, Final Total: ${finalPricing.total}`);
+
 
         res.status(200).json({
             success: true,
@@ -215,6 +219,9 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
         const orderNumber = generateOrderNumber();
 
         // Create order data with validated pricing
+        // Strict Pricing Rule:
+        // total = subtotal + tax + shipping (before discount)
+        // amountDue = total - discount
         const orderData = {
             user: userId,
             orderNumber: orderNumber,
@@ -224,11 +231,11 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
                 shipping: pricing.shipping || 0,
                 tax: pricing.tax || 0,
                 discount: pricing.discount || 0,
-                total: pricing.total || 0,
+                total: pricing.total || 0, // This is now subtotal + tax + shipping
                 currency: 'INR',
                 amountPaid: 0,
-                amountDue: pricing.total || 0,
-                totalSavings: orderItems.reduce((savings, item) => {
+                amountDue: pricing.amountDue || 0, // This is now total - discount
+                totalSavings: pricing.discount + orderItems.reduce((savings, item) => {
                     return savings + ((item.originalPrice - item.discountedPrice) * item.quantity);
                 }, 0)
             },
@@ -279,6 +286,9 @@ const createOrder = catchAsyncErrors(async (req, res, next) => {
             },
             estimatedDelivery: new Date(Date.now() + (pricing.shipping === 0 ? 7 : 5) * 24 * 60 * 60 * 1000)
         };
+
+        console.log(`[DEBUG] /api/checkout/create-order - Saving order with totalAmount: ${orderData.pricing.total}, discount: ${orderData.pricing.discount}, amountDue: ${orderData.pricing.amountDue}`);
+
 
 
         const order = await Order.create(orderData);
@@ -612,6 +622,9 @@ const calculateCheckoutInternal = async (userId, couponCode) => {
             try {
 
                 const couponCartItems = cartItems.map(item => ({
+                    product: item.product?.toString?.(),
+                    price: item.price,
+                    quantity: item.quantity
                 }));
 
                 const coupon = await Coupon.validateCoupon(couponCode, userId, couponCartItems, pricing.total);
@@ -653,6 +666,10 @@ const calculateCheckoutInternal = async (userId, couponCode) => {
         // For free_shipping coupons: discount = 0, shipping = 0
         const shippingAfterCoupon = couponDetails?.discountType === 'free_shipping' ? 0 : pricing.shipping;
         const finalPricing = calculateItemLevelTaxBreakdown(cartItems, discount, shippingAfterCoupon);
+
+        console.log(`[DEBUG] calculateCheckoutInternal - Coupon: ${couponCode || 'None'}`);
+        console.log(`[DEBUG] calculateCheckoutInternal - Original Total: ${pricing.total}, Discount: ${discount}, Final Total: ${finalPricing.total}`);
+
 
         return {
             success: true,

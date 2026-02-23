@@ -344,7 +344,7 @@ const Cart: React.FC = () => {
                     <span className="text-gray-400 text-sm">Calculated at checkout</span>
                   </div>
 
-                  {Math.round(cartTotal) !== cartTotal && (
+                  {/* {Math.round(cartTotal) !== cartTotal && (
                     <div className="flex justify-between text-gray-600 pt-2 border-t border-dashed border-gray-100">
                       <span>Round Off</span>
                       <span className="text-gray-900">
@@ -352,7 +352,7 @@ const Cart: React.FC = () => {
                         ₹{Math.abs(Math.round(cartTotal) - cartTotal).toFixed(2)}
                       </span>
                     </div>
-                  )}
+                  )} */}
                 </div>
 
                 <div className="border-t border-gray-100 pt-4 mb-6">

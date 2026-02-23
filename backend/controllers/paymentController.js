@@ -48,14 +48,42 @@ const createRazorpayOrder = catchAsyncErrors(async (req, res, next) => {
             return next(new ErrorHandler('Maximum payment attempts reached. Please contact support.', 400));
         }
 
-        // Use order's pricing directly
-        const expectedAmount = order.pricing.total;
+        // 1. Status Check - Already confirmed or cancelled orders should not create new payment orders
+        if (order.status !== Order.ORDER_STATUS.PENDING) {
+            return next(new ErrorHandler(`Cannot create payment for order in ${order.status} status`, 400));
+        }
+
+        // 2. Idempotency - Check for existing Razorpay order in attempts
+        // If we have a 'created' attempt already, we can reuse it to avoid duplicate Razorpay orders
+        const existingAttempt = order.payment.attempts.find(a =>
+            a.status === Order.PAYMENT_STATUS.CREATED &&
+            a.razorpayOrderId
+        );
+
+        if (existingAttempt) {
+            console.log(`[DEBUG] /api/payment/razorpay/create-order - Reusing existing Razorpay order: ${existingAttempt.razorpayOrderId}`);
+            return res.status(200).json({
+                success: true,
+                data: {
+                    razorpayOrderId: existingAttempt.razorpayOrderId,
+                    amount: existingAttempt.amount,
+                    currency: existingAttempt.currency,
+                    orderId: order._id,
+                    attemptId: existingAttempt._id.toString()
+                }
+            });
+        }
+
+        // Use order's amountDue (discounted amount) instead of total
+        const expectedAmount = order.pricing.amountDue;
         if (expectedAmount <= 0) {
             console.error('❌ Invalid order amount:', expectedAmount);
             return next(new ErrorHandler('Invalid order amount', 400));
         }
 
         // Create Razorpay order
+        console.log(`[DEBUG] /api/payment/razorpay/create-order - Creating Razorpay order for orderId: ${orderId}, Amount Due: ${expectedAmount}`);
+
         const razorpayOrder = await razorpay.orders.create({
             amount: Math.round(expectedAmount * 100), // Convert to paise
             currency: order.pricing.currency || 'INR',
@@ -138,6 +166,8 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
         }
 
         // 3. IDEMPOTENCY CHECK - If already paid and stock reduced, return success
+        console.log(`[DEBUG] /api/payment/razorpay/verify - Verifying payment for orderId: ${orderId}, Order Total Due: ${order.pricing.amountDue}`);
+
         if (order.isPaid || order.status === 'confirmed') {
             const stockReduced = order.orderTimeline.some(event =>
                 event.event === 'stock_reduced'
@@ -211,7 +241,8 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
         }
 
         // 7. Validate Amount (Prevent tampering)
-        const expectedAmountInPaise = Math.round(order.pricing.total * 100);
+        // Use amountDue (discounted amount) instead of total
+        const expectedAmountInPaise = Math.round(order.pricing.amountDue * 100);
 
         if (expectedAmountInPaise !== payment.amount) {
             // Atomic Failure Update
@@ -249,14 +280,14 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                     $push: {
                         orderTimeline: {
                             event: "payment_failed",
-                            message: `Payment not captured. Status: ${payment.status}`,
+                            message: `Gateway payment status not captured: ${payment.status}`,
                             changedBy: userId,
                             changedAt: new Date()
                         }
                     }
                 }
             );
-            return next(new ErrorHandler('Payment not completed successfully', 400));
+            return next(new ErrorHandler(`Payment not captured. Current status: ${payment.status}`, 400));
         }
 
         // ============================================================
@@ -286,10 +317,12 @@ const verifyRazorpayPayment = catchAsyncErrors(async (req, res, next) => {
                     "payment.attempts.$.gatewayPaymentMethod": payment.method,
                     "payment.attempts.$.signatureVerified": true,
                     "payment.attempts.$.capturedAt": new Date(),
-                    "payment.attempts.$.gatewayResponse": gatewayResponse,
+                    "payment.attempts.$.gatewayResponse": payment,
+
+                    // Order Level Updates
                     "payment.status": Order.PAYMENT_STATUS.CAPTURED,
                     "status": Order.ORDER_STATUS.CONFIRMED,
-                    "pricing.amountPaid": order.pricing.total,
+                    "pricing.amountPaid": order.pricing.amountDue, // The amount successfully paid
                     "pricing.amountDue": 0
                 },
                 $unset: {

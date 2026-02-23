@@ -654,7 +654,7 @@ const handlePaymentSuccess = catchAsyncErrors(async (req, res, next) => {
             razorpayOrderId,
             razorpayPaymentId,
             razorpaySignature,
-            amount: order.pricing.total,
+            amount: order.pricing.amountDue, // Updated to amountDue
             currency: 'INR',
             status: 'captured',
             signatureVerified: true,
@@ -670,7 +670,7 @@ const handlePaymentSuccess = catchAsyncErrors(async (req, res, next) => {
             metadata: {
                 razorpayPaymentId,
                 razorpayOrderId,
-                amount: order.pricing.total
+                amount: order.pricing.amountDue // Updated to amountDue
             },
             changedBy: req.user._id,
             changedAt: new Date()
@@ -678,6 +678,7 @@ const handlePaymentSuccess = catchAsyncErrors(async (req, res, next) => {
 
         order.orderTimeline.push({
             event: 'stock_reduced',
+
             message: 'Product stock reduced after payment',
             changedBy: req.user._id,
             changedAt: new Date()

@@ -79,7 +79,6 @@ const calculateTaxBreakdown = (subtotal, discount, taxRate, shipping = 0) => {
 
     // Ensure non-negative values
     const safeSubtotal = Math.max(0, subtotal);
-    const safeDiscount = Math.min(safeSubtotal, Math.max(0, discount));
     const safeShipping = Math.max(0, shipping);
 
     // 1. Calculate Taxable Amount (do NOT subtract discount to keep tax unchanged)
@@ -88,9 +87,17 @@ const calculateTaxBreakdown = (subtotal, discount, taxRate, shipping = 0) => {
     // 2. Calculate Tax
     const tax = calculateTaxAmount(taxableAmount, rate);
 
+    // Gross Total before discount
+    const grossTotal = taxableAmount + tax + safeShipping;
+
+    // Cap discount against grossTotal instead of subtotal
+    const safeDiscount = Math.round(
+        Math.min(grossTotal, Math.max(0, discount)) * 100
+    ) / 100;
+
     // 3. Calculate Final Total
-    // Total = Taxable Amount + Tax + Shipping - Discount
-    const total = taxableAmount + tax + safeShipping - safeDiscount;
+    // Total = grossTotal - Discount
+    const total = grossTotal - safeDiscount;
 
     return {
         subtotal: Math.round(safeSubtotal * 100) / 100,
@@ -129,9 +136,6 @@ const calculateItemLevelTaxBreakdown = (items = [], discountAmount = 0, shipping
         items.reduce((s, i) => s + (Number(i.total) || 0), 0) * 100
     ) / 100;
 
-    const safeDiscount = Math.round(
-        Math.min(subtotal, Math.max(0, Number(discountAmount) || 0)) * 100
-    ) / 100;
     const safeShipping = Math.max(0, Number(shippingAfterDiscount) || 0);
 
     // Calculate tax on the full pre-discount item total
@@ -144,8 +148,18 @@ const calculateItemLevelTaxBreakdown = (items = [], discountAmount = 0, shipping
     }, 0);
 
     const taxRounded = Math.round(tax * 100) / 100;
-    const total = Math.round(
-        ((subtotal - safeDiscount) + taxRounded + safeShipping) * 100
+
+    // Calculate gross total before discount (Rule: total = subtotal + tax + shipping)
+    const total = Math.round((subtotal + taxRounded + safeShipping) * 100) / 100;
+
+    // Cap discount against total instead of subtotal
+    const safeDiscount = Math.round(
+        Math.min(total, Math.max(0, Number(discountAmount) || 0)) * 100
+    ) / 100;
+
+    // amountDue = total - discount
+    const amountDue = Math.round(
+        (total - safeDiscount) * 100
     ) / 100;
 
     return {
@@ -153,7 +167,8 @@ const calculateItemLevelTaxBreakdown = (items = [], discountAmount = 0, shipping
         discount: safeDiscount,
         tax: taxRounded,
         shipping: Math.round(safeShipping * 100) / 100,
-        total
+        total, // Total before discount
+        amountDue // Amount for payment
     };
 };
 

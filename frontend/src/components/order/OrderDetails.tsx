@@ -13,14 +13,14 @@ const OrderDetails: React.FC = () => {
 
   const fetchOrderDetails = async () => {
     if (!orderId) return;
-    
+
     try {
       setLoading(true);
       const [orderResponse, invoicesResponse] = await Promise.all([
         orderService.getUserOrderDetails(orderId),
         orderService.getUserOrderInvoices(orderId)
       ]);
-      
+
       setOrder(orderResponse.data.order);
       setInvoices(invoicesResponse.data.invoices || []);
     } catch (error) {
@@ -49,10 +49,10 @@ const OrderDetails: React.FC = () => {
 
   const handleDownload = async (invoiceType: 'auto' | 'admin', fileName: string) => {
     if (!orderId) return;
-    
+
     try {
       const response = await orderService.downloadUserInvoice(orderId, invoiceType);
-      
+
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -70,7 +70,7 @@ const OrderDetails: React.FC = () => {
 
   const handleCancelOrder = async () => {
     if (!orderId || !order) return;
-    
+
     const reason = prompt('Please provide a reason for cancellation:');
     if (!reason) return;
 
@@ -132,7 +132,7 @@ const OrderDetails: React.FC = () => {
           </svg>
           Back to Orders
         </button>
-        
+
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
@@ -146,12 +146,12 @@ const OrderDetails: React.FC = () => {
               })}
             </p>
           </div>
-          
+
           <div className="mt-4 lg:mt-0 flex items-center space-x-4">
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
               {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
             </span>
-            
+
             {/* Cancel Order Button */}
             {order.status === 'pending' && (
               <button
@@ -175,11 +175,10 @@ const OrderDetails: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   {tab.name}
                 </button>
@@ -282,7 +281,7 @@ const OrderDetails: React.FC = () => {
                     </div>
                     <div className="flex justify-between border-t pt-2 font-semibold text-lg">
                       <span>Total</span>
-                      <span>₹{order.pricing.total.toFixed(2)}</span>
+                      <span>₹{(order.pricing.total - (order.pricing.discount || 0)).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -300,11 +299,10 @@ const OrderDetails: React.FC = () => {
                       <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              invoice.type === 'auto_generated' 
-                                ? 'bg-green-100 text-green-800' 
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${invoice.type === 'auto_generated'
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-blue-100 text-blue-800'
-                            }`}>
+                              }`}>
                               {invoice.type === 'auto_generated' ? 'System Generated' : 'Custom Uploaded'}
                             </span>
                             <p className="font-medium">{invoice.title}</p>
@@ -316,8 +314,8 @@ const OrderDetails: React.FC = () => {
                             {invoice.type === 'auto_generated' && invoice.generatedAt
                               ? `Generated: ${new Date(invoice.generatedAt).toLocaleDateString()}`
                               : invoice.uploadedAt
-                              ? `Uploaded: ${new Date(invoice.uploadedAt).toLocaleDateString()}`
-                              : ''
+                                ? `Uploaded: ${new Date(invoice.uploadedAt).toLocaleDateString()}`
+                                : ''
                             }
                           </p>
                           {invoice.notes && (
@@ -386,17 +384,17 @@ const OrderDetails: React.FC = () => {
                       )}
                     </address>
                   </div>
-                  
+
                   <div>
                     <h4 className="font-medium text-gray-900 mb-2">Shipping Method</h4>
                     <p className="text-gray-600">{order.shippingMethod.name}</p>
                     <p className="text-sm text-gray-500 mt-1">
-                      Estimated delivery: {order.estimatedDelivery 
+                      Estimated delivery: {order.estimatedDelivery
                         ? new Date(order.estimatedDelivery).toLocaleDateString()
                         : 'Calculating...'
                       }
                     </p>
-                    
+
                     {order.shippingMethod.trackingNumber && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-md">
                         <p className="text-sm font-medium text-blue-800">
@@ -456,17 +454,16 @@ const OrderDetails: React.FC = () => {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600">Order Total</span>
-                <span className="font-semibold">₹{order.pricing.total.toFixed(2)}</span>
+                <span className="font-semibold">₹{(order.pricing.total - (order.pricing.discount || 0)).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Payment Status</span>
-                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                  order.payment.status === 'captured' 
+                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${order.payment.status === 'captured'
                     ? 'bg-green-100 text-green-800'
                     : order.payment.status === 'failed'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}>
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
                   {order.payment.status}
                 </span>
               </div>

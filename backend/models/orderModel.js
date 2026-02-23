@@ -535,7 +535,9 @@ orderSchema.pre("save", async function (next) {
 
     // Set amount due if not set
     if (this.isNew && this.pricing) {
-        this.pricing.amountDue = this.pricing.total || 0;
+        if (this.pricing.amountDue === undefined || this.pricing.amountDue === 0) {
+            this.pricing.amountDue = this.pricing.total || 0;
+        }
 
         // Calculate total savings
         if (this.items && this.items.length > 0) {

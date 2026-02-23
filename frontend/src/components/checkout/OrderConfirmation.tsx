@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 // Import your axios instance
 import api from '../config/axiosConfig';
 // Import the image utility
-import { getImageUrl } from '../utils/imageUtils'; 
+import { getImageUrl } from '../utils/imageUtils';
 
 interface OrderDetails {
   _id: string;
@@ -14,12 +14,14 @@ interface OrderDetails {
     total: number;
     subtotal: number;
     tax: number;
+    discount?: number;
   };
   items: Array<{
     name: string;
     quantity: number;
     image: string;
     total: number;
+    taxAmount?: number;
   }>;
   shippingAddress: {
     address: string;
@@ -33,7 +35,7 @@ interface OrderDetails {
 const OrderConfirmation: React.FC = () => {
   const { orderNumber } = useParams<{ orderNumber: string }>();
   const navigate = useNavigate();
-  
+
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ const OrderConfirmation: React.FC = () => {
     const fetchOrder = async () => {
       try {
         const { data } = await api.get(`/order/number/${orderNumber}`);
-        
+
         if (data.success) {
           setOrder(data.order);
         } else {
@@ -82,7 +84,7 @@ const OrderConfirmation: React.FC = () => {
           </div>
           <h2 className="text-xl font-bold text-slate-900 mb-2">Order Not Found</h2>
           <p className="text-slate-500 mb-6">{error || 'We couldn\'t find the order details you requested.'}</p>
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="w-full px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-200 font-medium"
           >
@@ -95,16 +97,16 @@ const OrderConfirmation: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4 sm:px-6 lg:px-8">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="max-w-3xl mx-auto"
       >
-        
+
         {/* Success Header */}
         <div className="text-center mb-10">
-          <motion.div 
+          <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
@@ -119,7 +121,7 @@ const OrderConfirmation: React.FC = () => {
         </div>
 
         {/* Order Details Card */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -134,7 +136,7 @@ const OrderConfirmation: React.FC = () => {
               </h2>
               <p className="text-xs text-slate-500 mt-1">Placed on {new Date(order.createdAt).toLocaleDateString()}</p>
             </div>
-            <button 
+            <button
               onClick={() => window.print()}
               className="text-sm font-medium text-slate-600 hover:text-indigo-600 hover:bg-white px-4 py-2 rounded-lg border border-transparent hover:border-slate-200 transition-all flex items-center gap-2"
             >
@@ -150,10 +152,10 @@ const OrderConfirmation: React.FC = () => {
                   <div className="flex gap-5">
                     <div className="h-20 w-20 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0 border border-slate-200 shadow-sm">
                       {item.image ? (
-                        <img 
-                          src={getImageUrl(item.image)} 
-                          alt={item.name} 
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                        <img
+                          src={getImageUrl(item.image)}
+                          alt={item.name}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-slate-400 text-xs font-medium">No Image</div>
@@ -166,7 +168,7 @@ const OrderConfirmation: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <p className="font-bold text-slate-900 text-lg">₹{item.total.toLocaleString()}</p>
+                  <p className="font-bold text-slate-900 text-lg">₹{(item.total + (item.taxAmount || 0)).toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -175,7 +177,7 @@ const OrderConfirmation: React.FC = () => {
 
             {/* Information Grid */}
             <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-              
+
               {/* Shipping Address */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -199,18 +201,18 @@ const OrderConfirmation: React.FC = () => {
                   <CreditCard className="w-4 h-4" /> Payment Details
                 </h3>
                 <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-3">
-                  <div className="flex justify-between text-sm text-slate-600">
+                  {/* <div className="flex justify-between text-sm text-slate-600">
                     <span>Subtotal</span>
                     <span className="font-medium">₹{order.pricing.subtotal.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm text-slate-600">
                     <span>Tax</span>
                     <span className="font-medium">₹{order.pricing.tax.toLocaleString()}</span>
-                  </div>
+                  </div> */}
                   <div className="h-px bg-slate-200 my-2"></div>
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-slate-900">Total Paid</span>
-                    <span className="text-xl font-bold text-indigo-600">₹{order.pricing.total.toLocaleString()}</span>
+                    <span className="text-xl font-bold text-indigo-600">₹{(order.pricing.total - (order.pricing.discount || 0)).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -219,21 +221,21 @@ const OrderConfirmation: React.FC = () => {
         </motion.div>
 
         {/* Actions */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
           className="mt-10 flex flex-col sm:flex-row justify-center gap-4"
         >
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center justify-center gap-2 px-8 py-3.5 border border-slate-200 shadow-sm text-base font-semibold rounded-xl text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
           >
             <Home className="w-5 h-5" />
             Return Home
           </Link>
-          <Link 
-            to="/products" 
+          <Link
+            to="/products"
             className="flex items-center justify-center gap-2 px-8 py-3.5 border border-transparent text-base font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 hover:-translate-y-0.5 transition-all duration-200"
           >
             <ShoppingBag className="w-5 h-5" />
