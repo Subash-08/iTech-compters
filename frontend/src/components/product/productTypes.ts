@@ -113,6 +113,7 @@ export interface ProductData {
   }>;
 
   // 🆕 VIRTUAL FIELDS (from backend)
+  effectivePrice?: number; // Virtual: Final calculated price pre-gst on backend
   sellingPrice?: number; // Virtual: Always uses variant prices if variants exist
   displayMrp?: number; // Virtual: Always uses variant MRP if variants exist
   calculatedDiscount?: number; // Virtual: Dynamic discount calculation
@@ -133,6 +134,7 @@ export interface ProductData {
 
   // Pricing fields (kept for backward compatibility)
   basePrice: number;
+  inclusivePrice?: number; // UI-only field for admin form
   offerPrice: number;
   discountPercentage: number;
   taxRate?: number;

@@ -1,12 +1,12 @@
 // src/services/orderService.ts - Updated with invoice functions
 
 import api from '../../config/axiosConfig';
-import { 
-  Order, 
-  OrderFilters, 
-  OrderAnalytics, 
-  OrderFormData, 
-  AdminNoteFormData, 
+import {
+  Order,
+  OrderFilters,
+  OrderAnalytics,
+  OrderFormData,
+  AdminNoteFormData,
   ShippingUpdateData,
   InvoiceResponse,
   InvoiceUploadData
@@ -21,8 +21,8 @@ export const orderService = {
 
   // Admin - Get order analytics
   async getAnalytics(days: number = 30) {
-    const response = await api.get('/admin/orders/analytics', { 
-      params: { days } 
+    const response = await api.get('/admin/orders/analytics', {
+      params: { days }
     });
     return response.data;
   },
@@ -92,9 +92,17 @@ export const orderService = {
     return response;
   },
 
- async getUserOrders(filters: { 
-    page?: number; 
-    limit?: number; 
+  // Download shipping label
+  async downloadShippingLabel(orderId: string) {
+    const response = await api.get(`/admin/orders/${orderId}/shipping-label`, {
+      responseType: 'blob',
+    });
+    return response;
+  },
+
+  async getUserOrders(filters: {
+    page?: number;
+    limit?: number;
     status?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
@@ -106,7 +114,7 @@ export const orderService = {
       sortBy: filters.sortBy,
       sortOrder: filters.sortOrder
     };
-    
+
     const response = await api.get('/orders', { params });
     return response.data;
   },

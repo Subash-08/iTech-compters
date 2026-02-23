@@ -72,20 +72,22 @@ class InvoiceGenerator {
     _generateHeader(doc, order) {
         const topY = 50;
         let leftX = 50;
+        let textTopY = topY;
 
         // 1. LOGO LOGIC
         // Check if logo exists synchronously to avoid async issues in PDF generation
         if (fsSync.existsSync(this.logoPath)) {
-            doc.image(this.logoPath, 50, topY - 10, { width: 60 });
-            leftX = 120; // Move text to the right if logo exists
+            doc.image(this.logoPath, 50, topY, { width: 150 }); // Larger logo
+            textTopY = topY + 50; // Text goes below the logo
+        } else {
+            // 2. COMPANY INFO (Text Fallback if no logo)
+            doc.font(this.fonts.bold).fontSize(20).fillColor(this.colors.primary)
+                .text('iTech Computers', leftX, topY);
+            textTopY = topY + 25;
         }
 
-        // 2. COMPANY INFO (Updated)
-        doc.font(this.fonts.bold).fontSize(20).fillColor(this.colors.primary)
-            .text('iTech Computers', leftX, topY);
-
         doc.font(this.fonts.regular).fontSize(9).fillColor(this.colors.light) // Slightly smaller font for address
-            .text('Professional Computer Solutions', leftX, topY + 25)
+            .text('Professional Computer Solutions', leftX, textTopY)
             .moveDown(0.3)
             .text('iTech Computers, RBT Mall, Meyyanur Bypass Rd,', leftX)
             .text('opp. to iplanet, Meyyanur, Salem, Tamil Nadu 636004', leftX)
@@ -151,28 +153,29 @@ class InvoiceGenerator {
     }
 
     _generateInvoiceTable(doc, order) {
-        let y = 330; // Moved down slightly to accommodate larger header
+        let y = 310; // Moved up to reduce padding
         const startX = 50;
 
         // Header
-        doc.rect(startX, y, 495, 25).fillColor('#f4f4f4').fill();
-        doc.font(this.fonts.bold).fontSize(9).fillColor(this.colors.dark);
+        doc.rect(startX, y, 495, 20).fillColor('#f4f4f4').fill();
+        doc.font(this.fonts.bold).fontSize(8).fillColor(this.colors.dark);
 
-        const col = { desc: 60, qty: 340, price: 380, gst: 450, total: 500 };
+        const col = { desc: 55, qty: 290, price: 330, gst: 385, taxAmt: 425, total: 480 };
 
-        doc.text('DESCRIPTION', col.desc, y + 8);
-        doc.text('QTY', col.qty, y + 8, { width: 30, align: 'center' });
-        doc.text('UNIT PRICE', col.price, y + 8, { width: 60, align: 'right' });
-        doc.text('GST', col.gst, y + 8, { width: 30, align: 'center' });
-        doc.text('TOTAL', col.total, y + 8, { width: 40, align: 'right' });
+        doc.text('DESCRIPTION', col.desc, y + 6);
+        doc.text('QTY', col.qty, y + 6, { width: 30, align: 'center' });
+        doc.text('UNIT PRICE', col.price, y + 6, { width: 50, align: 'right' });
+        doc.text('GST %', col.gst, y + 6, { width: 30, align: 'center' });
+        doc.text('TAX AMT', col.taxAmt, y + 6, { width: 50, align: 'right' });
+        doc.text('TOTAL', col.total, y + 6, { width: 60, align: 'right' });
 
-        y += 30;
-        doc.font(this.fonts.regular).fontSize(9).fillColor(this.colors.dark);
+        y += 25;
+        doc.font(this.fonts.regular).fontSize(8).fillColor(this.colors.dark);
 
         const items = order.items || [];
         items.forEach((item) => {
             // Price Calculation
-            const price = Number(item.discountedPrice) || Number(item.price) || (Number(item.total) / Number(item.quantity)) || 0;
+            let rawPrice = Number(item.discountedPrice) || Number(item.price) || (Number(item.total) / Number(item.quantity)) || 0;
             const qty = Number(item.quantity) || 1;
 
             // GST FIX: Check if taxRate is 0.18 (decimal) or 18 (integer)
@@ -183,7 +186,11 @@ class InvoiceGenerator {
                 gstRate = item.taxRate < 1 ? item.taxRate * 100 : item.taxRate;
             }
 
-            const lineTotal = price * qty;
+            // Calculation and rounding to remove decimals per user request
+            const price = Math.round(rawPrice);
+            const unitTaxAmt = Math.round(price * (gstRate / 100));
+            const inclusiveUnitPrice = price + unitTaxAmt;
+            const lineTotal = inclusiveUnitPrice * qty;
 
             // Name
             let itemName = item.name || 'Product Item';
@@ -192,32 +199,34 @@ class InvoiceGenerator {
             }
 
             // Draw Row
-            doc.text(itemName, col.desc, y, { width: 260, lineGap: 2 });
+            doc.text(itemName, col.desc, y, { width: 230, lineGap: 2 });
             doc.text(qty.toString(), col.qty, y, { width: 30, align: 'center' });
-            // Using 'Rs.' instead of symbol
-            doc.text(`${price.toLocaleString('en-IN')}`, col.price, y, { width: 60, align: 'right' });
+            doc.text(`${price.toLocaleString('en-IN')}`, col.price, y, { width: 50, align: 'right' });
             doc.text(`${gstRate}%`, col.gst, y, { width: 30, align: 'center' });
-            doc.text(`${lineTotal.toLocaleString('en-IN')}`, col.total, y, { width: 40, align: 'right' });
+            doc.text(`${unitTaxAmt.toLocaleString('en-IN')}`, col.taxAmt, y, { width: 50, align: 'right' });
+            doc.text(`${lineTotal.toLocaleString('en-IN')}`, col.total, y, { width: 60, align: 'right' });
 
             // Bottom border
-            doc.moveTo(startX, y + 20).lineTo(545, y + 20).lineWidth(0.5).strokeColor('#eeeeee').stroke();
+            let rowHeight = doc.heightOfString(itemName, { width: 230 }) || 10;
+            let currentBottomY = y + rowHeight + 5;
+            doc.moveTo(startX, currentBottomY).lineTo(545, currentBottomY).lineWidth(0.5).strokeColor('#eeeeee').stroke();
 
-            y += 35;
+            y = currentBottomY + 10;
         });
 
         return y;
     }
 
     _generateSummarySection(doc, order, startY) {
-        let y = startY + 20;
+        let y = startY + 15; // Reduced padding
         // If Y is too low, add page? (Optional check)
         if (y > 700) { doc.addPage(); y = 50; }
 
         const summaryX = 350;
 
-        doc.rect(summaryX, y, 195, 120).fillColor('#f9f9f9').fill();
+        doc.rect(summaryX, y, 195, 105).fillColor('#f9f9f9').fill();
 
-        let sumY = y + 15;
+        let sumY = y + 12;
         const labelX = summaryX + 10;
         const valX = summaryX + 110;
 
@@ -225,14 +234,14 @@ class InvoiceGenerator {
             doc.font(isBold ? this.fonts.bold : this.fonts.regular).fontSize(10).fillColor('#333')
                 .text(label, labelX, sumY);
             doc.text(value, valX, sumY, { width: 70, align: 'right' });
-            sumY += 20;
+            sumY += 18;
         };
 
         const pricing = order.pricing || {};
-        const subtotal = pricing.subtotal || pricing.totalPrice || 0;
-        const tax = pricing.tax || pricing.totalGst || 0;
-        const shipping = pricing.shipping || pricing.deliveryCharge || 0;
-        const total = pricing.total || pricing.finalAmount || 0;
+        const subtotal = Math.round(pricing.subtotal || pricing.totalPrice || 0);
+        const tax = Math.round(pricing.tax || pricing.totalGst || 0);
+        const shipping = Math.round(pricing.shipping || pricing.deliveryCharge || 0);
+        const total = Math.round(pricing.total || pricing.finalAmount || 0);
 
         printRow('Subtotal', `${this.currency} ${subtotal.toLocaleString('en-IN')}`);
         printRow('Shipping', `${this.currency} ${shipping.toLocaleString('en-IN')}`);

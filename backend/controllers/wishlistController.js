@@ -95,6 +95,7 @@ exports.removePreBuiltPCFromWishlist = catchAsyncErrors(async (req, res, next) =
         // ✅ FIXED: Manual removal instead of calling non-existent method
         const initialLength = wishlist.items.length;
         wishlist.items = wishlist.items.filter(item =>
+            !(item._id && item._id.toString() === pcId) &&
             !(item.preBuiltPC && item.preBuiltPC.toString() === pcId)
         );
 
@@ -249,8 +250,9 @@ exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
         return next(new ErrorHandler('Wishlist not found', 404));
     }
 
-    // ✅ FIXED: Remove by product ID for both regular products AND pre-built PCs
+    // ✅ FIXED: Remove by product ID (or wishlist item subdocument _id) for both regular products AND pre-built PCs
     const itemIndex = wishlist.items.findIndex(item =>
+        (item._id && item._id.toString() === productId) ||
         (item.product && item.product.toString() === productId) ||
         (item.preBuiltPC && item.preBuiltPC.toString() === productId)
     );

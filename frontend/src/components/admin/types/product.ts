@@ -132,6 +132,7 @@ export interface ProductFormData {
 
   // Pricing & Inventory - 🆕 UPDATED
   basePrice: number;
+  inclusivePrice?: number; // UI-only field for admin form
   offerPrice: number; // Kept for backward compatibility
   discountPercentage: number;
   taxRate: number;
@@ -204,6 +205,7 @@ export interface ProductVariant {
   sku: string;
   barcode: string;
   price: number;
+  inclusivePrice?: number; // UI-only field for admin form
   mrp?: number; // 🆕 MRP for variants
   offerPrice: number; // Kept for backward compatibility
   hsn?: string; // 🆕 HSN for variants

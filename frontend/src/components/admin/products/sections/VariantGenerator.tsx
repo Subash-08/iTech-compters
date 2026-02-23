@@ -65,7 +65,7 @@ const VariantGenerator: React.FC<VariantGeneratorProps> = ({
 
   const generateVariants = () => {
     const combinations = generateAttributeCombinations();
-    
+
     if (combinations.length === 0) {
       alert('No variant combinations found. Please check your specification configuration.');
       return;
@@ -83,8 +83,9 @@ const VariantGenerator: React.FC<VariantGeneratorProps> = ({
         name: generateVariantName(combination),
         sku: generateSKU(combination),
         barcode: generateBarcode(),
-        price: basePrice || formData.basePrice || 0,
-        offerPrice: basePrice || formData.basePrice || 0,
+        price: 0, // Calculated on submit
+        inclusivePrice: basePrice || formData.inclusivePrice || formData.basePrice || 0,
+        offerPrice: basePrice || formData.offerPrice || formData.basePrice || 0,
         stockQuantity: baseStock,
         identifyingAttributes: combination.map(attr => ({
           key: attr.key,
@@ -114,8 +115,8 @@ const VariantGenerator: React.FC<VariantGeneratorProps> = ({
   };
 
   const combinations = generateAttributeCombinations();
-  const hasSpecs = formData.variantConfiguration.variantCreatingSpecs && 
-                  formData.variantConfiguration.variantCreatingSpecs.length > 0;
+  const hasSpecs = formData.variantConfiguration.variantCreatingSpecs &&
+    formData.variantConfiguration.variantCreatingSpecs.length > 0;
 
   return (
     <div className="space-y-6">
@@ -152,7 +153,7 @@ const VariantGenerator: React.FC<VariantGeneratorProps> = ({
                   </span>
                 </div>
               </div>
-              
+
               {combinations.length > 0 && (
                 <div className="mt-3">
                   <span className="font-medium text-blue-800 text-sm">Sample Combinations:</span>
@@ -176,7 +177,7 @@ const VariantGenerator: React.FC<VariantGeneratorProps> = ({
             <div className="grid grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Base Price for All Variants ($)
+                  Base Price (Inclusive of Tax) for All Variants ₹
                 </label>
                 <input
                   type="number"

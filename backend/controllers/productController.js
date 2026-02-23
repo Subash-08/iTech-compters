@@ -586,6 +586,12 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
             return fallback;
         }
     };
+
+    // 🆕 SECURITY GUARD: Reject payloads containing UI-only `inclusivePrice`
+    if ('inclusivePrice' in req.body) {
+        return next(new ErrorHandler("Invalid pricing payload: inclusivePrice must be converted to exclusive basePrice before submission.", 400));
+    }
+
     if (!processProductImages || !processManufacturerImages || !processVariantImages) {
         console.error('❌ Missing required image processing functions');
         return next(new ErrorHandler("Server configuration error", 500));

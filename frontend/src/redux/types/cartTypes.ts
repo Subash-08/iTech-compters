@@ -4,10 +4,11 @@ export interface CartItem {
   product: {
     _id: string;
     name: string;
-    price: number;    
+    price: number;
     basePrice: number;
     offerPrice?: number;
     discountPrice?: number;
+    taxRate?: number;   // GST rate (e.g., 5 for 5%)
     images: Array<{
       url: string;
       alt?: string;
@@ -23,11 +24,17 @@ export interface CartItem {
       name: string;
     };
   };
+  preBuiltPC?: {
+    _id?: string;
+    name?: string;
+    taxRate?: number;
+    [key: string]: any;
+  };
   variant?: {
     variantId: string; // ✅ This is the main ID from your backend logs
     _id?: string; // ✅ Optional for backward compatibility
     name: string;
-    price: number;    
+    price: number;
     basePrice?: number;
     offerPrice?: number;
     stock: number;
@@ -66,7 +73,7 @@ export interface AddToCartData {
     sku?: string;
   };
   quantity?: number;
-   product?: any; // ADD THIS
+  product?: any; // ADD THIS
   variant?: any; // ADD THIS
 }
 
@@ -106,7 +113,7 @@ export interface PreBuiltPCCartItem {
 export interface AddPreBuiltPCToCartData {
   pcId: string;
   quantity?: number;
-   preBuiltPC?: any;
+  preBuiltPC?: any;
 }
 
 export interface UpdatePreBuiltPCQuantityData {

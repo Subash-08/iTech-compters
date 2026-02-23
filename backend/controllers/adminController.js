@@ -458,14 +458,26 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
                 }
             });
 
-            // 🆕 Convert numeric fields
+            // 🔍 DEBUG: Log numeric field values before parsing
+            console.log('[updateProduct] Raw taxRate from req.body:', req.body.taxRate, typeof req.body.taxRate);
+            console.log('[updateProduct] Raw discountPercentage from req.body:', req.body.discountPercentage, typeof req.body.discountPercentage);
+
+            // 🔹 Convert numeric fields
             const numericFields = ['basePrice', 'mrp', 'taxRate', 'discountPercentage', 'stockQuantity'];
             numericFields.forEach(field => {
                 if (productData[field] !== undefined && productData[field] !== '') {
                     const num = parseFloat(productData[field]);
+                    console.log(`[updateProduct] Parsing ${field}: '${productData[field]}' -> ${num}`);
                     productData[field] = isNaN(num) ? 0 : num;
                 }
             });
+
+            // 🔒 DEFENSIVE FIX: Round taxRate to 2 decimal places to prevent floating-point imprecision
+            // e.g., prevents 5 from being saved as 4.96 due to JS float arithmetic
+            if (productData.taxRate !== undefined) {
+                productData.taxRate = Math.round(productData.taxRate * 100) / 100;
+                console.log(`[updateProduct] Final taxRate after rounding: ${productData.taxRate}`);
+            }
 
             // 🆕 Convert boolean fields
             if (productData.isActive !== undefined) {
@@ -511,6 +523,11 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
 
         } else {
             productData = req.body;
+
+            // 🆕 SECURITY GUARD: Reject payloads containing UI-only `inclusivePrice`
+            if ('inclusivePrice' in productData) {
+                return next(new ErrorHandler("Invalid pricing payload: inclusivePrice must be converted to exclusive basePrice before submission.", 400));
+            }
 
             // 🆕 Process Videos (same logic as above)
             let finalVideos = product.videos || [];

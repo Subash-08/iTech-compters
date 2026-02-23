@@ -151,9 +151,25 @@ const getAllOrders = catchAsyncErrors(async (req, res, next) => {
         {
             $group: {
                 _id: null,
-                totalRevenue: { $sum: '$pricing.total' },
+                totalRevenue: {
+                    $sum: {
+                        $cond: [
+                            { $in: ['$payment.status', ['completed', 'captured']] },
+                            '$pricing.total',
+                            0
+                        ]
+                    }
+                },
                 totalOrders: { $sum: 1 },
-                averageOrderValue: { $avg: '$pricing.total' }
+                averageOrderValue: {
+                    $avg: {
+                        $cond: [
+                            { $in: ['$payment.status', ['completed', 'captured']] },
+                            '$pricing.total',
+                            null
+                        ]
+                    }
+                }
             }
         }
     ]);
@@ -1350,7 +1366,31 @@ const getQuickStats = catchAsyncErrors(async (req, res, next) => {
         }
     });
 });
+// Generate and Download Shipping Label
+const shippingLabelGenerator = require('../utils/shippingLabelGenerator');
+const downloadShippingLabel = catchAsyncErrors(async (req, res, next) => {
+    const order = await Order.findById(req.params.orderId)
+        .populate("user", "name email");
 
+    if (!order) {
+        return next(new ErrorHandler("Order not found with this ID", 404));
+    }
+
+    try {
+        const pdfBuffer = await shippingLabelGenerator.generateShippingLabel(order);
+
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename=shipping_label_${order.orderNumber}.pdf`,
+            'Content-Length': pdfBuffer.length
+        });
+
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Error generating shipping label:', error);
+        return next(new ErrorHandler("Failed to generate shipping label", 500));
+    }
+});
 
 module.exports = {
     // User routes
@@ -1374,6 +1414,7 @@ module.exports = {
     getOrderInvoices,
     deleteAdminInvoice,
     downloadInvoice,
+    downloadShippingLabel,
     getSalesChartData,
     getQuickStats,
 };

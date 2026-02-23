@@ -13,7 +13,7 @@ import LinkedProductsSection from './LinkedProductsSection';
 import VideosSection from './sections/VideosSection';
 import api from '../../config/axiosConfig';
 import { toast } from 'react-toastify';
-
+import { calculateInclusivePrice, calculateExclusivePrice } from '../../../utils/priceUtils';
 const initialProductData: ProductFormData = {
   name: '',
   brand: '',
@@ -129,9 +129,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
   // Initialize / merge initialData once
   useEffect(() => {
     if (initialData && !isInitialized) {
+      // 🆕 Calculate inclusive price for UI
+      const initTaxRate = initialData.taxRate || initialProductData.taxRate;
+      const initBasePrice = initialData.basePrice || initialProductData.basePrice;
+      const uiInclusivePrice = calculateInclusivePrice(initBasePrice, initTaxRate);
       const merged: ProductFormData = {
         ...initialProductData,
         ...initialData,
+        inclusivePrice: uiInclusivePrice, // 🆕 Apply inclusivePrice
         videos: Array.isArray(initialData.videos)
           ? initialData.videos
           : [],
@@ -217,7 +222,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
         variants:
           Array.isArray(initialData.variants) &&
             initialData.variants.length > 0
-            ? initialData.variants
+            ? initialData.variants.map((v: any) => ({
+              ...v,
+              inclusivePrice: calculateInclusivePrice(v.price, initTaxRate)
+            }))
             : initialProductData.variants,
         manufacturerImages:
           Array.isArray((initialData as any).manufacturerImages)
@@ -364,6 +372,12 @@ const ProductForm: React.FC<ProductFormProps> = ({
       }
 
       // -------- Build FormData --------
+      // 🔍 DEBUG: Log taxRate before building FormData
+      console.log('[ProductForm] Submit - formData.taxRate:', formData.taxRate, typeof formData.taxRate);
+      console.log('[ProductForm] Submit - formData.discountPercentage:', formData.discountPercentage, typeof formData.discountPercentage);
+      console.log('[ProductForm] Submit - formData.basePrice:', formData.basePrice);
+      console.log('[ProductForm] Submit - formData.mrp:', formData.mrp);
+
       const fd = new FormData();
 
       // 🔹 Basic product fields
@@ -384,12 +398,23 @@ const ProductForm: React.FC<ProductFormProps> = ({
       fd.append("canonicalUrl", formData.canonicalUrl || "");
 
       // REQUIRED — Pricing and Inventory
-      fd.append("basePrice", String(formData.basePrice || 0));
-      fd.append("mrp", String(formData.mrp || formData.basePrice || 0));
+      // 🆕 Calculate exclusive basePrice for DB submission right here. 
+      // Do not trust `formData.basePrice` from form state. Use `inclusivePrice` as truth.
+      const taxRateToSend = formData.taxRate ?? 0;
+      const exclusiveBasePrice = calculateExclusivePrice(formData.inclusivePrice || 0, taxRateToSend);
+      fd.append("basePrice", String(exclusiveBasePrice));
+
+      // MRP is already stored inclusive, so we just append it normally
+      // If mrp is not set, fallback to the inclusive amount (not exclusive)
+      const submitMrp = formData.mrp ? formData.mrp : (formData.inclusivePrice || 0);
+      fd.append("mrp", String(submitMrp));
+
       fd.append("stockQuantity", String(formData.stockQuantity || 0));
 
       // ADD MISSING PRICING FIELDS
-      fd.append("taxRate", String(formData.taxRate || 0));
+      // 🔍 DEBUG: Confirm exact taxRate value being appended
+      console.log('[ProductForm] Appending taxRate to FormData:', taxRateToSend, String(taxRateToSend));
+      fd.append("taxRate", String(taxRateToSend));
       fd.append("sku", formData.sku || "");
       fd.append("barcode", formData.barcode || "");
 
@@ -469,6 +494,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
             }).filter(img => img.url && img.url.trim() !== '');
           }
         }
+
+        // 🆕 Convert Variant inclusivePrice to exclusive price on submit
+        // variant.price must hit the backend as tax-exclusive
+        const variantInclusive = cleanedVariant.inclusivePrice || cleanedVariant.price || 0;
+        cleanedVariant.price = calculateExclusivePrice(variantInclusive, taxRateToSend);
+
+        // Remove the virtual inclusivePrice field so it doesn't taint the payload
+        delete cleanedVariant.inclusivePrice;
 
         // Ensure variant has images object
         if (!cleanedVariant.images) {

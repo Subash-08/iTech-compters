@@ -46,6 +46,7 @@ class AdvancedFilterBuilder {
                 // Pricing (for non-variant products)
                 basePrice: 1,
                 mrp: 1,
+                taxRate: 1,
                 effectivePrice: { $cond: { if: { $gt: ['$mrp', 0] }, then: '$basePrice', else: '$basePrice' } },
 
                 // Stock
@@ -184,9 +185,20 @@ class AdvancedFilterBuilder {
             }
         };
 
-        this.mainPipeline.push(priceCalculationStage);
-        this.countPipeline.push(priceCalculationStage);
-        this.metadataPipeline.push(priceCalculationStage);
+        const taxInclusionStage = {
+            $addFields: {
+                taxInclusivePrice: {
+                    $multiply: [
+                        '$effectivePrice',
+                        { $add: [1, { $divide: [{ $ifNull: ['$taxRate', 0] }, 100] }] }
+                    ]
+                }
+            }
+        };
+
+        this.mainPipeline.push(priceCalculationStage, taxInclusionStage);
+        this.countPipeline.push(priceCalculationStage, taxInclusionStage);
+        this.metadataPipeline.push(priceCalculationStage, taxInclusionStage);
     }
 
     applyPriceFilter() {
@@ -203,7 +215,7 @@ class AdvancedFilterBuilder {
         if (effectiveMax !== null && !isNaN(effectiveMax)) priceMatch.$lte = effectiveMax;
 
         if (Object.keys(priceMatch).length > 0) {
-            const matchStage = { $match: { effectivePrice: priceMatch } };
+            const matchStage = { $match: { taxInclusivePrice: priceMatch } };
             // Apply ONLY to Main and Count
             this.mainPipeline.push(matchStage);
             this.countPipeline.push(matchStage);
@@ -331,8 +343,8 @@ class AdvancedFilterBuilder {
         const map = {
             newest: { createdAt: -1 },
             oldest: { createdAt: 1 },
-            'price-low': { effectivePrice: 1 },
-            'price-high': { effectivePrice: -1 },
+            'price-low': { taxInclusivePrice: 1 },
+            'price-high': { taxInclusivePrice: -1 },
             rating: { averageRating: -1 },
             popular: { totalReviews: -1, averageRating: -1 },
             'name-asc': { name: 1 },
@@ -364,6 +376,8 @@ class AdvancedFilterBuilder {
                     name: 1, slug: 1, brand: 1, categories: 1, condition: 1, label: 1,
                     basePrice: 1, mrp: 1, stockQuantity: 1,
                     effectivePrice: 1,
+                    taxRate: 1,
+                    hasStock: 1,
                     images: 1, manufacturerImages: 1,
                     variantConfiguration: 1, variants: 1,
                     description: 1, definition: 1, specifications: 1, features: 1,
@@ -386,12 +400,12 @@ class AdvancedFilterBuilder {
                 // 1. Price Range: Respects Brand AND Category (but ignores Price filter)
                 priceRange: [
                     ...getCrossFilters(false, false),
-                    { $match: { effectivePrice: { $gt: 0 } } },
+                    { $match: { taxInclusivePrice: { $gt: 0 } } },
                     {
                         $group: {
                             _id: null,
-                            minPrice: { $min: '$effectivePrice' },
-                            maxPrice: { $max: '$effectivePrice' }
+                            minPrice: { $min: { $round: ['$taxInclusivePrice', 0] } },
+                            maxPrice: { $max: { $round: ['$taxInclusivePrice', 0] } }
                         }
                     }
                 ],

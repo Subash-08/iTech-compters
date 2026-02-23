@@ -117,7 +117,7 @@ const productSchema = new Schema({
 
     // 🏷️ PRODUCT IDENTIFICATION
     hsn: { type: String, trim: true },
-    taxRate: { type: Number, min: 0, default: 0 },
+    taxRate: { type: Number, min: 0, default: 18 }, // Stored as percentage (e.g., 18)
     sku: { type: String, trim: true, sparse: true, index: { unique: true, sparse: true } },
     barcode: { type: String, unique: true, trim: true, sparse: true },
     stockQuantity: {
@@ -219,13 +219,17 @@ productSchema.virtual('displayMrp').get(function () {
     return this.mrp || this.basePrice || 0;
 });
 
-// 🆕 Calculate discount based on MRP vs Selling Price
+// 🆕 Calculate discount based on MRP vs Selling Price (Inclusive vs Inclusive)
 productSchema.virtual('discountPercentage').get(function () {
     const mrp = this.displayMrp;
     const sellingPrice = this.sellingPrice;
+    const taxRate = this.taxRate || 18;
 
-    if (mrp > sellingPrice && mrp > 0) {
-        return Math.round(((mrp - sellingPrice) / mrp) * 100);
+    // Convert exclusive selling price to inclusive for accurate comparison
+    const inclusiveSellingPrice = sellingPrice * (1 + taxRate / 100);
+
+    if (mrp > inclusiveSellingPrice && mrp > 0) {
+        return Math.round(((mrp - inclusiveSellingPrice) / mrp) * 100);
     }
     return 0;
 });

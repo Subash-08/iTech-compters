@@ -158,9 +158,9 @@ const preBuiltPCSchema = new mongoose.Schema({
     },
     taxRate: {
         type: Number,
-        default: 0.18,
+        default: 18, // Stored as percentage
         min: 0,
-        max: 1
+        max: 100
     },
     description: {
         type: String,

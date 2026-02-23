@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { checkoutActions } from '../../redux/actions/checkoutActions';
 import { clearCheckoutData } from '../../redux/slices/checkoutSlice';
-import { 
+import {
   selectCheckoutData,
   selectCheckoutLoading,
   selectCheckoutError,
@@ -33,15 +33,15 @@ import OrderSummary from './OrderSummary';
 import PaymentMethod from './PaymentMethod';
 import GSTInfoForm from './GSTInfoForm';
 import CouponForm from './CouponForm';
-import { 
+import {
   setShippingAddress,
   setBillingAddress,
   setGSTInfo,
   setPaymentMethod,
-  clearCoupon 
+  clearCoupon
 } from '../../redux/slices/checkoutSlice';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   ChevronRight,
   MapPin,
   CreditCard,
@@ -60,7 +60,7 @@ export type CheckoutStep = 'address' | 'payment';
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  
+
   // Redux selectors
   const checkoutData = useAppSelector(selectCheckoutData);
   const loading = useAppSelector(selectCheckoutLoading);
@@ -113,12 +113,12 @@ const Checkout: React.FC = () => {
   const handleUpdateAddress = async (addressId: string, addressData: any, setAsDefault = false) => {
     try {
       setPaymentError('');
-      await dispatch(checkoutActions.updateAddress({ 
-        addressId, 
-        address: addressData, 
-        setAsDefault 
+      await dispatch(checkoutActions.updateAddress({
+        addressId,
+        address: addressData,
+        setAsDefault
       })).unwrap();
-      
+
       await dispatch(checkoutActions.fetchCheckoutData()).unwrap();
     } catch (error: any) {
       console.error('Failed to update address:', error);
@@ -130,7 +130,7 @@ const Checkout: React.FC = () => {
     try {
       setPaymentError('');
       await dispatch(checkoutActions.deleteAddress(addressId)).unwrap();
-      
+
       await dispatch(checkoutActions.fetchCheckoutData()).unwrap();
     } catch (error: any) {
       console.error('Failed to delete address:', error);
@@ -144,7 +144,7 @@ const Checkout: React.FC = () => {
       navigate('/login?returnUrl=/checkout');
       return;
     }
-    
+
     if (!createdOrderId) {
       dispatch(checkoutActions.fetchCheckoutData());
     }
@@ -154,13 +154,27 @@ const Checkout: React.FC = () => {
   const handleApplyCoupon = async (couponCode: string) => {
     try {
       setPaymentError('');
-      await dispatch(checkoutActions.calculateCheckout({ 
-        couponCode, 
-        shippingAddressId: shippingAddress?._id 
+      await dispatch(checkoutActions.calculateCheckout({
+        couponCode,
+        shippingAddressId: shippingAddress?._id
       })).unwrap();
     } catch (error: any) {
       console.error('Failed to apply coupon:', error);
       setPaymentError(error.message || 'Failed to apply coupon');
+    }
+  };
+
+  const handleRemoveCoupon = async () => {
+    try {
+      setPaymentError('');
+      dispatch(clearCoupon());
+      await dispatch(checkoutActions.calculateCheckout({
+        couponCode: '',
+        shippingAddressId: shippingAddress?._id
+      })).unwrap();
+    } catch (error: any) {
+      console.error('Failed to remove coupon:', error);
+      setPaymentError(error.message || 'Failed to remove coupon');
     }
   };
 
@@ -169,9 +183,9 @@ const Checkout: React.FC = () => {
       setPaymentError('');
       setAddressRefreshing(true);
       await dispatch(checkoutActions.saveAddress({ address: addressData, setAsDefault })).unwrap();
-      
+
       await dispatch(checkoutActions.fetchCheckoutData()).unwrap();
-      
+
       setShowAddressForm(false);
     } catch (error: any) {
       console.error('Failed to save address:', error);
@@ -196,7 +210,7 @@ const Checkout: React.FC = () => {
       };
       const result = await dispatch(checkoutActions.createOrder(orderPayload)).unwrap();
       const newOrderId = result.orderId || result.order?._id || result.orderNumber;
-      
+
       if (newOrderId) {
         setCreatedOrderId(newOrderId);
       } else {
@@ -214,15 +228,15 @@ const Checkout: React.FC = () => {
   const handlePaymentSuccess = async (paymentData: any) => {
     setPaymentError('');
     setPaymentCompleted(true); // ADD THIS LINE - Set payment completed to true
-    
+
     try {
       const orderNumber = paymentData.data?.orderNumber || createdOrderId;
-      
+
       // Clear checkout data after a short delay (optional)
       setTimeout(() => {
         dispatch(clearCheckoutData());
       }, 1000);
-      
+
       // Navigate immediately to order confirmation
       setTimeout(() => {
         if (orderNumber) {
@@ -231,7 +245,7 @@ const Checkout: React.FC = () => {
           navigate('/order-confirmation/success');
         }
       }, 2000);
-      
+
     } catch (error: any) {
       console.error('💥 Payment processing failed:', error);
       setPaymentError(error.message || 'Payment processing failed. Please try again.');
@@ -255,13 +269,13 @@ const Checkout: React.FC = () => {
 
   // Premium Payment Loader
   const PaymentLoader = () => (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-white/90 backdrop-blur-md z-50 flex items-center justify-center"
     >
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", damping: 25 }}
@@ -275,8 +289,8 @@ const Checkout: React.FC = () => {
               <CreditCard className="w-8 h-8 text-indigo-600 animate-pulse" />
             </div>
           </div>
-          
-          <motion.h3 
+
+          <motion.h3
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
@@ -284,22 +298,22 @@ const Checkout: React.FC = () => {
           >
             {processingOrder ? 'Securing Your Order' : 'Processing Payment'}
           </motion.h3>
-          
+
           <p className="text-slate-600 text-center mb-6">
-            {processingOrder 
-              ? 'Please wait while we prepare your order...' 
+            {processingOrder
+              ? 'Please wait while we prepare your order...'
               : 'Please wait while we process your payment...'
             }
           </p>
-          
+
           <div className="w-full space-y-3">
             <div className="flex justify-between items-center py-2 border-b border-slate-100">
               <span className="text-slate-600">Amount:</span>
               <span className="text-lg font-semibold text-slate-900">₹{total.toLocaleString()}</span>
             </div>
-            
+
             {createdOrderId && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="flex justify-between items-center py-2"
@@ -310,10 +324,10 @@ const Checkout: React.FC = () => {
                 </span>
               </motion.div>
             )}
-            
+
             <div className="pt-4">
               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <motion.div 
+                <motion.div
                   className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full"
                   initial={{ width: "0%" }}
                   animate={{ width: "60%" }}
@@ -329,34 +343,34 @@ const Checkout: React.FC = () => {
 
   // Premium Success Animation
   const SuccessAnimation = () => (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-white/95 backdrop-blur-md z-50 flex items-center justify-center"
     >
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", damping: 25 }}
         className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-10 max-w-md w-full mx-4 text-center"
       >
-        <motion.div 
+        <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", damping: 15 }}
           className="relative w-24 h-24 bg-gradient-to-br from-emerald-500 to-green-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
         >
           <CheckCircle className="w-12 h-12 text-white" />
-          <motion.div 
+          <motion.div
             className="absolute -inset-2 rounded-full bg-gradient-to-r from-emerald-500/30 to-green-400/30"
             initial={{ scale: 1 }}
             animate={{ scale: 1.5, opacity: 0 }}
             transition={{ duration: 1.5, repeat: Infinity }}
           />
         </motion.div>
-        
-        <motion.h3 
+
+        <motion.h3
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -364,8 +378,8 @@ const Checkout: React.FC = () => {
         >
           Payment Successful!
         </motion.h3>
-        
-        <motion.p 
+
+        <motion.p
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
@@ -373,8 +387,8 @@ const Checkout: React.FC = () => {
         >
           Your order has been confirmed and is being processed.
         </motion.p>
-        
-        <motion.div 
+
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
@@ -389,13 +403,13 @@ const Checkout: React.FC = () => {
 
   // ADD THIS COMPONENT - Order Success View
   const OrderSuccessView = () => (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 bg-slate-50 flex items-center justify-center p-4"
     >
       <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-md w-full text-center border border-slate-100">
-        <motion.div 
+        <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", damping: 15, stiffness: 100, delay: 0.1 }}
@@ -403,8 +417,8 @@ const Checkout: React.FC = () => {
         >
           <Check className="w-12 h-12 text-white stroke-[3]" />
         </motion.div>
-        
-        <motion.h2 
+
+        <motion.h2
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -412,8 +426,8 @@ const Checkout: React.FC = () => {
         >
           Order Confirmed!
         </motion.h2>
-        
-        <motion.p 
+
+        <motion.p
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
@@ -422,14 +436,14 @@ const Checkout: React.FC = () => {
           Thank you for your purchase. We are redirecting you to your receipt.
         </motion.p>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
           className="flex flex-col items-center gap-3"
         >
           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[200px]">
-            <motion.div 
+            <motion.div
               className="h-full bg-emerald-500 rounded-full"
               initial={{ width: "0%" }}
               animate={{ width: "100%" }}
@@ -450,9 +464,9 @@ const Checkout: React.FC = () => {
   if (loading && !checkoutData) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 flex flex-col items-center justify-center">
-        <LoadingSpinner 
-          size="xl" 
-          variant="gradient" 
+        <LoadingSpinner
+          size="xl"
+          variant="gradient"
           label="Loading checkout..."
           fullScreen={false}
         />
@@ -462,7 +476,7 @@ const Checkout: React.FC = () => {
 
   if (!checkoutData || checkoutData.cartItems?.length === 0) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="min-h-screen bg-gradient-to-b from-white to-slate-50 flex items-center justify-center"
@@ -493,14 +507,14 @@ const Checkout: React.FC = () => {
         {showSuccessAnimation && <SuccessAnimation />}
       </AnimatePresence>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="min-h-screen bg-gradient-to-b from-white to-slate-50"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
           {/* Premium Header */}
-          <motion.div 
+          <motion.div
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             className="mb-2"
@@ -542,7 +556,7 @@ const Checkout: React.FC = () => {
             {/* Main Content */}
             <div className="lg:col-span-8">
               {/* Progress Steps - Premium Design */}
-              <motion.div 
+              <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.1 }}
@@ -553,44 +567,41 @@ const Checkout: React.FC = () => {
                     <div key={step} className="flex items-center">
                       <motion.div
                         whileHover={{ scale: 1.05 }}
-                        className={`relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${
-                          currentStep === step
+                        className={`relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${currentStep === step
                             ? 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white shadow-lg'
                             : currentStep === 'payment' && step === 'address'
-                            ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white'
-                            : 'bg-gradient-to-b from-slate-100 to-slate-200 text-slate-500'
-                        }`}
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white'
+                              : 'bg-gradient-to-b from-slate-100 to-slate-200 text-slate-500'
+                          }`}
                       >
                         {index + 1}
                         {step === 'address' && currentStep === 'address' && (
-                          <motion.div 
+                          <motion.div
                             className="absolute -inset-2 rounded-full bg-gradient-to-r from-indigo-500/20 to-blue-500/20"
                             animate={{ scale: [1, 1.2, 1] }}
                             transition={{ duration: 2, repeat: Infinity }}
                           />
                         )}
                       </motion.div>
-                      
+
                       <div className="ml-2">
-                        <p className={`text-sm font-medium ${
-                          currentStep === step
+                        <p className={`text-sm font-medium ${currentStep === step
                             ? 'text-slate-900'
                             : 'text-slate-500'
-                        }`}>
+                          }`}>
                           {step === 'address' ? 'Shipping Address' : 'Payment'}
                         </p>
                         <p className="text-xs text-slate-400">
                           {step === 'address' ? 'Step 1 of 2' : 'Step 2 of 2'}
                         </p>
                       </div>
-                      
+
                       {index < 1 && (
-                        <motion.div 
-                          className={`w-12 h-0.5 ${
-                            currentStep === 'payment' 
+                        <motion.div
+                          className={`w-12 h-0.5 ${currentStep === 'payment'
                               ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
                               : 'bg-gradient-to-r from-slate-200 to-slate-300'
-                          }`}
+                            }`}
                         />
                       )}
                     </div>
@@ -599,7 +610,7 @@ const Checkout: React.FC = () => {
               </motion.div>
 
               {/* Step Content */}
-              <motion.div 
+              <motion.div
                 key={currentStep}
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -670,23 +681,22 @@ const Checkout: React.FC = () => {
                               <p className="text-slate-600 text-sm">Optional for business purchases</p>
                             </div>
                           </div>
-                          
+
                           <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => setShowGSTForm(!showGSTForm)}
-                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-300 ${
-                              showGSTForm
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-300 ${showGSTForm
                                 ? 'border-rose-200 text-rose-600 bg-rose-50'
                                 : 'border-slate-300 text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50'
-                            }`}
+                              }`}
                           >
                             {showGSTForm ? 'Cancel' : gstInfo ? 'Edit' : 'Add GST'}
                           </motion.button>
                         </div>
-                        
+
                         {gstInfo && !showGSTForm && (
-                          <motion.div 
+                          <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             className="bg-gradient-to-r from-emerald-50/50 to-teal-50/50 rounded-xl border border-emerald-200/50 p-5"
@@ -735,11 +745,10 @@ const Checkout: React.FC = () => {
                           whileTap={{ scale: 0.98 }}
                           onClick={handleNextStep}
                           disabled={!shippingAddress}
-                          className={`px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-3 ${
-                            shippingAddress
+                          className={`px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-3 ${shippingAddress
                               ? 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white hover:shadow-lg hover:from-indigo-700 hover:to-blue-600'
                               : 'bg-gradient-to-b from-slate-200 to-slate-300 text-slate-500 cursor-not-allowed'
-                          }`}
+                            }`}
                         >
                           Continue to Payment
                           <ChevronRight className="w-4 h-4" />
@@ -750,116 +759,115 @@ const Checkout: React.FC = () => {
                 )}
 
                 {/* Payment Step */}
-{currentStep === 'payment' && (
-  // 1. Changed p-8 to p-4 md:p-8 for better mobile spacing
-  <div className="p-4 md:p-8">
-    <div className="flex items-center gap-3 mb-6">
-      <div className="p-2 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg">
-        <CreditCard className="w-5 h-5 text-indigo-600" />
-      </div>
-      <div>
-        <h2 className="text-xl font-semibold text-slate-900">Payment Method</h2>
-      </div>
-    </div>
+                {currentStep === 'payment' && (
+                  // 1. Changed p-8 to p-4 md:p-8 for better mobile spacing
+                  <div className="p-4 md:p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg">
+                        <CreditCard className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-semibold text-slate-900">Payment Method</h2>
+                      </div>
+                    </div>
 
-    <div className="space-y-8">
-      {/* Payment Method Component */}
-      <PaymentMethod
-        selectedMethod={paymentMethod}
-        onSelectMethod={(method) => dispatch(setPaymentMethod(method))}
-        orderId={createdOrderId}
-        amount={total}
-        currency="INR"
-        onPaymentSuccess={handlePaymentSuccess}
-        onPaymentError={(error) => {
-          console.error('Payment error:', error);
-          setPaymentError(error);
-        }}
-        userData={{
-          name: `${shippingAddress?.firstName} ${shippingAddress?.lastName}`,
-          email: shippingAddress?.email || '',
-          contact: shippingAddress?.phone || ''
-        }}
-      />
+                    <div className="space-y-8">
+                      {/* Payment Method Component */}
+                      <PaymentMethod
+                        selectedMethod={paymentMethod}
+                        onSelectMethod={(method) => dispatch(setPaymentMethod(method))}
+                        orderId={createdOrderId}
+                        amount={total}
+                        currency="INR"
+                        onPaymentSuccess={handlePaymentSuccess}
+                        onPaymentError={(error) => {
+                          console.error('Payment error:', error);
+                          setPaymentError(error);
+                        }}
+                        userData={{
+                          name: `${shippingAddress?.firstName} ${shippingAddress?.lastName}`,
+                          email: shippingAddress?.email || '',
+                          contact: shippingAddress?.phone || ''
+                        }}
+                      />
 
-      {/* Navigation Buttons */}
-      {!createdOrderId && !processingOrder && (
-        // 2. Changed layout to column-reverse on mobile, row on desktop
-        <div className="flex flex-col-reverse gap-4 pt-6 border-t border-slate-100 md:flex-row md:justify-between md:items-center md:pt-8">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handlePrevStep}
-            // 3. Added w-full md:w-auto and justify-center
-            className="flex w-full items-center justify-center gap-2 px-5 py-3 bg-gradient-to-b from-white to-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all duration-300 md:w-auto"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Address
-          </motion.button>
-          
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handlePlaceOrder}
-            disabled={!paymentMethod || !isCheckoutValid || total <= 0}
-            // 3. Added w-full md:w-auto and justify-center
-            className={`flex w-full items-center justify-center gap-3 px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 md:w-auto ${
-              paymentMethod && isCheckoutValid && total > 0
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white hover:shadow-lg hover:from-emerald-600 hover:to-teal-500'
-                : 'bg-gradient-to-b from-slate-200 to-slate-300 text-slate-500 cursor-not-allowed'
-            }`}
-          >
-            {processingOrder ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Creating Order...
-              </>
-            ) : (
-              <>
-                <span>Pay ₹{total.toLocaleString()}</span>
-                <ChevronRight className="w-4 h-4" />
-              </>
-            )}
-          </motion.button>
-        </div>
-      )}
+                      {/* Navigation Buttons */}
+                      {!createdOrderId && !processingOrder && (
+                        // 2. Changed layout to column-reverse on mobile, row on desktop
+                        <div className="flex flex-col-reverse gap-4 pt-6 border-t border-slate-100 md:flex-row md:justify-between md:items-center md:pt-8">
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handlePrevStep}
+                            // 3. Added w-full md:w-auto and justify-center
+                            className="flex w-full items-center justify-center gap-2 px-5 py-3 bg-gradient-to-b from-white to-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all duration-300 md:w-auto"
+                          >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to Address
+                          </motion.button>
 
-      {/* Back button if order is created */}
-      {createdOrderId && (
-        // 2. Applied same responsive layout fix here
-        <div className="flex flex-col-reverse gap-4 pt-6 border-t border-slate-100 md:flex-row md:justify-between md:items-center md:pt-8">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handlePrevStep}
-            // 3. Added w-full md:w-auto and justify-center
-            className="flex w-full items-center justify-center gap-2 px-5 py-3 bg-gradient-to-b from-white to-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all duration-300 md:w-auto"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Address
-          </motion.button>
-          
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => dispatch(setPaymentMethod('razorpay'))}
-            // 3. Added w-full md:w-auto and justify-center
-            className="flex w-full items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-400 text-white rounded-xl font-semibold hover:shadow-lg hover:from-amber-600 hover:to-orange-500 transition-all duration-300 md:w-auto"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Retry Payment
-          </motion.button>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handlePlaceOrder}
+                            disabled={!paymentMethod || !isCheckoutValid || total <= 0}
+                            // 3. Added w-full md:w-auto and justify-center
+                            className={`flex w-full items-center justify-center gap-3 px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 md:w-auto ${paymentMethod && isCheckoutValid && total > 0
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white hover:shadow-lg hover:from-emerald-600 hover:to-teal-500'
+                                : 'bg-gradient-to-b from-slate-200 to-slate-300 text-slate-500 cursor-not-allowed'
+                              }`}
+                          >
+                            {processingOrder ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Creating Order...
+                              </>
+                            ) : (
+                              <>
+                                <span>Pay ₹{total.toLocaleString()}</span>
+                                <ChevronRight className="w-4 h-4" />
+                              </>
+                            )}
+                          </motion.button>
+                        </div>
+                      )}
+
+                      {/* Back button if order is created */}
+                      {createdOrderId && (
+                        // 2. Applied same responsive layout fix here
+                        <div className="flex flex-col-reverse gap-4 pt-6 border-t border-slate-100 md:flex-row md:justify-between md:items-center md:pt-8">
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handlePrevStep}
+                            // 3. Added w-full md:w-auto and justify-center
+                            className="flex w-full items-center justify-center gap-2 px-5 py-3 bg-gradient-to-b from-white to-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 hover:border-slate-400 hover:shadow-sm transition-all duration-300 md:w-auto"
+                          >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to Address
+                          </motion.button>
+
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => dispatch(setPaymentMethod('razorpay'))}
+                            // 3. Added w-full md:w-auto and justify-center
+                            className="flex w-full items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-400 text-white rounded-xl font-semibold hover:shadow-lg hover:from-amber-600 hover:to-orange-500 transition-all duration-300 md:w-auto"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Retry Payment
+                          </motion.button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             </div>
 
             {/* Order Summary Sidebar */}
             <div className="lg:col-span-4 space-y-6">
-              <motion.div 
+              <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
@@ -869,9 +877,9 @@ const Checkout: React.FC = () => {
                 <CouponForm
                   couponApplied={couponApplied}
                   onApplyCoupon={handleApplyCoupon}
-                  onRemoveCoupon={() => dispatch(clearCoupon())}
+                  onRemoveCoupon={handleRemoveCoupon}
                 />
-                
+
                 {/* Order Summary */}
                 <OrderSummary
                   subtotal={subtotal}

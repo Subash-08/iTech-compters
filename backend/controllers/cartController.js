@@ -11,7 +11,7 @@ const PreBuiltPC = require('../models/preBuiltPCModel');
 const cartPopulation = [
     {
         path: 'items.product',
-        select: 'name images basePrice mrp slug stockQuantity brand categories condition discountPercentage averageRating totalReviews',
+        select: 'name images basePrice mrp slug stockQuantity taxRate brand categories condition discountPercentage averageRating totalReviews',
         populate: [
             { path: 'brand', select: 'name' },
             { path: 'categories', select: 'name' }
@@ -19,7 +19,7 @@ const cartPopulation = [
     },
     {
         path: 'items.preBuiltPC',
-        select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews components',
+        select: 'name images basePrice totalPrice discountPrice taxRate slug category performanceRating condition specifications stockQuantity averageRating totalReviews components',
         populate: [
             { path: 'category', select: 'name' },
             {
@@ -741,7 +741,7 @@ exports.removeFromCart = catchAsyncErrors(async (req, res, next) => {
         const updatedCart = await Cart.findById(cart._id)
             .populate({
                 path: 'items.product',
-                select: 'name images price slug stock brand category variants basePrice mrp',
+                select: 'name images price slug stock brand category variants basePrice mrp taxRate',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'category', select: 'name' }
@@ -783,7 +783,7 @@ exports.updateCartQuantity = catchAsyncErrors(async (req, res, next) => {
         const updatedCart = await Cart.findById(cart._id)
             .populate({
                 path: 'items.product',
-                select: 'name images price slug stock brand category variants basePrice mrp',
+                select: 'name images price slug stock brand category variants basePrice mrp taxRate',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'category', select: 'name' }

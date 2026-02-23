@@ -158,7 +158,7 @@ const orderItemSchema = new Schema({
     },
     taxRate: {
         type: Number,
-        default: 0.18
+        default: 18
     },
     taxAmount: {
         type: Number,

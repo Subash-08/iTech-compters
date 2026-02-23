@@ -48,7 +48,7 @@ const StatusUpdateForm: React.FC<StatusUpdateFormProps> = ({ order, onStatusUpda
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdating(true);
-    
+
     try {
       await onStatusUpdate(formData);
       setFormData(prev => ({ ...prev, notes: '' })); // Clear notes after successful update
@@ -62,11 +62,23 @@ const StatusUpdateForm: React.FC<StatusUpdateFormProps> = ({ order, onStatusUpda
   const showTrackingFields = formData.status === 'shipped';
   const showDeliveryFields = formData.status === 'delivered';
   const canUpdateToDelivered = ['shipped', 'processing'].includes(order.status);
+  const isPaymentPending = order.payment.status === 'created' || order.payment.status === 'failed';
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border">
       <h3 className="text-lg font-medium text-gray-900 mb-4">Update Order Status</h3>
-      
+
+      {isPaymentPending && (
+        <div className="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded-md text-sm flex gap-3">
+          <svg className="w-5 h-5 flex-shrink-0 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <p>
+            This order's payment is currently <strong>{order.payment.status}</strong>. Status updates are restricted until the payment is successfully captured.
+          </p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Status Select */}
         <div>
@@ -77,12 +89,12 @@ const StatusUpdateForm: React.FC<StatusUpdateFormProps> = ({ order, onStatusUpda
             id="status"
             value={formData.status}
             onChange={(e) => handleInputChange('status', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={order.status === 'delivered'} // Prevent changing delivered orders
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+            disabled={order.status === 'delivered' || isPaymentPending} // Prevent changing delivered/unpaid orders
           >
             {statusOptions.map(option => (
-              <option 
-                key={option.value} 
+              <option
+                key={option.value}
                 value={option.value}
                 disabled={
                   (option.value === 'delivered' && !canUpdateToDelivered) ||
@@ -108,8 +120,9 @@ const StatusUpdateForm: React.FC<StatusUpdateFormProps> = ({ order, onStatusUpda
                 id="carrier"
                 value={formData.carrier || ''}
                 onChange={(e) => handleInputChange('carrier', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                 required={showTrackingFields}
+                disabled={isPaymentPending}
               >
                 {carrierOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -128,9 +141,10 @@ const StatusUpdateForm: React.FC<StatusUpdateFormProps> = ({ order, onStatusUpda
                 id="trackingNumber"
                 value={formData.trackingNumber || ''}
                 onChange={(e) => handleInputChange('trackingNumber', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                 placeholder="Enter tracking number"
                 required={showTrackingFields}
+                disabled={isPaymentPending}
               />
             </div>
           </>
@@ -196,7 +210,7 @@ const StatusUpdateForm: React.FC<StatusUpdateFormProps> = ({ order, onStatusUpda
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isUpdating || order.status === 'delivered'}
+          disabled={isUpdating || order.status === 'delivered' || isPaymentPending}
           className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isUpdating ? 'Updating...' : 'Update Status'}

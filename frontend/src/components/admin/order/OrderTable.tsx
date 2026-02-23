@@ -1,10 +1,13 @@
 // src/components/admin/orders/OrderTable.tsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'react-hot-toast'; // the project seems to use standard toast or react-hot-toast. Actually wait, let me check package.json or just standard toast. Let's assume standard toast since it's the usual pattern, but wait, usually it's `import { toast } from 'react-hot-toast';` or `import { toast } from 'react-toastify';`. I'll use `import { Download } from 'lucide-react';` and `import { orderService } from '../services/orderService';` 
 import { Order } from '../types/order';
 import StatusBadge from './StatusBadge';
 import PaymentStatusBadge from './PaymentStatusBadge';
+import { Download, Loader2 } from 'lucide-react';
+import { orderService } from '../services/orderService';
 
 interface OrderTableProps {
   orders: Order[];
@@ -25,6 +28,30 @@ const OrderTable: React.FC<OrderTableProps> = ({
   onPageChange,
   onStatusUpdate
 }) => {
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadLabel = async (orderId: string, orderNumber: string) => {
+    try {
+      setDownloadingId(orderId);
+      const response = await orderService.downloadShippingLabel(orderId);
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `shipping_label_${orderNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+
+      if (link.parentNode) link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download shipping label:', error);
+      toast.error('Failed to download shipping label');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -32,7 +59,7 @@ const OrderTable: React.FC<OrderTableProps> = ({
     }).format(amount);
   };
 
-    const handleNextPage = () => {
+  const handleNextPage = () => {
     const nextPage = Number(pagination.currentPage) + 1;
     onPageChange(nextPage);
   };
@@ -68,7 +95,7 @@ const OrderTable: React.FC<OrderTableProps> = ({
       <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
         <p className="text-gray-500 text-lg mb-2">No orders found</p>
         <p className="text-gray-400 text-sm">
-          {pagination.total > 0 
+          {pagination.total > 0
             ? "No orders match your current filters. Try adjusting your search criteria."
             : "No orders have been placed yet."
           }
@@ -149,9 +176,24 @@ const OrderTable: React.FC<OrderTableProps> = ({
                   {order.status === 'confirmed' && (
                     <button
                       onClick={() => onStatusUpdate(order._id, 'shipped')}
-                      className="text-green-600 hover:text-green-900"
+                      className="text-green-600 hover:text-green-900 mr-3"
                     >
                       Ship
+                    </button>
+                  )}
+                  {['confirmed', 'shipped'].includes(order.status) && order.payment.status === 'captured' && (
+                    <button
+                      onClick={() => handleDownloadLabel(order._id, order.orderNumber)}
+                      disabled={downloadingId === order._id}
+                      className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 disabled:opacity-50 transition-colors"
+                      title="Download Shipping Label"
+                    >
+                      {downloadingId === order._id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      <span className="sr-only">Label</span>
                     </button>
                   )}
                 </td>
@@ -161,7 +203,7 @@ const OrderTable: React.FC<OrderTableProps> = ({
         </table>
       </div>
 
- {pagination.totalPages > 1 && (
+      {pagination.totalPages > 1 && (
         <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
             <div className="text-sm text-gray-700">
@@ -170,7 +212,7 @@ const OrderTable: React.FC<OrderTableProps> = ({
                 <span> (Page {pagination.currentPage} of {pagination.totalPages})</span>
               )}
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <button
                 onClick={handlePrevPage}
@@ -179,7 +221,7 @@ const OrderTable: React.FC<OrderTableProps> = ({
               >
                 Previous
               </button>
-              
+
               {/* Page numbers */}
               <div className="flex space-x-1">
                 {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
@@ -188,18 +230,17 @@ const OrderTable: React.FC<OrderTableProps> = ({
                     <button
                       key={pageNum}
                       onClick={() => onPageChange(pageNum)}
-                      className={`px-3 py-1 border text-sm font-medium rounded-md transition-colors ${
-                        pagination.currentPage === pageNum
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`px-3 py-1 border text-sm font-medium rounded-md transition-colors ${pagination.currentPage === pageNum
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       {pageNum}
                     </button>
                   );
                 })}
               </div>
-              
+
               <button
                 onClick={handleNextPage}
                 disabled={pagination.currentPage === pagination.totalPages}

@@ -29,8 +29,10 @@ export interface Product {
   name: string;
   slug: string;
   effectivePrice: number;
+  basePrice?: number;
   mrp?: number;
   offerPrice?: number;
+  taxRate?: number;       // percentage form, e.g. 18 for 18% GST
   stockQuantity?: number;
   hasStock?: boolean;
   condition?: string;
@@ -70,8 +72,8 @@ interface AddToCartButtonProps {
   children?: React.ReactNode;
 }
 
-const AddToCartButton: React.FC<AddToCartButtonProps> = ({ 
-  productId, 
+const AddToCartButton: React.FC<AddToCartButtonProps> = ({
+  productId,
   product,
   variant,
   productType = 'product',
@@ -80,7 +82,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   disabled = false,
   showIcon = true,
   iconSize = "w-4 h-4",
-  children 
+  children
 }) => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
@@ -89,11 +91,11 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
     e.preventDefault();
     e.stopPropagation(); // Stop click from triggering product link
     if (loading || disabled) return;
-    
+
     setLoading(true);
     try {
       const cartPayload = {
-        productId, 
+        productId,
         variantId: variant?.variantId,
         variantData: variant,
         quantity,
@@ -104,10 +106,10 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           effectivePrice: product?.effectivePrice || variant?.price || 0
         }
       };
-      
+
       await dispatch(cartActions.addToCart(cartPayload));
       toast.success('Product added to cart!');
-      
+
     } catch (error: any) {
       console.error('Failed to add to cart:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to add to cart';
@@ -121,11 +123,9 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
     <button
       onClick={handleAddToCart}
       disabled={loading || disabled}
-      className={`transition-all duration-200 ease-out active:scale-[0.98] ${className} ${
-        loading ? 'opacity-70 cursor-wait' : ''
-      } ${
-        disabled ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400' : ''
-      }`}
+      className={`transition-all duration-200 ease-out active:scale-[0.98] ${className} ${loading ? 'opacity-70 cursor-wait' : ''
+        } ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400' : ''
+        }`}
     >
       {loading ? (
         <div className="flex items-center justify-center space-x-2">
@@ -160,8 +160,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     name,
     slug,
     effectivePrice,
+    basePrice,
     mrp,
     offerPrice,
+    taxRate = 0,
     stockQuantity,
     condition,
     averageRating = 0,
@@ -190,10 +192,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     ? (baseVariant.stockQuantity || 0) > 0
     : (stockQuantity || 0) > 0;
 
-  // Price logic
-  const getDisplayPrice = () => {
+  // Price logic — sellingPrice is the discount-applied price before GST
+  const getSellingPrice = () => {
     if (hasVariants && baseVariant) return baseVariant.offerPrice || baseVariant.price || 0;
-    return offerPrice || effectivePrice || 0;
+    return offerPrice || effectivePrice || basePrice || 0;
   };
 
   const getDisplayMrp = () => {
@@ -201,10 +203,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     return mrp || effectivePrice || 0;
   };
 
-  const displayPrice = getDisplayPrice();
+  // Tax-inclusive price shown to the customer (selling price + GST)
+  const sellingPrice = getSellingPrice();
+  const displayPrice = taxRate > 0
+    ? Math.round(sellingPrice * (1 + taxRate / 100))
+    : sellingPrice;
   const displayMrp = getDisplayMrp();
-  const discount = displayMrp > displayPrice && displayPrice > 0 
-    ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100) 
+  // MRP is ALREADY tax-inclusive
+  const discount = displayMrp > displayPrice && displayPrice > 0
+    ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
     : 0;
 
   // Image handling
@@ -212,7 +219,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     if (!imageObj?.url) return '/placeholder-image.jpg';
     const url = imageObj.url;
     const API_BASE_URL = process.env.REACT_APP_API_URL || baseURL;
-    
+
     if (url.startsWith('http') || url.startsWith('blob:')) return url;
     if (!url.includes('/')) {
       if (url.startsWith('products-')) return `${API_BASE_URL}/uploads/products/${url}`;
@@ -265,47 +272,47 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const productUrl = getProductUrl();
 
   return (
-<div 
-  className="group relative flex flex-col h-full bg-white rounded-lg border overflow-hidden transition-all duration-300 w-full max-w-[280px] mx-auto
+    <div
+      className="group relative flex flex-col h-full bg-white rounded-lg border overflow-hidden transition-all duration-300 w-full max-w-[280px] mx-auto
   /* Key Changes Here: Crisper border, standard deeper shadow */
   border-gray-400/60 shadow-lg 
   /* Hover states */
   hover:border-gray-500/60 hover:shadow-xl"
-  onMouseEnter={() => setIsHovering(true)}
-  onMouseLeave={() => setIsHovering(false)}
->
-      
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+
       {/* --- Image Section (Aspect 4:3 for Tech) --- */}
       <div className="relative aspect-[4/3] bg-gray-50 overflow-hidden p-3">
-        
-{/* Badges - Top Left - Sleek Minimalist Style */}
-<div className="absolute top-2 left-2 z-20 flex flex-col gap-1 items-start">
-  
-  {/* 1. Condition Badge (Subtle Gray/Dark Blue) */}
-  {condition && (
-    <span className="inline-block bg-slate-800 text-white text-[9px] font-bold px-1.5 py-[2px] rounded uppercase tracking-wider">
-      {condition}
-    </span>
-  )}
 
-  {/* 2. Discount Badge (Sharp Red, JUST percentage) */}
-  {discount > 0 && (
-    <span className="inline-block bg-[#dc2626] text-white text-[10px] font-extrabold px-1.5 py-[2px] rounded shadow-sm">
-      -{discount}%
-    </span>
-  )}
+        {/* Badges - Top Left - Sleek Minimalist Style */}
+        <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 items-start">
 
-  {/* 3. Sold Out Badge (Black) */}
-  {!inStock && (
-    <span className="inline-block bg-black text-white text-[9px] font-bold px-1.5 py-[2px] rounded uppercase tracking-wider">
-      Sold Out
-    </span>
-  )}
-</div>
+          {/* 1. Condition Badge (Subtle Gray/Dark Blue) */}
+          {condition && (
+            <span className="inline-block bg-slate-800 text-white text-[9px] font-bold px-1.5 py-[2px] rounded uppercase tracking-wider">
+              {condition}
+            </span>
+          )}
+
+          {/* 2. Discount Badge (Sharp Red, JUST percentage) */}
+          {discount > 0 && (
+            <span className="inline-block bg-[#dc2626] text-white text-[10px] font-extrabold px-1.5 py-[2px] rounded shadow-sm">
+              -{discount}%
+            </span>
+          )}
+
+          {/* 3. Sold Out Badge (Black) */}
+          {!inStock && (
+            <span className="inline-block bg-black text-white text-[9px] font-bold px-1.5 py-[2px] rounded uppercase tracking-wider">
+              Sold Out
+            </span>
+          )}
+        </div>
 
         {/* Wishlist - Top Right */}
         <div className="absolute top-3 right-3 z-20">
-          <AddToWishlistButton 
+          <AddToWishlistButton
             productId={_id}
             product={product}
             variant={hasVariants && baseVariant ? {
@@ -334,9 +341,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               onLoad={() => setImageLoaded(true)}
               onError={() => {
                 if (!hasImageError) {
-                   setHasImageError(true);
-                   setCurrentImgSrc('/placeholder-image.jpg');
-                   setImageLoaded(true);
+                  setHasImageError(true);
+                  setCurrentImgSrc('/placeholder-image.jpg');
+                  setImageLoaded(true);
                 }
               }}
             />
@@ -354,7 +361,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
       {/* --- Details Section --- */}
       <div className="flex flex-col flex-1 p-2">
-        
+
         {/* Brand */}
         <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 truncate">
           {brand?.name || 'Brand'}
@@ -374,26 +381,30 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
              <span className="text-xs font-medium text-gray-500">{averageRating.toFixed(1)}</span>
           </div>
         )} */}
-{/* --- Footer (Price Top, Button Bottom) --- */}
+        {/* --- Footer (Price Top, Button Bottom) --- */}
         <div className="mt-auto pt-2 pb-2 border-t border-dashed border-gray-100">
-          
+
           {/* Price Block */}
           <div className="mb-3">
-             <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-gray-900">
-                  {formatPrice(displayPrice)}
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg font-bold text-gray-900">
+                {formatPrice(displayPrice)}
+              </span>
+              {discount > 0 && displayMrp > 0 && (
+                <span className="text-xs text-gray-400 line-through">
+                  {formatPrice(displayMrp)}
                 </span>
-                {discount > 0 && displayMrp && (
-                  <span className="text-xs text-gray-400 line-through">
-                    {formatPrice(displayMrp)}
-                  </span>
-                )}
-             </div>
-             {inStock && (
-                <div className="text-[10px] text-green-600 font-medium mt-0.5">
-                   In Stock
-                </div>
-             )}
+              )}
+            </div>
+            {/* Tax-inclusive label */}
+            {taxRate > 0 && (
+              <div className="text-[9px] text-gray-400 mt-0.5">incl. {Math.round(taxRate)}% GST</div>
+            )}
+            {inStock && (
+              <div className="text-[10px] text-green-600 font-medium mt-0.5">
+                In Stock
+              </div>
+            )}
           </div>
 
           {/* Button Block - Centered with Max Width */}
@@ -414,13 +425,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             quantity={1}
             disabled={!inStock}
             // ✅ FIX: Added 'max-w-[220px]', 'mx-auto', and 'block'
-            className={`w-full max-w-[220px] mx-auto block py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide shadow-sm ${
-              inStock 
-                ? 'bg-black text-white hover:bg-gray-800 hover:shadow-md' 
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            }`}
+            className={`w-full max-w-[220px] mx-auto block py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide shadow-sm ${inStock
+              ? 'bg-black text-white hover:bg-gray-800 hover:shadow-md'
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
           />
-          
+
         </div>
 
       </div>

@@ -111,7 +111,7 @@ export const selectSubtotal = createSelector(
   [selectCurrentPricing, selectCheckoutCartItems],
   (pricing, cartItems) => {
     const backendSubtotal = pricing?.subtotal || 0;
-    const calculatedSubtotal = cartItems.reduce((sum, item) => 
+    const calculatedSubtotal = cartItems.reduce((sum, item) =>
       sum + ((item.price || 0) * (item.quantity || 1)), 0
     );
 
@@ -139,7 +139,7 @@ export const selectShippingCost = createSelector(
   (pricing, subtotal) => {
     const backendShipping = pricing?.shipping || 0;
     const calculatedShipping = subtotal >= 1000 ? 0 : 100;
-    
+
     return backendShipping >= 0 ? backendShipping : calculatedShipping;
   }
 );
@@ -162,7 +162,7 @@ export const selectGrandTotal = createSelector(
   (pricing, subtotal, shipping, tax, discount) => {
     const backendTotal = pricing?.total || 0;
     const calculatedTotal = Math.max(0, subtotal + shipping + tax - discount);
-    
+
     // Debug total calculation
     if (subtotal > 0 && Math.abs(backendTotal - calculatedTotal) > 1) {
       console.warn('⚠️ Total calculation mismatch:', {
@@ -172,7 +172,7 @@ export const selectGrandTotal = createSelector(
         components: { subtotal, shipping, tax, discount }
       });
     }
-    
+
     return backendTotal > 0 ? backendTotal : calculatedTotal;
   }
 );
@@ -181,28 +181,27 @@ export const selectGrandTotal = createSelector(
 export const selectPricingVerification = createSelector(
   [selectSubtotal, selectShippingCost, selectTaxAmount, selectDiscountAmount, selectGrandTotal],
   (subtotal, shipping, tax, discount, total) => {
-    const expectedTax = Math.round(subtotal * 0.18);
+    // Backend is the sole source of truth for tax — no hardcoded rate cross-check on frontend
     const expectedTotal = subtotal + shipping + tax - discount;
-    
-    const taxCorrect = Math.abs(tax - expectedTax) <= 1;
     const totalCorrect = Math.abs(total - expectedTotal) <= 1;
-    
+
     return {
       subtotal,
       shipping,
       tax,
       discount,
       total,
-      expectedTax,
+      expectedTax: tax,       // backend value IS the expected value
       expectedTotal,
-      taxCalculation: taxCorrect ? '✅ Correct' : '❌ Incorrect',
+      taxCalculation: '✅ Sourced from backend',
       totalCalculation: totalCorrect ? '✅ Correct' : '❌ Incorrect',
-      taxDifference: tax - expectedTax,
+      taxDifference: 0,
       totalDifference: total - expectedTotal,
       actualTaxRate: subtotal > 0 ? ((tax / subtotal) * 100).toFixed(2) + '%' : '0%'
     };
   }
 );
+
 
 // Product type breakdown
 export const selectProductTypeItems = createSelector(
@@ -210,7 +209,7 @@ export const selectProductTypeItems = createSelector(
   (items) => {
     const products = items.filter(item => item.productType === 'product');
     const preBuiltPCs = items.filter(item => item.productType === 'prebuilt-pc');
-    
+
     return {
       products,
       preBuiltPCs,
@@ -234,7 +233,7 @@ export const selectPriceComparison = createSelector(
       price: item.price,
       quantity: item.quantity,
       total: item.price * item.quantity,
-      taxRate: (item.taxRate * 100) + '%',
+      taxRate: item.taxRate + '%',  // taxRate is stored as percentage (e.g., 18)
       taxAmount: item.taxAmount
     }));
   }
@@ -369,12 +368,12 @@ export const selectCheckoutStatus = createSelector(
     hasShippingAddress: !!shippingAddress,
     hasPaymentMethod: !!paymentMethod,
     hasValidTotal: total > 0,
-    isReady: !loading && 
-             !error && 
-             items.length > 0 && 
-             !!shippingAddress && 
-             !!paymentMethod && 
-             total > 0
+    isReady: !loading &&
+      !error &&
+      items.length > 0 &&
+      !!shippingAddress &&
+      !!paymentMethod &&
+      total > 0
   })
 );
 
@@ -390,19 +389,19 @@ export default {
   selectGSTInfo,
   selectPaymentMethod,
   selectOrderCreationData,
-  
+
   // Derived data
   selectCurrentPricing,
   selectCheckoutCartItems,
   selectCheckoutAddresses,
   selectDefaultAddressId,
   selectTotalCheckoutItems,
-  
+
   // Addresses
   selectDefaultAddress,
   selectCurrentShippingAddress,
   selectCurrentBillingAddress,
-  
+
   // Pricing
   selectSubtotal,
   selectShippingCost,
@@ -410,18 +409,18 @@ export default {
   selectDiscountAmount,
   selectGrandTotal,
   selectPricingVerification,
-  
+
   // Product breakdown
   selectProductTypeItems,
   selectPriceComparison,
-  
+
   // Validation
   selectIsCheckoutValid,
   selectCheckoutSummary,
-  
+
   // Order creation
   selectOrderCreationPayload, // Use this for creating orders
-  
+
   // Debug
   selectCheckoutDebugInfo,
   selectCheckoutStatus

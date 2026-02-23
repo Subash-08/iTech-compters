@@ -29,11 +29,12 @@ const VariantList: React.FC<VariantListProps> = ({
       name: '',
       sku: generateSKU(),
       barcode: generateBarcode(),
-      price: formData.basePrice || 0,
+      price: 0, // Gets calculated on submit
+      inclusivePrice: formData.inclusivePrice || 0,
       offerPrice: formData.offerPrice || 0,
       stockQuantity: 0,
       identifyingAttributes: [],
-      images: { 
+      images: {
         thumbnail: {
           url: formData.images?.thumbnail?.url || '',
           altText: formData.images?.thumbnail?.altText || ''
@@ -43,7 +44,7 @@ const VariantList: React.FC<VariantListProps> = ({
       isActive: true,
       specifications: []
     };
-    
+
     updateFormData({
       variants: [...formData.variants, newVariant]
     });
@@ -82,7 +83,7 @@ const VariantList: React.FC<VariantListProps> = ({
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-purple-600">
-              {formData.variants.length > 0 ? Math.min(...formData.variants.map(v => v.price)) : 0}
+              {formData.variants.length > 0 ? Math.min(...formData.variants.map(v => v.inclusivePrice || v.price || 0)) : 0}
             </div>
             <div className="text-gray-600">Lowest Price</div>
           </div>

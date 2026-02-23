@@ -2,17 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { loadRazorpay, RazorpayResponse, RazorpayError } from '../utils/razorpay';
 import api from '../config/axiosConfig';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  CreditCard, 
-  ShieldCheck, 
-  AlertCircle, 
-  Lock, 
-  RefreshCw, 
-  IndianRupee, 
-  Loader2, 
-  CheckCircle2, 
-  Smartphone, 
-  Globe 
+import {
+  CreditCard,
+  ShieldCheck,
+  AlertCircle,
+  Lock,
+  RefreshCw,
+  IndianRupee,
+  Loader2,
+  CheckCircle2,
+  Smartphone,
+  Globe
 } from 'lucide-react';
 
 // Re-defining interface to ensure self-containment if types aren't exported globally
@@ -56,20 +56,20 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
   const [hasFailed, setHasFailed] = useState<boolean>(false);
   const [paymentAttempts, setPaymentAttempts] = useState<number>(0);
   const [isVerified, setIsVerified] = useState<boolean>(false); // For success animation
-  
+
   const isPaymentOpenRef = useRef<boolean>(false);
   const maxAttempts = 3;
 
   // Auto-open logic
   useEffect(() => {
-    if (orderId && 
-        selectedMethod === 'razorpay' && 
-        !processing && 
-        !autoOpened && 
-        !hasFailed &&
-        paymentAttempts === 0 &&
-        !isPaymentOpenRef.current &&
-        amount > 0) {
+    if (orderId &&
+      selectedMethod === 'razorpay' &&
+      !processing &&
+      !autoOpened &&
+      !hasFailed &&
+      paymentAttempts === 0 &&
+      !isPaymentOpenRef.current &&
+      amount > 0) {
       setAutoOpened(true);
       isPaymentOpenRef.current = true;
       initializeRazorpayPayment();
@@ -94,7 +94,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
     }
   ];
 
-  const initializeRazorpayPayment = async (): Promise<void> => {    
+  const initializeRazorpayPayment = async (): Promise<void> => {
     if (!orderId) {
       onPaymentError('Order not found. Please try creating the order again.');
       return;
@@ -115,9 +115,9 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       setLoadingMessage('Initializing Secure Gateway...');
       isPaymentOpenRef.current = true;
       setPaymentAttempts(prev => prev + 1);
-      
+
       // Create Order
-      const response = await api.post('/payment/razorpay/create-order', { 
+      const response = await api.post('/payment/razorpay/create-order', {
         orderId,
         amount: Math.round(amount * 100)
       });
@@ -143,7 +143,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       }
 
       const options = {
-        key: "rzp_live_S5d4s0XjA7FhY7",
+        key: "rzp_test_SIhog84IuMU49Z",
         amount: result.data.amount || Math.round(amount * 100),
         currency: result.data.currency || 'INR',
         name: 'iTech Store',
@@ -160,7 +160,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
         notes: { orderId, attemptId },
         theme: { color: '#0f172a' },
         modal: {
-          ondismiss: function() {
+          ondismiss: function () {
             handlePaymentClose();
           },
           escape: true,
@@ -169,7 +169,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       };
 
       const razorpayInstance = new (window as any).Razorpay(options);
-      
+
       razorpayInstance.on('payment.failed', function (response: RazorpayError) {
         handlePaymentFailure(response.error.description || 'Payment failed.');
       });
@@ -215,7 +215,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       setHasFailed(false);
       isPaymentOpenRef.current = false;
       setPaymentAttempts(0);
-      
+
       // Delay callback slightly to let user see success animation
       setTimeout(() => {
         onPaymentSuccess(verifyResponse.data);
@@ -229,20 +229,20 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
 
   const handleMethodSelect = (method: 'razorpay'): void => {
     if (processing) return;
-    
+
     if (!amount || amount <= 0) {
       onPaymentError('Order amount is not available.');
       return;
     }
-    
+
     onSelectMethod(method);
-    
+
     if (hasFailed) {
       setHasFailed(false);
       setAutoOpened(false);
       isPaymentOpenRef.current = false;
     }
-    
+
     if (method === 'razorpay' && orderId && amount > 0) {
       initializeRazorpayPayment();
     }
@@ -261,11 +261,11 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
 
   return (
     <div className="space-y-6 relative">
-      
+
       {/* --- Full Overlay Loading/Success State --- */}
       <AnimatePresence>
         {(processing || isVerified) && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -324,13 +324,13 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
           )}
         </h3>
         <p className="text-sm text-slate-500 mt-1 ml-7">
-          {hasFailed 
-            ? 'Don\'t worry, you haven\'t been charged. Please try again.' 
+          {hasFailed
+            ? 'Don\'t worry, you haven\'t been charged. Please try again.'
             : 'All transactions are secured with 256-bit SSL encryption.'
           }
         </p>
       </div>
-      
+
       {/* --- Methods Grid --- */}
       <div className="grid gap-4">
         {paymentMethods.map((method) => (
@@ -341,23 +341,20 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
                 handleMethodSelect(method.id);
               }
             }}
-            className={`group relative overflow-hidden border rounded-xl p-5 cursor-pointer transition-all duration-300 ${
-              selectedMethod === method.id
-                ? 'border-indigo-500 bg-indigo-50/10 ring-1 ring-indigo-500 shadow-md'
-                : hasFailed 
-                  ? 'border-rose-200 bg-rose-50/30'
-                  : 'border-slate-600 bg-white hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/50'
-            } ${processing ? 'opacity-50 pointer-events-none' : ''} ${
-              paymentAttempts >= maxAttempts ? 'opacity-50 pointer-events-none' : ''
-            }`}
+            className={`group relative overflow-hidden border rounded-xl p-5 cursor-pointer transition-all duration-300 ${selectedMethod === method.id
+              ? 'border-indigo-500 bg-indigo-50/10 ring-1 ring-indigo-500 shadow-md'
+              : hasFailed
+                ? 'border-rose-200 bg-rose-50/30'
+                : 'border-slate-600 bg-white hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/50'
+              } ${processing ? 'opacity-50 pointer-events-none' : ''} ${paymentAttempts >= maxAttempts ? 'opacity-50 pointer-events-none' : ''
+              }`}
           >
             <div className="flex items-start gap-4 relative z-10">
               {/* Custom Radio */}
-              <div className={`mt-1 w-5 h-5 rounded-full border flex items-center justify-center transition-colors duration-200 shrink-0 ${
-                selectedMethod === method.id
-                  ? 'border-indigo-600 bg-indigo-600'
-                  : 'border-slate-500 bg-white group-hover:border-slate-400'
-              }`}>
+              <div className={`mt-1 w-5 h-5 rounded-full border flex items-center justify-center transition-colors duration-200 shrink-0 ${selectedMethod === method.id
+                ? 'border-indigo-600 bg-indigo-600'
+                : 'border-slate-500 bg-white group-hover:border-slate-400'
+                }`}>
                 {selectedMethod === method.id && <div className="w-2 h-2 rounded-full bg-white" />}
               </div>
 
@@ -368,16 +365,16 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
                   </h4>
                   {/* Icons Strip */}
                   <div className="flex items-center gap-1.5 opacity-60 grayscale group-hover:grayscale-0 transition-all duration-500">
-                     <CreditCard className="w-4 h-4" />
-                     <Smartphone className="w-4 h-4" />
-                     <Globe className="w-4 h-4" />
+                    <CreditCard className="w-4 h-4" />
+                    <Smartphone className="w-4 h-4" />
+                    <Globe className="w-4 h-4" />
                   </div>
                 </div>
-                
+
                 <p className={`text-sm ${hasFailed ? 'text-rose-600' : 'text-slate-500'}`}>
                   {method.description}
                 </p>
-                
+
                 {paymentAttempts > 0 && !processing && (
                   <div className="flex items-center gap-2 mt-3 text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded w-fit">
                     <RefreshCw className="w-3 h-3" />
@@ -389,7 +386,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
           </div>
         ))}
       </div>
-      
+
       {/* --- Footer Info --- */}
       <div className="bg-slate-50 rounded-xl p-5 border border-slate-100 flex flex-col gap-4">
         <div className="flex justify-between items-end pb-4 border-b border-slate-200">
@@ -408,7 +405,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
             </div>
           )}
         </div>
-        
+
         <div className="flex items-start gap-3">
           <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
           <div>
