@@ -315,7 +315,7 @@ const PricingInventorySection: React.FC<PricingInventorySectionProps> = ({
       </div>
 
       {/* 🆕 UPDATED: Pricing Summary with MRP */}
-      {(formData.mrp && formData.mrp > formData.basePrice) && (
+      {(formData.mrp && formData.mrp > (formData.inclusivePrice || formData.basePrice)) && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <h4 className="text-sm font-medium text-green-900 mb-2">Pricing Summary</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -325,12 +325,12 @@ const PricingInventorySection: React.FC<PricingInventorySectionProps> = ({
             </div>
             <div>
               <span className="text-gray-600">Selling Price:</span>
-              <div className="font-medium text-green-600">₹{formData.basePrice.toFixed(2)}</div>
+              <div className="font-medium text-green-600">₹{(formData.inclusivePrice || formData.basePrice || 0).toFixed(2)}</div>
             </div>
             <div>
               <span className="text-gray-600">You Save:</span>
               <div className="font-medium text-red-600">
-                ₹{(formData.mrp - formData.basePrice).toFixed(2)}
+                ₹{(formData.mrp - (formData.inclusivePrice || formData.basePrice || 0)).toFixed(2)}
               </div>
             </div>
             <div>
