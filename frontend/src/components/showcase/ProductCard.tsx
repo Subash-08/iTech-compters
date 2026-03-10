@@ -37,6 +37,7 @@ export interface Product {
   effectivePrice?: number;
   mrp?: number;
   offerPrice?: number;
+  taxRate?: number;
   stockQuantity?: number;
   hasStock?: boolean;
   condition?: string;
@@ -174,6 +175,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     basePrice,
     mrp,
     offerPrice,
+    taxRate = 0,
     stockQuantity,
     condition,
     averageRating = 0,
@@ -209,7 +211,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     : (stockQuantity || 0) > 0;
 
   // ✅ FIX: Updated Price Logic to include sellingPrice (from logs)
-  const getDisplayPrice = () => {
+  const getSellingPrice = () => {
     if (hasVariants && baseVariant) {
       return baseVariant.offerPrice || baseVariant.price || 0;
     }
@@ -224,7 +226,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     return mrp || basePrice || effectivePrice || sellingPrice || 0;
   };
 
-  const displayPrice = getDisplayPrice();
+  const sellingPriceValue = getSellingPrice();
+  const displayPrice = taxRate > 0
+    ? Math.round(sellingPriceValue * (1 + taxRate / 100))
+    : sellingPriceValue;
   const displayMrp = getDisplayMrp();
 
   // Calculate discount
@@ -316,9 +321,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   // This ensures 'price' is always present, even if the API sends 'basePrice' or 'sellingPrice'
   const wishlistProductData = {
     ...product,
-    price: displayPrice, // Explicitly set the calculated price
-    effectivePrice: displayPrice,
+    price: sellingPriceValue, // Explicitly set the calculated price (tax-exclusive)
+    effectivePrice: sellingPriceValue, // (tax-exclusive)
     mrp: displayMrp,
+    taxRate: taxRate, // Ensure taxRate is passed down
     // Ensure images are properly structured
     images: product.images || (hasVariants && baseVariant ? baseVariant.images : {})
   };
@@ -464,6 +470,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                   </span>
                 )}
               </div>
+
+              {taxRate > 0 && (
+                <div className="text-[10px] text-gray-500 mt-1 mb-1">
+                  incl. {Math.round(taxRate)}% GST
+                </div>
+              )}
 
               <div className="flex items-center">
                 <span className={`flex w-2 h-2 rounded-full mr-2 ${inStock ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>

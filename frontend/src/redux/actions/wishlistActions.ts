@@ -681,7 +681,8 @@ const createEnrichedPCItem = (originalItem: WishlistItem, pcData: any): Wishlist
       performanceRating: pcData.performanceRating,
       category: pcData.category,
       specifications: pcData.specifications,
-      brand: pcData.brand
+      brand: pcData.brand,
+      taxRate: pcData.taxRate
     },
     preBuiltPC: pcData // Replace ID with full object
   };
@@ -735,7 +736,9 @@ const addToWishlist = (wishlistData: AddToWishlistData) => async (dispatch: any,
           slug: wishlistData.product.slug || '',
           stock: wishlistData.product.stockQuantity || 0,
           category: wishlistData.product.category,
-          specifications: wishlistData.product.specifications
+          specifications: wishlistData.product.specifications,
+          taxRate: wishlistData.product.taxRate,
+          basePrice: wishlistData.product.basePrice
         } : {
           _id: productId,
           name: 'Pre-built PC',
@@ -784,7 +787,9 @@ const addToWishlist = (wishlistData: AddToWishlistData) => async (dispatch: any,
         stock: wishlistData.variant?.stock || wishlistData.product.stockQuantity || 0,
         brand: wishlistData.product.brand,
         condition: wishlistData.product.condition,
-        mrp: wishlistData.product.mrp
+        mrp: wishlistData.product.mrp,
+        taxRate: wishlistData.product.taxRate,
+        basePrice: wishlistData.product.basePrice
       } : {
         _id: wishlistData.productId,
         name: 'Product',

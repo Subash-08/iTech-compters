@@ -172,6 +172,10 @@ class InvoiceGenerator {
         y += 25;
         doc.font(this.fonts.regular).fontSize(8).fillColor(this.colors.dark);
 
+        let calcSubtotal = 0;
+        let calcTax = 0;
+        let calcTotal = 0;
+
         const items = order.items || [];
         items.forEach((item) => {
             // Price Calculation
@@ -191,6 +195,10 @@ class InvoiceGenerator {
             const unitTaxAmt = Math.round(price * (gstRate / 100));
             const inclusiveUnitPrice = price + unitTaxAmt;
             const lineTotal = inclusiveUnitPrice * qty;
+
+            calcSubtotal += price * qty;
+            calcTax += unitTaxAmt * qty;
+            calcTotal += lineTotal;
 
             // Name
             let itemName = item.name || 'Product Item';
@@ -213,6 +221,12 @@ class InvoiceGenerator {
 
             y = currentBottomY + 10;
         });
+
+        order.calculatedTotals = {
+            subtotal: calcSubtotal,
+            tax: calcTax,
+            total: calcTotal
+        };
 
         return y;
     }
@@ -238,11 +252,12 @@ class InvoiceGenerator {
         };
 
         const pricing = order.pricing || {};
-        const subtotal = Math.round(pricing.subtotal || pricing.totalPrice || 0);
-        const tax = Math.round(pricing.tax || pricing.totalGst || 0);
+        const calc = order.calculatedTotals || {};
+
+        const subtotal = calc.subtotal !== undefined ? calc.subtotal : Math.round(pricing.subtotal || pricing.totalPrice || 0);
+        const tax = calc.tax !== undefined ? calc.tax : Math.round(pricing.tax || pricing.totalGst || 0);
         const shipping = Math.round(pricing.shipping || pricing.deliveryCharge || 0);
         const discount = Math.round(pricing.discount || 0);
-        const total = Math.round(pricing.total || pricing.finalAmount || 0);
 
         printRow('Subtotal', `${this.currency} ${subtotal.toLocaleString('en-IN')}`);
         printRow('Shipping', `${this.currency} ${shipping.toLocaleString('en-IN')}`);
@@ -254,7 +269,7 @@ class InvoiceGenerator {
         doc.moveTo(summaryX, sumY).lineTo(545, sumY).strokeColor('#333').stroke();
         sumY += 10;
 
-        const totalDue = total - discount;
+        const totalDue = subtotal + tax + shipping - discount;
 
         doc.font(this.fonts.bold).fontSize(12).fillColor(this.colors.primary)
             .text('Total Due', labelX, sumY);

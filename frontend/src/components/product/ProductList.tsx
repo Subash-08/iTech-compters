@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Helmet } from 'react-helmet-async'; 
+import { Helmet } from 'react-helmet-async';
 
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -76,7 +76,7 @@ const ProductList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const { brandName, categoryName } = useParams();
-  
+
   const { handleAuthError } = useAuthErrorHandler();
 
   // Redux selectors
@@ -93,13 +93,13 @@ const ProductList: React.FC = () => {
   const lastSearchQuery = useAppSelector(selectLastSearchQuery);
 
   // --- SEO LOGIC START ---
-  const siteUrl = "https://itechcomputers.shop"; 
-  const canonicalPath = categoryName 
+  const siteUrl = "https://itechcomputers.shop";
+  const canonicalPath = categoryName
     ? `/products/category/${categoryName}`
-    : brandName 
-      ? `/products/brand/${brandName}` 
+    : brandName
+      ? `/products/brand/${brandName}`
       : '/products';
-  
+
   const canonicalUrl = `${siteUrl}${canonicalPath}${currentPage > 1 ? `?page=${currentPage}` : ''}`;
 
   const getSEOTitle = () => {
@@ -136,11 +136,11 @@ const ProductList: React.FC = () => {
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "Home", "item": siteUrl },
         { "@type": "ListItem", "position": 2, "name": "Products", "item": `${siteUrl}/products` },
-        (categoryName || brandName) && { 
-          "@type": "ListItem", 
-          "position": 3, 
-          "name": (categoryName || brandName)?.replace(/-/g, ' '), 
-          "item": canonicalUrl 
+        (categoryName || brandName) && {
+          "@type": "ListItem",
+          "position": 3,
+          "name": (categoryName || brandName),
+          "item": canonicalUrl
         }
       ].filter(Boolean)
     },
@@ -162,7 +162,7 @@ const ProductList: React.FC = () => {
     }
   ];
   // --- SEO LOGIC END ---
-  
+
   const isRouteFilter = useCallback((key: string) => {
     return (key === 'category' && categoryName) || (key === 'brand' && brandName);
   }, [categoryName, brandName]);
@@ -170,7 +170,7 @@ const ProductList: React.FC = () => {
   // ✅ 1. INITIAL CLEANUP: Prevent showing stale (Used) products from other pages
   useEffect(() => {
     dispatch(productActions.clearProducts());
-    
+
     // Optional: Also ensure filters start clean to avoid carrying over 'Used' from other pages
     // before the URL logic kicks in.
     return () => {
@@ -181,13 +181,13 @@ const ProductList: React.FC = () => {
   // Handle URL Params
   useEffect(() => {
     const urlFilters: any = {};
-    
+
     searchParams.forEach((value, key) => {
       // 🔒 SECURITY: If user manually types ?condition=Used, ignore it
       if (key === 'condition' && value.toLowerCase().includes('used')) return;
-      
+
       if ((key === 'category' && categoryName) || (key === 'brand' && brandName)) return;
-      
+
       if (['minPrice', 'maxPrice', 'rating', 'page', 'limit'].includes(key)) {
         const numValue = Number(value);
         urlFilters[key] = value === '' ? null : (isNaN(numValue) ? null : numValue);
@@ -208,7 +208,7 @@ const ProductList: React.FC = () => {
 
     // 🔒 DEFAULT: If no condition is selected (or we stripped 'Used'), force New & Refurbished
     if (!urlFilters.condition) {
-       urlFilters.condition = 'New,Refurbished';
+      urlFilters.condition = 'New,Refurbished';
     }
 
     dispatch(productActions.updateFilters(urlFilters));
@@ -217,18 +217,18 @@ const ProductList: React.FC = () => {
   // Fetch Products
   useEffect(() => {
     const fetchProductsWithAuth = async () => {
-      
+
       // ✅ 2. GUARD CLAUSE: Strict Check
       // If the filters are empty (initial load) OR if they contain 'Used' (stale state),
       // DO NOT FETCH. Wait for the URL useEffect to set 'New,Refurbished'.
       if (!filters.condition || filters.condition.includes('Used')) {
-         return;
+        return;
       }
 
       try {
-        await dispatch(productActions.fetchProducts(filters, { 
-          brandName: brandName?.replace(/-/g, ' '), 
-          categoryName: categoryName?.replace(/-/g, ' ') 
+        await dispatch(productActions.fetchProducts(filters, {
+          brandName: brandName,
+          categoryName: categoryName
         }));
       } catch (error: any) {
         if (handleAuthError(error)) return;
@@ -255,7 +255,7 @@ const ProductList: React.FC = () => {
 
   const handleSortChange = useCallback((sortBy: string) => {
     const urlSortMap: Record<string, string> = {
-      'featured': 'newest', 'newest': 'newest', 'price-low': 'price-low', 
+      'featured': 'newest', 'newest': 'newest', 'price-low': 'price-low',
       'price-high': 'price-high', 'rating': 'rating', 'popular': 'popular'
     };
     updateFilter('sortBy', sortBy);
@@ -265,7 +265,7 @@ const ProductList: React.FC = () => {
   const clearFilters = useCallback(() => {
     const newParams = new URLSearchParams();
     setSearchParams(newParams);
-    
+
     // We manually update Redux *immediately* to prevent a flash of "All Products"
     // while the URL params are being processed.
     dispatch(productActions.updateFilters({
@@ -275,8 +275,8 @@ const ProductList: React.FC = () => {
       inStock: false,
       search: '',
       page: 1,
-      brand: brandName ? brandName.replace(/-/g, ' ') : '',
-      category: categoryName ? categoryName.replace(/-/g, ' ') : '',
+      brand: brandName || '',
+      category: categoryName || '',
       condition: 'New,Refurbished' // 🔒 Lock it down
     }));
 
@@ -311,9 +311,9 @@ const ProductList: React.FC = () => {
 
   const handleRetry = useCallback(async () => {
     try {
-      await dispatch(productActions.fetchProducts(filters, { 
-        brandName: brandName?.replace(/-/g, ' '), 
-        categoryName: categoryName?.replace(/-/g, ' ') 
+      await dispatch(productActions.fetchProducts(filters, {
+        brandName: brandName,
+        categoryName: categoryName
       }));
     } catch (error: any) {
       if (handleAuthError(error)) return;
@@ -380,13 +380,13 @@ const ProductList: React.FC = () => {
         <title>{getSEOTitle()}</title>
         <meta name="description" content={getSEODescription()} />
         <link rel="canonical" href={canonicalUrl} />
-        
+
         {/* Open Graph */}
         <meta property="og:title" content={getSEOTitle()} />
         <meta property="og:description" content={getSEODescription()} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
-        
+
         {/* Don't index search result pages to avoid crawl budget waste */}
         {lastSearchQuery && <meta name="robots" content="noindex, follow" />}
 
@@ -399,16 +399,16 @@ const ProductList: React.FC = () => {
       </Helmet>
 
       <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        
+
         {/* --- Header & Controls --- */}
         <div className="flex flex-col gap-4 mb-6 md:mb-4">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             {/* Title Section */}
             <div className="relative">
-               {/* Breadcrumb-ish / Overline */}
+              {/* Breadcrumb-ish / Overline */}
               {(brandName || categoryName) && (
                 <span className="block text-xs font-semibold tracking-widest text-gray-500 uppercase mb-2">
-                   {brandName ? 'Brand' : 'Collection'}
+                  {brandName ? 'Brand' : 'Collection'}
                 </span>
               )}
               <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-900 capitalize leading-tight">
@@ -482,7 +482,7 @@ const ProductList: React.FC = () => {
 
               {(hasRemovableFilters || lastSearchQuery) && (
                 <button
-                  onClick={() => { clearFilters(); if(lastSearchQuery) clearSearch(); }}
+                  onClick={() => { clearFilters(); if (lastSearchQuery) clearSearch(); }}
                   className="text-xs font-medium text-gray-500 hover:text-gray-900 hover:underline ml-2 transition-colors"
                 >
                   Clear all
@@ -494,7 +494,7 @@ const ProductList: React.FC = () => {
 
         {/* --- Main Layout: Changed lg to xl breakpoints --- */}
         <div className="flex flex-col xl:flex-row gap-8 xl:gap-16 relative">
-          
+
           {/* --- Sidebar Filters --- */}
           {/* Changed lg:w-64 to xl:w-80 (Wider Sidebar)
               Changed lg:block to xl:block (Hidden on 1200px) 
@@ -504,11 +504,11 @@ const ProductList: React.FC = () => {
             xl:relative xl:transform-none xl:z-0 xl:w-80 xl:block
             ${showFilters ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'}
           `}>
-             {/* Mobile Backdrop & Container */}
+            {/* Mobile Backdrop & Container */}
             <div className="absolute inset-0 bg-black/30 backdrop-blur-sm xl:hidden" onClick={() => setShowFilters(false)}></div>
-            
+
             <div className="relative h-full w-[85%] max-w-xs bg-white xl:bg-transparent xl:w-full xl:max-w-none shadow-2xl xl:shadow-none overflow-hidden flex flex-col">
-              
+
               {/* Mobile Header */}
               <div className="xl:hidden px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white">
                 <span className="text-lg font-semibold text-gray-900">Filters</span>
@@ -519,23 +519,23 @@ const ProductList: React.FC = () => {
 
               {/* Filter Content */}
               <div className="flex-1 overflow-y-auto p-6 xl:p-0 xl:sticky xl:top-24">
-                 <ProductDetailFilters
-                   showFilters={true}
-                   availableFilters={{
+                <ProductDetailFilters
+                  showFilters={true}
+                  availableFilters={{
                     ...availableFilters,
-                    conditions: ['New', 'Refurbished'] 
-                   }}
-                   currentFilters={filters}
-                   onUpdateFilter={updateFilter}
-                   onClearFilters={clearFilters}
-                   shouldShowFilter={shouldShowFilter}
-                   products={products}
-                 />
+                    conditions: ['New', 'Refurbished']
+                  }}
+                  currentFilters={filters}
+                  onUpdateFilter={updateFilter}
+                  onClearFilters={clearFilters}
+                  shouldShowFilter={shouldShowFilter}
+                  products={products}
+                />
               </div>
 
               {/* Mobile Footer Actions */}
               <div className="xl:hidden p-6 border-t border-gray-100 bg-white">
-                <button 
+                <button
                   onClick={() => setShowFilters(false)}
                   className="w-full py-3 bg-black text-white font-medium rounded-lg active:scale-95 transition-transform"
                 >
@@ -547,7 +547,7 @@ const ProductList: React.FC = () => {
 
           {/* --- Product Grid Section --- */}
           <div className="flex-1 min-h-[500px]">
-            
+
             {/* Soft Loading State Overlay */}
             {loading && products.length > 0 && (
               <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] z-10 transition-opacity duration-300" />
@@ -565,7 +565,7 @@ const ProductList: React.FC = () => {
                   No products found
                 </h3>
                 <p className="text-gray-500 max-w-sm mx-auto mb-4 text-sm">
-                  {lastSearchQuery 
+                  {lastSearchQuery
                     ? `We couldn't find any matches for "${lastSearchQuery}". Try adjusting your keywords.`
                     : 'Try adjusting your filters to find what you are looking for.'
                   }

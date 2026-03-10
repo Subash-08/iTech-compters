@@ -40,7 +40,7 @@ exports.getActiveShowcaseSections = catchAsyncErrors(async (req, res, next) => {
         .populate({
             path: 'products',
             match: { isActive: true, status: 'Published' },
-            select: 'name slug images basePrice mrp discountPercentage stockQuantity averageRating totalReviews brand categories variants',
+            select: 'name slug images basePrice sellingPrice taxRate mrp discountPercentage stockQuantity averageRating totalReviews brand categories variants',
             populate: [
                 { path: 'brand', select: 'name slug' },
                 { path: 'categories', select: 'name slug' }
@@ -76,7 +76,7 @@ exports.getShowcaseSectionById = catchAsyncErrors(async (req, res, next) => {
         .populate({
             path: 'products',
             match: { isActive: true, status: 'Published' },
-            select: 'name slug description images basePrice mrp discountPercentage stockQuantity averageRating totalReviews brand categories variants specifications features',
+            select: 'name slug description images basePrice sellingPrice taxRate mrp discountPercentage stockQuantity averageRating totalReviews brand categories variants specifications features',
             populate: [
                 { path: 'brand', select: 'name slug' },
                 { path: 'categories', select: 'name slug' }
@@ -136,7 +136,7 @@ exports.getAdminShowcaseSections = catchAsyncErrors(async (req, res, next) => {
     const sections = await ShowcaseSection.find(filter)
         .populate({
             path: 'products',
-            select: 'name images basePrice stockQuantity'
+            select: 'name images basePrice sellingPrice taxRate stockQuantity'
         })
         .populate('meta.createdBy', 'name email')
         .populate('meta.updatedBy', 'name email')

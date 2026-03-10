@@ -314,7 +314,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="absolute top-3 right-3 z-20">
           <AddToWishlistButton
             productId={_id}
-            product={product}
+            product={{
+              ...product,
+              price: sellingPrice,
+              effectivePrice: sellingPrice,
+              mrp: displayMrp,
+              taxRate: taxRate,
+              images: product.images || (hasVariants && baseVariant ? baseVariant.images : {})
+            }}
             variant={hasVariants && baseVariant ? {
               variantId: baseVariant._id,
               name: baseVariant.name,
@@ -410,7 +417,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {/* Button Block - Centered with Max Width */}
           <AddToCartButton
             productId={_id}
-            product={product}
+            product={{
+              ...product,
+              price: sellingPrice,
+              effectivePrice: sellingPrice,
+              mrp: displayMrp,
+              taxRate: taxRate,
+              images: product.images || (hasVariants && baseVariant ? baseVariant.images : {})
+            }}
             variant={hasVariants && baseVariant ? {
               variantId: baseVariant._id,
               name: baseVariant.name,

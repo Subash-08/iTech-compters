@@ -205,7 +205,7 @@ const WishlistItem: React.FC<WishlistItemProps> = ({ item, onRemove }) => {
     }
 
     // Determine tax rate
-    let taxRate = 18;
+    let taxRate;
     if (item.productType === 'prebuilt-pc') {
       const pc = item.product as any;
       if (pc.taxRate !== undefined) taxRate = pc.taxRate;

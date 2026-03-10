@@ -62,7 +62,7 @@ exports.addPreBuiltPCToWishlist = catchAsyncErrors(async (req, res, next) => {
         // ✅ FIXED: Proper population with price fields
         await wishlist.populate({
             path: 'items.preBuiltPC',
-            select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
+            select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews taxRate'
         });
 
         res.status(200).json({
@@ -109,7 +109,7 @@ exports.removePreBuiltPCFromWishlist = catchAsyncErrors(async (req, res, next) =
         const updatedWishlist = await Wishlist.findById(wishlist._id)
             .populate({
                 path: 'items.product',
-                select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants',
+                select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants taxRate',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'categories', select: 'name' }
@@ -117,7 +117,7 @@ exports.removePreBuiltPCFromWishlist = catchAsyncErrors(async (req, res, next) =
             })
             .populate({
                 path: 'items.preBuiltPC',
-                select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews'
+                select: 'name images totalPrice discountPrice slug category performanceRating condition specifications stockQuantity averageRating totalReviews taxRate'
             });
 
         res.status(200).json({
@@ -138,7 +138,7 @@ exports.getWishlist = catchAsyncErrors(async (req, res, next) => {
         let wishlist = await Wishlist.findOne({ userId })
             .populate({
                 path: 'items.product',
-                select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants',
+                select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants taxRate',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'categories', select: 'name' }
@@ -146,7 +146,7 @@ exports.getWishlist = catchAsyncErrors(async (req, res, next) => {
             })
             .populate({
                 path: 'items.preBuiltPC',
-                select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
+                select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews taxRate'
             });
 
         if (!wishlist) {
@@ -269,7 +269,7 @@ exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
     const updatedWishlist = await Wishlist.findById(wishlist._id)
         .populate({
             path: 'items.product',
-            select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants',
+            select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants taxRate',
             populate: [
                 { path: 'brand', select: 'name' },
                 { path: 'categories', select: 'name' }
@@ -277,7 +277,7 @@ exports.removeFromWishlist = catchAsyncErrors(async (req, res, next) => {
         })
         .populate({
             path: 'items.preBuiltPC',
-            select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
+            select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews taxRate'
         });
 
     res.status(200).json({
@@ -346,7 +346,7 @@ exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
         const populatedWishlist = await Wishlist.findById(wishlist._id)
             .populate({
                 path: 'items.product',
-                select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants',
+                select: 'name images basePrice mrp offerPrice slug stockQuantity brand categories condition discountPercentage averageRating totalReviews variants taxRate',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'categories', select: 'name' }
@@ -354,7 +354,7 @@ exports.addToWishlist = catchAsyncErrors(async (req, res, next) => {
             })
             .populate({
                 path: 'items.preBuiltPC',
-                select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
+                select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews taxRate'
             });
 
         res.status(200).json({
@@ -434,7 +434,7 @@ exports.getMyWishlist = catchAsyncErrors(async (req, res, next) => {
     const wishlist = await Wishlist.findOne({ userId })
         .populate({
             path: 'items.product',
-            select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications',
+            select: 'name basePrice offerPrice discountPercentage stockQuantity images slug brand categories tags condition averageRating totalReviews description specifications taxRate',
             populate: [
                 { path: 'brand', select: 'name' },
                 { path: 'categories', select: 'name' }
@@ -442,7 +442,7 @@ exports.getMyWishlist = catchAsyncErrors(async (req, res, next) => {
         })
         .populate({
             path: 'items.preBuiltPC',
-            select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews'
+            select: 'name images totalPrice discountPrice slug category performanceRating condition stockQuantity averageRating totalReviews taxRate'
         });
 
     if (!wishlist) {
@@ -476,7 +476,7 @@ exports.getUserWishlist = catchAsyncErrors(async (req, res, next) => {
         path: 'wishlistId',
         populate: {
             path: 'items.product',
-            select: 'name images price slug stock brand category discountPrice ratings',
+            select: 'name images price slug stock brand category discountPrice ratings taxRate',
             populate: [
                 { path: 'brand', select: 'name' },
                 { path: 'category', select: 'name' }
@@ -598,7 +598,7 @@ exports.syncGuestWishlist = catchAsyncErrors(async (req, res, next) => {
     const populatedWishlist = await Wishlist.findById(wishlist._id)
         .populate({
             path: 'items.product',
-            select: 'name images price slug stock brand category discountPrice ratings',
+            select: 'name images price slug stock brand category discountPrice ratings taxRate',
             populate: [
                 { path: 'brand', select: 'name' },
                 { path: 'category', select: 'name' }
@@ -623,7 +623,7 @@ exports.getCurrentWishlist = catchAsyncErrors(async (req, res, next) => {
         const wishlist = await Wishlist.findOne({ userId: req.user._id })
             .populate({
                 path: 'items.product',
-                select: 'name images price slug stock brand category discountPrice ratings',
+                select: 'name images price slug stock brand category discountPrice ratings taxRate',
                 populate: [
                     { path: 'brand', select: 'name' },
                     { path: 'category', select: 'name' }

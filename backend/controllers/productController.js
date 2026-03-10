@@ -279,7 +279,7 @@ exports.getRelatedProducts = catchAsyncErrors(async (req, res, next) => {
         };
 
         const relatedProducts = await Product.find(relatedQuery)
-            .select('name slug brand categories images basePrice mrp averageRating totalReviews condition')
+            .select('name slug brand categories images basePrice mrp averageRating totalReviews condition taxRate')
             .populate('brand', 'name slug')
             .populate('categories', 'name slug')
             .limit(parseInt(limit))
@@ -405,6 +405,7 @@ exports.getLinkedProducts = catchAsyncErrors(async (req, res, next) => {
                     averageRating: 1,
                     totalReviews: 1,
                     condition: 1,
+                    taxRate: 1,
                     variantConfiguration: 1,
                     variants: {
                         $filter: {

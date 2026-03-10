@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { ShowcaseSection } from './showcaseSection';
 // ✅ FIX: Reverted to your working import path
-import ProductCard from './ProductCard'; 
+import ProductCard from './ProductCard';
 import CountdownTimer from './CountdownTimer';
 
 interface ProductShowcaseSectionProps {
   section: ShowcaseSection;
   className?: string;
   // ✅ ADDED: style prop is required for the fade-in animation to work
-  style?: React.CSSProperties; 
+  style?: React.CSSProperties;
 }
 
 const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
@@ -30,16 +30,15 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
     showViewAll,
     viewAllLink
   } = section;
-  
 
   // Smooth scroll handler
   const scrollCarousel = (direction: 'left' | 'right') => {
     if (carouselRef.current) {
       const scrollAmount = carouselRef.current.offsetWidth * 0.8;
-      const newScrollLeft = direction === 'left' 
-        ? carouselRef.current.scrollLeft - scrollAmount 
+      const newScrollLeft = direction === 'left'
+        ? carouselRef.current.scrollLeft - scrollAmount
         : carouselRef.current.scrollLeft + scrollAmount;
-      
+
       carouselRef.current.scrollTo({
         left: newScrollLeft,
         behavior: 'smooth'
@@ -53,7 +52,7 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
   return (
     // ✅ Applied style here so the Container's stagger animation works
     <section className={`py-8 ${className}`} style={style}>
-      
+
       {/* --- Header --- */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-8">
         <div className="space-y-2">
@@ -75,7 +74,7 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
               )}
             </div>
           </div>
-          
+
           {subtitle && (
             <p className="text-gray-500 text-sm lg:text-base max-w-2xl pl-5">
               {subtitle}
@@ -86,7 +85,7 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
         {/* Header Actions */}
         <div className="flex items-center gap-4">
           {showViewAll && (
-            <Link 
+            <Link
               to={viewAllLink || `/products`}
               className="group flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors duration-300"
             >
@@ -94,18 +93,18 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
               <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
           )}
-          
+
           {/* Carousel Navigation */}
           {type === 'carousel' && products.length > 4 && (
             <div className="hidden lg:flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => scrollCarousel('left')}
                 className="w-10 h-10 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-colors duration-300 active:scale-95 flex items-center justify-center"
                 aria-label="Previous products"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <button 
+              <button
                 onClick={() => scrollCarousel('right')}
                 className="w-10 h-10 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-colors duration-300 active:scale-95 flex items-center justify-center"
                 aria-label="Next products"
@@ -118,36 +117,36 @@ const ProductShowcaseSection: React.FC<ProductShowcaseSectionProps> = ({
       </div>
 
       {/* --- Content Grid/Carousel --- */}
-<div className="relative w-full max-w-7xl mx-auto px-2">
-  {type === 'grid' ? (
-    <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory lg:grid lg:grid-cols-4 lg:gap-6 lg:pb-0 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      {products.slice(0, 8).map((product) => (
-        <div 
-          key={product._id} 
-          className="w-[220px] max-w-[220px] sm:w-[260px] sm:max-w-[260px] md:w-[280px] md:max-w-[280px] lg:w-auto lg:max-w-none snap-start shrink-0"
-        >
-          <ProductCard product={product as any} cardStyle="modern" />
-        </div>
-      ))}
-    </div>
-  ) : (
-    <div className="relative">
-      <div
-        ref={carouselRef}
-        className="flex gap-4 lg:gap-6 overflow-x-auto pb-8 pt-2 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-2"
-      >
-        {products.map((product) => (
-          <div
-            key={product._id}
-            className="max-w-[320px] min-w-[240px] md:min-w-[260px] lg:min-w-[280px] snap-start"
-          >
-            <ProductCard product={product as any} cardStyle="modern" />
+      <div className="relative w-full max-w-7xl mx-auto px-2">
+        {type === 'grid' ? (
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory lg:grid lg:grid-cols-4 lg:gap-6 lg:pb-0 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {products.slice(0, 8).map((product) => (
+              <div
+                key={product._id}
+                className="w-[220px] max-w-[220px] sm:w-[260px] sm:max-w-[260px] md:w-[280px] md:max-w-[280px] lg:w-auto lg:max-w-none snap-start shrink-0"
+              >
+                <ProductCard product={product as any} cardStyle="modern" />
+              </div>
+            ))}
           </div>
-        ))}
+        ) : (
+          <div className="relative">
+            <div
+              ref={carouselRef}
+              className="flex gap-4 lg:gap-6 overflow-x-auto pb-8 pt-2 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-2"
+            >
+              {products.map((product) => (
+                <div
+                  key={product._id}
+                  className="max-w-[320px] min-w-[240px] md:min-w-[260px] lg:min-w-[280px] snap-start"
+                >
+                  <ProductCard product={product as any} cardStyle="modern" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  )}
-</div>
 
     </section>
   );
