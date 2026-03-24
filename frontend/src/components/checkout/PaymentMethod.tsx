@@ -162,7 +162,7 @@ const PaymentMethod: React.FC<PaymentMethodProps> = ({
       console.log(`[DEBUG] Razorpay initialize options with amount: ${result.data.amount || Math.round(amount * 100)} (prop amount was ${amount})`);
 
       const options = {
-        key: "rzp_test_SIhog84IuMU49Z",
+        key: "rzp_live_S5d4s0XjA7FhY7",
         amount: result.data.amount || Math.round(amount * 100),
         currency: result.data.currency || 'INR',
         name: 'iTech Store',
